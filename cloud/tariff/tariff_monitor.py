@@ -362,18 +362,20 @@ SRC_OF = {
     "cbn":     "中国广电「资费公示」H5（m.10099.com.cn / queryTariffAllByCond）",
 }
 # 每日巡检里**由脚本直连就能采到**的那几家（有 src / base / rows 的）。
-NET_LIVE = ("move", "unicom", "cbn")
-# 采不到、但能渲染的那几家 —— 目前只有电信。
+# 电信也在里面 —— 但它和另两家不同：它需要真实浏览器，是**机会性采集**
+# （采到就正常入库；采不到自动退回下面的 NET_SNAP 快照渲染，绝不拖垮其它网）。
+NET_LIVE = ("move", "unicom", "cbn", "telecom")
+# 「采不到时的渲染兜底」名单 —— 目前只有电信。
 #
-# 电信被瑞数类 JS 挑战 WAF 挡着：纯 HTTP 必 412，自动化浏览器（navigator.webdriver=true）
-# 被 400 硬拒，云端 Runner 上没有「真实浏览器」这条路可走。它的数据只能在别处采好，
-# 把**归一化快照**提交进仓库（snapshots/ct_tariff_*.json.gz），页面从这里读。
+# 2026-09-22 修正：此前这里写的是「电信在云端采不到，只能快照直渲」，
+# 那是**推断**（"Runner 上没浏览器"）而不是实测。当天在 ubuntu-latest 上起了
+# Xvfb + 有头 Chrome 实测：挑战自动通过、`navigator.webdriver=false`、
+# 884 条 5 个分类逐项采全 ⇒ **云端本来就采得到**，缺的只是那一步 xvfb 启动。
 #
-# 🔴 它们**不进 NET_LIVE**。进了就会走 net_round()，被当成「可采集的网」：
-#    云端每天抛一次「采集异常」，然后把上一版快照原样当作本轮结果 —— 噪音大，
-#    更要命的是把「这网根本没在更新」这件事掩盖成了「运行正常」。
-#    NET_SNAP 的网只参与**渲染**，基线日期取自快照自身（data_day 读它的 fetchedAt），
-#    所以页面上显示的陈旧程度是**诚实**的，不会拿今天的日期冒充旧数据。
+# 现在的语义是「兜底」而不是「唯一通路」：本轮没拿到采集产物（CI 里那步失败、
+# 或本机没有 .ct_raw.json）就用仓库里最新那份快照渲染。这样即使哪天瑞数改规则
+# 或 runner 镜像没了 Chrome，页面也**不会少一网**，只是数据停在上一版 ——
+# 而且基线日期取自快照自身，陈旧是**看得见**的，不会假装今天更新过。
 NET_SNAP = ("telecom",)
 # 每网一份独立快照，文件名前缀区分 —— 共用一套快照会让两网互相覆盖
 # （load_prev 按文件名排序取「最近一份」，混在一起就会拿联通昨天的当移动今天的基准）。
@@ -384,6 +386,9 @@ SNAP_PREFIX = {"move": "hebei_tariff_", "unicom": "unicom_tariff_",
 NET_RUN = {
     "unicom": ("unicom_monitor", "河北联通", "unicom"),
     "cbn":    ("cbn_monitor",    "中国广电", "cbn"),
+    # 电信适配器只做「原始产物 → 中间格式」的纯转换，不发请求；
+    # 真正的采集在 tariff-daily.yml 里由 ci_grab.sh（Xvfb + 真实 Chrome）先跑完。
+    "telecom": ("ct_monitor",    "河北电信", "ct"),
 }
 # 页面顶部那行「来源」在各网切换时要跟着变，所以它不能是静态文本（模板里改成由 JS 渲染）
 UP_N = 0        # 由 build_html 回填：四网总条数（供 __N__ 占位符）
@@ -732,7 +737,7 @@ def emit_summary(new_o, added, removed, changed, report_path, has_prev,
         f.write("\n".join(L) + "\n")
 
 
-def net_round(code, today):
+def net_round(code, today, fallback=None):
     """跑一遍「非移动」的某一网：采集 → 骤降自检 → 快照 → 变更检测 → 报告。
 
     与移动共用同一套机制（同 index_rows / diff_rows / write_report），
@@ -746,15 +751,25 @@ def net_round(code, today):
       只有模块名/显示名/文件名三处不同（都在 NET_RUN 里）。复制一份就等于
       把「骤降保护」「沿用上次快照」「基线不覆盖」这些约束各写两遍 ——
       改一处漏一处时，症状是某网静默地不再保护数据。
+
+    ``fallback``：采集失败 / 数据异常时用哪个「上一版」顶上，默认 ``load_prev``。
+      电信（机会性采集）传 ``load_latest`` —— 本轮没采到时该用**最新那份**快照
+      （可能就是今天早些时候采的），而不是「严格早于今天」的那份；
+      否则明明仓库里有今天的数据，页面却退回昨天。
     """
     mod_name, cn, tag = NET_RUN[code]
     prefix = SNAP_PREFIX[code]
+    load = fallback or load_prev
     try:
         mod = __import__(mod_name)
         data = mod.fetch_all()
-    except Exception as e:
+    except (Exception, SystemExit) as e:
+        # SystemExit 也要接：ct_monitor.fetch_all() 在缺少 .ct_raw.json 时
+        # 刻意用 SystemExit 抛出一段给**人看**的采集指引（本机直接跑时体验好）。
+        # 只接 Exception 的话，一次「本轮没采到电信」会直接把整个巡检打断，
+        # 连移动/联通/广电的页面都出不来 —— 正是这里最不该发生的事。
         log(f"!! {cn}采集异常，本轮沿用上次：{type(e).__name__}: {e}")
-        return load_prev(today, prefix)[0], None
+        return load(today, prefix)[0], None
     old_o, _ = load_prev(today, prefix)
     if not data:
         log(f"!! {cn}采集失败，本轮沿用上次快照")
@@ -784,6 +799,29 @@ def net_round(code, today):
     return data, {"added": set(a), "changed": {k for k, _ in c}}
 
 
+def snap_net_ready(code, today):
+    """兜底网（电信）本轮是否真拿到了采集产物 —— 决定走采集还是走快照。
+
+    ★ 判据是**采集产物里记录的日期**，不是「文件在不在」：`.ct_raw.json` 不入库，
+      但本机那份可能是上周采的，光看存在就走采集，会拿一份陈旧数据当今日快照入库
+      （还会连带生成一份「电信无变化」的假报告）。用 mtime 更糟 ——
+      CI 每次都是全新 checkout，mtime 恒为「现在」，等于恒真。
+    """
+    if code != "telecom":
+        return True
+    try:
+        ct = __import__("ct_monitor")
+    except Exception as e:
+        log(f"!! 电信适配器不可用（{type(e).__name__}: {e}），本轮改用快照渲染")
+        return False
+    d = ct.raw_day()
+    if d == today:
+        return True
+    log(f"-- 电信本轮没有新采到的原始数据"
+        f"（.ct_raw.json 记录的采集日 {d or '（无文件）'} ≠ 今天 {today}），改用快照渲染")
+    return False
+
+
 def other_nets(today):
     """把「移动之外」的每一网都跑一遍。
 
@@ -796,16 +834,24 @@ def other_nets(today):
       原来 main() 里两处（首版基线分支、常规分支）各写一遍联通的调用与提示拼接，
       接第三网就得改四处 —— 漏一处就是「某网采了但页面没提示 / 提示错字」。
 
-    ★ 2026-09-22 追加 NET_SNAP：电信那种「采不到但快照在仓库里」的网，
-      在这里补进 sources 参与渲染。**不能**只改 main()，因为进入页面有两条路
-      （首版基线分支 & 常规分支）都调本函数 —— 只补一处，另一处就会静默少一网。
+    ★ 2026-09-22 追加 NET_SNAP（兜底名单，目前只有电信）：
+      电信是「机会性采集」—— 云端有真实 Chrome 时采得到，采不到就退回仓库快照。
+      两条路都从这里进，**不能只改 main()**：进页面有两条路（首版基线分支 &
+      常规分支）都调本函数，只补一处，另一处就会静默少一网。
     """
     sources, diffs, tails = {}, {}, []
     sh_of = {c: sh for c, sh, _ in NETS_META}
     for code in NET_LIVE:
         if code == "move":
             continue
-        data, dd = net_round(code, today)
+        # 兜底网（电信）先确认「本轮真拿到了采集产物」再采 ——
+        # 没有就跳过，交给下面的 NET_SNAP 用快照顶上。
+        # 这一步必须在 net_round **之前**：ct_monitor 宁可抛 SystemExit 给一段
+        # 人看的采集指引，也不肯静默返回空 —— 那对人是好事，对无人值守是打扰。
+        if code in NET_SNAP and not snap_net_ready(code, today):
+            continue
+        fb = load_latest if code in NET_SNAP else None
+        data, dd = net_round(code, today, fallback=fb)
         sources[code] = data
         diffs[code] = dd
         cn = sh_of.get(code, code)
@@ -815,10 +861,12 @@ def other_nets(today):
             else:
                 tails.append(f" · {cn}无变化")
 
-    # ── 快照直渲的网（电信）──────────────────────────────────────────
+    # ── 快照兜底的网（电信本轮没采到时）────────────────────────────────
     # 提示语里必须带上**快照日期**：这一网在本轮里没有发生任何采集，
     # 只说「电信 884 条」会让人以为它今天也被抓过一次。日期是它唯一诚实的时效声明。
     for code in NET_SNAP:
+        if sources.get(code):
+            continue          # 本轮真采到了，不需要兜底
         cn = sh_of.get(code, code)
         o, p = load_latest(today, SNAP_PREFIX[code])
         if not o:

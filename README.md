@@ -102,26 +102,30 @@ User-Agent:       CtClient;13.4.0;Android;16;23113RKC6C
 
 真实 Chrome + 远程调试口（启动只给 `--remote-debugging-port`，
 **不给** `--enable-automation`）+ CDP 页面内执行采集 JS —— 页面自带 CryptoJS 造包体。
-工具在 `probes/tools/ct_browser/`。
+工具在 `probes/tools/ct_browser/`，云端入口是 `ci_grab.sh`。
 
-⚠️ **代价是它进不了云端 CI**（GitHub Runner 上没有「真实浏览器」这条路）。所以本仓库用
-**「采集」与「渲染」分离**来处理这一网 —— 这也是「四网」在页面上能成立的原因：
+🟢 **它在云端也采得到**（2026-09-22 实测，ubuntu-latest）：
+Xvfb 起**有头** Chrome，挑战自动通过、`navigator.webdriver=false`、884 条逐项采全。
+之前「电信进不了云端 CI」是**推断错误** —— 缺的不是「云端」，是一块屏幕。
+详见 `docs/电信云端采集可行性-20260922.md`。
 
-- CI 的每日巡检**直采**移动 / 联通 / 广电三网（`NET_LIVE`）；
-- 电信（`NET_SNAP`）**不注册采集**（注册了云端必失败、还会天天刷「采集异常」），
-  但它照常**渲染**：页面从仓库里那份归一化快照
-  `cloud/tariff/snapshots/ct_tariff_YYYYMMDD.json.gz` 读数据。
-- ★ 关键在于**基线日期取自快照自身**（`data_day()` 读它的 `fetchedAt`），
-  而不是巡检当天 —— 所以页面上电信显示的陈旧程度是**诚实**的：旧就是旧，
-  绝不会拿今天的日期冒充一份上周的数据。
-- 🔴 **对比 `load_prev` 与 `load_latest`**：前者是「上一版」（严格早于今天，用于 diff），
-  后者是「最新版」（不晚于今天，用于渲染）。渲染用错成前者的症状是
+即便如此，电信仍是**机会性采集**（不硬依赖），这是本仓库处理这一网的方式：
+
+- 每日巡检先跑 `ci_grab.sh`（Xvfb + 有头 Chrome）拿原始产物，再直线抓另外三网；
+- 采到 ⇒ 电信与移动/联通/广电一样走完整轮次（快照 + 变更报告 + 页面徽章）；
+- 采不到 ⇒ 自动退回仓库里最新那份归一化快照
+  （`cloud/tariff/snapshots/ct_tariff_YYYYMMDD.json.gz`）渲染。
+  **页面不会少一网**，只是电信停在上一版，且会显式标注「快照兜底（基线早 N 天）」。
+- ★ 这样做的关键前提：**基线日期取自数据自身**（`data_day()` 读它的 `fetchedAt`），
+  而不是巡检当天 —— 所以陈旧是**看得见**的，绝不会拿今天的日期冒充上周的数据。
+- 🔴 **`load_prev` 与 `load_latest` 是两个语义**：前者是「上一版」（严格早于今天，
+  用于 diff），后者是「最新版」（不晚于今天，用于兜底渲染）。渲染用错成前者的症状是
   「今天明明采到了、页面还显示昨天」，看着像没更新，实则是取错了函数。
+- 🔴 **`ci_grab.sh` 永不非零退出**：它是可失败的一步，不该把另外三网的页面部署一起拖死；
+  它只负责把失败原因打成 `::warning::` 并留下截图/日志 artifact。
 
-采集侧（本机 / 任何有真实浏览器的地方）：真实 Chrome + 远程调试口（启动只给
-`--remote-debugging-port`，**不给** `--enable-automation`）+ CDP 页面内执行采集 JS。
-采完把归一化快照提交进 `cloud/tariff/snapshots/`，页面下次运行即生效 ——
-**不需要改任何代码**（这也是把数据做成快照、而不是塞进页面的价值）。
+本机想手动补采也可以：跑同一条链路（`--remote-debugging-port` + `harvest_hb.js`），
+产物 `cloud/tariff/.ct_raw.json` 交给 `rebuild_ct.py` 一次性重建页面。
 
 其他实测要点：
 
@@ -197,9 +201,11 @@ python tariff_monitor.py                        # 抓取 ~15s，写快照 + 报�
 也可在 Actions 页面手动 `workflow_dispatch`：
 
 ```
-检出 → 装 pycryptodome → 环境自检（密钥装载 + 出口连通）
-     → 抓取三网 + 比对变更 + 生成页面
-     → 逐网校验页面（占位符 / 条数区间 / 行字段形态）
+检出 → 装 pycryptodome + websocket-client + xvfb
+     → 环境自检（密钥装载 + 出口连通预检，**只告警不阻断**）
+     → 采集电信（Xvfb + 有头 Chrome + CDP；失败只发 ::warning::，走快照兜底）
+     → 抓取另三网 + 比对变更 + 生成页面（四网）
+     → 逐网校验页面（占位符 / 条数区间 / 行字段形态 / 电信是直采还是兜底）
      → 上传 artifact → 部署 GitHub Pages   ← 线上页面到这一步更新
      → 提交快照 / 变更报告 / gz 归档回仓库
 ```
@@ -209,6 +215,10 @@ python tariff_monitor.py                        # 抓取 ~15s，写快照 + 报�
 - **数据**：每日快照与变更报告提交回本仓库（这就是自动更新的数据历史）。
 - ⚠️ 出口连通预检**不能用 `curl`**：Linux 的 curl 走 OpenSSL 3.x，会因
   `UNSAFE_LEGACY_RENEGOTIATION_DISABLED` 误报 `HTTP=000`，而脚本实际是通的 —— 用 python 预检。
+- 🔴 **预检只告警，不做闸门**。2026-09-22 它报 `Errno 101 Network is unreachable`
+  把整轮掐死过（抓取 / 校验 / 部署全部 skipped），而同一分支上一次运行是通的 ——
+  单发连通探针天生会假阴性，而它的 URL、握手参数都和真实抓取不是同一条路径。
+  真正的闸门是抓取本身（抓到 0 条会明确失败）。
 
 ---
 
@@ -280,9 +290,9 @@ python tariff_monitor.py                        # 抓取 ~15s，写快照 + 报�
 │   ├── snapshots/ · changes/ · page/ · docs/ · state.json
 ├── probes/                       ← 逆向探针（可独立运行）
 │   ├── he_unicom_tariff.py · he_cbn_tariff.py · he_ct_tariff.py
-│   └── tools/ct_browser/         ← 电信真实 Chrome + CDP 采集工具链
+│   └── tools/ct_browser/         ← 电信真实 Chrome + CDP 采集工具链（ci_grab.sh 为云端入口）
 ├── evidence/                     ← 抓包证据（已脱敏）
-└── docs/                         ← 逆向过程报告
+└── docs/                         ← 逆向过程报告 + 云端采集可行性实测
 ```
 
 > `probes/` 与 `cloud/tariff/` 的分工：探针是**怎么把接口问出来的**（可独立跑、

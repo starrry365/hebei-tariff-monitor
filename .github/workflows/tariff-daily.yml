@@ -4,17 +4,20 @@ name: 资费每日巡检 + 页面部署
 # 河北四网「资费专区」抓取 → 差异对比 → 生成查询页 → 部署到 GitHub Pages
 #
 # 三网（移动 / 联通 / 广电）走纯 HTTP，无需任何登录凭证
-#（2026-09-20 实测：无 token、无签名，明文请求体即可），不存在 Cookie 过期 / 顶号问题，
+#（2026-09-20 实测：无 token、无签名、明文请求体即可），不存在 Cookie 过期 / 顶号问题，
 # 适合长期无人值守。
 #
-# 🔴 电信那网**在 CI 里采不到**：它的 WAF 是瑞数类 JS 挑战，纯 HTTP 必 412，
-#    而自动化浏览器（navigator.webdriver=true）会被 400 硬拒 —— 云端 Runner 没有
-#    「真实浏览器」这条路。所以电信走的是**快照直渲**：
-#      · 数据由真实 Chrome 在别处采好后，把归一化快照提交进
-#        `cloud/tariff/snapshots/ct_tariff_YYYYMMDD.json.gz`；
-#      · 本工作流照常把这网渲染进页面，基线日期取自快照自身 ⇒ 页面显示的
-#        新鲜度是诚实的（旧就是旧），不会拿巡检日期冒充数据日期。
-#      · 采集链路见 `probes/tools/ct_browser/`；快照一提交，页面下次运行即生效。
+# 电信走**真实 Chrome** —— 它的 WAF 是瑞数类 JS 挑战：纯 HTTP 必 412，
+# 且 navigator.webdriver=true 的自动化浏览器会被 400 空响应硬拒。
+# 🟢 2026-09-22 实测（ubuntu-latest）：Xvfb + **有头** Chrome（启动只给
+#    --remote-debugging-port，不给 --enable-automation）挑战自动通过，
+#    884 条 5 个分类逐项采全 ⇒「云端采不到电信」是个**推断错误**，
+#    真正的前提只是「得有浏览器 + 得有屏幕」。采集脚本 = ci_grab.sh。
+#    ⚠️ 别图省事改回 --headless：UA 带 HeadlessChrome，等于自己把难度调高。
+#
+# 电信仍是**机会性采集**（不硬依赖）：ci_grab.sh 失败时（瑞数改规则 / 镜像没 Chrome），
+# tariff_monitor 自动退回仓库里最新那份快照渲染 ⇒ 页面**不会少一网**，
+# 只是电信数据停在上一版，且基线日期取自快照自身，陈旧是看得见的。
 #
 # 页面公开可访问：https://starrry365.github.io/hebei-tariff-monitor/
 # 每次运行都会重新部署，所以线上页面始终是最近一次成功巡检的数据。
@@ -57,7 +60,11 @@ jobs:
           python-version: "3.12"
 
       - name: 安装依赖
-        run: python -m pip install --quiet --disable-pip-version-check pycryptodome
+        run: |
+          python -m pip install --quiet --disable-pip-version-check pycryptodome websocket-client
+          # xvfb：电信采集要一块「屏幕」才能起有头 Chrome（headless 会被 WAF 识别）
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb >/dev/null
 
       - name: 环境自检
         run: |
@@ -67,11 +74,57 @@ jobs:
           python -c "import Crypto; print('pycryptodome', Crypto.__version__)"
           echo "--- 密钥装载检查 ---"
           PYTHONPATH=cloud/tariff python -c "import mz_crypto as m; print('    网关密钥已装载: key=%d字节 iv=%d字节' % (len(m.KEY), len(m.IV)))"
-          echo "--- 出口连通预检 ---"
+
+          # ── 出口连通预检：**只告警，不失败** ─────────────────────────────
+          # 🔴 2026-09-22 踩到：这一步 `OSError [Errno 101] Network is unreachable`
+          #    把整轮巡检直接掐死（抓取 / 校验 / 部署 全部 skipped），而同一分支
+          #    上一次运行这步是通的 —— 典型的**单发连通假阴性**。
+          #    预检是诊断，不是功能：它的 URL、它的握手参数都和真实抓取不是同一条
+          #    代码路径，拿它当闸门等于用一个更脆的东西去挡一个更稳的东西。
+          #    真正的闸门是抓取本身（抓到 0 条会明确失败并给出原因）。
+          set +e
+          echo "--- 出口连通预检（仅告警）---"
           echo "    注意：不能用 curl 预检。Linux curl 走 OpenSSL 3.x，会因"
           echo "    UNSAFE_LEGACY_RENEGOTIATION_DISABLED 误报 HTTP=000，而脚本实际是通的"
           echo "    （移动服务器不支持 RFC5746，须开 OP_LEGACY_SERVER_CONNECT）"
-          python -c "import ssl,urllib.request as u;c=ssl.create_default_context();c.options|=getattr(ssl,'OP_LEGACY_SERVER_CONNECT',4);o=u.build_opener(u.HTTPSHandler(context=c),u.ProxyHandler({}));r=o.open('https://h.app.coc.10086.cn/cmcc-app/uni-pages/tariffZonePers.html',timeout=25);print('    tariffZone HTTP=%d bytes=%d'%(r.status,len(r.read())))"
+          python - <<'PY'
+          import socket, ssl, time, urllib.request as u
+          # 只取 IPv4：部分 runner 上 getaddrinfo 首个结果是不可路由的地址，
+          # socket.create_connection 会直接 Errno 101（而不是回退到下一个）。
+          _gai = socket.getaddrinfo
+          socket.getaddrinfo = lambda *a, **k: [r for r in _gai(*a, **k) if r[0] == socket.AF_INET]
+          c = ssl.create_default_context()
+          c.options |= getattr(ssl, 'OP_LEGACY_SERVER_CONNECT', 4)
+          o = u.build_opener(u.HTTPSHandler(context=c), u.ProxyHandler({}))
+          url = 'https://h.app.coc.10086.cn/cmcc-app/uni-pages/tariffZonePers.html'
+          for i in range(3):
+              try:
+                  r = o.open(url, timeout=25)
+                  print('    tariffZone HTTP=%d bytes=%d' % (r.status, len(r.read())))
+                  break
+              except Exception as e:
+                  print('    第 %d 次未通：%s: %s' % (i + 1, type(e).__name__, e))
+                  time.sleep(3)
+          else:
+              print('::warning title=出口连通预检未通过::预检失败**不影响**后续抓取（这只是诊断步骤）。'
+                    '若抓取步骤也失败，再按网络问题排查。')
+          PY
+          set -e
+
+      - name: 采集电信（真实 Chrome + Xvfb，失败不阻断）
+        run: bash probes/tools/ct_browser/ci_grab.sh
+
+      - name: 留存电信采集现场（失败时才有用）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ct-grab-evidence
+          path: |
+            /tmp/ct_shot.png
+            /tmp/ct-chrome.log
+            cloud/tariff/.ct_raw.json
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: 抓取 + 对比 + 生成并归档页面
         run: python cloud/tariff/tariff_monitor.py
@@ -100,11 +153,12 @@ jobs:
           #      照抄 500 会让 CI 天天红，而一旦为此把全局下限调到 100，
           #      移动/联通那两网的真骤降就再也拦不住了。
           #
-          # ★ 电信也卡区间 —— 它虽然不在 CI 里被采集，页面读的却是仓库里那份快照，
+          # ★ 电信也卡区间 —— 正常情况下它由 ci_grab.sh 在云端直采（基线=今天）；
+          #   采集失败时退回仓库快照（基线=那份快照的日期）。两种情形页面都有数据，
           #   条数一样有正常量级（800+）。不卡的话，「快照被误删 / 被清空」会静默
           #   退化成页面占位说明，而看的人只会觉得「今天少了一网」，联想不到是快照没了。
-          #   ⚠️ 但它的基线日期**允许早于今天**（快照就是那天采的），所以：
-          #      只校验格式；陈旧程度单独告警，**不阻断** —— 电信采不到是常态，
+          #   ⚠️ 基线日期**允许早于今天**（走兜底时就是旧的），所以只校验格式；
+          #      陈旧程度单独告警、**不阻断** —— 电信采不到是机会性问题，
           #      不该连带把另外三网的页面部署一起卡死。
           LIVE = {'move': (500, 20000), 'unicom': (500, 20000),
                   'cbn': (100, 20000), 'telecom': (100, 20000)}
@@ -125,14 +179,21 @@ jobs:
               if code == 'telecom':
                   age = (time.mktime(time.strptime(today, '%Y-%m-%d'))
                          - time.mktime(time.strptime(base, '%Y-%m-%d'))) / 86400
-                  tag = ' · 快照直渲（基线比今天早 %d 天）' % age
+                  if age <= 0:
+                      tag = ' · 云端直采'
+                  else:
+                      # 基线不是今天 ⇒ 本轮 ci_grab.sh 没采到，走的是快照兜底。
+                      # 这不是错误（设计如此），但必须**显式说出来** ——
+                      # 否则「电信悄悄停在旧数据」这件事没有任何人会发现。
+                      tag = ' · ⚠ 快照兜底（基线早 %d 天）' % age
+                      print('::notice title=电信本轮走快照兜底::基线 %s 早于今天，'
+                            '说明 ci_grab.sh 没采到（看它那步的 ::warning::）' % base)
                   if age > STALE_DAYS:
-                      tag = ' · 快照已 %d 天未更新' % age
-                      print('::warning title=电信快照陈旧::基线 %s，已 %d 天未更新（阈值 %d 天）。'
-                            '电信在云端采不到（瑞数 WAF），需本机用真实 Chrome 重采后提交'
-                            ' cloud/tariff/snapshots/ct_tariff_*.json.gz' % (base, age, STALE_DAYS))
+                      print('::warning title=电信数据陈旧::基线 %s，已 %d 天未更新（阈值 %d 天）。'
+                            '云端连续采集失败，需检查 ci_grab.sh 或改回本机采集后提交快照'
+                            % (base, age, STALE_DAYS))
               print('  %-7s %5d 条 · 基线 %s · %s%s' % (code, len(rows), base, src[:32], tag))
-          print('页面校验 OK：三网 CI 直采 + 电信快照直渲')
+          print('页面校验 OK：四网齐备（电信为直采或快照兜底，上方逐网标注）')
           "
 
       # ── 部署到 GitHub Pages ────────────────────────────────────────────

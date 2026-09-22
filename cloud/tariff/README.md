@@ -144,13 +144,25 @@ const NETS = {
   且 **`navigator.webdriver=true` 的自动化浏览器直接 400 空响应**（连挑战页都不给）。
   唯一实测通路：真实 Chrome 只加 `--remote-debugging-port`（**不加** `--enable-automation`），
   CDP 进页面后用页面自带的 CryptoJS 造包体发请求，响应是**明文 JSON**。
-- 🔴 **电信不注册 `NET_RUN` / `NET_LIVE`，改注册 `NET_SNAP`**：每日巡检跑在云端
-  （没有真实浏览器），注册成可采集的网必然失败，而且会**每天刷一条「采集异常」后
-  沿用上次快照** —— 噪音之外，更坏的是把「这网根本没在更新」掩盖成「运行正常」。
-  注册进 `NET_SNAP` 则只参与**渲染**：页面读 `snapshots/ct_tariff_*.json.gz`，
-  基线日期取自快照自身，陈旧程度对用户是可见的。
-  采集侧在任何有真实浏览器的地方跑完后提交快照即可（`rebuild_ct.py` 仍可用于
-  本机一次性重建 `docs/index.html`）。
+- 🔴 **电信注册 `NET_RUN` / `NET_LIVE`，同时也在 `NET_SNAP` 兜底名单里** ——
+  它是「机会性采集」：**采得到就正常走完整轮次，采不到就退回快照渲染**。
+  `other_nets()` 先问 `snap_net_ready()`「本轮真拿到采集产物了吗」（判据是产物里
+  记的**采集日期**，不是文件在不在、更不是 mtime），是才走 `net_round()`；
+  否则跳过，由 `NET_SNAP` 那段用 `load_latest()` 顶上。
+  - 为什么不用「文件在不在」判：`.ct_raw.json` 不入库，本机那份可能是上周采的，
+    光看存在就走采集，会把一份陈旧数据当今日快照入库、还生成一份假的「无变化」报告。
+  - 为什么不用 mtime：CI 每次都是全新 checkout，mtime 恒为「现在」，等于恒真。
+  - 🔴 `net_round()` 的 `except` 必须同时接住 `SystemExit`：`ct_monitor.fetch_all()`
+    在缺产物时刻意用 `SystemExit` 抛一段给人看的采集指引，只接 `Exception` 的话，
+    一次「本轮没采到电信」会把整个巡检打断，连另外三网的页面都出不来。
+  - 🔴 电信的 `fallback` 传 `load_latest`（不是默认的 `load_prev`）：本轮没采到时，
+    该用**最新那份**快照，而不是「严格早于今天」的那份 —— 否则仓库里明明有今天的数据，
+    页面却退回昨天。
+- 🟢 **「电信在云端采不到」是错的**（2026-09-22 实测推翻）：Xvfb + **有头** Chrome
+  （只给 `--remote-debugging-port`）在 ubuntu-latest 上挑战自动通过、884 条逐项采全。
+  之前的判断把「某个做法不行」记成了「那个环境不行」——
+  判据要落在**机制**（`navigator.webdriver` 标志位、有没有屏幕）而不是**场所**（本地/云端）。
+  详见 `docs/电信云端采集可行性-20260922.md`。
 - 🔴 **查询参数 `type=1` 才是「按 lable1Id 过滤」**；type≠1（0/2/3）会忽略 lable1Id
   返回全量 —— 拿它做分类轮询会得到 5 份全同副本。`tariffAttr`(1/2/3) 与过期零相关、
   页面不用；`sessionid` 给空串也放行（服务端下发真值）。
@@ -184,9 +196,9 @@ const NETS = {
 - 🔴 **快照必须分前缀。** `load_prev()` 按文件名排序取最近一份，两网混放会让**联通昨天的**
   快照变成**移动今天的**基准 —— 变更检测随即凭空报出「新增几千 / 下线几千」。
   故 `SNAP_PREFIX = {"move": "hebei_tariff_", "unicom": "unicom_tariff_",
-  "cbn": "cbn_tariff_"}`，`load_prev` / `save_snapshot` / `prune_snapshots`
-  全部加了 `prefix` 参数。**加一网就得加一行前缀** —— `render_only()` 也是拿它的
-  key 当「已接入网」清单在枚举的，漏一行就等于那网在页面重建时被丢掉。
+  "cbn": "cbn_tariff_", "telecom": "ct_tariff_"}`，`load_prev` / `save_snapshot` /
+  `prune_snapshots` 全部加了 `prefix` 参数。**加一网就得加一行前缀** ——
+  `render_only()` 也是拿它的 key 当「已接入网」清单在枚举的，漏一行就等于那网在页面重建时被丢掉。
 - 🔴 **任何一网失败都不该拖垮其它网。** `net_round()`（非移动各网共用一份）在采集异常 /
   数据骤降时沿用上一版快照继续渲染，绝不因此让整页出不来 —— 新接一网时上游不稳是常态，
   而「多网共用一个页面」意味着任何一网抛异常都会让其它网也看不到。
@@ -509,14 +521,15 @@ cd /tmp/servetest && python -m http.server 8123 --bind 127.0.0.1
 | `.nrapigate_key` | ❌ | 本地密钥（gitignore；CI 走 Actions Secret） |
 | `unicom_monitor.py` | ✅ | 联通数据源适配器（归一化 → 共用渲染/变更链路） |
 | `cbn_monitor.py` | ✅ | 广电数据源适配器（同上；**不抓包**，走公开公示页） |
-| `ct_monitor.py` | ✅ | 电信数据源适配器（读 `.ct_raw.json` 纯转换，**不在 CI 采集**） |
-| `snapshots/ct_tariff_YYYYMMDD.json.gz` | ✅ | ★ 电信归一化快照 —— **CI 就是靠它在页面上渲染这一网的**，新采的提交进来即生效 |
-| `rebuild_ct.py` | ✅ | 电信数据本地重建（真实浏览器采完之后跑） |
+| `ct_monitor.py` | ✅ | 电信数据源适配器（读 `.ct_raw.json` 纯转换；采集由 `ci_grab.sh` 在 CI 里先跑） |
+| `snapshots/ct_tariff_YYYYMMDD.json.gz` | ✅ | ★ 电信归一化快照 —— 走采集时每日更新；采集失败时**页面就靠它渲染这一网** |
+| `rebuild_ct.py` | ✅ | 电信本机一次性重建（只重建 `docs/index.html`，不写快照/报告） |
 | `rebuild_offline.py` | ✅ | 本机离线重建（**不写快照 / 报告 / state**，见上） |
 | `../probes/he_unicom_tariff.py` | ✅ | 联通资费接口探针 / 采集器（仓库根 `probes/`） |
 | `../probes/he_cbn_tariff.py` | ✅ | 广电资费接口探针 / 采集器（同上） |
 | `../probes/he_ct_tariff.py` | ✅ | 电信资费接口探针（加解密 + 瑞数 WAF 定性，带自证） |
-| `../probes/tools/ct_browser/` | ✅ | 电信真实 Chrome + CDP 采集工具链 |
+| `../probes/tools/ct_browser/ci_grab.sh` | ✅ | ★ 电信云端采集入口（Xvfb + 有头 Chrome + CDP，**永不非零退出**） |
+| `../probes/tools/ct_browser/` | ✅ | 电信真实 Chrome + CDP 采集工具链（本机 / 云端通用） |
 
 ## 退出码
 

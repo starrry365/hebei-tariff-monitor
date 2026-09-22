@@ -13,10 +13,16 @@
   - 且 WAF 会识别自动化浏览器（navigator.webdriver=true ⇒ 直接 400 空响应，
     chrome-devtools MCP 的受管 Chromium 就是这么被拒的）。
 
-✅ 可行路线（2026-09-22 实测全通）：
+✅ 可行路线（2026-09-22 本机 + **同日云端 CI** 双向实测全通）：
   **真实 Chrome + 远程调试口**（启动项只给 --remote-debugging-port，
   不给 --enable-automation ⇒ navigator.webdriver=false）：
-    1. 启动：chrome.exe --remote-debugging-port=9223 --user-data-dir=<临时目录>
+    1. 启动：chrome --remote-debugging-port=9223 --user-data-dir=<临时目录>
+       · Windows 本机：直接跑 chrome.exe；
+       · 🟢 Linux CI：**同样可行**（2026-09-22 在 ubuntu-latest 上实测通过）——
+         用 Xvfb 起**有头** Chrome（不是 --headless：headless 的 UA 带
+         HeadlessChrome，等于自己把难度调高），挑战照样自动过。
+         ⇒ 所以电信**并不是「云端采不到」**，它只是「没有浏览器就采不到」。
+         采集脚本：`probes/tools/ct_browser/ci_grab.sh`（CI 每日调用）。
     2. CDP 导航到 https://www.189.cn/wapportalweb/rateZone/index.html?provCode=609906
        （挑战自动通过，页面标题「资费专区」；chrome-devtools MCP 连 own-Chrome 都过不了，
         真实 Chrome 一次过 —— 别再走 MCP 的弯路）
@@ -25,8 +31,12 @@
          {mode: ECB, padding: Pkcs7}).toString() 造包体 → fetch(tariffSection.do)
     4. 响应是**明文 JSON**（不加密），code=W_0000，sessionid 由服务端下发
        （请求里给空串也能过）。
-  采集脚本见 .tools/_ct_work/js_harvest_hb.js（经 ct_step.py 驱动），
-  原始产物 = 本目录 `.ct_raw.json`（fetch_all 的唯一输入）。
+  采集脚本见 `probes/tools/ct_browser/`（`ci_grab.sh` + `cdp_desktop_step.py` +
+  `harvest_hb.js`），原始产物 = 本目录 `.ct_raw.json`（fetch_all 的唯一输入）。
+
+⚠️ **采不到时的行为**：本模块只做纯转换，采不到就抛错；调用方
+  （`tariff_monitor.net_round`）会识别出来并退回**仓库快照渲染**，
+  页面照样有四网、基线日期照实。电信是「机会性采集」，不是硬依赖。
 
 **省份代码**：硬编码在页面组件 Index-1f2bc0ae.js 里
   （provinceCode 6 位，如 北京=609001）；**河北 = 609906**。
@@ -152,21 +162,53 @@ def _normalize(e, lable1_name, lable1_id):
     return r
 
 
+def raw_path():
+    """原始采集产物的实际路径（.ct_raw.json 优先，退回 .gz），都没有则 None。"""
+    return RAW if os.path.exists(RAW) else (RAW_GZ if os.path.exists(RAW_GZ) else None)
+
+
+def raw_day():
+    """原始采集产物里记的**采集日期**（YYYYMMDD）；文件缺失 / 损坏则返回空串。
+
+    ★ 这是「本轮到底采没采到电信」的唯一判据，也是采集与渲染解耦的关键：
+      CI 每轮都会重采一次（见 .github/workflows/tariff-daily.yml），采到 → 就是当天；
+      采不到 → `.ct_raw.json` 根本不存在（该文件不入库）⇒ 调用方退回**快照渲染**。
+      ⚠️ 用文件 mtime 判断是不行的：CI 每次都是新 checkout，mtime 恒为「现在」，
+         一份上周提交进来的 .ct_raw.json 也会被当成刚采的。
+    """
+    p = raw_path()
+    if not p:
+        return ""
+    try:
+        if p.endswith(".gz"):
+            import gzip
+            with gzip.open(p, "rt", encoding="utf-8") as f:
+                raw = json.load(f)
+        else:
+            with open(p, encoding="utf-8") as f:
+                raw = json.load(f)
+    except Exception:
+        return ""
+    return str(raw.get("fetchedAt") or "")[:10].replace("-", "")
+
+
 def fetch_all():
     """读 .ct_raw.json（真实浏览器采集产物，见模块头）→ 中间格式。
 
     🔴 这里**不发任何网络请求** —— 电信的采集必须借真实浏览器上下文，
     本函数只做「原始数据 → 与其他网同构的中间格式」这一步纯转换。
     """
-    path = RAW if os.path.exists(RAW) else (RAW_GZ if os.path.exists(RAW_GZ) else None)
+    path = raw_path()
     if not path:
         raise SystemExit(
             "!! 缺少电信原始采集数据 %s（或 .gz）\n"
             "   采集方法（必须真实 Chrome，脚本直连会被瑞数 WAF 拦）：\n"
-            "   1) chrome.exe --remote-debugging-port=9223 --user-data-dir=<临时目录>\n"
-            "   2) CDP 导航 %s\n"
-            "   3) 页面内执行 .tools/_ct_work/js_harvest_hb.js（页面自带 CryptoJS 造包体）\n"
-            "   4) 结果存为本文件" % (RAW, PROV_URL))
+            "   · Linux（含 GitHub Runner）：bash probes/tools/ct_browser/ci_grab.sh\n"
+            "   · Windows 本机：\n"
+            "       1) chrome.exe --remote-debugging-port=9223 --user-data-dir=<临时目录>\n"
+            "       2) CDP 导航 %s\n"
+            "       3) 页面内 eval probes/tools/ct_browser/harvest_hb.js\n"
+            "       4) 结果存为本文件" % (RAW, PROV_URL))
     if path.endswith(".gz"):
         import gzip
         with gzip.open(path, "rt", encoding="utf-8") as f:
