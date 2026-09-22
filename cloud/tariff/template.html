@@ -30,6 +30,32 @@ button{font-family:inherit}
 .chips button:hover{border-color:var(--ac);color:var(--ac)}
 .chips button.on{background:var(--ac);border-color:var(--ac);color:#fff}
 
+/* 换行锚：把工具栏切分成「核心筛选」与「精细筛选」两行 ——
+   筛选维度加到 12 个以后，靠自然换行会出现「一行 3 个一行 9 个」这种参差，
+   读的人每次都要重新定位。固定断点让「地域/大类」这种高频维度始终在上一行。 */
+.brk{flex-basis:100%;height:0;margin:0;padding:0}
+/* 下拉宽度按内容自适应，但不允许某一项（如「线上 + 线下都可办」）把整行撑歪 */
+.bar select{max-width:230px}
+
+/* 当前生效的筛选标签：点 × 直接摘掉**这一个**条件 ——
+   逐个回去找对应下拉再改回「全部」，在 12 个维度下是件很烦的事。 */
+.fchips{display:inline-flex;flex-wrap:wrap;gap:5px;vertical-align:middle}
+.fchip{padding:1px 9px;border:1px solid #c3dcf5;background:var(--ac2);color:var(--ac);border-radius:999px;font-size:12px;cursor:pointer;line-height:1.7;font-family:inherit}
+.fchip:hover{background:#d6e8fa;border-color:var(--ac)}
+.fchip i{font-style:normal;font-weight:700;margin-left:4px}
+
+/* 展开详情里的「复制这条资费」 */
+.detact{margin-top:9px}
+.cpbtn{padding:4px 12px;border:1px solid var(--bd);background:#fff;border-radius:8px;
+       font-size:12px;cursor:pointer;color:var(--tx2);font-family:inherit}
+.cpbtn:hover{border-color:var(--ac);color:var(--ac)}
+/* 轻提示（复制成功 / 失败）—— 1.8 秒自动淡出，不打断任何操作，
+   也不弹 confirm 那种要用户点一下才消失的东西 */
+#toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,10px);
+       background:#1f2328;color:#fff;padding:8px 17px;border-radius:9px;font-size:13px;
+       opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:99}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+
 /* —— 地域徽标 / 下架页签（需求：只要「河北 + 全国」；下架单独一个页签）—— */
 .bg-sc{background:#eef1f5;color:#4a5568;border:1px solid #dfe4ea}
 .bg-sc-hb{background:#e6f1fb;color:#185fa5;border:1px solid #c3dcf5}
@@ -132,7 +158,17 @@ code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
     <option value="hb">仅河北省</option>
     <option value="cn">仅全国</option>
   </select>
-  <select id="ty"><option value="">全部类型</option></select>
+  <!-- 类型**两级**：大类（四网统一口径）+ 细分（上游原始分类）。
+       四网的原始分类根本不同构 —— 广电那网压根没有「套餐」这个词（它写「5G套餐」「流量包」），
+       直接拿原始分类当筛选项，等于让用户按「上游怎么分的」去理解四个网。
+       大类由构建脚本按 TYPE_CAT 归一后写进行数据（见 tariff_monitor.py），
+       页面只读不算；选了大类后不属于它的细分项会**置灰**，从根上杜绝筛出空集。 -->
+  <select id="cat" title="类型大类（四网统一口径：套餐 / 加装包 / 营销活动 / 标准资费 / 宽带 / 港澳台-国际）">
+    <option value="">全部大类</option>
+  </select>
+  <select id="ty" title="类型细分（上游原始分类，如 流量包 / 语音包 / 促销；选了大类后不属于它的会置灰）">
+    <option value="">全部细分</option>
+  </select>
   <select id="ct">
     <option value="">全部城市</option>
     <option value="_none">全省通用（未限定地市）</option>
@@ -146,13 +182,45 @@ code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
       <option>雄安新区</option><option>华北油田</option>
     </optgroup>
   </select>
-  <select id="pf">
+  <span class="brk"></span>
+  <select id="pf" title="按标准月费（元）筛选">
     <option value="">全部月费</option>
     <option value="0,0">仅 0 元</option>
     <option value="0,10">≤ 10 元</option>
     <option value="0,30">≤ 30 元</option>
     <option value="0,60">≤ 60 元</option>
+    <option value="60,100">60 ~ 100 元</option>
     <option value="100,99999">≥ 100 元</option>
+  </select>
+  <select id="gf" title="按流量筛选（已按 dataUnit 归一到 GB）。「无流量」含两种：流量填 0 的，和压根没填流量字段的">
+    <option value="">不限流量</option>
+    <option value="none">无流量</option>
+    <option value="0,5">≤ 5 GB</option>
+    <option value="5,30">5 ~ 30 GB</option>
+    <option value="30,100">30 ~ 100 GB</option>
+    <option value="100,99999">≥ 100 GB</option>
+  </select>
+  <select id="cf" title="按国内通话时长（分钟）筛选，与「月费」上的通话是同一口径">
+    <option value="">不限通话</option>
+    <option value="none">无通话</option>
+    <option value="0,100">≤ 100 分</option>
+    <option value="100,500">100 ~ 500 分</option>
+    <option value="500,99999">≥ 500 分</option>
+  </select>
+  <select id="bw" title="宽带：前两档是「有没有这条宽带线路」，后三档按下行速率卡">
+    <option value="">不限宽带</option>
+    <option value="line">含宽带（有宽带线路）</option>
+    <option value="speed">宽带提速 / 光网组网</option>
+    <option value="m200">宽带 ≥ 200M</option>
+    <option value="m500">宽带 ≥ 500M</option>
+    <option value="m1000">宽带 ≥ 1000M</option>
+  </select>
+  <select id="chx" title="办理渠道：上游原文（「线下及线上渠道」「自有渠道（中国联通APP等）、互联网渠道」…）已归一到三档。线上＝APP/网站/热线/短信，线下＝营业厅/门店/校园/代理">
+    <option value="">不限渠道</option>
+    <option value="线上">线上</option>
+    <option value="线下">线下</option>
+    <option value="线上+线下">线上+线下</option>
+    <option value="其他">其他 / 未注明</option>
   </select>
   <select id="on">
     <option value="">全部上架时间</option>
@@ -168,11 +236,6 @@ code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
     <option value="30">30 天内下线</option>
     <option value="60">60 天内下线</option>
     <option value="90">90 天内下线</option>
-  </select>
-  <select id="bw">
-    <option value="">不限宽带</option>
-    <option value="line">含宽带（有宽带线路）</option>
-    <option value="speed">宽带提速 / 光网组网</option>
   </select>
   <select id="chg">
     <option value="">全部资费</option>
@@ -192,6 +255,7 @@ code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
     <button data-p="exp60">⏳ 60 天内下线</button>
     <button data-p="free">0 元</button>
     <button data-p="bw">含宽带</button>
+    <button data-p="g100">≥ 100GB 流量</button>
     <button data-p="chg" id="chipchg">🔄 本次变更</button>
   </div>
 </div>
@@ -203,7 +267,7 @@ code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
   <th data-k="gb">流量<span class="ar"></span></th>
   <th data-k="call">通话<span class="ar"></span></th>
   <th data-k="name">名称<span class="ar"></span></th>
-  <th data-k="ty">类型<span class="ar"></span></th>
+  <th data-k="ty" title="类型大类（四网统一口径：套餐 / 加装包 / …）；点列头排序，上游原始分类见展开详情">类型<span class="ar"></span></th>
   <th data-k="bw">宽带<span class="ar"></span></th>
   <th>目标客户</th>
   <th data-k="on">上架<span class="ar"></span></th>
@@ -219,6 +283,9 @@ code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
 <b>地域</b>按各网<b>原始地域字段</b>判定（不是从名称里猜地名）：移动看 <code>applicableArea</code>/<code>city</code>/<code>province</code>，电信看 <code>applicableArea</code>，广电看 <code>_areaNames</code>；<b>地市</b>取条目自带的 4 位地市码（<b>移动</b> 12 市命中 1974 次、<b>电信</b> 265 次，是上游声明的适用范围）；
 <b>联通与广电上游没有地市级数据</b>（联通：12 城分类骨架逐条一致 + 明细零地域字段 + 旁路接口族不路由；广电：区域码表只有「全国/河北省」两档，传地市码回 <code>BASE102</code>）⇒ 这两网<b>不出地市这一层</b>，全部归入「河北省（全省）」。
 与河北无关的（其他省份专属）已按需求剔除。<br>
+<b>类型</b>分两级、且<b>四网同构</b>：<b>大类</b>（套餐 / 加装包 / 营销活动 / 标准资费 / 宽带 / 港澳台-国际）由构建脚本按 <code>TYPE_CAT</code> 归一后写进行数据 —— 四网的原始分类本来不同构（广电那网根本没有「套餐」这个词，它写「5G套餐」「流量包」「语音包」），不归一就没法横向比；选了某个大类后，不属于它的<b>细分</b>项会置灰，免得选出「套餐 ＋ 加装包」这种不存在的组合。<br>
+<b>渠道</b>同样做了归一（线上 / 线下 / 线上+线下 / 其他）：上游原文极碎 —— 光移动一家就有「线上渠道」「线上及线下渠道」「线上、线下渠道，具体以各省实际为准…」等 8 种写法表达同一件事，还有「自有渠道（中国联通APP等）、互联网渠道（飞猪、携程等）」这种看着像线下、其实纯线上的。四网合计 <b>99.6%</b> 能归上，剩下的原文没写明，一律落「其他」（不猜）。<br>
+<b>月费 / 流量 / 通话 / 宽带速率</b>四档区间都按<b>数值</b>卡（流量已按 <code>dataUnit</code> 归一为 GB）；「无流量 / 无通话」含两种情形 —— 填 0 的，和压根没填那个字段的（后者在移动那网占 34.8%，把它们排除在外会让这一档明显偏少，且看不出少了谁）。<br>
 <b>「已下架」页签</b>的判据各网不同、且只用上游给的信号：联通＝归入一级分类「99 停售套餐」（<b>不能</b>靠下线日判，实测那批一条都没过期）；广电＝服务端 <code>stateFlag≠1</code>；
 电信＝下线日早于数据基线日；<b>移动公开接口取不到下架数据</b>（<code>isPublic=0</code> 能列出分类但明细恒返回 0 条），故该网「已下架」页签置灰。<br>
 每日 <b>06:00（北京时间）</b>自动巡检 · <a href="https://github.com/starrry365/hebei-tariff-monitor" target="_blank" rel="noopener">仓库与变更记录</a>
@@ -231,6 +298,16 @@ code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
    ★ 每网自带 base：「相对天数 / 上架下线筛选」都以**本网**的数据基线为准，
      不能全局共用一个 —— 三家的抓取时点不可能总在同一天。 */
 const NETS=__NETS__;
+/* 大类顺序由构建脚本注入（见 tariff_monitor.CAT_ORDER）。
+   在页面里另写一份常量会与 Python 那份漂移，而漂移只表现为「下拉顺序和构建日志对不上」，
+   不报错 —— 这种没人会去查的不一致最难防，所以干脆只留一份权威。 */
+const CAT_ORDER=__CAT_ORDER__;
+/* 所有「枚举型筛选维度」的控件 id —— 全页只此一份。
+   清空筛选 / 切网复位 / 深链读写本来都要遍历同一批控件，而原先是**每处各写一遍字面量**
+   （5 处），加一个维度就得记得改 5 个地方。漏一处的后果是「切网后这个维度没被清掉」：
+   上个网选中的条件继续生效，页面却毫无提示 —— 与「幽灵筛选值」是同一类静默错。 */
+const DIMS=["sc","cat","ty","ct","pf","gf","cf","bw","chx","on","off","chg"];
+function clearDims(){DIMS.forEach(k=>{const e=document.getElementById(k);if(e)e.value=""})}
 const NET_LS=["move","unicom","telecom","cbn"];      // 顺序即导航条顺序
 const rowsOf=n=>((NETS[n]||{}).rows)||[];
 const online=n=>rowsOf(n).length>0;                  // 是否已接入数据
@@ -433,7 +510,10 @@ const F={
   call:{lb:"通话",    def:-1,get:d=>num(d.c)},
   per :{lb:"每元流量",def:-1,get:d=>perVal(d)},
   name:{lb:"名称",    def: 1,get:d=>d.n||d.t||""},
-  ty  :{lb:"类型",    def: 1,get:d=>d.ty||""},
+  /* 排序键名沿用 "ty"（老的 #s=ty 深链不作废），但**取值换成大类** ——
+     表格那一列显示的就是大类，按细分排会让同一大类被拆散在多处，观感很碎。
+     兜底保留 d.ty：万一某行没有 cat（不该发生），也不至于整批沉到空值尾部。 */
+  ty  :{lb:"类型",    def: 1,get:d=>d.cat||d.ty||""},
   bw  :{lb:"宽带速率",def:-1,get:d=>{
          if(!bwInfo(d))return null;
          const m=bwMbps(d);
@@ -478,22 +558,59 @@ function sortView(){
   view=dec.map(p=>p[1]);
 }
 
-function condText(){
+/* 维度的显示前缀。空串＝这个维度的选项文本本身就能读懂（如「本次变更」）。 */
+const DIM_PRE={sc:"地域：",cat:"类型：",ty:"细分：",ct:"城市：",pf:"月费：",gf:"流量：",
+               cf:"通话：",bw:"宽带：",chx:"渠道：",on:"上架：",off:"下线：",chg:""};
+/* 读某个维度控件当前选中项的**可读文本**。
+   选项文本带条数（如「加装包（2135）」）—— 那是给下拉里挑的时候看的，
+   写进筛选说明 / 标签里就是噪音，这里统一削掉。 */
+function optText(k){
+  const s=document.getElementById(k),o=s&&s.selectedOptions[0];
+  return o?o.textContent.replace(/（\d+）$/,""):"";
+}
+
+/* —— 大类 ↔ 细分 联动 ——
+   选了大类后，把不属于它的细分项**置灰**。
+   不置灰的话用户可以选出「大类＝加装包 ＋ 细分＝5G套餐」这种自相矛盾的组合，
+   页面会安静地给出 0 条 —— 看着像「没有数据」，其实是不存在的组合。
+   （与 renderDims 里「本网没有的维度就不给入口」是同一条原则。）
+   当前选中的细分若被置灰，就地清掉：否则控件显示的和实际筛的不是一回事。 */
+function syncTyOptions(){
+  const c=$("#cat").value,ty=$("#ty");
+  let bad=false;
+  [...ty.options].forEach(o=>{
+    if(!o.value){o.disabled=false;return}
+    const ok=!c||o.dataset.cat===c;
+    o.disabled=!ok;
+    if(!ok&&o.value===ty.value)bad=true;
+  });
+  if(bad)ty.value="";
+}
+
+/* —— 当前生效筛选：渲染成可点掉的标签 ——
+   以前这里是一行纯文本（「筛选：状态：在售 · 地域：仅河北省 · …」），
+   想改掉其中一个条件，得先在这一长串里认出它、再回头去 12 个下拉里找到那一个。
+   做成标签后点 × 即摘，且「这一屏为什么少了东西」一眼可数。
+   ★ 页签（在售/已下架）也放进来 —— 它同样是结果变少的原因之一；
+     点掉它等于切回「全部」，语义与其他维度一致。 */
+function chipsHtml(){
   const a=[];
-  /* 页签是这一页的前提，无条件写进筛选说明 —— 否则「匹配 4807 条」看不出
-     这已经是「在售」子集，会被误读成「全网只有这么多」。 */
-  a.push("状态："+(STA==="0"?"在售":STA==="1"?"已下架":"全部"));
+  if(STA!=="")a.push(["st","状态："+(STA==="1"?"已下架":"在售")]);
+  const kw=$("#kw").value.trim();
+  if(kw)a.push(["kw","关键词「"+kw+"」"]);
+  DIMS.forEach(k=>{if($("#"+k).value)a.push([k,(DIM_PRE[k]||"")+optText(k)])});
+  if(!a.length)return '<span class="mut">无筛选</span>';
+  return '<span class="fchips">'+a.map(p=>
+    '<button type="button" class="fchip" data-d="'+esc(p[0])+'" title="点掉这一个条件">'
+    +esc(p[1])+'<i>×</i></button>').join("")+'</span>';
+}
+/* 纯文本版（导出 CSV 时写进文件头，将来要贴到别处也用得上）。 */
+function condText(){
+  const a=["状态："+(STA==="0"?"在售":STA==="1"?"已下架":"全部")];
   const kw=$("#kw").value.trim();
   if(kw)a.push("关键词「"+kw+"」");
-  if($("#sc").value)a.push("地域："+$("#sc").selectedOptions[0].textContent);
-  if($("#ty").value)a.push("类型："+$("#ty").value);
-  if($("#ct").value)a.push("城市："+$("#ct").selectedOptions[0].textContent);
-  if($("#pf").value)a.push("月费 "+$("#pf").selectedOptions[0].textContent);
-  if($("#on").value)a.push($("#on").selectedOptions[0].textContent);
-  if($("#off").value)a.push($("#off").selectedOptions[0].textContent);
-  if($("#bw").value)a.push($("#bw").selectedOptions[0].textContent);
-  if($("#chg").value)a.push("仅本次变更");
-  return a.length?a.join(" · "):"无筛选";
+  DIMS.forEach(k=>{if($("#"+k).value)a.push((DIM_PRE[k]||"")+optText(k))});
+  return a.join(" · ");
 }
 
 function onCell(d){
@@ -525,7 +642,7 @@ function render(){
     +" · 共 "+rowsOf(NET).length+" 条"
     +(view.length?" · 显示 "+(st+1)+"–"+Math.min(st+PAGE,view.length):"")
     +' · <span class="sortinfo">排序：'+F[sortK].lb+(sortD===1?" ↑ 升序":" ↓ 降序")+"</span>"
-    +" · 筛选："+esc(condText());
+    +" · 筛选："+chipsHtml();
   $("#pg").textContent="第 "+(pg+1)+" / "+Math.max(1,Math.ceil(view.length/PAGE))+" 页";
   $("#prev").disabled=pg===0;$("#next").disabled=st+PAGE>=view.length;
   if(!view.length){
@@ -541,7 +658,7 @@ function render(){
       +'<td>'+fmtGb(d.g)+perCell(d)+'</td>'
       +'<td>'+(d.c&&d.c!=="0"?esc(d.c)+" 分":"—")+'</td>'
       +'<td class="nm">'+scTag(d)+esc(d.n||d.t)+chgTag(d)+stopTag(d)+'</td>'
-      +'<td><span class="tg">'+esc(d.ty)+'</span></td>'
+      +'<td><span class="tg" title="类型大类（四网统一口径）；上游原始分类见展开详情">'+esc(d.cat||"—")+'</span></td>'
       +'<td>'+bwCell(d)+'</td>'
       +'<td class="ap">'+esc((d.ap||"—").slice(0,90))+'</td>'
       +'<td style="white-space:nowrap">'+onCell(d)+'</td>'
@@ -550,6 +667,8 @@ function render(){
     dr.innerHTML='<td colspan="9"><div>'
       +((d.ca||d.ck)?'<b>本次巡检</b>'+esc((d.ca?"新增":"")+(d.ca&&d.ck?" · ":"")
           +(d.ck?"关键字段有变更（月费 / 流量 / 上下线 / 权益等）":""))+'<br>':"")
+      +'<b>类型</b>'+esc(d.cat||"—")
+        +(d.ty&&d.ty!==d.cat?' <span class="mut">（上游分类：'+esc(d.ty)+'）</span>':"")+'<br>'
       +'<b>套餐名</b>'+esc(d.t||"—")+'<br>'
       +'<b>目标客户</b>'+esc(d.ap||"—")+'<br>'
       +'<b>办理渠道</b>'+esc(d.ch||"—")+'<br>'
@@ -560,8 +679,12 @@ function render(){
       +'<b>超套资费</b>'+esc(d.ex||"—")+'<br>'
       +'<b>有效期</b>'+esc(d.vp||"—")+'<br>'
       +'<b>权益说明</b>'+esc(d.x||"—")
+      +'<div class="detact"><button type="button" class="cpbtn">复制这条资费</button></div>'
       +'</div></td>';
     tr.onclick=()=>dr.classList.toggle("on");
+    /* 复制按钮在**另一个 tr**（详情行）里，点它不会冒泡到上面那个 tr，
+       所以不需要 stopPropagation；但它是独立元素，得自己绑事件。 */
+    dr.querySelector(".cpbtn").onclick=()=>copyText(rowText(d));
     tb.appendChild(tr);tb.appendChild(dr);
   });
 }
@@ -571,6 +694,13 @@ function apply(){
      「直接带 hash 进来」「hashchange」这些旁路也一定先重算过 ——
      少调一次的后果是**静默**按错网的基线算天数，比报错难发现得多。 */
   setBase();
+  /* 大类 → 细分的联动也放在这里，理由与 setBase() 完全一样：
+     **程序化设值不会触发 onchange**（深链 #cat=…、脚本、恢复状态都属此类），
+     只有 apply() 是所有路径的必经之处。实测踩过：只在 #cat 的 onchange 里调，
+     脚本设完 cat 后「加装包」等细分项照样可点 ⇒ 能选出「套餐 ＋ 加装包」
+     这种不存在的组合，页面安静地给出 0 条。
+     ★ 必须在下面读 ty 的值**之前**跑 —— 它可能把已被置灰的那个细分清掉。 */
+  syncTyOptions();
   /* 警告条在这里统一求值（而不是挂在 renderNet() 上）：renderNet 只在「换了网」
      时才跑，任何「base 坏了但没换网」的路径都会留下一份与数据不符的旧状态。
      放在未接入短路**之前**，还顺带保证切到未接入的网时警告条一定会被收起。 */
@@ -579,9 +709,10 @@ function apply(){
      「正常」统计，看着像筛选把数据全滤掉了。 */
   if(!online(NET)){view=[];renderEmptyState();syncHash();return}
   renderEmptyState();
-  const kw=$("#kw").value.trim().toLowerCase(),ty=$("#ty").value,ct=$("#ct").value,
-        pf=$("#pf").value,on=$("#on").value,off=$("#off").value,bw=$("#bw").value,
-        chg=$("#chg").value,scv=$("#sc").value;
+  const kw=$("#kw").value.trim().toLowerCase(),scv=$("#sc").value,cat=$("#cat").value,
+        ty=$("#ty").value,ct=$("#ct").value,pf=$("#pf").value,gf=$("#gf").value,
+        cf=$("#cf").value,bw=$("#bw").value,chx=$("#chx").value,
+        on=$("#on").value,off=$("#off").value,chg=$("#chg").value;
   /* ★ 当前「城市」这个维度在本网是否**不存在**（见 renderDims，联通/广电直接隐藏）：
      取一次就够，filter 要跑几千遍，在里面 querySelector 纯属白烧。 */
   const ctDimOff=$("#ct").style.display==="none";
@@ -599,6 +730,11 @@ function apply(){
        下线/下架的条目不在这里 —— 它们已经不在本网数据里了。
        标注由构建脚本（build_html 的 diff）写进行数据，页面只负责读。 */
     if(chg&&!(d.ca||d.ck))return false;
+    /* 类型两级：大类（四网统一口径）与细分（上游原始分类）。
+       两者是「且」关系，但**不会互相打架** —— 选了大类之后，不属于它的细分项
+       在 UI 上已经被置灰（见 syncTyOptions），用户根本选不出
+       「大类＝加装包 ＋ 细分＝5G套餐」这种必然为空的自相矛盾组合。 */
+    if(cat&&d.cat!==cat)return false;
     if(ty&&d.ty!==ty)return false;
     /* 保险丝：当前取值若是「本网已置灰的维度」，当没筛。
        UI 上点不到置灰项，但脚本 / 程序化赋值仍可能把它设进来（实测可行）——
@@ -613,6 +749,29 @@ function apply(){
       const p=pf.split(",").map(Number),f=num(d.f);
       if(f==null||f<p[0]||f>p[1])return false;
     }
+    /* 流量区间。「无流量」＝ 流量填 0 **或** 压根没填流量字段 ——
+       后者在移动那网占全部条目的 34.8%（1326 条）。若把它们挡在「无流量」之外，
+       用户点这一档会得到一份明显偏少的名单，而且看不出少了谁。 */
+    if(gf){
+      if(gf==="none"){
+        if(!(d.g==null||d.g===0))return false;
+      }else{
+        const p=gf.split(",").map(Number);
+        if(d.g==null||d.g<p[0]||d.g>p[1])return false;
+      }
+    }
+    if(cf){
+      const cm=num(d.c);
+      if(cf==="none"){
+        if(!(cm==null||cm===0))return false;
+      }else{
+        const p=cf.split(",").map(Number);
+        if(cm==null||cm<p[0]||cm>p[1])return false;
+      }
+    }
+    /* 渠道：上游原文已由构建脚本归一到三档（+其他）写在 d.chx 上，这里直接比对。
+       按原文 ch 筛没有意义 —— 光移动一家就有 8 种写法表达同一件事。 */
+    if(chx&&d.chx!==chx)return false;
     if(on){
       const dt=toDate(d.o);
       if(on==="none"){if(dt)return false}
@@ -630,12 +789,21 @@ function apply(){
     }
     if(bw==="line"&&!bwInfo(d))return false;
     if(bw==="speed"&&!bwSpeed(d))return false;
+    /* 速率档 m200 / m500 / m1000 —— 后缀数字就是要求的下行 Mbps。
+       速率**未知**的一律不通过（fail-closed，与上架/下线时间筛选同一条原则）：
+       「不知道多少兆」不能被当成「满足 500M」。 */
+    if(bw&&bw.charAt(0)==="m"){
+      const mb=bwMbps(d);
+      if(mb==null||mb<+bw.slice(1))return false;
+    }
     if(kw){
-      /* 搜索覆盖面：名称 / 套餐名 / 目标客户 / 渠道 / 报备编号 / 类型 / 权益 / 宽带 / 超套 / 有效期。
-         原先漏了后三项 —— 搜「2000M」只能命中名称里写了速率的 28 条，漏掉 22 条
-         （bw 字段是 2000M / 1000M/2000M 但名称没写速率的），搜「超套」也少 2 条。
-         特意不含月费与流量数值：它们已有专门的筛选与排序，混进来只会让搜「50」之类的词全是噪音。 */
-      const s=[d.n,d.t,d.ap,d.ch,d.r,d.ty,d.x,d.bw,d.ex,d.vp].join(" ").toLowerCase();
+      /* 搜索覆盖面：名称 / 套餐名 / 目标客户 / 渠道 / 报备编号 / 细分类型 / **大类** / 渠道档 /
+         权益 / 宽带 / 超套 / 有效期。
+         加 d.cat 是刻意的：搜「加装包」应当命中原分类写作「流量包」「语音包」的条目 ——
+         大类是用户心里的词，细分是上游的词，搜索该按用户那套来。
+         特意不含月费与流量数值：它们已有专门的筛选与排序，混进来只会让搜「50」全是噪音。 */
+      const s=[d.n,d.t,d.ap,d.ch,d.r,d.ty,d.cat,d.chx,d.x,d.bw,d.ex,d.vp]
+                .join(" ").toLowerCase();
       if(!s.includes(kw))return false;
     }
     return true;
@@ -679,9 +847,9 @@ function syncHash(){
   /* net 无条件写入（它不是「空值就省略」的筛选条件）：地址栏里没有 net
      时默认网由 NET_DEF 决定，而 NET_DEF 会随「哪网有数据」变化 ——
      显式写出 net，分享出去的链接才会一直指向同一网。 */
-  const m={net:NET,st:STA,kw:$("#kw").value.trim(),sc:$("#sc").value,ty:$("#ty").value,
-           ct:$("#ct").value,pf:$("#pf").value,on:$("#on").value,off:$("#off").value,
-           bw:$("#bw").value,chg:$("#chg").value,s:sortK,d:sortD};
+  const m={net:NET,st:STA,kw:$("#kw").value.trim(),s:sortK,d:sortD};
+  /* 枚举型维度统一从 DIMS 取 —— 加维度时不用回来改这里（漏改＝新维度分享不出去） */
+  DIMS.forEach(k=>{const e=$("#"+k);if(e)m[k]=e.value});
   for(const k in m)if(m[k]!== ""&&m[k]!=null)p.set(k,m[k]);
   const h=p.toString(),base=location.href.split("#")[0];
   if(location.hash.slice(1)!==h){
@@ -700,7 +868,7 @@ function readHash(){
   const nn=p.get("net");
   if(nn&&NETS[nn]&&nn!==NET){
     NET=nn;
-    $("#kw").value="";["ty","ct","sc","pf","on","off","bw","chg"].forEach(k=>$("#"+k).value="");
+    $("#kw").value="";clearDims();
     clearChips();
     renderNav();renderNet();
   }
@@ -710,14 +878,19 @@ function readHash(){
      会让 select.value 静默失败：下拉停在「全部」，代码却在按那个幽灵值过滤
      —— 控件与结果对不上且不报错。认不出来就当这个参数没传，
      三者随即恢复一致（syncHash 会把非法参数从地址栏里抹掉，链接自愈）。 */
-  ["ty","ct","sc","pf","on","off","bw","chg"].forEach(k=>{
+  DIMS.forEach(k=>{
     const v=p.get(k),sel=$("#"+k);
+    if(!sel)return;
     /* ★ 还得看这个取值在本网「存不存在」—— 见 renderDims()：
        某网若没有这个维度，对应控件会被**隐藏**（地市）或 option 被置灰（地域）。
        不查的话，地址栏里带着别网的地市值进来（#net=unicom&ct=邢台）会被照单全收，
        筛选随即恒为空 —— 而链接看起来完全正常、不报任何错。 */
     if(v!=null&&sel.style.display!=="none"
        &&[...sel.options].some(o=>o.value===v&&!o.disabled))sel.value=v;
+    /* ★ 大类必须先于细分处理（DIMS 里 cat 就排在 ty 前面），且设完立刻同步置灰：
+       否则链接里带 #cat=加装包&ty=5G套餐 会被照单全收 —— 那是个不存在的组合，
+       页面会安静地给出 0 条。 */
+    if(k==="cat")syncTyOptions();
   });
   /* 页签（st）不是 select，单独校验：只认 ""/0/1，其余当没传。
      同「枚举参数先核对」的道理 —— 认不出来就退回默认，而不是把一个
@@ -754,7 +927,7 @@ function switchNet(c){
   if(!NETS[c])return;
   if(c!==NET){
     NET=c;
-    $("#kw").value="";["ty","ct","sc","pf","on","off","bw","chg"].forEach(k=>$("#"+k).value="");
+    $("#kw").value="";clearDims();
     clearChips();
   }
   /* 点当前网也照常走一遍刷新（但**不清筛选**，所以是幂等的）：
@@ -787,11 +960,38 @@ function renderNet(){
     ?"来源："+esc(n.src||"—")+" · 数据基线 "+esc(n.base||"—")+" · 共 "+rs.length+" 条"
       +(scTxt?"（"+scTxt+"）":"")+" · 单位已按 dataUnit 归一"
     :"来源：待接入 —— 本网资费数据尚未接入，页面结构已就位";
-  const ty=$("#ty");
-  ty.innerHTML='<option value="">全部类型</option>';
-  [...new Set(rs.map(d=>d.ty))].filter(Boolean).sort().forEach(t=>{
-    const o=document.createElement("option");o.value=t;o.textContent=t;ty.appendChild(o);
+  /* —— 类型两级：先建大类，再建细分 ——
+     · 大类按 CAT_ORDER 的**固定顺序**生成（不是按条数或拼音）：顺序稳定，
+       逐日看的时候才知道「今天冒出来的是哪一类」。
+     · 本网没有的大类不给入口 —— 与地市维度「本网没有就不出这一层」同一条原则。
+     · 细分项把所属大类记在 data-cat 上，供 syncTyOptions() 做联动置灰。
+       顺便把**条数**写进选项文本：用户问的就是「有哪些套餐、加装包」，
+       先看到规模再决定要不要展开；筛选标签里会把「（数字）」削掉（见 optText）。 */
+  const cCnt={},tCnt={},tCat={};
+  rs.forEach(d=>{
+    cCnt[d.cat]=(cCnt[d.cat]||0)+1;
+    tCnt[d.ty]=(tCnt[d.ty]||0)+1;
+    if(!(d.ty in tCat))tCat[d.ty]=d.cat;
   });
+  const cat=$("#cat");
+  cat.innerHTML='<option value="">全部大类</option>';
+  CAT_ORDER.filter(c=>cCnt[c]).forEach(c=>{
+    const o=document.createElement("option");
+    o.value=c;o.textContent=c+"（"+cCnt[c]+"）";
+    cat.appendChild(o);
+  });
+  const ty=$("#ty");
+  ty.innerHTML='<option value="">全部细分</option>';
+  Object.keys(tCnt).filter(Boolean).sort().forEach(t=>{
+    const o=document.createElement("option");
+    o.value=t;o.textContent=t+"（"+tCnt[t]+"）";
+    o.dataset.cat=tCat[t]||"";
+    ty.appendChild(o);
+  });
+  /* 建完就同步一次：切网时大类被清空，细分的置灰状态必须跟着复原，
+     否则会留着上个网的置灰格局（那时 ty 已被 clearDims 清空，看不出异样，
+     但要等用户重新选一次大类才发现有些项点不了）。 */
+  syncTyOptions();
   /* 「本次变更」条数随网、随日变化 —— 标签带上条数才看得出有没有东西可看。
      本网当天无变更时把快捷 chip 收起来；选单保留：万一地址栏带着 chg=1 进来，
      状态仍然可见、语义仍一致（会筛出 0 条），而不是被悄悄抹掉。 */
@@ -889,9 +1089,60 @@ function renderEmptyState(){
 
 function clearChips(){document.querySelectorAll("#chips button").forEach(b=>b.classList.remove("on"))}
 function resetAll(){
-  $("#kw").value="";["ty","ct","sc","pf","on","off","bw","chg"].forEach(k=>$("#"+k).value="");
+  $("#kw").value="";clearDims();syncTyOptions();
   sortK="on";sortD=-1;$("#sort").value=sortK;
   clearChips();apply();
+}
+
+/* —— 单条资费的纯文本摘要 ——
+   复制出去是要粘到聊天 / 文档里的，所以纯文本、一行一字段、不带任何 HTML。 */
+function rowText(d){
+  const bi=bwInfo(d),mb=bwMbps(d);
+  return [
+    (d.n||d.t||"").trim(),
+    "类型："+(d.cat||"—")+(d.ty&&d.ty!==d.cat?" / "+d.ty:""),
+    "月费："+(d.f!==""&&d.f!=null?d.f+" 元":"—"),
+    "流量："+fmtGb(d.g),
+    "通话："+(d.c&&d.c!=="0"?d.c+" 分钟":"—"),
+    "地域："+(SC_LB[d.sc]||"—")+(cityTags(d).length?"（"+cityTags(d).join("/")+"）":""),
+    "状态："+(d.st?"已下架":"在售"),
+    "宽带："+(bi?(mb?mb+"M":"含宽带"):"—"),
+    "渠道："+(d.chx||"—")+(d.ch?"（"+d.ch+"）":""),
+    "上架："+(fmtD(d.o)||"—")+"  下线："+(fmtD(d.e)||"—"),
+    "报备编号："+(d.r||"—"),
+    "数据基线："+String(net().base||"—")+"（来源 "+String(net().src||"—")+"）"
+  ].join("\n");
+}
+
+/* —— 复制到剪贴板 ——
+   ⚠️ navigator.clipboard 需要 secure context，而本页的**主要用法之一**就是
+   另存成单文件再从 file:// 打开（见 saveOffline）。那条路上它不一定可用，
+   所以 execCommand 那条老路在这儿不是「兜底」，是并列的主路径 —— 必须实现。 */
+let _toastQ=null;
+function toast(msg){
+  let el=document.getElementById("toast");
+  if(!el){el=document.createElement("div");el.id="toast";document.body.appendChild(el)}
+  el.textContent=msg;el.classList.add("on");
+  clearTimeout(_toastQ);
+  _toastQ=setTimeout(()=>el.classList.remove("on"),1800);
+}
+function legacyCopy(s){
+  const t=document.createElement("textarea");
+  t.value=s;t.setAttribute("readonly","");
+  t.style.cssText="position:fixed;top:0;left:0;opacity:0";
+  document.body.appendChild(t);t.select();
+  let ok=false;
+  try{ok=document.execCommand("copy")}catch(e){ok=false}
+  t.remove();
+  return ok;
+}
+function copyText(s){
+  const done=ok=>toast(ok?"已复制":"复制失败：浏览器不允许，请手动选中复制");
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(s).then(()=>done(true),()=>done(legacyCopy(s)));
+  }else{
+    done(legacyCopy(s));
+  }
 }
 
 /* —— 导出 CSV ——
@@ -901,10 +1152,14 @@ const CSV_COLS=[
   ["地域",d=>SC_LB[d.sc]||""],["状态",d=>d.st?"已下架":"在售"],
   ["月费(元)",d=>d.f],["流量(GB)",d=>d.g],["流量原文",d=>d.d],["流量单位",d=>d.du],
   ["每元流量(GB)",d=>{const v=perVal(d);return v==null?"":(v===Infinity?"∞":+v.toFixed(3))}],
-  ["通话(分)",d=>d.c],["名称",d=>d.n],["套餐名",d=>d.t],["类型",d=>d.ty],
+  ["通话(分)",d=>d.c],["名称",d=>d.n],["套餐名",d=>d.t],
+  /* 大类在前、细分在后：大类是四网可比的横轴，细分是上游各自的说法。
+     两个都留着 —— 只给大类会丢掉「流量包还是语音包」这种关键差别。 */
+  ["类型大类",d=>d.cat],["类型细分",d=>d.ty],
   ["宽带字段",d=>d.bw],
   ["宽带判定",d=>{const i=bwInfo(d);return i?(i.src==="field"?"含宽带":"含宽带(按名称判定)"):"不含宽带"}],
-  ["城市",d=>cityTags(d).join("/")],["目标客户",d=>d.ap],["办理渠道",d=>d.ch],
+  ["城市",d=>cityTags(d).join("/")],["目标客户",d=>d.ap],
+  ["渠道档",d=>d.chx],["办理渠道原文",d=>d.ch],
   ["报备编号",d=>d.r],["上架日",d=>fmtD(d.o)],["下线日",d=>fmtD(d.e)],
   ["本次变更",d=>(d.ca?"新增":"")+(d.ca&&d.ck?"/":"")+(d.ck?"字段变更":"")],
   ["超套资费",d=>d.ex],["有效期",d=>d.vp],["权益说明",d=>d.x]];
@@ -953,7 +1208,11 @@ readHash();
 markHead();
 
 $("#kw").oninput=apply;
-["ty","ct","sc","pf","on","off","bw","chg"].forEach(k=>$("#"+k).onchange=()=>{clearChips();apply()});
+DIMS.forEach(k=>{
+  /* 这里**不再**单独处理大类联动：统一由 apply() 开头那一次 syncTyOptions() 负责。
+     两处都写会让人以为「只有走 onchange 才联动」，而深链那条路恰恰就是这么漏掉的。 */
+  $("#"+k).onchange=()=>{clearChips();apply()};
+});
 /* 页签点击：只改 STA，不碰别的筛选 —— 切页签不该把关键词/地域筛掉。
    禁用项（本网拿不到下架数据的那些）点了不生效，与置灰语义一致。 */
 document.querySelectorAll("#tabs button").forEach(b=>{
@@ -967,6 +1226,31 @@ $("#dir").onclick=()=>{sortD=-sortD;apply()};
 $("#reset").onclick=resetAll;
 $("#csv").onclick=exportCSV;
 $("#offline").onclick=saveOffline;
+
+/* —— 点筛选标签上的 × ：只摘掉那**一个**条件 ——
+   用事件委托挂在 #stat 上（它的 innerHTML 每次 render 都重建，
+   挂在标签本身上会在第一次重渲染后失效）。 */
+$("#stat").addEventListener("click",e=>{
+  const b=e.target.closest(".fchip");if(!b)return;
+  const k=b.dataset.d;
+  if(k==="kw"){$("#kw").value=""}
+  else if(k==="st"){STA="";syncTabs()}
+  else{
+    const el=$("#"+k);if(el)el.value="";
+    if(k==="cat")syncTyOptions();     // 大类被摘掉 ⇒ 细分的置灰要复原
+  }
+  clearChips();apply();
+});
+
+/* —— 键盘快捷键 ——
+   / 聚焦搜索框、Esc 清空搜索。判「当前是不是在输入」而不是无脑抢键：
+   在下拉/输入框里敲 / 是正常输入，抢走焦点会很烦人。 */
+document.addEventListener("keydown",e=>{
+  const tag=(e.target.tagName||"").toLowerCase();
+  const typing=tag==="input"||tag==="select"||tag==="textarea";
+  if(e.key==="/"&&!typing){e.preventDefault();$("#kw").focus()}
+  else if(e.key==="Escape"&&e.target===$("#kw")&&$("#kw").value){$("#kw").value="";apply()}
+});
 $("#prev").onclick=()=>{if(pg>0){pg--;render();markHead();scrollTo(0,0)}};
 $("#next").onclick=()=>{if((pg+1)*PAGE<view.length){pg++;render();markHead();scrollTo(0,0)}};
 
@@ -982,8 +1266,11 @@ document.querySelectorAll("th[data-k]").forEach(th=>{
 $("#chips").addEventListener("click",e=>{
   const b=e.target.closest("button[data-p]");if(!b)return;
   const p=b.dataset.p;
-  $("#kw").value="";["ty","ct","sc","pf","on","off","bw","chg"].forEach(k=>$("#"+k).value="");
-  const map={new7:["on","7"],new30:["on","30"],new90:["on","90"],exp60:["off","60"],free:["pf","0,0"],bw:["bw","line"],chg:["chg","1"]};
+  /* 快捷项之间是**互斥**的（点了「含宽带」就该把「0 元」摘掉），所以先清空全部维度。
+     清完得 syncTyOptions()：大类被清掉后，细分的置灰格局也要跟着复原。 */
+  $("#kw").value="";clearDims();syncTyOptions();
+  const map={new7:["on","7"],new30:["on","30"],new90:["on","90"],exp60:["off","60"],
+             free:["pf","0,0"],bw:["bw","line"],g100:["gf","100,99999"],chg:["chg","1"]};
   if(map[p])$("#"+map[p][0]).value=map[p][1];
   clearChips();b.classList.add("on");
   apply();

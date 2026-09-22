@@ -95,6 +95,80 @@ HB_PROV_NUM = "311"          # 数字省码 = 河北
 CN_TOK = "000"               # 全国标记
 SCOPE_CN = {"hb": "河北", "cn": "全国"}
 
+# ── 类型归一：四网「原始分类」→ 统一大类 ─────────────────────────────
+# 需求：「分为河北省资费和全国资费…个人资费下面是什么套餐啊、加装包啊…四网都要这样」。
+# 但四网的原始分类**根本不同构**（2026-09-22 实测）：
+#   移动：加装包 / 营销活动 / 套餐 / 标准资费 / 港澳台-国际资费
+#   联通：停售套餐 / 标准资费 / 加装包 / 套餐 / 港澳台-国际资费 / 营销活动
+#   电信：加装包 / 营销活动 / 套餐
+#   广电：5G套餐 / 促销 / 流量包 / 语音包 / 宽带 / 5G / 4G套餐 / 合约   ← 完全另一套
+# 直接拿 `ty` 当筛选项，等于让用户按「上游怎么分类」去理解 —— 四个网四个说法，
+# 「套餐」这个词在广电那网甚至不存在。所以在这里显式归一到大类。
+# ★ 映射表**列全**而不是靠关键字猜：「5G」这种名字里没写「套餐」的也得进套餐；
+#   靠 in 判断「包」字会把「套餐」也误吸进「加装包」。漏映射的会落到「其他」，
+#   并由 CI 硬断言把它揪出来（见 .github/workflows/tariff-daily.yml）——
+#   宁可停下让人看一眼，也不要页面里悄悄多出一个含义不明的分类。
+CAT_ORDER = ("套餐", "加装包", "营销活动", "标准资费", "宽带", "港澳台/国际", "其他")
+TYPE_CAT = {
+    # 套餐族：广电的「5G / 4G套餐 / 合约」本质都是主套餐
+    "套餐": "套餐", "5G套餐": "套餐", "4G套餐": "套餐", "5G": "套餐", "合约": "套餐",
+    # 联通的「停售套餐」就是停了售的套餐；是否停售已由「已下架」页签表达，
+    # 不该再占一个大类（否则「已停售」会成为联通独有的大类，四网又不同构了）
+    "停售套餐": "套餐",
+    # 加装包族：广电的「流量包 / 语音包」就是加在主套餐上的包（移动把它们并称「加装包」）
+    "加装包": "加装包", "流量包": "加装包", "语音包": "加装包",
+    "营销活动": "营销活动", "促销": "营销活动",
+    "标准资费": "标准资费",
+    "宽带": "宽带",
+    "港澳台/国际资费": "港澳台/国际",
+}
+
+
+def type_cat(ty):
+    """原始分类 → 统一大类。未映射的归「其他」（CI 会断言它为 0）。"""
+    return TYPE_CAT.get(str(ty or "").strip(), "其他")
+
+
+# ── 渠道归一：原文 → 线上 / 线下 / 两者都有 ───────────────────────────
+# 渠道字段四网都是 100% 填充，但写法极其碎（移动光「线上」就有「线上渠道」
+# 「线上及线下渠道」「线上、线下渠道，具体以各省实际为准，详询10086」三种写法；
+# 还有「自有渠道（中国联通APP等）、互联网渠道（飞猪、携程等）」这种
+# —— 看着像线下，其实是纯线上）。按原文筛毫无意义，归一到三档才有用。
+# ★ 判定顺序要紧：先判「两者都有」，再判单一 —— 「线上线下」两个词都命中时
+#   若先判单边就会把它误归成其中一边。
+CH_ORDER = ("线上", "线下", "线上+线下", "其他")
+# 「全渠道 / 全部」这类没点名线上线下的写法，语义就是「两边都能办」——
+# 漏进「其他」会让「线上」这一档少掉 120 条（实测移动 15 + 联通 105）。
+CH_ALL = ("全渠道", "全部渠道", "全部", "不限渠道", "各渠道", "任何渠道")
+CH_ON = ("线上", "在线", "网厅", "掌厅", "官网", "网上", "互联网", "APP", "app", "App",
+         "微信", "公众号", "小程序", "外呼", "热线", "10086", "10010", "10000", "10099",
+         # 电话/短信/商城/客户端都属自助渠道。联通的「宽视界大屏端」是电视端自办，
+         # 也算线上 —— 它不是实体营业厅。
+         "电话", "短信", "商城", "客户端", "大屏", "宽视界", "兑换",
+         "抖音", "电视端", "IPTV", "会员中心")
+CH_OFF = ("线下", "营业厅", "门店", "实体", "社会渠道", "代理", "自有渠道",
+          # 校园/合作/指定/代办/装维都是要去实体点或由人上门办的
+          "校园", "合作", "指定", "装维", "自办厅", "代办", "加盟",
+          "网点", "厅店", "客户经理")
+
+
+def ch_norm(s):
+    """渠道原文 → 归一档。认不出的归「其他」并原样保留在页面（可搜可看）。"""
+    t = str(s or "").strip()
+    if not t:
+        return "其他"
+    if any(k in t for k in CH_ALL):
+        return "线上+线下"
+    on = any(k in t for k in CH_ON)
+    off = any(k in t for k in CH_OFF)
+    if on and off:
+        return "线上+线下"
+    if on:
+        return "线上"
+    if off:
+        return "线下"
+    return "其他"
+
 
 def _uniq(seq):
     """保序去重（地市码可能同时出现在 applicableArea 与 city 两个字段里）。"""
@@ -630,15 +704,21 @@ def rows_of(o, diff=None, code=""):
             def s(k, n=400):
                 v = e.get(k)
                 return "" if v in (None, "None") else str(v).replace("\n", " ")[:n]
+            chn = s("channel", 120)
             rec = {"n": s("name", 120), "t": s("tariffName", 80),
                    "f": s("fees", 20), "d": s("data", 20), "du": s("dataUnit", 10),
                    "c": s("call", 20), "g": gb(e.get("data"), e.get("dataUnit")),
-                   "ap": s("applicablePeople", 220), "ch": s("channel", 120),
+                   "ap": s("applicablePeople", 220), "ch": chn,
                    "o": s("onlineDay", 12), "e": s("offineDay", 12),
                    "ty": ty, "a1": attr, "r": s("reportNo", 30),
                    "x": s("otherContent", 500), "ex": s("extraFees", 200),
                    "vp": s("validPeriod", 200), "bw": s("brandwidth", 40),
-                   "sc": sc}
+                   "sc": sc,
+                   # ★ 归一化结果在**构建期**算好写进行数据（而不是让页面查表）：
+                   #   ① 页面只读不算，筛选/CSV/统计三处不会各算一遍导致口径漂移；
+                   #   ② CI 断言能直接校验取值域（cat 必须落在 CAT_ORDER 内）；
+                   #   ③ 探针复用同一份函数，结论与页面必然一致。
+                   "cat": type_cat(ty), "chx": ch_norm(chn)}
             # ★ 地市码只在**本网真有**时才写（联通/广电恒空）—— 空列表不落盘，
             #   免得页面拿到一堆 `cty: []` 误以为「这些条目属于第 0 个地市」。
             #   有值 = 该资费限这几个市；无此键 = 全省通用。
@@ -665,6 +745,24 @@ def rows_of(o, diff=None, code=""):
     return _mark_changes(rows, diff)
 
 
+# 模板占位符 —— 只此一份。
+# ★ 漏掉一个占位符的表现是：生成的页面里留着 `__XXX__`，JS 直接 ReferenceError，
+#   整页白屏；而且**本地不一定复现**（要么走 build_html、要么走 render_only）。
+#   原先是 build_html 与 render_only 各写一遍替换列表 —— 2026-09-22 加 __CAT_ORDER__
+#   时就只改了 build_html，render_only 那侧静默漏掉。合并到一处，从结构上消除这种漏。
+PLACEHOLDERS = ("__NETS__", "__N__", "__DATE__", "__CAT_ORDER__", "__NOTICE__")
+
+
+def fill_template(tpl, vals):
+    """把模板占位符一次填掉。缺任何一个都**报错**，而不是留下 `__X__` 让页面坏掉。"""
+    miss = [p for p in PLACEHOLDERS if p not in tpl]
+    if miss:
+        raise RuntimeError("模板缺少占位符：%s" % "、".join(miss))
+    for p in PLACEHOLDERS:
+        tpl = tpl.replace(p, str(vals.get(p, "")))
+    return tpl
+
+
 def build_html(sources, notice="", diffs=None):
     """重建查询页（多网）。
 
@@ -680,17 +778,28 @@ def build_html(sources, notice="", diffs=None):
             continue
         d = (diffs or {}).get(code)
         rows = rows_of(o, d, code)
-        sc_stat, st_n, cty_n = {}, 0, 0
+        sc_stat, cat_stat, st_n, cty_n, unmapped = {}, {}, 0, 0, {}
         for r in rows:
             sc_stat[r.get("sc")] = sc_stat.get(r.get("sc"), 0) + 1
+            cat_stat[r.get("cat")] = cat_stat.get(r.get("cat"), 0) + 1
             st_n += 1 if r.get("st") else 0
             cty_n += 1 if r.get("cty") else 0
+            if r.get("cat") == "其他":
+                unmapped[r.get("ty") or "(空)"] = unmapped.get(r.get("ty") or "(空)", 0) + 1
         log("   %s：%d 条（%s%s%s）" % (
             code, len(rows),
             " · ".join("%s %d" % (SCOPE_CN.get(k, k or "?"), v)
                        for k, v in sorted(sc_stat.items())),
             (" · 地市专属 %d" % cty_n) if cty_n else " · 无地市维度",
             " · 已下架 %d" % st_n if st_n else ""))
+        # 大类分布按 CAT_ORDER 输出（而不是 most_common）—— 顺序固定才便于逐日比对，
+        # 也才能一眼看出「某网这次少了一整类」。
+        log("     大类：" + " · ".join("%s %d" % (c, cat_stat[c])
+                                     for c in CAT_ORDER if cat_stat.get(c)))
+        if unmapped:
+            log("     !! 有原始分类没归到大类（落进「其他」）：" + " · ".join(
+                "%s×%d" % (k, v) for k, v in sorted(unmapped.items()))
+                + " —— 请在 TYPE_CAT 里补映射（CI 会因此硬失败）")
         payloads[code] = {"rows": rows, "src": SRC_OF.get(code, ""),
                           "base": data_day(o, time.strftime("%Y-%m-%d")),
                           "allProvince": bool(o.get("allProvince"))}
@@ -710,9 +819,13 @@ def build_html(sources, notice="", diffs=None):
     date = (payloads.get("move") or {}).get("base") or data_day(
         sources.get("move") or {}, time.strftime("%Y-%m-%d"))
     payload = json.dumps(net_payload(payloads), ensure_ascii=False, separators=(",", ":"))
-    out = (html.replace("__NETS__", payload).replace("__N__", str(total))
-               .replace("__DATE__", date)
-               .replace("__NOTICE__", notice or "本次巡检未检测到变化"))
+    out = fill_template(html, {
+        "__NETS__": payload, "__N__": str(total), "__DATE__": date,
+        # 大类顺序（不是数据）注入页面：页面按它生成下拉，顺序才和构建日志一致。
+        # 在页面里另写一份常量就会漂移 —— 而漂移的表现是「下拉顺序和日志对不上」，
+        # 不报错、只是慢慢让人不敢信。
+        "__CAT_ORDER__": json.dumps(list(CAT_ORDER), ensure_ascii=False),
+        "__NOTICE__": notice or "本次巡检未检测到变化"})
     with open(HTML_DST, "w", encoding="utf-8") as f:
         f.write(out)
     # gz 才是用户实际要下载的字节数：原始 2.5 MB 的页面 gz 后只有 245 KB，
@@ -793,14 +906,14 @@ def render_only():
 
     payload = json.dumps(nets, ensure_ascii=False, separators=(",", ":"))
     tpl = open(os.path.join(BASE, "template.html"), encoding="utf-8").read()
-    for ph in ("__NETS__", "__N__", "__DATE__", "__NOTICE__"):
-        if ph not in tpl:
-            log(f"!! 模板缺少占位符 {ph}，中止（否则会留下未替换的标记）")
-            return 3
-    out = (tpl.replace("__NETS__", payload)
-              .replace("__N__", str(all_n))
-              .replace("__DATE__", date)
-              .replace("__NOTICE__", notice))
+    try:
+        out = fill_template(tpl, {
+            "__NETS__": payload, "__N__": str(all_n), "__DATE__": date,
+            "__CAT_ORDER__": json.dumps(list(CAT_ORDER), ensure_ascii=False),
+            "__NOTICE__": notice})
+    except RuntimeError as e:
+        log(f"!! {e}，中止（否则会留下未替换的标记把页面搞坏）")
+        return 3
     with open(HTML_DST, "w", encoding="utf-8") as f:
         f.write(out)
     log(f"已按当前模板重渲染：共 {all_n} 条（移动 {len(rows)}）· 基线 {date or '?'} · "

@@ -11,6 +11,10 @@
  *   · 地市筛选**真的能筛**（选一个真实地市 ⇒ 结果收窄且 > 0）
  *   · 幽灵塞值：隐藏维度手工塞值必须**不生效**（否则等于拿不存在的维度筛）
  *   · 已下架页签的可用性与条数
+ *   · 类型**两级**：#cat 大类的顺序与条数（必须与数据逐条对齐）、
+ *     以及大类 → 细分的**联动置灰**（否则能选出「加装包 + 5G套餐」这种不存在的组合）
+ *   · 渠道 #chx、流量 #gf、通话 #cf 三档筛选真的生效
+ *   · 生效筛选被渲染成**可点掉的标签**，且点 × 真的摘掉那一个条件
  *
  * 🔴 每次测量前**必须自己重置全部筛选维度**（resetAll）：
  *   页面在多次 eval 之间**保留状态**（我把 #ct 留成 _none，下一次 eval 的 view 就是 3401 而不是 3887）。
@@ -22,20 +26,42 @@
 (function () {
   function num(x) { return (x || []).length; }
   function txt(el) { return String((el && el.textContent) || ""); }
+  function opts(sel) { return [].slice.call($(sel).options); }
 
   /* 把界面恢复成「刚打开」：所有筛选维度清空 + 回到「在售」页签。
-     不假设调用方已经刷新页面 —— 这个脚本要能连跑多次、且与执行顺序无关。 */
+     不假设调用方已经刷新页面 —— 这个脚本要能连跑多次、且与执行顺序无关。
+     ★ 维度列表优先从页面全局 DIMS 取（页面自己那份是唯一权威）；
+       取不到才退回显式列表 —— 硬编码一份迟早与页面漂移。 */
   function resetAll() {
-    var ids = ["#kw", "#ty", "#ct", "#pf", "#bw", "#chg", "#sc", "#on", "#off"];
+    var ids = null;
+    try {
+      if (typeof DIMS !== "undefined" && DIMS.length) {
+        ids = ["#kw"].concat(DIMS.map(function (k) { return "#" + k; }));
+      }
+    } catch (e) { ids = null; }
+    if (!ids) {
+      ids = ["#kw", "#sc", "#cat", "#ty", "#ct", "#pf", "#gf", "#cf",
+             "#bw", "#chx", "#on", "#off", "#chg"];
+    }
     for (var i = 0; i < ids.length; i++) {
       var e = $(ids[i]);
       if (e) { e.value = ""; }
     }
+    try { if (typeof syncTyOptions === "function") { syncTyOptions(); } } catch (e) {}
     try { if (typeof STA !== "undefined") { STA = "0"; } } catch (e) {}
     try { if (typeof pg !== "undefined") { pg = 0; } } catch (e) {}
     try { clearChips(); } catch (e) {}
     try { syncTabs(); } catch (e) {}
     try { apply(); } catch (e) {}
+  }
+
+  /* 当前页签（在售）下应当被计入的条数 —— 用来和页面 view 长度对账。
+     直接和 rowsOf() 全量比会差出下架那批，那是误报。 */
+  function inTab(d) {
+    return !(STA !== "" && (d.st ? 1 : 0) !== +STA);
+  }
+  function wantBy(pred) {
+    return rowsOf(NET).filter(function (d) { return inTab(d) && pred(d); }).length;
   }
 
   function snap(netCode) {
@@ -55,15 +81,16 @@
     o.sub = txt($("#sub")).slice(0, 170);
 
     var sc = $("#sc");
-    o.scOptions = [].map.call(sc.options, function (x) {
+    o.scOptions = opts("#sc").map(function (x) {
       return { v: x.value, t: x.text, disabled: !!x.disabled };
     });
-    o.scChoosable = o.scOptions.filter(function (x) { return !x.disabled; }).map(function (x) { return x.v; });
+    o.scChoosable = o.scOptions.filter(function (x) { return !x.disabled; })
+                               .map(function (x) { return x.v; });
 
     var ct = $("#ct");
     o.ctVisible = getComputedStyle(ct).display !== "none";
     o.ctOptionCount = ct.options.length;
-    o.ctValues = [].map.call(ct.options, function (x) { return x.value; });
+    o.ctValues = opts("#ct").map(function (x) { return x.value; });
 
     var rs = rowsOf(NET);
     o.rows = rs.length;
@@ -101,6 +128,97 @@
       }
       resetAll();
     }
+
+    /* ══ 类型两级 ══
+       ① 大类选项必须按 CAT_ORDER（构建脚本注入）的顺序出现 ——
+          否则页面上「套餐 / 加装包 / …」的次序会与构建日志对不上，逐日比对就没法做。
+       ② 选一个大类 ⇒ view 必须**恰好等于**该大类的条数（不是"大于 0"就行：
+          那只能证明筛选没把结果滤光，证明不了它筛对了）。
+       ③ 联动的反面：不属于该大类的细分项必须**全被置灰**，
+          属于的必须**全可点**；漏一个就能选出不存在的组合。 */
+    var catVals = opts("#cat").map(function (x) { return x.value; }).filter(Boolean);
+    o.catOptions = catVals;
+    try {
+      var wantOrder = CAT_ORDER.filter(function (c) { return catVals.indexOf(c) >= 0; });
+      o.catOrderOk = (wantOrder.join("|") === catVals.join("|"));
+    } catch (e) { o.catOrderOk = null; }
+
+    if (catVals.length) {
+      var c0 = catVals[0];
+      $("#cat").value = c0;
+      try { clearChips(); } catch (e) {}
+      try { apply(); } catch (e) {}
+      o.catFilterSample = { cat: c0, rows: view.length, want: wantBy(function (d) { return d.cat === c0; }) };
+      // 联动只检**非空**细分项：空值那项（「全部细分」）永远可点，不参与联动
+      o.tyLinkBad = opts("#ty").filter(function (x) {
+        if (!x.value) { return false; }
+        var sameCat = (x.dataset.cat === c0);
+        return sameCat ? !!x.disabled : !x.disabled;
+      }).map(function (x) { return x.value + (x.disabled ? "(该可点却被灰)" : "(该灰却可点)"); });
+      resetAll();
+    }
+
+    /* ══ 渠道 ══
+       chx 是**构建期**算好写进行数据的（页面不做映射），所以这里有两件事要验：
+       ① 数据里真的有这个字段（否则筛选恒空、且看不出原因）；
+       ② 选一档 ⇒ view 等于该档条数。 */
+    o.chxPresent = rs.some(function (d) { return !!d.chx; });
+    var chxVals = opts("#chx").map(function (x) { return x.value; }).filter(Boolean);
+    o.chxOptions = chxVals;
+    if (chxVals.length) {
+      var x0 = chxVals[0];
+      $("#chx").value = x0;
+      try { clearChips(); } catch (e) {}
+      try { apply(); } catch (e) {}
+      o.chxFilterSample = { v: x0, rows: view.length, want: wantBy(function (d) { return d.chx === x0; }) };
+      resetAll();
+    }
+
+    /* ══ 数值区间（流量 / 通话）══
+       用「≤5GB」而不是「≥100GB」：后者在个别网可能真的是 0 条
+       （数据使然，不是 bug），拿它做断言会把正常情况判成失败。 */
+    $("#gf").value = "0,5";
+    try { apply(); } catch (e) {}
+    o.gfSample = { rows: view.length, want: wantBy(function (d) { return d.g != null && d.g >= 0 && d.g <= 5; }) };
+    resetAll();
+
+    $("#cf").value = "none";
+    try { apply(); } catch (e) {}
+    o.cfSample = { rows: view.length, want: wantBy(function (d) {
+      var c = parseFloat(d.c); return d.c == null || d.c === "" || isNaN(c) || c === 0;
+    }) };
+    resetAll();
+
+    /* ══ 可点掉的筛选标签 ══
+       不能只验「渲染出来了」—— 真正的功能是**点 × 能摘掉那一个条件**，
+       所以点完之后必须看到结果变大、且标签数减一。 */
+    if (chxVals.length) { $("#chx").value = chxVals[0]; }
+    if (catVals.length) { $("#cat").value = catVals[0]; }
+    try { syncTyOptions(); } catch (e) {}
+    try { clearChips(); } catch (e) {}
+    try { apply(); } catch (e) {}
+    var fc = document.querySelectorAll("#stat .fchip");
+    o.fchipCount = fc.length;
+    o.fchipTexts = [].map.call(fc, function (b) { return txt(b); });
+    /* 🔴 必须挑一个**真会收窄结果**的标签来点，不能无脑点第一个。
+       第一个通常是「状态：在售」—— 而移动 / 电信的下架数据本来就是 0 条，
+       摘掉它条数**根本不会变**，于是正常情况被判成「× 没生效」。
+       实测踩过：move / telecom 报错而 unicom / cbn 通过，就是这个原因
+       —— 报错的那两网才是数据正常的，断言反过来冤枉了它们。 */
+    var pick = null;
+    for (var i = 0; i < fc.length; i++) {
+      var dk = fc[i].dataset.d;
+      if (dk && dk !== "st" && dk !== "kw") { pick = fc[i]; break; }
+    }
+    if (pick) {
+      var n0 = fc.length, rows0 = view.length, pk = pick.dataset.d;
+      pick.click();
+      o.fchipRemove = { removed: pk, before: n0,
+                        after: document.querySelectorAll("#stat .fchip").length,
+                        rowsBefore: rows0, rowsAfter: view.length,
+                        rowGrew: view.length > rows0 };
+    }
+    resetAll();
     return o;
   }
 
@@ -134,6 +252,42 @@
     if (!stop) { bad.push("找不到「已下架」页签"); }
     else if (exp.stopped && stop.disabled) { bad.push("期望已下架页签可用，实际置灰"); }
     else if (!exp.stopped && !stop.disabled) { bad.push("期望已下架页签置灰（本网取不到下架），实际可用"); }
+
+    // 类型大类
+    if (!(o.catOptions || []).length) { bad.push("无类型大类选项"); }
+    else {
+      if (o.catOrderOk === false) { bad.push("大类顺序与 CAT_ORDER 不一致"); }
+      var cs = o.catFilterSample || {};
+      if (!(cs.rows > 0)) { bad.push("大类「" + cs.cat + "」筛出 0 条"); }
+      else if (cs.rows !== cs.want) {
+        bad.push("大类「" + cs.cat + "」条数不符：页面 " + cs.rows + " ≠ 数据 " + cs.want);
+      }
+      if ((o.tyLinkBad || []).length) {
+        bad.push("大类→细分的联动置灰有漏：" + o.tyLinkBad.join(" / "));
+      }
+    }
+
+    // 渠道
+    if (!o.chxPresent) { bad.push("数据里没有渠道档 chx"); }
+    if (!(o.chxOptions || []).length) { bad.push("无渠道选项"); }
+    else {
+      var xs = o.chxFilterSample || {};
+      if (xs.rows !== xs.want) {
+        bad.push("渠道「" + xs.v + "」条数不符：页面 " + xs.rows + " ≠ 数据 " + xs.want);
+      }
+    }
+
+    // 数值区间
+    var g = o.gfSample || {}, c = o.cfSample || {};
+    if (g.rows !== g.want) { bad.push("流量「≤5GB」条数不符：" + g.rows + " ≠ " + g.want); }
+    if (c.rows !== c.want) { bad.push("通话「无通话」条数不符：" + c.rows + " ≠ " + c.want); }
+
+    // 可点掉的筛选标签
+    if (!(o.fchipCount > 0)) { bad.push("未渲染出筛选标签"); }
+    else if (o.fchipRemove) {
+      if (!(o.fchipRemove.after < o.fchipRemove.before)) { bad.push("点掉标签后标签数没减少"); }
+      if (!o.fchipRemove.rowGrew) { bad.push("点掉标签后结果没变多（× 没生效）"); }
+    }
     return bad;
   }
 

@@ -137,7 +137,10 @@ jobs:
           # 占位符要逐个列全。__DATA__ 是四网改造前的容器名，模板里早就不存在了，
           # 留着它等于在检查一个永远不出现的字符串；而漏检 __NETS__ 更糟 ——
           # 整页 JS 会退化成语法错误，这一步却照样报 OK。
-          left = [p for p in ('__NETS__', '__N__', '__DATE__', '__NOTICE__') if p in s]
+          # ⚠️ 这份列表和 tariff_monitor.PLACEHOLDERS 是**两处**，加新占位符时都要改
+          #    （2026-09-22 加 __CAT_ORDER__ 时先漏了 render_only，又漏了这一处）。
+          left = [p for p in ('__NETS__', '__N__', '__DATE__', '__CAT_ORDER__',
+                              '__NOTICE__') if p in s]
           assert not left, '占位符未替换: %s' % left
           m = re.search(r'const NETS=', s)
           assert m, '页面里找不到 const NETS= 数据容器'
@@ -172,7 +175,8 @@ jobs:
               assert src, '%s 缺少来源说明 src（页面顶部那行会显示成 —）' % code
               # 行的字段形态也要看一眼：少一个 o/e/f，页面排序与时间筛选会**静默**失效
               # （NaN 参与比较恒为 false ⇒ 筛选返回全部），而上面每一步都不会报错。
-              miss = [k for k in ('n', 'o', 'e', 'f', 'ty') if k not in rows[0]]
+              #   少 cat/chx ⇒ 大类与渠道筛选恒空或恒落「其他」，页面同样不报错。
+              miss = [k for k in ('n', 'o', 'e', 'f', 'ty', 'cat', 'chx') if k not in rows[0]]
               assert not miss, '%s 的行缺少字段 %s（页面排序/时间筛选会静默失效）' % (code, miss)
 
               # ★ 地域标（sc）与下架标（st）也要卡 —— 这两个漏了同样是**静默**故障：
@@ -207,6 +211,30 @@ jobs:
                   # 说明上游语义变了或我们的判据错了，都得人工看一眼再说。
                   assert stop_n == 0, ('移动公开接口取不到下架数据，却出现了 %d 条 —— '
                                        '判据或上游语义已变，需人工确认' % stop_n)
+
+              # ★ 渠道档（chx）：构建期按 ch_norm 把上游那几十种写法归一到三档。
+              #   取值域必须封闭；落「其他」的比例锁在 2% 以内（实测四网 0.38%）。
+              #   比例突然涨高 ⇒ 上游换了写法，关键字表该更新 —— 而这类变化
+              #   在页面上只表现为「其他」多了一点，没人会天天去数，所以交给 CI 盯。
+              chxs = {r.get('chx') for r in rows}
+              assert chxs and chxs <= {'线上', '线下', '线上+线下', '其他'}, \
+                  '%s 的渠道档 chx 取值异常: %s' % (code, chxs)
+              n_chx_other = sum(1 for r in rows if r.get('chx') == '其他')
+              assert n_chx_other <= max(5, len(rows) * 0.02), \
+                  ('%s 渠道归一落「其他」过多（%d 条）—— ch_norm 的关键字表该更新了'
+                   % (code, n_chx_other))
+
+              # ★ 类型大类（cat）：构建期按 TYPE_CAT 归一，页面直接读。
+              #   出现「其他」＝有原始分类没被映射 —— 页面上会多出一个含义不明的类。
+              #   零星冒头只警告（页面照常更新，别为一条新分类掐断当天的自动更新），
+              #   但占比过 1% 就说明映射整体失效，必须硬失败。
+              other_cat = sum(1 for r in rows if r.get('cat') == '其他')
+              if other_cat:
+                  bad_ty = '、'.join(sorted({r.get('ty') or '(空)' for r in rows
+                                            if r.get('cat') == '其他'}))
+                  cm = '%s 有 %d 条原始分类没归到大类（%s）' % (code, other_cat, bad_ty)
+                  assert other_cat <= max(2, len(rows) * 0.01), cm + ' —— 请在 TYPE_CAT 补映射'
+                  print('::warning title=类型大类出现未映射项::' + cm + '；已落进「其他」')
 
               tag = ''
               if code == 'telecom':
