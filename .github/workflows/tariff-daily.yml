@@ -175,6 +175,22 @@ jobs:
               miss = [k for k in ('n', 'o', 'e', 'f', 'ty') if k not in rows[0]]
               assert not miss, '%s 的行缺少字段 %s（页面排序/时间筛选会静默失效）' % (code, miss)
 
+              # ★ 地域标（sc）与下架标（st）也要卡 —— 这两个漏了同样是**静默**故障：
+              #   少 sc ⇒ 地域筛选恒为空（筛出 0 条，看着像「本网没有邢台资费」）；
+              #   少 st ⇒ 「已下架」页签恒为空，且页面不会报任何错。
+              scs = {r.get('sc') for r in rows}
+              assert scs and scs <= {'xz', 'hb', 'cn'}, '%s 的地域标 sc 异常: %s' % (code, scs)
+              stop_n = sum(1 for r in rows if r.get('st'))
+              if code in ('unicom', 'cbn'):
+                  assert stop_n > 0, ('%s 本轮一条下架资费都没有 —— include_stopped 掉了？'
+                                      '（联通应有 3000+、广电 100+）' % code)
+              if code == 'move':
+                  # 移动的 isPublic=0 只列分类不给明细，**结构上拿不到**下架数据。
+                  # 这里断言为 0 是把这条限制**钉进 CI**：哪天它变成非 0，
+                  # 说明上游语义变了或我们的判据错了，都得人工看一眼再说。
+                  assert stop_n == 0, ('移动公开接口取不到下架数据，却出现了 %d 条 —— '
+                                       '判据或上游语义已变，需人工确认' % stop_n)
+
               tag = ''
               if code == 'telecom':
                   age = (time.mktime(time.strptime(today, '%Y-%m-%d'))

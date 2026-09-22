@@ -59,17 +59,28 @@ def regroup(entries):
     return [groups[k] for k in sorted(groups)]
 
 
-def fetch_all(workers=6, city=None):
-    """采集 + 归一化。返回与 ``tariff_monitor.fetch_all()`` 同构的对象；失败返回 None。"""
+def fetch_all(workers=6, city=None, include_stopped=True):
+    """采集 + 归一化。返回与 ``tariff_monitor.fetch_all()`` 同构的对象；失败返回 None。
+
+    ``include_stopped`` 默认 **True**（需求：「各运营商下架的资费也要收集全」）。
+    停售那批（一级分类 ``99``，实测 3092 条）由 ``tariff_monitor.state_of()`` 标成
+    「已下架」、进页面的「已下架」页签，不再与在售混在一起 —— 这样既收全了，
+    又不会污染在售清单的月费/流量排序与每日变更检测（它们走不同页签）。
+
+    🔴 老注释说「99 那类 3879 条里 3874 条 endDate 已过期」——**已不成立**：
+    2026-09-22 实测该批 ``endDate`` 过期条数为 **0**，也就是说下架信息只能靠
+    「它被归到 99 类」，不能靠日期。判据据此改成分类归属（见 state_of）。
+    """
     if U is None:
         raise RuntimeError("probes/he_unicom_tariff.py 导入失败：%s" % _U_ERR)
-    raw = U.collect(city or U.CITY, workers=workers)
+    raw = U.collect(city or U.CITY, workers=workers, include_stopped=include_stopped)
     if not raw:
         return None
     ent = raw.get("entries") or []
     return {"province": raw.get("province"), "provinceName": raw.get("provinceName"),
             "fetchedAt": raw.get("fetchedAt"), "endpoint": raw.get("endpoint"),
             "src": SRC, "cityId": raw.get("cityId"), "cityName": raw.get("cityName"),
+            "includeStopped": include_stopped,
             # ★ 声明「本网数据不分城市」—— 页面据此把该网全部条目按「全省通用」处理。
             #   实测河北联通换 cityId 查到的三级菜单与明细**逐条相同**，cityId 只影响
             #   「能不能办」，不影响「有什么」。不声明的话，页面会拿名称文本去猜地市，

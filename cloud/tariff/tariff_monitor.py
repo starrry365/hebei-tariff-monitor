@@ -66,6 +66,85 @@ PROV = "311"   # 河北
 ZFLX = {"1": "套餐", "2": "加装包", "3": "营销活动", "4": "港澳台/国际资费",
         "5": "标准资费", "6": "国际及港澳台标准资费", "7": "其他"}
 
+# ── 地域归属（三级口径：邢台 → 河北 → 全国）────────────────────────────
+# 需求：只要「邢台 + 河北 + 全国」的资费；与河北无关的（其他省份专属）丢弃。
+# 四网的地域字段差异极大，**逐网判** —— 不存在一套通用规则：
+#   移动：applicableArea / city / province **三个**字段都可能带地域。取值形态有
+#         2 字母省码（HE）、全国标记（000）、4 位地市码、多省 CSV、`!XX` 排除式
+#   联通：条目里**没有**地域字段（实测 cityId 只影响能否办理，不影响有哪些）⇒ 一律河北
+#   电信：applicableArea（HE / 地市码 CSV）+ applicableAreaLabel
+#   广电：`_areaNames` 只有「全国 / 河北省」两档（上游无地市粒度）
+#
+# ★ 判定规则已用**已归档快照离线验证**（scope_proto 探针）：移动 3887 条无一落入
+#   「无关」桶 → xz 104 / hb 2334 / cn 1449，合计 3887。电信 884 条同样零漏判。
+#   验证这一步不能省：分类器写错了不会报错，只会**静默少一批条目**，
+#   而页面上「少了些什么」这件事没有任何提示。
+XINGTAI_CODE = "3190"        # 已实锤：条目名「邢台爱家光网服务预存活动-冀享专属」
+HB_CITY_CODES = frozenset(("3100", "3110", "3120", "3121", "3130", "3140",
+                           "3150", "3160", "3170", "3180", "3190", "3350"))
+HB_PROV_TOK = "HE"           # 2 字母省码 = 河北
+HB_PROV_NUM = "311"          # 数字省码 = 河北
+CN_TOK = "000"               # 全国标记
+SCOPE_CN = {"xz": "邢台", "hb": "河北", "cn": "全国"}
+
+
+def _toks(v):
+    return [t.strip() for t in str(v or "").split(",") if t.strip()]
+
+
+def _mv_scope(e):
+    """移动条目地域：``xz`` 邢台 / ``hb`` 河北 / ``cn`` 全国 / ``""`` 与河北无关。"""
+    aa, ct, pv = _toks(e.get("applicableArea")), _toks(e.get("city")), _toks(e.get("province"))
+    if XINGTAI_CODE in aa or XINGTAI_CODE in ct:
+        return "xz"
+    if CN_TOK in aa:
+        return "cn"
+    # `!AH` / `!AH,!HI` = 「除这些省以外」，语义上等效全国（实测 12 条）
+    if any(t.startswith("!") for t in aa):
+        return "cn"
+    letters = [t for t in aa if len(t) == 2 and t.isalpha()]
+    if len(letters) >= 2:                      # 多省 CSV
+        return "cn" if HB_PROV_TOK in letters else ""
+    if len(letters) == 1:
+        return "hb" if letters[0] == HB_PROV_TOK else ""
+    if len(pv) >= 2:                           # province 侧的多省数字码列表
+        return "cn" if HB_PROV_NUM in pv else ""
+    if len(pv) == 1:
+        return "hb" if pv[0] == HB_PROV_NUM else ""
+    if ct and all(t in HB_CITY_CODES for t in ct):
+        return "hb"
+    if not aa and not ct and not pv:            # 三字段全空 = 无地域限制 ⇒ 全省通用
+        return "hb"
+    return ""
+
+
+def _ct_scope(e):
+    """电信条目地域。
+
+    ★ 整套电信数据的 provCode 就是 609906（河北），所以**默认 hb 是保守且正确的**；
+      只有条目自己声明了地市码时才细分（`applicableArea` 是 CSV，含 3190 即邢台）。
+      这里读的是 ct_monitor 归一化时特意保留的 `_areaCodes`（原来是丢掉的）。
+    """
+    aa = _toks(e.get("_areaCodes"))
+    if XINGTAI_CODE in aa:
+        return "xz"
+    return "hb"
+
+
+SCOPE_OF = {
+    "move": _mv_scope,
+    "telecom": _ct_scope,
+    # 联通无地域字段（实测 cityId 只影响能否办理）；广电只有「全国 / 河北省」两档。
+    "unicom": lambda e: "hb",
+    "cbn": lambda e: "cn" if "全国" in str(e.get("_areaNames") or "") else "hb",
+}
+
+
+def scope_of(code, e):
+    """取条目的地城归属；未知网返回 ``hb``（宁可多留，不可静默丢）。"""
+    f = SCOPE_OF.get(code)
+    return f(e) if f else "hb"
+
 HEADERS = {
     "Content-Type": "application/json; charset=UTF-8",
     "User-Agent": UA,
@@ -390,6 +469,10 @@ NET_RUN = {
     # 真正的采集在 tariff-daily.yml 里由 ci_grab.sh（Xvfb + 真实 Chrome）先跑完。
     "telecom": ("ct_monitor",    "河北电信", "ct"),
 }
+# 支持「连下架资费一起采」的网 —— 适配器 fetch_all 接受 include_stopped。
+# 需求：「各运营商下架的资费也要收集全」。移动**不在**此列：实测它的 isPublic=0
+# 虽能列出分类，但明细接口恒返回 0 条，本网拿不到下架数据（见 state_of 注释）。
+NET_STOPPED = {"unicom", "cbn"}
 # 页面顶部那行「来源」在各网切换时要跟着变，所以它不能是静态文本（模板里改成由 JS 渲染）
 UP_N = 0        # 由 build_html 回填：四网总条数（供 __N__ 占位符）
 
@@ -446,12 +529,38 @@ def _mark_changes(rows, diff):
     return rows
 
 
-def rows_of(o, diff=None):
+def state_of(code, e, g, base_day):
+    """该条目是否「已下架」。
+
+    ★ 只能用**采集侧已有的信号**，不能自己发明判据 —— 四网的「下架」根本不是同一回事：
+      · 联通：一级分类 ``99``「停售套餐」。🔴 实测那批 ``endDate`` **一条都没过期**，
+        所以**不能靠日期判**（初版注释写的「99.87% 已过期」是当时的样本，现已不成立）——
+        它被归到 99 类这件事本身就是唯一下架证据。
+      · 广电：服务端状态位 ``stateFlag``（``1`` 在售、``0`` 下架）
+      · 电信：该网**没有**独立状态位，只能看下线日是否早于基线日
+      · 移动：``isPublic='0'`` 的分类能列出来，但明细接口恒返回 0 条 ⇒ **本网拿不到**
+    """
+    if code == "unicom":
+        return str(g.get("type2")) == "99" or str(e.get("_firstLevel")) == "99"
+    if code == "cbn":
+        return str(e.get("stateFlag") or "1") != "1"
+    if code == "telecom":
+        d = str(e.get("offineDay") or "").strip()
+        # 8 位日期按字符串比较即是按时间比较；格式不对一律当在售（宁可漏判不可误判）
+        return bool(re.fullmatch(r"\d{8}", d)) and d < str(base_day or "").replace("-", "")
+    return False
+
+
+def rows_of(o, diff=None, code=""):
     """把**某一家**的数据源对象构造成页面行。
 
     移动与联通在这一层是同构的：联通采集时就把字段名映射成了移动那套
     （feesStandard→fees、startDate→onlineDay…，见 probes/he_unicom_tariff.py
     的 FIELD_MAP），所以两网共用这一个函数，页面无需为任何一家分叉。
+
+    ``code``：网代码。只用于地域归属（``sc``）与下架判定（``st``）——
+    这两件事四网判据完全不同，必须知道是哪一家。留空时退化为「不做地域过滤、
+    不标下架」，这样旧的调用方（若有）不会被改坏。
 
     ``diff``（可选）＝ ``{"added": set(键), "changed": set(键)}``，来自 diff_rows。
     给了就给命中的行打 ``ca`` / ``ck`` 标，页面据此显示「新增 / 变更」徽章，
@@ -471,13 +580,22 @@ def rows_of(o, diff=None):
             return f * 1024.0
         return None
 
-    rows, seen = [], {}
+    base_day = data_day(o)
+    rows, seen, dropped = [], {}, 0
     for g in o["groups"]:
         # 联通的一级分类号（1..5）与移动 ZFLX 的 1..5 语义一致，直接复用；
         # 采集侧若给了 type2Name 就以它为准（联通的「99 停售套餐」是移动没有的类）。
         ty = g.get("type2Name") or ZFLX.get(str(g.get("type2")), "?")
         attr = g.get("tariffAttr")
         for e in g["entries"]:
+            sc = scope_of(code, e) if code else "hb"
+            # ★ 需求：只要「邢台 + 河北 + 全国」。与河北无关的（其他省份专属）**丢弃**。
+            #   这条过滤用归档快照离线验过：四网现有数据一条都不会被它丢掉（只放过未知网）。
+            #   真丢了就要吭声 —— 静默少一批条目在页面上完全看不出来。
+            if code and not sc:
+                dropped += 1
+                continue
+
             def s(k, n=400):
                 v = e.get(k)
                 return "" if v in (None, "None") else str(v).replace("\n", " ")[:n]
@@ -488,7 +606,10 @@ def rows_of(o, diff=None):
                    "o": s("onlineDay", 12), "e": s("offineDay", 12),
                    "ty": ty, "a1": attr, "r": s("reportNo", 30),
                    "x": s("otherContent", 500), "ex": s("extraFees", 200),
-                   "vp": s("validPeriod", 200), "bw": s("brandwidth", 40)}
+                   "vp": s("validPeriod", 200), "bw": s("brandwidth", 40),
+                   "sc": sc}
+            if code and state_of(code, e, g, base_day):
+                rec["st"] = 1
             # ★ 行级变更标注：键必须与 index_rows() **逐字一致** ——
             #   取**未截断**的 name（name 缺失时退回 tariffName），重名追加 #2/#3。
             #   若图省事拿页面里那个截断到 120 的 n 去比，超长名字会静默对不上。
@@ -502,6 +623,9 @@ def rows_of(o, diff=None):
                 if kb in diff["changed"]:
                     rec["ck"] = 1
             rows.append(rec)
+    if dropped:
+        log(f"!! {code}：{dropped} 条与河北/全国无关（其他省份专属）已按需求丢弃 —— "
+            f"这批条目若正好落在本次 diff 里，变更标注会因条数对不上而整批撤销")
     return _mark_changes(rows, diff)
 
 
@@ -519,7 +643,16 @@ def build_html(sources, notice="", diffs=None):
         if not o:
             continue
         d = (diffs or {}).get(code)
-        rows = rows_of(o, d)
+        rows = rows_of(o, d, code)
+        sc_stat, st_n = {}, 0
+        for r in rows:
+            sc_stat[r.get("sc")] = sc_stat.get(r.get("sc"), 0) + 1
+            st_n += 1 if r.get("st") else 0
+        log("   %s：%d 条（%s%s）" % (
+            code, len(rows),
+            " · ".join("%s %d" % (SCOPE_CN.get(k, k or "?"), v)
+                       for k, v in sorted(sc_stat.items())),
+            " · 已下架 %d" % st_n if st_n else ""))
         payloads[code] = {"rows": rows, "src": SRC_OF.get(code, ""),
                           "base": data_day(o, time.strftime("%Y-%m-%d")),
                           "allProvince": bool(o.get("allProvince"))}
@@ -653,6 +786,17 @@ def snap_paths(prefix="hebei_tariff_"):
 
 
 def save_snapshot(data, day, prefix="hebei_tariff_"):
+    """落一份快照。``day`` 必须是 **8 位紧凑日期**（``20260922``）。
+
+    🔴 这里显式拒收带上横线的 ``2026-09-22`` —— 因为它**不会报错**，只会安静地
+    写出一个 ``xxx_2026-09-22.json.gz``：文件名与 ``snap_paths()`` 的日期解析
+    对不上，于是 ``load_prev`` / ``load_latest`` / ``prune`` 全都看不见它。
+    症状是「快照看着存了，实际等于没存」，而次日巡检会拿更旧的基准比，
+    一口气报出成百上千条假变更。这个坑本仓库真踩过（2026-09-22）。
+    注意 ``data_day()`` 返的正是带横线的格式，两者**不能直接对接**，要 ``.replace("-", "")``。
+    """
+    if not re.fullmatch(r"\d{8}", str(day or "")):
+        raise ValueError("快照日期必须是 8 位紧凑格式（如 20260922），收到 %r" % (day,))
     p = os.path.join(SNAP, f"{prefix}{day}.json.gz")
     raw = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     # mtime=0 保证同样内容产生同样字节，避免无意义的二进制 diff
@@ -762,7 +906,8 @@ def net_round(code, today, fallback=None):
     load = fallback or load_prev
     try:
         mod = __import__(mod_name)
-        data = mod.fetch_all()
+        data = (mod.fetch_all(include_stopped=True) if code in NET_STOPPED
+                else mod.fetch_all())
     except (Exception, SystemExit) as e:
         # SystemExit 也要接：ct_monitor.fetch_all() 在缺少 .ct_raw.json 时
         # 刻意用 SystemExit 抛出一段给**人看**的采集指引（本机直接跑时体验好）。

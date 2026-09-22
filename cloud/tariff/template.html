@@ -30,6 +30,21 @@ button{font-family:inherit}
 .chips button:hover{border-color:var(--ac);color:var(--ac)}
 .chips button.on{background:var(--ac);border-color:var(--ac);color:#fff}
 
+/* —— 地域徽标 / 下架页签（需求：只要「邢台 + 河北 + 全国」；下架单独一个页签）—— */
+.bg-sc{background:#eef1f5;color:#4a5568;border:1px solid #dfe4ea}
+.bg-sc-xz{background:#e6f1fb;color:#185fa5;border:1px solid #c3dcf5}
+.bg-sc-cn{background:#fdf3e3;color:#8a5a00;border:1px solid #f0dcb4}
+.bg-stop{background:#f4f4f6;color:#8a8a8a;border:1px solid #e0e0e5}
+/* 已下架行整体压暗，但**不清除可读性** —— 它仍是要看的资料，不是错误 */
+tr.row.stopped .nm{color:#8a8a8a}
+tr.row.stopped .fee{color:#8a8a8a}
+.tabs{display:inline-flex;border:1px solid var(--bd);border-radius:8px;overflow:hidden;background:#fff}
+.tabs button{border:0;background:transparent;padding:7px 13px;font-size:13px;cursor:pointer;color:var(--tx2)}
+.tabs button+button{border-left:1px solid var(--bd)}
+.tabs button.on{background:var(--ac);color:#fff}
+.tabs button:disabled{color:#c2c6cc;cursor:not-allowed}
+.tabs button:disabled.on{background:#c2c6cc;color:#fff}
+
 #stat{padding:10px 24px;color:var(--tx2);font-size:13px;background:var(--bg)}
 #stat b{color:var(--tx)}
 #stat .sortinfo{color:var(--ac);font-weight:500}
@@ -105,7 +120,19 @@ code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
 </header>
 
 <div class="bar" id="bar">
+  <!-- 在售 / 已下架 页签：两个口径物理分开，互不污染。
+       在售那页的月费/流量排序与「本次变更」都只统计在售条目；
+       下架的另外一页专门用来看「哪些资费没了」。 -->
+  <div class="tabs" id="tabs">
+    <button data-v="0">在售</button><button data-v="1">已下架</button><button data-v="">全部</button>
+  </div>
   <input id="kw" placeholder="搜索名称 / 套餐 / 客户 / 渠道 / 报备编号 / 权益 / 宽带速率…">
+  <select id="sc" title="地域范围。三级口径：邢台专属 → 河北（全省/地市）→ 全国">
+    <option value="">全部地域（邢台 + 河北 + 全国）</option>
+    <option value="xz">仅邢台专属</option>
+    <option value="hb">仅河北</option>
+    <option value="cn">仅全国</option>
+  </select>
   <select id="ty"><option value="">全部类型</option></select>
   <select id="ct">
     <option value="">全部城市</option>
@@ -190,6 +217,11 @@ code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
 </div>
 <footer>数据为运营商报备公示口径；「目标客户」为原文条件，能否办理需以营业厅/10086 为准。<br>
 上架 / 下线天数以页面顶部的<b>数据基线日期</b>为基准 —— 四网<b>各自一个基线</b>、不跨网共用（数据没变，页面就逐字节一致，便于归档去重）。<br>
+<b>地域徽标</b>按各网<b>原始地域字段</b>判定（不是从名称里猜地名）：移动看 <code>applicableArea</code>/<code>city</code>/<code>province</code>，电信看 <code>applicableArea</code>，广电看 <code>_areaNames</code>；
+<b>联通公开渠道不区分地市</b>（实测换 cityId 查到的目录逐条相同，只影响能否办理）⇒ 该网全部按「河北」标注，其「邢台」口径等同河北省级。
+与河北无关的（其他省份专属）已按需求剔除。<br>
+<b>「已下架」页签</b>的判据各网不同、且只用上游给的信号：联通＝归入一级分类「99 停售套餐」（<b>不能</b>靠下线日判，实测那批一条都没过期）；广电＝服务端 <code>stateFlag≠1</code>；
+电信＝下线日早于数据基线日；<b>移动公开接口取不到下架数据</b>（<code>isPublic=0</code> 能列出分类但明细恒返回 0 条），故该网「已下架」页签置灰。<br>
 每日 <b>06:00（北京时间）</b>自动巡检 · <a href="https://github.com/starrry365/hebei-tariff-monitor" target="_blank" rel="noopener">仓库与变更记录</a>
 </footer>
 <script>
@@ -210,6 +242,14 @@ let NET=NET_DEF;
 const net=()=>NETS[NET]||{};
 
 const PAGE=80;
+/* 在售 / 已下架 页签的当前值（"0" 在售 / "1" 已下架 / "" 全部）。
+   默认「在售」：这是日常要看的那份；下架资费要收全、但要单列，
+   不能混进在售清单的排序与变更检测里。 */
+let STA="0";
+/* 地域徽标文案与配色：xz 邢台 / hb 河北 / cn 全国。
+   sc 由构建脚本按**原始地域字段**算好（四网判据完全不同，见 tariff_monitor.scope_of），
+   页面只负责显示与筛选 —— 页面侧不能再拿名称文本猜地市（那是旧做法，会误判）。 */
+const SC_LB={xz:"邢台",hb:"河北",cn:"全国"};
 let view=[],pg=0,sortK="on",sortD=-1;
 
 const $=s=>document.querySelector(s);
@@ -247,6 +287,15 @@ function chgTag(d){
   if(d.ck)return ' <span class="bg bg-chg" title="关键字段（月费 / 流量 / 上下线 / 权益等）本次有变更">变更</span>';
   if(d.ca)return ' <span class="bg bg-add" title="本次巡检新增的资费">新增</span>';
   return "";
+}
+/* 地域徽标：由构建脚本写好的 d.sc（xz 邢台 / hb 河北 / cn 全国）。
+   放在名称前面 —— 「这条资费是哪一级的」比「它叫什么」更该先看到。 */
+function scTag(d){
+  const lb=SC_LB[d.sc];
+  return lb?'<span class="bg bg-sc bg-sc-'+esc(d.sc)+'" title="适用地域：'+esc(lb)+'">'+esc(lb)+'</span>':"";
+}
+function stopTag(d){
+  return d.st?' <span class="bg bg-stop" title="已下架（判据见「关于本页」页脚）">已下架</span>':"";
 }
 
 /* —— 宽带判定 ——
@@ -411,8 +460,12 @@ function sortView(){
 
 function condText(){
   const a=[];
+  /* 页签是这一页的前提，无条件写进筛选说明 —— 否则「匹配 4807 条」看不出
+     这已经是「在售」子集，会被误读成「全网只有这么多」。 */
+  a.push("状态："+(STA==="0"?"在售":STA==="1"?"已下架":"全部"));
   const kw=$("#kw").value.trim();
   if(kw)a.push("关键词「"+kw+"」");
+  if($("#sc").value)a.push("地域："+$("#sc").selectedOptions[0].textContent);
   if($("#ty").value)a.push("类型："+$("#ty").value);
   if($("#ct").value)a.push("城市："+$("#ct").selectedOptions[0].textContent);
   if($("#pf").value)a.push("月费 "+$("#pf").selectedOptions[0].textContent);
@@ -463,11 +516,11 @@ function render(){
   slice.forEach(d=>{
     const isNew=BASE_OK&&(ago(toDate(d.o))??9e9)>=0&&(ago(toDate(d.o))??9e9)<=30;
     const tr=document.createElement("tr");
-    tr.className="row"+(isNew?" isnew":"");
+    tr.className="row"+(isNew?" isnew":"")+(d.st?" stopped":"");
     tr.innerHTML='<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元":"—")+'</td>'
       +'<td>'+fmtGb(d.g)+perCell(d)+'</td>'
       +'<td>'+(d.c&&d.c!=="0"?esc(d.c)+" 分":"—")+'</td>'
-      +'<td class="nm">'+esc(d.n||d.t)+chgTag(d)+'</td>'
+      +'<td class="nm">'+scTag(d)+esc(d.n||d.t)+chgTag(d)+stopTag(d)+'</td>'
       +'<td><span class="tg">'+esc(d.ty)+'</span></td>'
       +'<td>'+bwCell(d)+'</td>'
       +'<td class="ap">'+esc((d.ap||"—").slice(0,90))+'</td>'
@@ -481,6 +534,8 @@ function render(){
       +'<b>目标客户</b>'+esc(d.ap||"—")+'<br>'
       +'<b>办理渠道</b>'+esc(d.ch||"—")+'<br>'
       +'<b>宽带</b>'+bwDetail(d)+'　<b>报备编号</b>'+esc(d.r||"—")+'<br>'
+      +'<b>地域</b>'+esc(SC_LB[d.sc]||"—")+'　<b>状态</b>'
+      +(d.st?"<b>已下架</b>":"在售")+'<br>'
       +'<b>上下线</b>'+esc(fmtD(d.o)||"—")+' ~ '+esc(fmtD(d.e)||"—")+'<br>'
       +'<b>超套资费</b>'+esc(d.ex||"—")+'<br>'
       +'<b>有效期</b>'+esc(d.vp||"—")+'<br>'
@@ -506,11 +561,19 @@ function apply(){
   renderEmptyState();
   const kw=$("#kw").value.trim().toLowerCase(),ty=$("#ty").value,ct=$("#ct").value,
         pf=$("#pf").value,on=$("#on").value,off=$("#off").value,bw=$("#bw").value,
-        chg=$("#chg").value;
+        chg=$("#chg").value,scv=$("#sc").value;
   /* ★ 当前「城市」这个维度在本网是否已停用（见 renderDims）：取一次就够，
      filter 要跑几千遍，在里面 querySelector 纯属白烧。 */
   const ctSel=$("#ct").selectedOptions[0],ctDimOff=!!(ctSel&&ctSel.disabled);
   view=rowsOf(NET).filter(d=>{
+    /* 「在售 / 已下架」页签先判 —— 它是这一页的**前提**，不是并列条件。
+       d.st 为 1 表示已下架（由采集侧按各网判据写好，见 tariff_monitor.state_of）；
+       缺失一律当在售。两页物理分开，在售页的排序与「本次变更」因此不含下架条目。 */
+    if(STA!==""&&(d.st?1:0)!==+STA)return false;
+    /* 地域范围：d.sc 是构建期按**原始地域字段**算出的（xz/hb/cn），
+       不是从名称文本猜的 —— 猜地名会让「名称没写地市」的条目全部漏判。
+       注意：与「城市」那个下拉是**两件事**，前者是三级口径，后者是文本细化。 */
+    if(scv&&d.sc!==scv)return false;
     /* 「本次变更」= 本次巡检**新增** 或 **关键字段有变更**的条目。
        下线/下架的条目不在这里 —— 它们已经不在本网数据里了。
        标注由构建脚本（build_html 的 diff）写进行数据，页面只负责读。 */
@@ -571,14 +634,33 @@ function markHead(){
   $("#dir").title="当前："+(sortD===1?"升序":"降序")+"，点击切"+ (sortD===1?"降序":"升序");
 }
 
+/* —— 页签同步（在售 / 已下架 / 全部）——
+   把 STA 反映到 UI，并带上级内条数（不带条数就看不出这一页有多少东西）。
+   ★ 不给「本网根本拿不到」的维度提供入口：移动那网的明细接口恒返回 0 条下架数据，
+     若照旧让「已下架」可点，用户点进去看到 0 条会以为「河北移动没有下架资费」——
+     那是拿一个取不到的维度在问，答案没有意义。与 renderDims 对地市维度的处理一致：
+     置灰 + 写明原因，而不是给一个能点却答非所问的按钮。 */
+const ST_LB={"0":"在售","1":"已下架","":"全部"};
+function syncTabs(){
+  const rs=rowsOf(NET),hasStop=rs.some(d=>d.st);
+  if(STA==="1"&&!hasStop)STA="0";
+  document.querySelectorAll("#tabs button").forEach(b=>{
+    const v=b.dataset.v,n=(v==="")?rs.length:rs.filter(d=>((d.st?1:0)===+v)).length;
+    b.disabled=(v==="1"&&!hasStop);
+    b.title=b.disabled?"本网公开接口取不到下架资费的数据（原因见页脚「关于本页」）":"";
+    b.classList.toggle("on",v===STA);
+    b.textContent=ST_LB[v]+"（"+n+"）";
+  });
+}
+
 function syncHash(){
   const p=new URLSearchParams();
   /* net 无条件写入（它不是「空值就省略」的筛选条件）：地址栏里没有 net
      时默认网由 NET_DEF 决定，而 NET_DEF 会随「哪网有数据」变化 ——
      显式写出 net，分享出去的链接才会一直指向同一网。 */
-  const m={net:NET,kw:$("#kw").value.trim(),ty:$("#ty").value,ct:$("#ct").value,pf:$("#pf").value,
-           on:$("#on").value,off:$("#off").value,bw:$("#bw").value,chg:$("#chg").value,
-           s:sortK,d:sortD};
+  const m={net:NET,st:STA,kw:$("#kw").value.trim(),sc:$("#sc").value,ty:$("#ty").value,
+           ct:$("#ct").value,pf:$("#pf").value,on:$("#on").value,off:$("#off").value,
+           bw:$("#bw").value,chg:$("#chg").value,s:sortK,d:sortD};
   for(const k in m)if(m[k]!== ""&&m[k]!=null)p.set(k,m[k]);
   const h=p.toString(),base=location.href.split("#")[0];
   if(location.hash.slice(1)!==h){
@@ -597,7 +679,7 @@ function readHash(){
   const nn=p.get("net");
   if(nn&&NETS[nn]&&nn!==NET){
     NET=nn;
-    $("#kw").value="";["ty","ct","pf","on","off","bw","chg"].forEach(k=>$("#"+k).value="");
+    $("#kw").value="";["ty","ct","sc","pf","on","off","bw","chg"].forEach(k=>$("#"+k).value="");
     clearChips();
     renderNav();renderNet();
   }
@@ -607,7 +689,7 @@ function readHash(){
      会让 select.value 静默失败：下拉停在「全部」，代码却在按那个幽灵值过滤
      —— 控件与结果对不上且不报错。认不出来就当这个参数没传，
      三者随即恢复一致（syncHash 会把非法参数从地址栏里抹掉，链接自愈）。 */
-  ["ty","ct","pf","on","off","bw","chg"].forEach(k=>{
+  ["ty","ct","sc","pf","on","off","bw","chg"].forEach(k=>{
     const v=p.get(k),sel=$("#"+k);
     /* ★ 还得看这个取值在本网「可不可选」—— 见 renderDims()：某网若没有
        某个维度，对应 option 会被置灰。不查 disabled 的话，地址栏里带着
@@ -615,6 +697,12 @@ function readHash(){
        —— 而链接看起来完全正常、不报任何错。 */
     if(v!=null&&[...sel.options].some(o=>o.value===v&&!o.disabled))sel.value=v;
   });
+  /* 页签（st）不是 select，单独校验：只认 ""/0/1，其余当没传。
+     同「枚举参数先核对」的道理 —— 认不出来就退回默认，而不是把一个
+     幽灵值喂进筛选（那样会稳定筛出 0 条且不报错）。 */
+  const sv=p.get("st");
+  STA=(sv==="0"||sv==="1")?sv:"";
+  syncTabs();
   const s=p.get("s");if(s&&F[s])sortK=s;
   const d=p.get("d");if(d==="1"||d==="-1")sortD=+d;
   $("#sort").value=sortK;
@@ -644,7 +732,7 @@ function switchNet(c){
   if(!NETS[c])return;
   if(c!==NET){
     NET=c;
-    $("#kw").value="";["ty","ct","pf","on","off","bw","chg"].forEach(k=>$("#"+k).value="");
+    $("#kw").value="";["ty","ct","sc","pf","on","off","bw","chg"].forEach(k=>$("#"+k).value="");
     clearChips();
   }
   /* 点当前网也照常走一遍刷新（但**不清筛选**，所以是幂等的）：
@@ -660,9 +748,17 @@ function renderNet(){
   const n=net(),rs=rowsOf(NET),has=online(NET),name="河北"+(n.sh||"");
   $("#h1").textContent=name+" · 资费全量目录";
   document.title=name+"资费全量查询"+(has?"（"+rs.length+" 条）":"");
+  /* 分档条数写进副标题：只报一个总数看不出「邢台有几条 / 全国有几条」，
+     而「邢台没有的自动取河北/全国」这个口径正需要这三档的规模才读得懂。 */
+  let scTxt="";
+  if(has){
+    const cnt={};rs.forEach(d=>{cnt[d.sc]=(cnt[d.sc]||0)+1});
+    scTxt=["xz","hb","cn"].filter(k=>cnt[k])
+          .map(k=>SC_LB[k]+" "+cnt[k]).join(" · ");
+  }
   $("#sub").innerHTML=has
-    ?"来源："+esc(n.src||"—")+" · 数据基线 "+esc(n.base||"—")+" · 共 "+rs.length
-      +" 条 · 单位已按 dataUnit 归一"
+    ?"来源："+esc(n.src||"—")+" · 数据基线 "+esc(n.base||"—")+" · 共 "+rs.length+" 条"
+      +(scTxt?"（"+scTxt+"）":"")+" · 单位已按 dataUnit 归一"
     :"来源：待接入 —— 本网资费数据尚未接入，页面结构已就位";
   const ty=$("#ty");
   ty.innerHTML='<option value="">全部类型</option>';
@@ -677,6 +773,7 @@ function renderNet(){
   if(oc)oc.textContent=nch?("本次变更（"+nch+" 条）"):"本次变更（本网无）";
   const cc=document.getElementById("chipchg");
   if(cc)cc.style.display=nch?"":"none";
+  syncTabs();
   renderDims();
 }
 
@@ -706,6 +803,20 @@ function renderDims(){
   ct.title=ap
     ?"本网资费目录不区分地市（数据源按全省下发，与 cityId 无关）⇒ 已停用地市筛选"
     :"";
+  /* —— 地域（#sc）同理：本网没有的那一档不给选 ——
+     联通/广电公开渠道没有地市级数据 ⇒ 它们的「邢台」档 0 条。若让用户选，
+     页面会答「邢台 0 条」—— 那不是「邢台没有资费」，是拿一个不存在的档在问。
+     判据用**实际条数**而不是硬编码哪网有哪档：上游哪天补了地市数据，这里自动放开。 */
+  const rs=rowsOf(NET),sc=$("#sc");
+  if(sc){
+    [...sc.options].forEach(o=>{
+      if(!o.value){o.disabled=false;return}
+      o.disabled=!rs.some(d=>d.sc===o.value);
+    });
+    const cs=sc.selectedOptions[0];
+    if(cs&&cs.disabled)sc.value="";
+    sc.title="地域范围：邢台专属 / 河北 / 全国（本网没有的那一档会置灰）";
+  }
 }
 
 function renderBaseWarn(){
@@ -755,7 +866,7 @@ function renderEmptyState(){
 
 function clearChips(){document.querySelectorAll("#chips button").forEach(b=>b.classList.remove("on"))}
 function resetAll(){
-  $("#kw").value="";["ty","ct","pf","on","off","bw","chg"].forEach(k=>$("#"+k).value="");
+  $("#kw").value="";["ty","ct","sc","pf","on","off","bw","chg"].forEach(k=>$("#"+k).value="");
   sortK="on";sortD=-1;$("#sort").value=sortK;
   clearChips();apply();
 }
@@ -764,6 +875,7 @@ function resetAll(){
    导的是 **view**（当前筛选 + 排序之后的全部结果），不是当前这一页：
    否则 49 页就得点 49 次。 */
 const CSV_COLS=[
+  ["地域",d=>SC_LB[d.sc]||""],["状态",d=>d.st?"已下架":"在售"],
   ["月费(元)",d=>d.f],["流量(GB)",d=>d.g],["流量原文",d=>d.d],["流量单位",d=>d.du],
   ["每元流量(GB)",d=>{const v=perVal(d);return v==null?"":(v===Infinity?"∞":+v.toFixed(3))}],
   ["通话(分)",d=>d.c],["名称",d=>d.n],["套餐名",d=>d.t],["类型",d=>d.ty],
@@ -818,7 +930,15 @@ readHash();
 markHead();
 
 $("#kw").oninput=apply;
-["ty","ct","pf","on","off","bw","chg"].forEach(k=>$("#"+k).onchange=()=>{clearChips();apply()});
+["ty","ct","sc","pf","on","off","bw","chg"].forEach(k=>$("#"+k).onchange=()=>{clearChips();apply()});
+/* 页签点击：只改 STA，不碰别的筛选 —— 切页签不该把关键词/地域筛掉。
+   禁用项（本网拿不到下架数据的那些）点了不生效，与置灰语义一致。 */
+document.querySelectorAll("#tabs button").forEach(b=>{
+  b.onclick=()=>{
+    if(b.disabled)return;
+    STA=b.dataset.v;syncTabs();pg=0;apply();
+  };
+});
 $("#sort").onchange=e=>{sortK=e.target.value;sortD=F[sortK].def;apply()};
 $("#dir").onclick=()=>{sortD=-sortD;apply()};
 $("#reset").onclick=resetAll;
@@ -839,7 +959,7 @@ document.querySelectorAll("th[data-k]").forEach(th=>{
 $("#chips").addEventListener("click",e=>{
   const b=e.target.closest("button[data-p]");if(!b)return;
   const p=b.dataset.p;
-  $("#kw").value="";["ty","ct","pf","on","off","bw","chg"].forEach(k=>$("#"+k).value="");
+  $("#kw").value="";["ty","ct","sc","pf","on","off","bw","chg"].forEach(k=>$("#"+k).value="");
   const map={new7:["on","7"],new30:["on","30"],new90:["on","90"],exp60:["off","60"],free:["pf","0,0"],bw:["bw","line"],chg:["chg","1"]};
   if(map[p])$("#"+map[p][0]).value=map[p][1];
   clearChips();b.classList.add("on");

@@ -159,6 +159,10 @@ def _normalize(e, lable1_name, lable1_id):
         "tariffAttr": "2",        # 页面不用 a1；与其他网行对齐
         "_tariffAttrRaw": str(e.get("tariffAttr") or ""),   # 原值留给审计（1/2/3 语义未定）
         "_province": str(e.get("applicableAreaLabel") or PROV_NAME),
+        # ★ 地域码单独留一份（tariff_monitor.scope_of 要读）：原来只留了文字标签，
+        #   而「邢台」要靠 3190 这个码判 —— 884 条里有 26 条声明了地市码（含 3190），
+        #   只认文字会在名称没写地市时漏判。文字标签仍保留，两者互补。
+        "_areaCodes": str(e.get("applicableArea") or ""),
     }
     return r
 

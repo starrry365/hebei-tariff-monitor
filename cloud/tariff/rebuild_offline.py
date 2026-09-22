@@ -72,7 +72,11 @@ for code, (mod_name, cn, _tag) in T.NET_RUN.items():
     if d is None:
         t0 = time.time()
         mod = __import__(mod_name)
-        d = mod.fetch_all()
+        # ★ 与 net_round 的口径**逐字保持一致**：支持 include_stopped 的网要传 True，
+        #   否则本地重建出来的页面会少掉整批下架资费 —— 而它与线上页面的差异
+        #   不会有任何提示，看起来只是「今天少了一些条目」。
+        d = (mod.fetch_all(include_stopped=True) if code in T.NET_STOPPED
+             else mod.fetch_all())
         if not d:
             sys.exit(f"!! {cn}采集失败")
         io.open(path, "w", encoding="utf-8").write(json.dumps(d, ensure_ascii=False))

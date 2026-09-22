@@ -89,6 +89,9 @@ def fetch_all(include_stopped=False):
     return {"province": raw.get("province"), "provinceName": raw.get("provinceName"),
             "fetchedAt": raw.get("fetchedAt"), "endpoint": raw.get("endpoint"),
             "src": SRC, "areaStat": raw.get("areaStat"),
+            # 落进快照，好让事后（探针 / 排障）能分辨「这批没采下架」是
+            # 「开关没开」还是「上游确实没有」—— 少了它只能靠猜。
+            "includeStopped": bool(raw.get("includeStopped") or include_stopped),
             # ★ 声明「本网数据不分城市」—— 同 unicom_monitor，理由见那边注释。
             #   广电的更彻底：接口只有「全国 / 河北省」两档地区，条目里**没有地市字段**，
             #   页面拿名称文本去猜地市只会得到 0 条（拿不存在的维度在筛）。
