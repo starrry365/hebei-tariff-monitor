@@ -176,10 +176,27 @@ jobs:
               assert not miss, '%s 的行缺少字段 %s（页面排序/时间筛选会静默失效）' % (code, miss)
 
               # ★ 地域标（sc）与下架标（st）也要卡 —— 这两个漏了同样是**静默**故障：
-              #   少 sc ⇒ 地域筛选恒为空（筛出 0 条，看着像「本网没有邢台资费」）；
+              #   少 sc ⇒ 地域筛选恒为空（筛出 0 条，看着像「本网没有河北资费」）；
               #   少 st ⇒ 「已下架」页签恒为空，且页面不会报任何错。
               scs = {r.get('sc') for r in rows}
-              assert scs and scs <= {'xz', 'hb', 'cn'}, '%s 的地域标 sc 异常: %s' % (code, scs)
+              assert scs and scs <= {'hb', 'cn'}, '%s 的地域标 sc 异常: %s' % (code, scs)
+              # ★ 地市码（cty）：只能落在河北 12 市里。写错一个码，那个市的筛选就恒空，
+              #   而页面上没有任何提示 —— 与 sc 同类静默故障。
+              HB_CITY = {'3100', '3110', '3120', '3121', '3130', '3140',
+                         '3150', '3160', '3170', '3180', '3190', '3350'}
+              bad_cty = {c for r in rows for c in (r.get('cty') or [])} - HB_CITY
+              assert not bad_cty, '%s 出现未知地市码: %s' % (code, bad_cty)
+              if code in ('unicom', 'cbn'):
+                  # 联通/广电**上游没有地市级数据**（2026-09-22 实测：联通 12 城分类骨架
+                  # 逐条一致 + 条目零地域字段 + 旁路接口族不路由；广电区域码表只有省级）。
+                  # 这里把「它们不该有地市码」钉进 CI：哪天冒出来，说明上游变了，得人工看。
+                  n_cty = sum(1 for r in rows if r.get('cty'))
+                  assert n_cty == 0, ('%s 上游本无地市级数据，却出现 %d 条带地市码 —— '
+                                      '上游语义已变，需人工确认' % (code, n_cty))
+              if code == 'telecom':
+                  # 电信有条目级地市码，但覆盖率不高（实测 265 次命中 / 884 条）。
+                  # 断言「至少存在」而不是「有多少」：完全是 0 说明 _areaCodes 丢了。
+                  assert any(r.get('cty') for r in rows), '电信地市码全丢（_areaCodes 没进行数据？）'
               stop_n = sum(1 for r in rows if r.get('st'))
               if code in ('unicom', 'cbn'):
                   assert stop_n > 0, ('%s 本轮一条下架资费都没有 —— include_stopped 掉了？'

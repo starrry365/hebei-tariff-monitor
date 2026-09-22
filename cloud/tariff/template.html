@@ -30,9 +30,9 @@ button{font-family:inherit}
 .chips button:hover{border-color:var(--ac);color:var(--ac)}
 .chips button.on{background:var(--ac);border-color:var(--ac);color:#fff}
 
-/* —— 地域徽标 / 下架页签（需求：只要「邢台 + 河北 + 全国」；下架单独一个页签）—— */
+/* —— 地域徽标 / 下架页签（需求：只要「河北 + 全国」；下架单独一个页签）—— */
 .bg-sc{background:#eef1f5;color:#4a5568;border:1px solid #dfe4ea}
-.bg-sc-xz{background:#e6f1fb;color:#185fa5;border:1px solid #c3dcf5}
+.bg-sc-hb{background:#e6f1fb;color:#185fa5;border:1px solid #c3dcf5}
 .bg-sc-cn{background:#fdf3e3;color:#8a5a00;border:1px solid #f0dcb4}
 .bg-stop{background:#f4f4f6;color:#8a8a8a;border:1px solid #e0e0e5}
 /* 已下架行整体压暗，但**不清除可读性** —— 它仍是要看的资料，不是错误 */
@@ -127,10 +127,9 @@ code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
     <button data-v="0">在售</button><button data-v="1">已下架</button><button data-v="">全部</button>
   </div>
   <input id="kw" placeholder="搜索名称 / 套餐 / 客户 / 渠道 / 报备编号 / 权益 / 宽带速率…">
-  <select id="sc" title="地域范围。三级口径：邢台专属 → 河北（全省/地市）→ 全国">
-    <option value="">全部地域（邢台 + 河北 + 全国）</option>
-    <option value="xz">仅邢台专属</option>
-    <option value="hb">仅河北</option>
+  <select id="sc" title="地域范围：河北省（含各地市专属与全省通用）/ 全国">
+    <option value="">全部地域（河北 + 全国）</option>
+    <option value="hb">仅河北省</option>
     <option value="cn">仅全国</option>
   </select>
   <select id="ty"><option value="">全部类型</option></select>
@@ -141,7 +140,7 @@ code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
       <option>石家庄</option><option>唐山</option><option>秦皇岛</option>
       <option>邯郸</option><option>邢台</option><option>保定</option>
       <option>张家口</option><option>承德</option><option>沧州</option>
-      <option>廊坊</option><option>衡水</option>
+      <option>廊坊</option><option>衡水</option><option>省直辖（定州/辛集）</option>
     </optgroup>
     <optgroup label="专属区域">
       <option>雄安新区</option><option>华北油田</option>
@@ -217,8 +216,8 @@ code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
 </div>
 <footer>数据为运营商报备公示口径；「目标客户」为原文条件，能否办理需以营业厅/10086 为准。<br>
 上架 / 下线天数以页面顶部的<b>数据基线日期</b>为基准 —— 四网<b>各自一个基线</b>、不跨网共用（数据没变，页面就逐字节一致，便于归档去重）。<br>
-<b>地域徽标</b>按各网<b>原始地域字段</b>判定（不是从名称里猜地名）：移动看 <code>applicableArea</code>/<code>city</code>/<code>province</code>，电信看 <code>applicableArea</code>，广电看 <code>_areaNames</code>；
-<b>联通公开渠道不区分地市</b>（实测换 cityId 查到的目录逐条相同，只影响能否办理）⇒ 该网全部按「河北」标注，其「邢台」口径等同河北省级。
+<b>地域</b>按各网<b>原始地域字段</b>判定（不是从名称里猜地名）：移动看 <code>applicableArea</code>/<code>city</code>/<code>province</code>，电信看 <code>applicableArea</code>，广电看 <code>_areaNames</code>；<b>地市</b>取条目自带的 4 位地市码（<b>移动</b> 12 市命中 1974 次、<b>电信</b> 265 次，是上游声明的适用范围）；
+<b>联通与广电上游没有地市级数据</b>（联通：12 城分类骨架逐条一致 + 明细零地域字段 + 旁路接口族不路由；广电：区域码表只有「全国/河北省」两档，传地市码回 <code>BASE102</code>）⇒ 这两网<b>不出地市这一层</b>，全部归入「河北省（全省）」。
 与河北无关的（其他省份专属）已按需求剔除。<br>
 <b>「已下架」页签</b>的判据各网不同、且只用上游给的信号：联通＝归入一级分类「99 停售套餐」（<b>不能</b>靠下线日判，实测那批一条都没过期）；广电＝服务端 <code>stateFlag≠1</code>；
 电信＝下线日早于数据基线日；<b>移动公开接口取不到下架数据</b>（<code>isPublic=0</code> 能列出分类但明细恒返回 0 条），故该网「已下架」页签置灰。<br>
@@ -246,10 +245,15 @@ const PAGE=80;
    默认「在售」：这是日常要看的那份；下架资费要收全、但要单列，
    不能混进在售清单的排序与变更检测里。 */
 let STA="0";
-/* 地域徽标文案与配色：xz 邢台 / hb 河北 / cn 全国。
-   sc 由构建脚本按**原始地域字段**算好（四网判据完全不同，见 tariff_monitor.scope_of），
+/* 地域徽标文案与配色：hb 河北 / cn 全国。
+   sc 由构建脚本按**原始地域字段**算好（四网判据完全不同，见 tariff_monitor.WHERE_OF），
    页面只负责显示与筛选 —— 页面侧不能再拿名称文本猜地市（那是旧做法，会误判）。 */
-const SC_LB={xz:"邢台",hb:"河北",cn:"全国"};
+const SC_LB={hb:"河北",cn:"全国"};
+/* 河北 12 地市码 → 中文名。与构建脚本 tariff_monitor.HB_CITY 必须一致：
+   页面拿它把**条目级地市码**（d.cty）翻成名字，不再从名称里猜。 */
+const HB_CITY_LB={"3100":"邯郸","3110":"石家庄","3120":"保定","3121":"省直辖（定州/辛集）",
+  "3130":"张家口","3140":"承德","3150":"唐山","3160":"廊坊","3170":"沧州","3180":"衡水",
+  "3190":"邢台","3350":"秦皇岛"};
 let view=[],pg=0,sortK="on",sortD=-1;
 
 const $=s=>document.querySelector(s);
@@ -288,7 +292,7 @@ function chgTag(d){
   if(d.ca)return ' <span class="bg bg-add" title="本次巡检新增的资费">新增</span>';
   return "";
 }
-/* 地域徽标：由构建脚本写好的 d.sc（xz 邢台 / hb 河北 / cn 全国）。
+/* 地域徽标：由构建脚本写好的 d.sc（hb 河北 / cn 全国）。
    放在名称前面 —— 「这条资费是哪一级的」比「它叫什么」更该先看到。 */
 function scTag(d){
   const lb=SC_LB[d.sc];
@@ -354,11 +358,27 @@ const CITY_LS=["石家庄","唐山","秦皇岛","邯郸","邢台","保定","张�
 const CT_ALIAS={"雄安新区":/雄安/,"华北油田":/华北油田|华油/};
 function cityTags(d){
   /* ★ 本网若「数据本身不分城市」，一律按「全省通用」处理。
-     联通那网正是这种情况：实测河北联通的资费目录与 cityId 无关（换城市查到的
-     三级菜单与明细逐条相同）—— 它压根没有「属于哪个市」这个属性。
-     这时再去名称里猜地市，结果就是「选任何地市都 0 条」：看着像 bug，
-     实际是拿一个不存在的维度在筛。由数据源的 allProvince 声明，别靠猜。 */
+     🔴 联通与广电已实测**上游就没有地市级数据**（2026-09-22，四条独立证据）：
+       · 联通：12 城 indexData 的 (一级,二级) 骨架**逐条一致**（签名去重后仅 1 种）；
+               明细 24 个字段里**没有任何地域字段**；JS 里另一族 /queryTariff/*
+               在河北侧 5 种调用方式全部 9s 超时（同刻老接口 0.1s 正常）⇒ 该族不路由。
+       · 广电：qryAreaList 只有「省/直辖市」粒度（HB00=河北），传地市码回 BASE102「区域编码无效」。
+     两网的数据源都带 allProvince=true ⇒ 这里直接返回空 = 全省通用，页面也不出地市这一层。
+     若照旧让用户选地市，得到的是「0 条」—— 那不是「邢台没有资费」，是拿一个
+     不存在的维度在问。由数据源自己声明，别靠猜。 */
   if(net().allProvince)return[];
+  /* ★ 判据已从「拿名称文本猜地名」升级为「**上游字段优先**」：
+     1) 条目自带地市码（`d.cty`：移动读 applicableArea/city，电信读 applicableArea）
+        ⇒ **以它为准**。这是上游声明的适用范围，比从名称里猜准得多
+        （实测命中：移动 1974 次、电信 265 次，12 个地市都有）。
+     2) 没有字段码时才退回文本匹配 —— 只用来捞「雄安新区 / 华北油田」这类
+        **没有地市码**的特殊区域，以及名称写了市而字段空着的少数条目。 */
+  const cs=d.cty||[];
+  if(cs.length){
+    const out=[];
+    for(let i=0;i<cs.length;i++){const n=HB_CITY_LB[cs[i]];if(n)out.push(n)}
+    return out;
+  }
   const s=(d.n||"")+" "+(d.t||"")+" "+(d.ap||"")+" "+(d.x||"");
   const out=[];
   for(let i=0;i<CITY_LS.length;i++)if(s.indexOf(CITY_LS[i])>=0)out.push(CITY_LS[i]);
@@ -534,7 +554,7 @@ function render(){
       +'<b>目标客户</b>'+esc(d.ap||"—")+'<br>'
       +'<b>办理渠道</b>'+esc(d.ch||"—")+'<br>'
       +'<b>宽带</b>'+bwDetail(d)+'　<b>报备编号</b>'+esc(d.r||"—")+'<br>'
-      +'<b>地域</b>'+esc(SC_LB[d.sc]||"—")+'　<b>状态</b>'
+      +'<b>地域</b>'+esc(SC_LB[d.sc]||"—")+(cityTags(d).length?" · "+esc(cityTags(d).join("/")):"")+'　<b>状态</b>'
       +(d.st?"<b>已下架</b>":"在售")+'<br>'
       +'<b>上下线</b>'+esc(fmtD(d.o)||"—")+' ~ '+esc(fmtD(d.e)||"—")+'<br>'
       +'<b>超套资费</b>'+esc(d.ex||"—")+'<br>'
@@ -562,17 +582,18 @@ function apply(){
   const kw=$("#kw").value.trim().toLowerCase(),ty=$("#ty").value,ct=$("#ct").value,
         pf=$("#pf").value,on=$("#on").value,off=$("#off").value,bw=$("#bw").value,
         chg=$("#chg").value,scv=$("#sc").value;
-  /* ★ 当前「城市」这个维度在本网是否已停用（见 renderDims）：取一次就够，
-     filter 要跑几千遍，在里面 querySelector 纯属白烧。 */
-  const ctSel=$("#ct").selectedOptions[0],ctDimOff=!!(ctSel&&ctSel.disabled);
+  /* ★ 当前「城市」这个维度在本网是否**不存在**（见 renderDims，联通/广电直接隐藏）：
+     取一次就够，filter 要跑几千遍，在里面 querySelector 纯属白烧。 */
+  const ctDimOff=$("#ct").style.display==="none";
   view=rowsOf(NET).filter(d=>{
     /* 「在售 / 已下架」页签先判 —— 它是这一页的**前提**，不是并列条件。
        d.st 为 1 表示已下架（由采集侧按各网判据写好，见 tariff_monitor.state_of）；
        缺失一律当在售。两页物理分开，在售页的排序与「本次变更」因此不含下架条目。 */
     if(STA!==""&&(d.st?1:0)!==+STA)return false;
-    /* 地域范围：d.sc 是构建期按**原始地域字段**算出的（xz/hb/cn），
+    /* 地域：d.sc 是构建期按**原始地域字段**算出的（hb 河北 / cn 全国），
        不是从名称文本猜的 —— 猜地名会让「名称没写地市」的条目全部漏判。
-       注意：与「城市」那个下拉是**两件事**，前者是三级口径，后者是文本细化。 */
+       注意：与「城市」那个下拉是**两件事** —— 前者是省级口径（河北 vs 全国），
+       后者是条目级地市（d.cty 地市码），只在移动/电信存在。 */
     if(scv&&d.sc!==scv)return false;
     /* 「本次变更」= 本次巡检**新增** 或 **关键字段有变更**的条目。
        下线/下架的条目不在这里 —— 它们已经不在本网数据里了。
@@ -585,7 +606,7 @@ function apply(){
        假答案。口径与 readHash 的「认不出来就当没传」一致：**无效筛选 = 不筛**。 */
     if(ct&&!ctDimOff){
       const tg=cityTags(d);
-      if(ct==="_none"){if(tg.length)return false}          // 全省通用 = 四个字段都没提地市
+      if(ct==="_none"){if(tg.length)return false}   // 全省通用 = 既无地市码、名称里也没提地市
       else if(tg.indexOf(ct)<0)return false;
     }
     if(pf){
@@ -691,11 +712,12 @@ function readHash(){
      三者随即恢复一致（syncHash 会把非法参数从地址栏里抹掉，链接自愈）。 */
   ["ty","ct","sc","pf","on","off","bw","chg"].forEach(k=>{
     const v=p.get(k),sel=$("#"+k);
-    /* ★ 还得看这个取值在本网「可不可选」—— 见 renderDims()：某网若没有
-       某个维度，对应 option 会被置灰。不查 disabled 的话，地址栏里带着
-       别网的地市名进来（#net=unicom&ct=邢台）会被照单全收，筛选随即恒为空
-       —— 而链接看起来完全正常、不报任何错。 */
-    if(v!=null&&[...sel.options].some(o=>o.value===v&&!o.disabled))sel.value=v;
+    /* ★ 还得看这个取值在本网「存不存在」—— 见 renderDims()：
+       某网若没有这个维度，对应控件会被**隐藏**（地市）或 option 被置灰（地域）。
+       不查的话，地址栏里带着别网的地市值进来（#net=unicom&ct=邢台）会被照单全收，
+       筛选随即恒为空 —— 而链接看起来完全正常、不报任何错。 */
+    if(v!=null&&sel.style.display!=="none"
+       &&[...sel.options].some(o=>o.value===v&&!o.disabled))sel.value=v;
   });
   /* 页签（st）不是 select，单独校验：只认 ""/0/1，其余当没传。
      同「枚举参数先核对」的道理 —— 认不出来就退回默认，而不是把一个
@@ -753,8 +775,13 @@ function renderNet(){
   let scTxt="";
   if(has){
     const cnt={};rs.forEach(d=>{cnt[d.sc]=(cnt[d.sc]||0)+1});
-    scTxt=["xz","hb","cn"].filter(k=>cnt[k])
+    scTxt=["hb","cn"].filter(k=>cnt[k])
           .map(k=>SC_LB[k]+" "+cnt[k]).join(" · ");
+    /* 地市维度只在**真有**数据的网上报数（联通/广电的 #ct 是隐藏的，不报）。 */
+    if(!net().allProvince){
+      const cty=rs.filter(d=>(d.cty||[]).length).length;
+      scTxt+=(scTxt?" · ":"")+"地市专属 "+cty;
+    }
   }
   $("#sub").innerHTML=has
     ?"来源："+esc(n.src||"—")+" · 数据基线 "+esc(n.base||"—")+" · 共 "+rs.length+" 条"
@@ -780,33 +807,29 @@ function renderNet(){
 
 /* —— 按当前网刷新「筛选维度」的可用性 ——
    ★ 原则：不给「本网数据里根本不存在」的维度提供入口。
-   联通那网正是这种情况：它的资费目录与 cityId 无关（实测换城市查到的三级菜单
-   与明细逐条相同），数据里压根没有「属于哪个市」这个属性。若照旧让用户选
-   「邢台」，页面会答「0 条」—— 那不是「邢台没有资费」，而是拿一个不存在的
-   维度在筛：一个看着像正常结果、实则是虚伪陈述的答案。
-   所以把「地市 / 专属区域」整组置灰，并在控件上写明原因。
+   联通 / 广电正是这种情况 —— 2026-09-22 实测**上游没有地市级数据**：
+     · 联通：12 城 indexData 的 (一级,二级) 骨架逐条一致（签名去重后仅 1 种）；
+             明细 24 个字段里没有任何地域字段；JS 里另一族 /queryTariff/* 在河北侧
+             5 种调用方式全部 9s 超时（同刻老接口 0.1s 正常）⇒ 该族不被路由。
+     · 广电：qryAreaList 只有「省/直辖市」粒度，传地市码回 BASE102「区域编码无效」。
+   若照旧让用户选「邢台」，页面会答「0 条」—— 那不是「邢台没有资费」，而是拿一个
+   不存在的维度在筛：一个看着像正常结果、实则是虚伪陈述的答案。
+   ⇒ 这两网**不出地市这一层**（隐藏，不是置灰）—— 用户 2026-09-22 明确选择：
+     结构与移动/电信不同。隐藏而不留空控件，让「本网有没有这个维度」一眼可见。
    （对比「本次变更」：那里 0 条是真的 0 条 —— 本网当天确实无变更，
      只改文案不禁用，见 renderNet 里的注释。） */
 function renderDims(){
   const ap=!!net().allProvince,ct=$("#ct");
-  /* 判据用「是否落在某个 optgroup 里」：
-     「全部城市」（空值）与「全省通用」（_none）是 select 的直接子节点，
-     在数据不分城市时语义仍然成立（两者都等于全部），保持可选。 */
-  [...ct.options].forEach(o=>{
-    const inGroup=o.parentElement&&o.parentElement.tagName==="OPTGROUP";
-    o.disabled=ap&&!!inGroup;
-  });
-  /* 当前若正停在某个被置灰的取值上（例如从别网带过来的地市名），
-     就地清掉 —— 留着它，筛选会恒为空而控件与结果对不上。 */
-  const cur=ct.selectedOptions[0];
-  if(cur&&cur.disabled)ct.value="";
-  ct.title=ap
-    ?"本网资费目录不区分地市（数据源按全省下发，与 cityId 无关）⇒ 已停用地市筛选"
-    :"";
-  /* —— 地域（#sc）同理：本网没有的那一档不给选 ——
-     联通/广电公开渠道没有地市级数据 ⇒ 它们的「邢台」档 0 条。若让用户选，
-     页面会答「邢台 0 条」—— 那不是「邢台没有资费」，是拿一个不存在的档在问。
-     判据用**实际条数**而不是硬编码哪网有哪档：上游哪天补了地市数据，这里自动放开。 */
+  ct.style.display=ap?"none":"";
+  if(ap){
+    ct.value="";            // 切网时把从别网带过来的地市值清掉，否则筛选恒空、控件与结果对不上
+    ct.title="";
+  }else{
+    ct.title="地市：按上游 applicableArea 里的地市码判定（移动/电信有条目级地市码）；"
+            +"没有码的条目才按名称兜底";
+  }
+  /* —— 地域（#sc）：本网没有的那一档不给选 ——
+     判据用**实际条数**而不是硬编码哪网有哪档：上游哪天补了数据，这里自动放开。 */
   const rs=rowsOf(NET),sc=$("#sc");
   if(sc){
     [...sc.options].forEach(o=>{
@@ -815,7 +838,7 @@ function renderDims(){
     });
     const cs=sc.selectedOptions[0];
     if(cs&&cs.disabled)sc.value="";
-    sc.title="地域范围：邢台专属 / 河北 / 全国（本网没有的那一档会置灰）";
+    sc.title="地域范围：河北省（含各地市专属与全省通用）/ 全国（本网没有的那一档会置灰）";
   }
 }
 

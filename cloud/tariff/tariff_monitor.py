@@ -80,70 +80,101 @@ ZFLX = {"1": "套餐", "2": "加装包", "3": "营销活动", "4": "港澳台/�
 #   验证这一步不能省：分类器写错了不会报错，只会**静默少一批条目**，
 #   而页面上「少了些什么」这件事没有任何提示。
 XINGTAI_CODE = "3190"        # 已实锤：条目名「邢台爱家光网服务预存活动-冀享专属」
-HB_CITY_CODES = frozenset(("3100", "3110", "3120", "3121", "3130", "3140",
-                           "3150", "3160", "3170", "3180", "3190", "3350"))
+# 河北 12 个地市码 → 中文名（移动 / 电信的 applicableArea 用这套码）。
+# ★ 地市码是**条目级**信息：一条资费可覆盖多个市（CSV），也可能一个都不限（全省通用）。
+# ★ 只有**移动和电信**有条目级地市码（2026-09-22 实测）：
+#     移动 12 市命中 1974 次、电信 265 次；联通条目零地域字段、广电区域码表只有省级。
+#   所以页面按 `allProvince` 决定「要不要出地市这一层」——见 template.html 的 renderDims。
+HB_CITY = {"3100": "邯郸", "3110": "石家庄", "3120": "保定",
+           "3121": "省直辖（定州/辛集）", "3130": "张家口", "3140": "承德",
+           "3150": "唐山", "3160": "廊坊", "3170": "沧州", "3180": "衡水",
+           "3190": "邢台", "3350": "秦皇岛"}
+HB_CITY_CODES = frozenset(HB_CITY)
 HB_PROV_TOK = "HE"           # 2 字母省码 = 河北
 HB_PROV_NUM = "311"          # 数字省码 = 河北
 CN_TOK = "000"               # 全国标记
-SCOPE_CN = {"xz": "邢台", "hb": "河北", "cn": "全国"}
+SCOPE_CN = {"hb": "河北", "cn": "全国"}
+
+
+def _uniq(seq):
+    """保序去重（地市码可能同时出现在 applicableArea 与 city 两个字段里）。"""
+    out, seen = [], set()
+    for x in seq:
+        if x not in seen:
+            seen.add(x)
+            out.append(x)
+    return out
 
 
 def _toks(v):
     return [t.strip() for t in str(v or "").split(",") if t.strip()]
 
 
-def _mv_scope(e):
-    """移动条目地域：``xz`` 邢台 / ``hb`` 河北 / ``cn`` 全国 / ``""`` 与河北无关。"""
+def _mv_where(e):
+    """移动条目地域 → ``(sc, cities)``。
+
+    ``sc``      ``"hb"`` 河北 / ``"cn"`` 全国 / ``""`` 与河北无关（整条丢弃）
+    ``cities``  地市码列表（空列表 = 全省通用）。一条资费可覆盖多个市（CSV），
+                也可能同时出现在 `applicableArea` 与 `city` 两个字段里 ⇒ 去重。
+
+    ★ 判序要点：**地市码优先于全国码**。实测有条目 `applicableArea` 同时含
+      地市码与 `000`，它的语义是「这个市里按全国资费执行」⇒ 归地市更具体。
+    """
     aa, ct, pv = _toks(e.get("applicableArea")), _toks(e.get("city")), _toks(e.get("province"))
-    if XINGTAI_CODE in aa or XINGTAI_CODE in ct:
-        return "xz"
+    cities = _uniq([t for t in (aa + ct) if t in HB_CITY])
+    if cities:
+        return "hb", cities
     if CN_TOK in aa:
-        return "cn"
+        return "cn", []
     # `!AH` / `!AH,!HI` = 「除这些省以外」，语义上等效全国（实测 12 条）
     if any(t.startswith("!") for t in aa):
-        return "cn"
+        return "cn", []
     letters = [t for t in aa if len(t) == 2 and t.isalpha()]
     if len(letters) >= 2:                      # 多省 CSV
-        return "cn" if HB_PROV_TOK in letters else ""
+        return ("cn", []) if HB_PROV_TOK in letters else ("", [])
     if len(letters) == 1:
-        return "hb" if letters[0] == HB_PROV_TOK else ""
+        return ("hb", []) if letters[0] == HB_PROV_TOK else ("", [])
     if len(pv) >= 2:                           # province 侧的多省数字码列表
-        return "cn" if HB_PROV_NUM in pv else ""
+        return ("cn", []) if HB_PROV_NUM in pv else ("", [])
     if len(pv) == 1:
-        return "hb" if pv[0] == HB_PROV_NUM else ""
-    if ct and all(t in HB_CITY_CODES for t in ct):
-        return "hb"
-    if not aa and not ct and not pv:            # 三字段全空 = 无地域限制 ⇒ 全省通用
-        return "hb"
-    return ""
+        return ("hb", []) if pv[0] == HB_PROV_NUM else ("", [])
+    if ct and all(t in HB_CITY for t in ct):
+        return "hb", _uniq(ct)
+    if not aa and not ct and not pv:           # 三字段全空 = 无地域限制 ⇒ 全省通用
+        return "hb", []
+    return "", []
 
 
-def _ct_scope(e):
-    """电信条目地域。
+def _ct_where(e):
+    """电信条目地域 → ``(sc, cities)``。
 
     ★ 整套电信数据的 provCode 就是 609906（河北），所以**默认 hb 是保守且正确的**；
       只有条目自己声明了地市码时才细分（`applicableArea` 是 CSV，含 3190 即邢台）。
       这里读的是 ct_monitor 归一化时特意保留的 `_areaCodes`（原来是丢掉的）。
     """
     aa = _toks(e.get("_areaCodes"))
-    if XINGTAI_CODE in aa:
-        return "xz"
-    return "hb"
+    return "hb", _uniq([t for t in aa if t in HB_CITY])
 
 
-SCOPE_OF = {
-    "move": _mv_scope,
-    "telecom": _ct_scope,
+WHERE_OF = {
+    "move": _mv_where,
+    "telecom": _ct_where,
     # 联通无地域字段（实测 cityId 只影响能否办理）；广电只有「全国 / 河北省」两档。
-    "unicom": lambda e: "hb",
-    "cbn": lambda e: "cn" if "全国" in str(e.get("_areaNames") or "") else "hb",
+    # 两网都**没有地市**（cities 恒空）—— 页面据此不出这一层。
+    "unicom": lambda e: ("hb", []),
+    "cbn": lambda e: (("cn" if "全国" in str(e.get("_areaNames") or "") else "hb"), []),
 }
 
 
+def where_of(code, e):
+    """取条目的地城归属 ``(sc, cities)``；未知网返回 ``("hb", [])``（宁可多留，不可静默丢）。"""
+    f = WHERE_OF.get(code)
+    return f(e) if f else ("hb", [])
+
+
 def scope_of(code, e):
-    """取条目的地城归属；未知网返回 ``hb``（宁可多留，不可静默丢）。"""
-    f = SCOPE_OF.get(code)
-    return f(e) if f else "hb"
+    """兼容包装：只要 ``sc``（``hb`` / ``cn`` / ``""``）。"""
+    return where_of(code, e)[0]
 
 HEADERS = {
     "Content-Type": "application/json; charset=UTF-8",
@@ -588,8 +619,8 @@ def rows_of(o, diff=None, code=""):
         ty = g.get("type2Name") or ZFLX.get(str(g.get("type2")), "?")
         attr = g.get("tariffAttr")
         for e in g["entries"]:
-            sc = scope_of(code, e) if code else "hb"
-            # ★ 需求：只要「邢台 + 河北 + 全国」。与河北无关的（其他省份专属）**丢弃**。
+            sc, cty = where_of(code, e) if code else ("hb", [])
+            # ★ 需求：只要「河北 + 全国」。与河北无关的（其他省份专属）**丢弃**。
             #   这条过滤用归档快照离线验过：四网现有数据一条都不会被它丢掉（只放过未知网）。
             #   真丢了就要吭声 —— 静默少一批条目在页面上完全看不出来。
             if code and not sc:
@@ -608,6 +639,11 @@ def rows_of(o, diff=None, code=""):
                    "x": s("otherContent", 500), "ex": s("extraFees", 200),
                    "vp": s("validPeriod", 200), "bw": s("brandwidth", 40),
                    "sc": sc}
+            # ★ 地市码只在**本网真有**时才写（联通/广电恒空）—— 空列表不落盘，
+            #   免得页面拿到一堆 `cty: []` 误以为「这些条目属于第 0 个地市」。
+            #   有值 = 该资费限这几个市；无此键 = 全省通用。
+            if cty:
+                rec["cty"] = cty
             if code and state_of(code, e, g, base_day):
                 rec["st"] = 1
             # ★ 行级变更标注：键必须与 index_rows() **逐字一致** ——
@@ -644,14 +680,16 @@ def build_html(sources, notice="", diffs=None):
             continue
         d = (diffs or {}).get(code)
         rows = rows_of(o, d, code)
-        sc_stat, st_n = {}, 0
+        sc_stat, st_n, cty_n = {}, 0, 0
         for r in rows:
             sc_stat[r.get("sc")] = sc_stat.get(r.get("sc"), 0) + 1
             st_n += 1 if r.get("st") else 0
-        log("   %s：%d 条（%s%s）" % (
+            cty_n += 1 if r.get("cty") else 0
+        log("   %s：%d 条（%s%s%s）" % (
             code, len(rows),
             " · ".join("%s %d" % (SCOPE_CN.get(k, k or "?"), v)
                        for k, v in sorted(sc_stat.items())),
+            (" · 地市专属 %d" % cty_n) if cty_n else " · 无地市维度",
             " · 已下架 %d" % st_n if st_n else ""))
         payloads[code] = {"rows": rows, "src": SRC_OF.get(code, ""),
                           "base": data_day(o, time.strftime("%Y-%m-%d")),
