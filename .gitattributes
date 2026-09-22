@@ -1,0 +1,20 @@
+# 统一行尾策略。
+# 为什么显式写死：这台开发机是 Windows 且 git 的 core.autocrlf 开着，
+# 不固定的话一次编辑就可能把整个文件的行尾翻掉，diff 里全是噪音
+# （历史教训：改动被 CRLF/LF 差异淹没，真正的一行改动找不出来）。
+# CI 跑在 Linux，源码一律 LF；只有 Windows 批处理用 CRLF。
+* text=auto eol=lf
+
+*.py   text eol=lf
+*.js   text eol=lf
+*.md   text eol=lf
+*.yml  text eol=lf
+*.json text eol=lf
+*.html text eol=lf
+
+# Windows 批处理必须 CRLF，否则某些情况下 cmd 会解析异常
+*.bat  text eol=crlf
+
+# 压缩产物是二进制，绝不做行尾/文本规范化
+*.gz   binary
+*.png  binary

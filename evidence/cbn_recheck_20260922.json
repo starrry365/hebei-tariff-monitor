@@ -1,0 +1,20 @@
+{
+ "_说明": "中国广电「资费公示」H5 重抓复核（2026-09-22 17:19~17:30）。用户重抓成功（40 条会话，全是 m.10099.com.cn/contact-web/api/*）；本文件记录本次抓包与后续实测的关键结论。",
+ "_脱敏": "已抹：Cookie 全部（acw_tc / WT_FPC / X-LB / SERVERID / tfstk / ssxmod_itna 等）、token/getToken 的加密请求体（截断保留，它本身是密文且无法解）。",
+ "_access_头_结论": "🔴🔴 **access 头不被服务端校验**。实测两个端点（queryTariffCondition / queryTariffAllByCond）× 两种区域（ZZZZ/HB00）× 四种取值（旧 43a62542… / 新 0106765e… / App 256364cd… / 完全不带），全部 HTTP 200 + status=000000 + 数据条数完全一致（全国 204·在售 137；河北 131·在售 71）。⇒ 2026-09-22 白天记录的「少了 access 直接失败」**不成立**，已更正。脚本仍发送该头并保留 fail-closed（将来若开校验不至于静默采空）。",
+ "_access_三个取值": {
+  "43a62542065e7a72b20576829b049d9e": "cbn_monitor 里写死的值（2026-09-22 白天取自 H5 JS）—— 仍可用",
+  "0106765efbc290dc0f08eb7ab5cdbc45": "本次 16:52 抓包里 H5 请求实际携带的值",
+  "256364cd2223b710774157b08c9c6470": "同批抓包里 App 原生（okhttp/3.14.9）调 token/getToken 时携带的值"
+ },
+ "_H5_页面路径": "App 打开的是 https://m.10099.com.cn/serviceFeeNotice/#/home（getToken 响应里下发的 url）。实测 costNotice/ 与 serviceFeeNotice/ **同时存活**（都 200）⇒ cbn_monitor 用的 costNotice/ 不受影响，仅记录差异。",
+ "_新端点_token_getToken": {
+  "url": "https://app.10099.com.cn/contact-web/api/token/getToken",
+  "特征": "App 原生调用（UA okhttp/3.14.9，无 x-requested-with），请求体是 {\"data\":\"<base64 密文>\"}（700 字符 ≈ 524 字节，**不是 16 的倍数** ⇒ 不是 AES-CBC/ECB+PKCS7 这类整块模式）",
+  "响应": {"status": "000000", "message": "操作成功", "data.url": "https://m.10099.com.cn/serviceFeeNotice/#/home", "ok": true},
+  "推测": "App 用加密通道换取 H5 免登链接（服务端下发 url）",
+  "状态": "⬜ 未逆向 —— 对采集无用（H5 公开接口已足够），仅记录存在"
+ },
+ "_分类树_完整结构": "queryTariffCondition 返回 type1→type2→type3 三层，本次抓到全量：GZ(公众)→GZ_TC(套餐)→[4G/5G/宽带/固话]、GZ_JZB(加装包)→[语音包/流量包]、GZ_YXHD(营销活动)→[合约/促销]、GZ_TSQTTC(特殊群体套餐)→[4G/5G/宽带/固话]、ZQ(政企，无子级)。与 cbn_monitor 的分组口径一致。",
+ "_方法学": "判「access 是否被校验」不能只看抓包 —— 抓包里三个值各不相同只能说明它**会变**；必须做对照实验（同一请求换四种取值各打一遍）才能下「不校验」的结论。本次就是抓包先提出疑问、对照实验给结论。"
+}

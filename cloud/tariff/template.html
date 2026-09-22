@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>河北四网资费全量查询</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--bd:#e3e6ea;--tx:#1f2328;--tx2:#6b7280;--ac:#185fa5;--ac2:#e6f1fb;--warn:#854f0b;--wbg:#faeeda;--new:#0f6e56;--nbg:#e3f4ec;--barh:60px}
+*{box-sizing:border-box}
+body{margin:0;font:400 14px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--tx)}
+header{padding:20px 24px 14px;border-bottom:1px solid var(--bd);background:var(--card)}
+h1{margin:0 0 4px;font-size:19px;font-weight:600}
+.sub{color:var(--tx2);font-size:13px}
+.notice{margin-top:9px;padding:7px 12px;border-radius:8px;background:var(--ac2);color:var(--ac);font-size:12.5px;display:inline-block;font-weight:500}
+.notice.warn{background:#fdecec;color:#a33333}
+.notice a{color:inherit;font-weight:600;text-decoration:underline;text-underline-offset:2px}
+footer a{color:var(--ac)}
+
+.bar{display:flex;flex-wrap:wrap;gap:8px;padding:10px 24px;background:var(--card);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:9}
+input,select{padding:7px 10px;border:1px solid var(--bd);border-radius:8px;font-size:13px;background:#fff;color:var(--tx)}
+input:focus,select:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 2px rgba(24,95,165,.12)}
+input#kw{flex:1;min-width:180px}
+.vsep{width:1px;height:22px;background:var(--bd);align-self:center}
+button{font-family:inherit}
+#dir{width:40px;font-size:15px;font-weight:600;border:1px solid var(--bd);background:#fff;border-radius:8px;cursor:pointer;color:var(--ac)}
+#reset,#csv,#offline{padding:7px 13px;border:1px solid var(--bd);background:#fff;border-radius:8px;cursor:pointer;font-size:13px;color:var(--tx2)}
+#reset:hover,#csv:hover,#offline:hover{border-color:var(--ac);color:var(--ac)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;width:100%;padding-top:2px}
+.chips button{padding:4px 11px;border:1px solid var(--bd);background:#fff;border-radius:999px;font-size:12.5px;cursor:pointer;color:var(--tx2);transition:.12s}
+.chips button:hover{border-color:var(--ac);color:var(--ac)}
+.chips button.on{background:var(--ac);border-color:var(--ac);color:#fff}
+
+#stat{padding:10px 24px;color:var(--tx2);font-size:13px;background:var(--bg)}
+#stat b{color:var(--tx)}
+#stat .sortinfo{color:var(--ac);font-weight:500}
+table{width:100%;border-collapse:collapse;background:var(--card);font-size:13px}
+th{position:sticky;top:var(--barh);background:#eef1f4;text-align:left;padding:9px 10px;font-weight:600;border-bottom:1px solid var(--bd);white-space:nowrap;user-select:none;z-index:5}
+th[data-k]{cursor:pointer}
+th[data-k]:hover{background:#e6eaef}
+th .ar{opacity:.28;margin-left:3px;font-size:10px}
+th.act{color:var(--ac)}
+th.act .ar{opacity:1}
+th .hint{display:block;font-weight:400;font-size:11px;color:var(--tx2);opacity:.75}
+td{padding:8px 10px;border-bottom:1px solid #f0f2f4;vertical-align:top}
+tr.row:hover{background:#fafbfc;cursor:pointer}
+tr.row.isnew td{background:#fbfdfb}
+tr.row.isnew:hover td{background:#f6faf8}
+.nm{font-weight:500}
+.tg{display:inline-block;padding:1px 7px;border-radius:6px;background:var(--ac2);color:var(--ac);font-size:12px}
+.fee{font-weight:600;white-space:nowrap}
+.fee.free{color:var(--new)}
+.fee.low{color:var(--warn)}
+.ap{color:var(--tx2);font-size:12px;max-width:320px}
+.mut{color:var(--tx2);font-size:11.5px}
+.bwtg{display:inline-block;padding:0 6px;border-radius:4px;background:var(--nbg);color:var(--new);font-size:11.5px;font-weight:600}
+.bwv{font-size:12px;color:var(--tx);white-space:nowrap}
+.bwv small{color:var(--tx2)}
+.soon{color:var(--warn);font-size:11.5px;font-weight:500}
+.exp{color:#a33333;font-size:11.5px;font-weight:500}
+.bg{display:inline-block;padding:0 5px;border-radius:4px;font-size:11px;font-weight:600;line-height:16px}
+.bg-new{background:var(--nbg);color:var(--new)}
+.bg-wait{background:var(--wbg);color:var(--warn)}
+.bg-add{background:var(--nbg);color:var(--new);border:1px solid #bfe3d3}
+.bg-chg{background:#fdecec;color:#a33333;border:1px solid #f3c9c9}
+.nm .bg{margin-left:5px;font-weight:600}
+.det{display:none;background:#fbfcfd}
+.det.on{display:table-row}
+.det div{padding:10px 14px;border-bottom:1px solid #eef1f4;line-height:1.75}
+.det b{color:var(--tx2);font-weight:500;display:inline-block;min-width:96px}
+.pager{display:flex;gap:8px;align-items:center;justify-content:center;padding:18px}
+.pager button{padding:6px 14px;border:1px solid var(--bd);background:#fff;border-radius:8px;cursor:pointer;font-size:13px}
+.pager button:disabled{opacity:.4;cursor:default}
+.empty{padding:40px;text-align:center;color:var(--tx2)}
+footer{padding:16px 24px 40px;color:var(--tx2);font-size:12px}
+code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
+
+/* —— 网别切换入口 —— */
+.netnav{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.netbtn{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border:1px solid var(--bd);
+  background:#fff;border-radius:9px;cursor:pointer;font-size:13.5px;color:var(--tx2);transition:.12s}
+.netbtn:hover{border-color:var(--ac);color:var(--ac)}
+.netbtn.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.netbtn .nc{font-size:11.5px;color:var(--tx2)}
+.netbtn.on .nc{color:#d6e6f7}
+.netbtn .nb{font-size:11px;padding:1px 7px;border-radius:999px;background:var(--wbg);color:var(--warn);font-weight:600}
+.netbtn.on .nb{background:rgba(255,255,255,.22);color:#fff}
+
+/* —— 未接入占位 —— */
+.netempty{max-width:760px;margin:52px auto;padding:26px 30px;background:var(--card);border:1px solid var(--bd);border-radius:14px}
+.netempty h2{margin:0 0 12px;font-size:17px;font-weight:600}
+.netempty p{margin:9px 0;color:var(--tx2);font-size:13.5px;line-height:1.85}
+.netempty p b{color:var(--tx)}
+.netempty code{background:#eef1f4;padding:1px 6px;border-radius:4px;font-size:12px}
+
+@media(max-width:760px){.ap{max-width:180px}input#kw{min-width:120px}}
+</style>
+</head>
+<body>
+<header>
+<h1 id="h1">河北移动 · 资费全量目录</h1>
+<div class="sub" id="sub">来源：中国移动 APP「资费专区」（nrapigate / nrtariff） · 数据基线 __DATE__ · 共 __N__ 条 · 单位已按 dataUnit 归一</div>
+<nav class="netnav" id="netnav"></nav>
+<div class="notice" id="notice">__NOTICE__</div>
+<div class="notice warn" id="basewarn" style="display:none"></div>
+</header>
+
+<div class="bar" id="bar">
+  <input id="kw" placeholder="搜索名称 / 套餐 / 客户 / 渠道 / 报备编号 / 权益 / 宽带速率…">
+  <select id="ty"><option value="">全部类型</option></select>
+  <select id="ct">
+    <option value="">全部城市</option>
+    <option value="_none">全省通用（未限定地市）</option>
+    <optgroup label="地市">
+      <option>石家庄</option><option>唐山</option><option>秦皇岛</option>
+      <option>邯郸</option><option>邢台</option><option>保定</option>
+      <option>张家口</option><option>承德</option><option>沧州</option>
+      <option>廊坊</option><option>衡水</option>
+    </optgroup>
+    <optgroup label="专属区域">
+      <option>雄安新区</option><option>华北油田</option>
+    </optgroup>
+  </select>
+  <select id="pf">
+    <option value="">全部月费</option>
+    <option value="0,0">仅 0 元</option>
+    <option value="0,10">≤ 10 元</option>
+    <option value="0,30">≤ 30 元</option>
+    <option value="0,60">≤ 60 元</option>
+    <option value="100,99999">≥ 100 元</option>
+  </select>
+  <select id="on">
+    <option value="">全部上架时间</option>
+    <option value="7">7 天内上架</option>
+    <option value="30">30 天内上架</option>
+    <option value="90">90 天内上架</option>
+    <option value="180">半年内上架</option>
+    <option value="365">一年内上架</option>
+    <option value="none">无上架日期</option>
+  </select>
+  <select id="off">
+    <option value="">全部下线时间</option>
+    <option value="30">30 天内下线</option>
+    <option value="60">60 天内下线</option>
+    <option value="90">90 天内下线</option>
+  </select>
+  <select id="bw">
+    <option value="">不限宽带</option>
+    <option value="line">含宽带（有宽带线路）</option>
+    <option value="speed">宽带提速 / 光网组网</option>
+  </select>
+  <select id="chg">
+    <option value="">全部资费</option>
+    <option value="1">本次变更</option>
+  </select>
+  <span class="vsep"></span>
+  <select id="sort"></select>
+  <button id="dir" title="切换升序 / 降序">↓</button>
+  <button id="reset">重置</button>
+  <button id="csv" title="把当前筛选结果导出为 CSV（全部结果、不只是本页；Excel 可直接打开）">导出 CSV</button>
+  <button id="offline" title="把当前页面另存为一份可离线打开的单文件 HTML">保存本页</button>
+  <div class="chips" id="chips">
+    <button data-p="all">全部</button>
+    <button data-p="new7">🆕 7 天内上架</button>
+    <button data-p="new30">🆕 30 天内上架</button>
+    <button data-p="new90">🆕 90 天内上架</button>
+    <button data-p="exp60">⏳ 60 天内下线</button>
+    <button data-p="free">0 元</button>
+    <button data-p="bw">含宽带</button>
+    <button data-p="chg" id="chipchg">🔄 本次变更</button>
+  </div>
+</div>
+
+<div id="stat"></div>
+<table>
+<thead><tr>
+  <th data-k="fee">月费<span class="ar"></span></th>
+  <th data-k="gb">流量<span class="ar"></span></th>
+  <th data-k="call">通话<span class="ar"></span></th>
+  <th data-k="name">名称<span class="ar"></span></th>
+  <th data-k="ty">类型<span class="ar"></span></th>
+  <th data-k="bw">宽带<span class="ar"></span></th>
+  <th>目标客户</th>
+  <th data-k="on">上架<span class="ar"></span></th>
+  <th data-k="off">下线<span class="ar"></span></th>
+</tr></thead>
+<tbody id="tb"></tbody>
+</table>
+<div class="pager">
+  <button id="prev">上一页</button><span id="pg"></span><button id="next">下一页</button>
+</div>
+<footer>数据为运营商报备公示口径；「目标客户」为原文条件，能否办理需以营业厅/10086 为准。<br>
+上架 / 下线天数以页面顶部的<b>数据基线日期</b>为基准 —— 四网<b>各自一个基线</b>、不跨网共用（数据没变，页面就逐字节一致，便于归档去重）。<br>
+每日 <b>06:00（北京时间）</b>自动巡检 · <a href="https://github.com/starrry365/hebei-mobile-h5-reverse" target="_blank" rel="noopener">仓库与变更记录</a>
+</footer>
+<script>
+/* —— 四网数据容器 ——
+   骨架阶段：只有「移动」接了真实数据，其余三家的 rows 为空、src/base 待补。
+   刻意做成**对称结构**（每网都含 sh/nm/src/base/rows），而不是「移动特殊、
+   三家另放一个数组」—— 后者每加一处逻辑都要分叉一次，迟早漏掉一边。
+   ★ 每网自带 base：「相对天数 / 上架下线筛选」都以**本网**的数据基线为准，
+     不能全局共用一个 —— 三家的抓取时点不可能总在同一天。 */
+const NETS=__NETS__;
+const NET_LS=["move","unicom","telecom","cbn"];      // 顺序即导航条顺序
+const rowsOf=n=>((NETS[n]||{}).rows)||[];
+const online=n=>rowsOf(n).length>0;                  // 是否已接入数据
+/* 默认网：取第一个**已接入**的（而不是硬编码 move）—— 万一哪天移动那网抓挂了，
+   页面会自动落到别的有数据的网，而不是一进来就是一片空白。 */
+const NET_DEF=(NET_LS.filter(online)[0])||NET_LS[0];
+let NET=NET_DEF;
+const net=()=>NETS[NET]||{};
+
+const PAGE=80;
+let view=[],pg=0,sortK="on",sortD=-1;
+
+const $=s=>document.querySelector(s);
+const DAY=864e5;
+
+function num(v){const f=parseFloat(v);return isNaN(f)?null:f}
+function toDate(s){
+  s=String(s==null?"":s).trim();
+  if(!/^\d{8}$/.test(s))return null;
+  const y=+s.slice(0,4),m=+s.slice(4,6),d=+s.slice(6,8);
+  if(m<1||m>12||d<1||d>31)return null;
+  /* 只做 1..31 的范围检查不够：Date.UTC 会把 2 月 30 日、4 月 31 日这类
+     **不存在的日期静默归一化**到下个月，于是相对天数与时间筛选全都悄悄偏移。
+     回读三项、确认与原值一致才算合法（口径与 audit_data.py 的 date() 对齐）。 */
+  const t=Date.UTC(y,m-1,d),dt=new Date(t);
+  if(dt.getUTCFullYear()!==y||dt.getUTCMonth()!==m-1||dt.getUTCDate()!==d)return null;
+  return t;
+}
+function fmtD(s){s=String(s==null?"":s);return /^\d{8}$/.test(s)?s.slice(0,4)+"-"+s.slice(4,6)+"-"+s.slice(6,8):""}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function fmtGb(g){if(g==null||g===""||g===0)return"—";if(g>=1)return(g%1?g.toFixed(1):g)+"GB";return Math.round(g*1024)+"MB"}
+function feeCls(f){const n=num(f);if(n===0)return"free";if(n!==null&&n<=10)return"low";return""}
+/* 每元流量的显示形式。perVal() 为 null（无流量 / 月费为 0 / 缺值）时不显示，
+   不臆造 0 或 ∞。 */
+function perCell(d){
+  const v=perVal(d);
+  if(v==null)return "";
+  /* 0 元含流量显示 ∞ —— 不显示反而更糟：按该列降序时它们排在最前，
+     却不写值，看着像排序坏了。 */
+  const s=v===Infinity?"∞":(v>=10?String(Math.round(v)):(v>=1?v.toFixed(1):v.toFixed(2)));
+  return '<div class="mut">每元 '+s+'GB</div>';
+}
+/* 本次巡检变更徽章（标注由构建脚本的 diff 写入，页面只读） */
+function chgTag(d){
+  if(d.ck)return ' <span class="bg bg-chg" title="关键字段（月费 / 流量 / 上下线 / 权益等）本次有变更">变更</span>';
+  if(d.ca)return ' <span class="bg bg-add" title="本次巡检新增的资费">新增</span>';
+  return "";
+}
+
+/* —— 宽带判定 ——
+   源字段 brandwidth 既不干净也不完整，只看它必错：
+     ① 假阳性：填 '0' / '-' / '无' 的 116 条被「非空即含」算成含宽带
+        （结果里混进视频彩铃、和家固话、副卡功能费…一眼就不对）
+        ⚠️ 广电那网的「不适用」写的是 '/'（`Mini会员（促销）` 就靠这个被误判成含宽带），
+           所以坏值表里补上了 '/' 与 '\' —— 各网对「空」的写法不一样，
+           这层判定是跨网共用的，坏值表就得按**全网的写法**列全。
+     ② 假阴性：真含宽带的「河北移动1000M融合宽带」「动感地带芒果卡（宽带版）」
+        等 36 条，该字段反而是空的 ⇒ 光看字段会把它们漏掉
+   所以改用「字段值 + 名称」两条腿，并把只是「宽带相关服务」的剔出去：
+   提速包 / 光网组网 / 装机 / 调测 / 检修 / 宽带电视(IPTV) 都不等于含宽带线路。 */
+const BW_BADVAL=/^(0|[-—－\/\\]|无|没有|否)$/;
+const BW_NOTLINE=/提速|电视|IPTV|检修|装机|调测|加速|绿色上网|调优|扩容|移机/;
+const BW_SPEED=/提速|光网|组网|FTTR/;
+function bwInfo(d){
+  const v=String(d.bw==null?"":d.bw).trim(),n=d.n||"";
+  if(BW_NOTLINE.test(n))return null;                        // 名字写着提速/装机… ⇒ 不算含宽带
+  if(v&&!BW_BADVAL.test(v)&&v.indexOf("不涉及")<0&&!BW_NOTLINE.test(v))
+    return{t:v,src:"field"};                                // 字段给了真实速率
+  if(n.indexOf("宽带")>=0)return{t:"含宽带",src:"name"};     // 字段空着但名字里就有「宽带」
+  return null;
+}
+function bwSpeed(d){return BW_SPEED.test((d.n||"")+" "+(d.x||""))}
+function bwMbps(d){
+  const i=bwInfo(d);if(!i)return null;
+  if(i.src==="field"){
+    const ms=String(i.t).match(/\d{3,4}/g);
+    return ms?Math.max.apply(null,ms.map(Number)):null;
+  }
+  /* 名称兜底时只认「数字 + M」——用裸 \d{3,4} 会把年份、月费档、金额当带宽：
+     「河北移动1000M融合宽带2026-邯郸」→ 抓成 2026、「芒果卡（宽带版）-139元档」→ 抓成 139、
+     「单宽宽带500M720元1年」→ 抓成 720。带 M 才可能是速率。 */
+  const ms=String(d.n||"").match(/(\d{3,4})\s*M/g);
+  return ms?Math.max.apply(null,ms.map(s=>parseInt(s,10))):null;
+}
+function bwDetail(d){
+  const i=bwInfo(d),raw=String(d.bw==null?"":d.bw).trim();
+  const v=i?(i.src==="field"?"含宽带":"含宽带（字段未填，按名称判定）"):"不含宽带";
+  return esc(raw||"—")+'　<span class="mut">判定：'+v+'</span>';
+}
+/* —— 城市归属 ——
+   数据里**没有城市字段**，只能从文本里认地市。四个候选字段缺一不可，这是实测的：
+     · 只看名称 → 漏 46 条：地市只写在「目标客户」里的「移动云盘2026特惠季包」（秦皇岛）、
+       「全承游电视增值包」（承德）、「权益金会员180元档」（保定）…
+     · 只看「目标客户」→ 漏 103 条：市级包名带地市、但该字段只写通用话术
+       「河北移动用户」的「邯郸179元低消回馈」「秦皇岛10元语音低消」「石家庄数字生活特权季包」…
+     · 「权益」目前贡献 0 条独有命中（凡命中权益的，名称或套餐名必已命中），
+       留着只是防上游改文案 —— 不是必需，但留着不亏
+   故取四字段并集：命中 373 条；「全省通用」＝四字段都没提地市，共 3505 条。
+   返回数组而非单值：一条可属多市（IPTV 类在目标客户里列 4 个市；「沧州华油尊享礼包」
+   同属沧州与华北油田），它在每个市的筛选里都该出现。
+   唯一措辞冲突：「全省校园资费-1元畅玩包」名写全省、目标客户却限石家庄 ⇒ 按实际限制归石家庄。 */
+const CITY_LS=["石家庄","唐山","秦皇岛","邯郸","邢台","保定","张家口","承德","沧州","廊坊","衡水"];
+const CT_ALIAS={"雄安新区":/雄安/,"华北油田":/华北油田|华油/};
+function cityTags(d){
+  /* ★ 本网若「数据本身不分城市」，一律按「全省通用」处理。
+     联通那网正是这种情况：实测河北联通的资费目录与 cityId 无关（换城市查到的
+     三级菜单与明细逐条相同）—— 它压根没有「属于哪个市」这个属性。
+     这时再去名称里猜地市，结果就是「选任何地市都 0 条」：看着像 bug，
+     实际是拿一个不存在的维度在筛。由数据源的 allProvince 声明，别靠猜。 */
+  if(net().allProvince)return[];
+  const s=(d.n||"")+" "+(d.t||"")+" "+(d.ap||"")+" "+(d.x||"");
+  const out=[];
+  for(let i=0;i<CITY_LS.length;i++)if(s.indexOf(CITY_LS[i])>=0)out.push(CITY_LS[i]);
+  for(const k in CT_ALIAS)if(CT_ALIAS[k].test(s))out.push(k);
+  return out;
+}
+function bwCell(d){
+  const i=bwInfo(d);
+  if(!i)return'<span class="mut">—</span>';
+  if(i.src==="name")return'<span class="bwtg">含宽带</span>';
+  const t=String(i.t);
+  return'<span class="bwv">'+esc(t.length>16?t.slice(0,16)+"…":t)+'</span>';
+}
+
+/* ★ 时间锚点 = **本网**的数据基线日期（来自数据本身），不是 Date.now()。
+   页面一旦带上运行时刻，归档的逐字节比对就永远不等，每天白写一份归档。 */
+/* ★ BASE 是全部「相对天数」与「上架/下线时间筛选」的基准。它一旦解析失败
+   （构建脚本改了日期格式、或某网忘了填 base），ago/left 全变 NaN，
+   而 `NaN<0 || NaN>7` 恒为 false ⇒ 「7 天内上架」会静默返回**全部**条目：
+   不报错、看起来还挺正常。所以必须显式判空 —— fail-closed（时间筛选一律不通过）
+   + 页面顶部给出可见警告。
+   ★★ 四网之后 BASE 不再是常量：每家一个基线（抓取时点不会总落在同一天）。
+     写成 const 会让「切到别的网还拿移动的基线算天数」—— 一个不报错的错。
+     故改成模块级变量，由 setBase() 在每次 apply() 前按当前网重算。 */
+let BASE=null,BASE_OK=false;
+function setBase(){
+  BASE=toDate(String(net().base==null?"":net().base).replace(/-/g,""));
+  BASE_OK=BASE!=null;
+}
+const ago  =dt=>dt==null?null:Math.round((BASE-dt)/DAY);   // 上架至今（天）
+const left =dt=>dt==null?null:Math.round((dt-BASE)/DAY);   // 距下线（天）
+const FAR  =3650;                                          // 下线日超过这个天数视为「长期」
+
+/* 每元流量：既是排序键，也要显示在表格「流量」列里 ——
+   否则按它排完序，页面上根本看不到排序依据的那个值。抽出来共用，防止两处口径漂移。 */
+function perVal(d){
+  const f=num(d.f);
+  if(!d.g||f==null||f<0)return null;
+  /* 月费 0 元却含流量：每元流量在数学上是 +∞。
+     这里**不能**返回 null —— null 会被当成「没有这个值」，按「每元流量」降序排时
+     整批沉到空值尾部，而它们恰恰是最划算的。实测这类有 227 条，
+     占「有流量」条目的三成，不是边角料。 */
+  return f===0?Infinity:d.g/f;
+}
+
+/* 排序字段表：def = 首次点该列时的默认方向（1 升 / -1 降） */
+const F={
+  on  :{lb:"上架时间",def:-1,get:d=>toDate(d.o)},
+  off :{lb:"下线时间",def: 1,get:d=>toDate(d.e)},
+  fee :{lb:"月费",    def: 1,get:d=>num(d.f)},
+  gb  :{lb:"流量",    def:-1,get:d=>(d.g==null?null:d.g)},
+  call:{lb:"通话",    def:-1,get:d=>num(d.c)},
+  per :{lb:"每元流量",def:-1,get:d=>perVal(d)},
+  name:{lb:"名称",    def: 1,get:d=>d.n||d.t||""},
+  ty  :{lb:"类型",    def: 1,get:d=>d.ty||""},
+  bw  :{lb:"宽带速率",def:-1,get:d=>{
+         if(!bwInfo(d))return null;
+         const m=bwMbps(d);
+         /* 判为「含宽带」但速率未知（名称与字段都没写数字）的那几条：
+            返回哨兵 -1 而不是 null —— 让它们留在宽带组内、排在已知速率之后，
+            而不是混进几千条「不含宽带」的空值尾部里彻底看不出。
+            真假速率都 ≥100，-1 不会有歧义。 */
+         return m==null?-1:m;
+       }}
+};
+
+/* 字符串比较复用同一个 Collator。
+   localeCompare(y,"zh") 每次调用都要重新解析 locale、重算排序键，
+   而一次 sort 的比较次数是 O(n·log₂n)。模块级 Collator 结果等价、可复用。 */
+const COLL=(typeof Intl!=="undefined"&&Intl.Collator)?new Intl.Collator("zh"):null;
+
+function cmpX(x,y){
+  if(x==null&&y==null)return 0;
+  if(x==null)return 1;          // 空值恒排最后，与升降序无关
+  if(y==null)return -1;
+  /* 相等先短路：两个 +∞ 相减是 NaN，而比较器返回 NaN 属实现定义行为
+     （V8 当 0 处理，看着没事，但语义上已经是 undefined behavior）。 */
+  if(x===y)return 0;
+  const r=(typeof x==="string")
+    ?(COLL?COLL.compare(x,y):x.localeCompare(y,"zh"))
+    :(x-y);
+  return sortD*r;
+}
+
+/* ★ 装饰-排序-反装饰（decorate → sort → undecorate）
+   比较函数会被调用约 n·log₂n 次 —— 3878 行约 4.6 万次。
+   若在比较函数里现算取值，等于把 toDate()（正则 + Date.UTC + 回读校验）
+   和 localeCompare() 各跑 4.6 万次：实测按「上架时间」排一次 32ms、
+   按「名称」20.5ms，而取值本身只要 0.5ms —— 时间全花在重复取值上。
+   先各自求一次值、再比「值」，取值次数从 O(n·log₂n) 降到 O(n)。
+   语义不变：空值恒排最后、方向仍由 sortD 决定；V8 的 sort 是稳定的，
+   相等元素保持原相对顺序，与逐次现算的结果一致。 */
+function sortView(){
+  const get=F[sortK].get;
+  const dec=view.map(d=>[get(d),d]);
+  dec.sort((a,b)=>cmpX(a[0],b[0]));
+  view=dec.map(p=>p[1]);
+}
+
+function condText(){
+  const a=[];
+  const kw=$("#kw").value.trim();
+  if(kw)a.push("关键词「"+kw+"」");
+  if($("#ty").value)a.push("类型："+$("#ty").value);
+  if($("#ct").value)a.push("城市："+$("#ct").selectedOptions[0].textContent);
+  if($("#pf").value)a.push("月费 "+$("#pf").selectedOptions[0].textContent);
+  if($("#on").value)a.push($("#on").selectedOptions[0].textContent);
+  if($("#off").value)a.push($("#off").selectedOptions[0].textContent);
+  if($("#bw").value)a.push($("#bw").selectedOptions[0].textContent);
+  if($("#chg").value)a.push("仅本次变更");
+  return a.length?a.join(" · "):"无筛选";
+}
+
+function onCell(d){
+  const dt=toDate(d.o);
+  if(dt==null)return'<span class="mut">—</span>';
+  if(!BASE_OK)return'<div>'+fmtD(d.o)+'</div>';   // 缺基准日就不编造相对天数
+  const ag=ago(dt);
+  let b="",rel;
+  if(ag<0){b=' <span class="bg bg-wait">待上架</span>';rel=(-ag)+" 天后生效"}
+  else if(ag===0){b=' <span class="bg bg-new">NEW</span>';rel="今天上架"}
+  else{b=ag<=30?' <span class="bg bg-new">NEW</span>':"";rel=ag+" 天前"}
+  return'<div>'+fmtD(d.o)+'</div><div class="mut">'+rel+b+'</div>';
+}
+function offCell(d){
+  const dt=toDate(d.e);
+  if(dt==null)return'<span class="mut">—</span>';
+  if(!BASE_OK)return'<div>'+fmtD(d.e)+'</div>';
+  const lf=left(dt);
+  if(lf>FAR)return'<div>'+fmtD(d.e)+'</div><div class="mut">长期</div>';
+  if(lf<0)return'<div>'+fmtD(d.e)+'</div><div class="exp">已过期 '+(-lf)+' 天</div>';
+  if(lf<=60)return'<div>'+fmtD(d.e)+'</div><div class="soon">'+lf+' 天后到期</div>';
+  return'<div>'+fmtD(d.e)+'</div><div class="mut">'+lf+' 天后到期</div>';
+}
+
+function render(){
+  const tb=$("#tb");tb.innerHTML="";
+  const st=pg*PAGE,slice=view.slice(st,st+PAGE);
+  $("#stat").innerHTML="匹配 <b>"+view.length+"</b> 条"
+    +" · 共 "+rowsOf(NET).length+" 条"
+    +(view.length?" · 显示 "+(st+1)+"–"+Math.min(st+PAGE,view.length):"")
+    +' · <span class="sortinfo">排序：'+F[sortK].lb+(sortD===1?" ↑ 升序":" ↓ 降序")+"</span>"
+    +" · 筛选："+esc(condText());
+  $("#pg").textContent="第 "+(pg+1)+" / "+Math.max(1,Math.ceil(view.length/PAGE))+" 页";
+  $("#prev").disabled=pg===0;$("#next").disabled=st+PAGE>=view.length;
+  if(!view.length){
+    tb.innerHTML='<tr><td colspan="9" class="empty">没有匹配的资费 · 试试 <a href="#" id="clr">重置全部筛选</a></td></tr>';
+    const c=$("#clr");if(c)c.onclick=e=>{e.preventDefault();resetAll()};
+    return;
+  }
+  slice.forEach(d=>{
+    const isNew=BASE_OK&&(ago(toDate(d.o))??9e9)>=0&&(ago(toDate(d.o))??9e9)<=30;
+    const tr=document.createElement("tr");
+    tr.className="row"+(isNew?" isnew":"");
+    tr.innerHTML='<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元":"—")+'</td>'
+      +'<td>'+fmtGb(d.g)+perCell(d)+'</td>'
+      +'<td>'+(d.c&&d.c!=="0"?esc(d.c)+" 分":"—")+'</td>'
+      +'<td class="nm">'+esc(d.n||d.t)+chgTag(d)+'</td>'
+      +'<td><span class="tg">'+esc(d.ty)+'</span></td>'
+      +'<td>'+bwCell(d)+'</td>'
+      +'<td class="ap">'+esc((d.ap||"—").slice(0,90))+'</td>'
+      +'<td style="white-space:nowrap">'+onCell(d)+'</td>'
+      +'<td style="white-space:nowrap">'+offCell(d)+'</td>';
+    const dr=document.createElement("tr");dr.className="det";
+    dr.innerHTML='<td colspan="9"><div>'
+      +((d.ca||d.ck)?'<b>本次巡检</b>'+esc((d.ca?"新增":"")+(d.ca&&d.ck?" · ":"")
+          +(d.ck?"关键字段有变更（月费 / 流量 / 上下线 / 权益等）":""))+'<br>':"")
+      +'<b>套餐名</b>'+esc(d.t||"—")+'<br>'
+      +'<b>目标客户</b>'+esc(d.ap||"—")+'<br>'
+      +'<b>办理渠道</b>'+esc(d.ch||"—")+'<br>'
+      +'<b>宽带</b>'+bwDetail(d)+'　<b>报备编号</b>'+esc(d.r||"—")+'<br>'
+      +'<b>上下线</b>'+esc(fmtD(d.o)||"—")+' ~ '+esc(fmtD(d.e)||"—")+'<br>'
+      +'<b>超套资费</b>'+esc(d.ex||"—")+'<br>'
+      +'<b>有效期</b>'+esc(d.vp||"—")+'<br>'
+      +'<b>权益说明</b>'+esc(d.x||"—")
+      +'</div></td>';
+    tr.onclick=()=>dr.classList.toggle("on");
+    tb.appendChild(tr);tb.appendChild(dr);
+  });
+}
+
+function apply(){
+  /* 基线随网走：放在 apply() 开头而不是只放在 switchNet() 里，是为了让
+     「直接带 hash 进来」「hashchange」这些旁路也一定先重算过 ——
+     少调一次的后果是**静默**按错网的基线算天数，比报错难发现得多。 */
+  setBase();
+  /* 警告条在这里统一求值（而不是挂在 renderNet() 上）：renderNet 只在「换了网」
+     时才跑，任何「base 坏了但没换网」的路径都会留下一份与数据不符的旧状态。
+     放在未接入短路**之前**，还顺带保证切到未接入的网时警告条一定会被收起。 */
+  renderBaseWarn();
+  /* 未接入的网没有任何数据可筛，直接短路 —— 否则会给出一堆 0 条的
+     「正常」统计，看着像筛选把数据全滤掉了。 */
+  if(!online(NET)){view=[];renderEmptyState();syncHash();return}
+  renderEmptyState();
+  const kw=$("#kw").value.trim().toLowerCase(),ty=$("#ty").value,ct=$("#ct").value,
+        pf=$("#pf").value,on=$("#on").value,off=$("#off").value,bw=$("#bw").value,
+        chg=$("#chg").value;
+  /* ★ 当前「城市」这个维度在本网是否已停用（见 renderDims）：取一次就够，
+     filter 要跑几千遍，在里面 querySelector 纯属白烧。 */
+  const ctSel=$("#ct").selectedOptions[0],ctDimOff=!!(ctSel&&ctSel.disabled);
+  view=rowsOf(NET).filter(d=>{
+    /* 「本次变更」= 本次巡检**新增** 或 **关键字段有变更**的条目。
+       下线/下架的条目不在这里 —— 它们已经不在本网数据里了。
+       标注由构建脚本（build_html 的 diff）写进行数据，页面只负责读。 */
+    if(chg&&!(d.ca||d.ck))return false;
+    if(ty&&d.ty!==ty)return false;
+    /* 保险丝：当前取值若是「本网已置灰的维度」，当没筛。
+       UI 上点不到置灰项，但脚本 / 程序化赋值仍可能把它设进来（实测可行）——
+       那时按它筛会输出「邢台 0 条」这类看着正常、实则拿不存在的维度筛出来的
+       假答案。口径与 readHash 的「认不出来就当没传」一致：**无效筛选 = 不筛**。 */
+    if(ct&&!ctDimOff){
+      const tg=cityTags(d);
+      if(ct==="_none"){if(tg.length)return false}          // 全省通用 = 四个字段都没提地市
+      else if(tg.indexOf(ct)<0)return false;
+    }
+    if(pf){
+      const p=pf.split(",").map(Number),f=num(d.f);
+      if(f==null||f<p[0]||f>p[1])return false;
+    }
+    if(on){
+      const dt=toDate(d.o);
+      if(on==="none"){if(dt)return false}
+      else{
+        if(!BASE_OK||dt==null)return false;   // 缺基准日 ⇒ 不通过，绝不静默全通过
+        const ag=ago(dt);
+        if(ag<0||ag>+on)return false;
+      }
+    }
+    if(off){
+      const dt=toDate(d.e);
+      if(!BASE_OK||dt==null)return false;
+      const lf=left(dt);
+      if(lf<0||lf>+off)return false;
+    }
+    if(bw==="line"&&!bwInfo(d))return false;
+    if(bw==="speed"&&!bwSpeed(d))return false;
+    if(kw){
+      /* 搜索覆盖面：名称 / 套餐名 / 目标客户 / 渠道 / 报备编号 / 类型 / 权益 / 宽带 / 超套 / 有效期。
+         原先漏了后三项 —— 搜「2000M」只能命中名称里写了速率的 28 条，漏掉 22 条
+         （bw 字段是 2000M / 1000M/2000M 但名称没写速率的），搜「超套」也少 2 条。
+         特意不含月费与流量数值：它们已有专门的筛选与排序，混进来只会让搜「50」之类的词全是噪音。 */
+      const s=[d.n,d.t,d.ap,d.ch,d.r,d.ty,d.x,d.bw,d.ex,d.vp].join(" ").toLowerCase();
+      if(!s.includes(kw))return false;
+    }
+    return true;
+  });
+  sortView();
+  pg=0;render();markHead();syncHash();
+}
+
+function markHead(){
+  document.querySelectorAll("th[data-k]").forEach(th=>{
+    const on=th.dataset.k===sortK;
+    th.classList.toggle("act",on);
+    const ar=th.querySelector(".ar");
+    if(ar)ar.textContent=on?(sortD===1?"▲":"▼"):"⇅";
+  });
+  $("#dir").textContent=sortD===1?"↑":"↓";
+  $("#dir").title="当前："+(sortD===1?"升序":"降序")+"，点击切"+ (sortD===1?"降序":"升序");
+}
+
+function syncHash(){
+  const p=new URLSearchParams();
+  /* net 无条件写入（它不是「空值就省略」的筛选条件）：地址栏里没有 net
+     时默认网由 NET_DEF 决定，而 NET_DEF 会随「哪网有数据」变化 ——
+     显式写出 net，分享出去的链接才会一直指向同一网。 */
+  const m={net:NET,kw:$("#kw").value.trim(),ty:$("#ty").value,ct:$("#ct").value,pf:$("#pf").value,
+           on:$("#on").value,off:$("#off").value,bw:$("#bw").value,chg:$("#chg").value,
+           s:sortK,d:sortD};
+  for(const k in m)if(m[k]!== ""&&m[k]!=null)p.set(k,m[k]);
+  const h=p.toString(),base=location.href.split("#")[0];
+  if(location.hash.slice(1)!==h){
+    /* try 是必需的：把页面「另存为」成单文件、再从 file:// 打开时，
+       文档 origin 是 null，部分浏览器会对 replaceState 抛 SecurityError。
+       那不该让整页崩掉 —— 地址栏不同步只是少了可分享链接，功能照常。 */
+    try{history.replaceState(null,"",h?base+"#"+h:base)}catch(e){}
+  }
+}
+function readHash(){
+  if(!location.hash)return;
+  const p=new URLSearchParams(location.hash.slice(1));
+  /* net 必须**最先**处理：类型下拉是按网重建的，先设 ty 会设到一个此刻
+     还不存在的 option 上（select.value 静默失败）⇒ 之后按空值过滤，
+     表面看是「筛选没生效」，实际是网还没切。 */
+  const nn=p.get("net");
+  if(nn&&NETS[nn]&&nn!==NET){
+    NET=nn;
+    $("#kw").value="";["ty","ct","pf","on","off","bw","chg"].forEach(k=>$("#"+k).value="");
+    clearChips();
+    renderNav();renderNet();
+  }
+  $("#kw").value=p.get("kw")||"";
+  /* 枚举型参数先与**实际存在的 option** 核对再写入。
+     不核对的话，页面不认识的取值（手改地址栏 / 旧链接 / 上游改了选项集）
+     会让 select.value 静默失败：下拉停在「全部」，代码却在按那个幽灵值过滤
+     —— 控件与结果对不上且不报错。认不出来就当这个参数没传，
+     三者随即恢复一致（syncHash 会把非法参数从地址栏里抹掉，链接自愈）。 */
+  ["ty","ct","pf","on","off","bw","chg"].forEach(k=>{
+    const v=p.get(k),sel=$("#"+k);
+    /* ★ 还得看这个取值在本网「可不可选」—— 见 renderDims()：某网若没有
+       某个维度，对应 option 会被置灰。不查 disabled 的话，地址栏里带着
+       别网的地市名进来（#net=unicom&ct=邢台）会被照单全收，筛选随即恒为空
+       —— 而链接看起来完全正常、不报任何错。 */
+    if(v!=null&&[...sel.options].some(o=>o.value===v&&!o.disabled))sel.value=v;
+  });
+  const s=p.get("s");if(s&&F[s])sortK=s;
+  const d=p.get("d");if(d==="1"||d==="-1")sortD=+d;
+  $("#sort").value=sortK;
+}
+
+/* —— 网别导航 —— */
+function renderNav(){
+  const nav=$("#netnav");nav.innerHTML="";
+  NET_LS.forEach(c=>{
+    const n=NETS[c]||{},has=online(c);
+    const b=document.createElement("button");
+    b.type="button";
+    b.className="netbtn"+(c===NET?" on":"");
+    b.innerHTML="<span>"+esc(n.nm||c)+"</span>"
+      +(has?'<span class="nc">'+rowsOf(c).length+" 条</span>"
+           :'<span class="nb">未接入</span>');
+    b.onclick=()=>switchNet(c);
+    nav.appendChild(b);
+  });
+}
+
+/* —— 切网 ——
+   换网清空全部筛选（保留排序键）：类型选项是**按网生成**的，上个网选中的类型
+   在新网的下拉里根本不存在 —— 留着 value 会出现「下拉显示『全部类型』、
+   实际却按一个幽灵值过滤」的静默错。关键字同理，包名不跨网通用。 */
+function switchNet(c){
+  if(!NETS[c])return;
+  if(c!==NET){
+    NET=c;
+    $("#kw").value="";["ty","ct","pf","on","off","bw","chg"].forEach(k=>$("#"+k).value="");
+    clearChips();
+  }
+  /* 点当前网也照常走一遍刷新（但**不清筛选**，所以是幂等的）：
+     别在这里提前 return —— 少刷一次的后果是页面上留着与数据不符的旧标题/旧下拉，
+     而且完全不报错。 */
+  renderNav();setBase();renderNet();apply();
+}
+
+/* —— 按当前网刷新：标题 / 来源 / 类型下拉 / 基线警告 ——
+   setBase() 放在本函数开头（而不是靠调用方记得先调），renderNet 才总是自洽的。 */
+function renderNet(){
+  setBase();
+  const n=net(),rs=rowsOf(NET),has=online(NET),name="河北"+(n.sh||"");
+  $("#h1").textContent=name+" · 资费全量目录";
+  document.title=name+"资费全量查询"+(has?"（"+rs.length+" 条）":"");
+  $("#sub").innerHTML=has
+    ?"来源："+esc(n.src||"—")+" · 数据基线 "+esc(n.base||"—")+" · 共 "+rs.length
+      +" 条 · 单位已按 dataUnit 归一"
+    :"来源：待接入 —— 本网资费数据尚未接入，页面结构已就位";
+  const ty=$("#ty");
+  ty.innerHTML='<option value="">全部类型</option>';
+  [...new Set(rs.map(d=>d.ty))].filter(Boolean).sort().forEach(t=>{
+    const o=document.createElement("option");o.value=t;o.textContent=t;ty.appendChild(o);
+  });
+  /* 「本次变更」条数随网、随日变化 —— 标签带上条数才看得出有没有东西可看。
+     本网当天无变更时把快捷 chip 收起来；选单保留：万一地址栏带着 chg=1 进来，
+     状态仍然可见、语义仍一致（会筛出 0 条），而不是被悄悄抹掉。 */
+  const nch=rs.filter(d=>d.ca||d.ck).length;
+  const oc=$("#chg").options[1];
+  if(oc)oc.textContent=nch?("本次变更（"+nch+" 条）"):"本次变更（本网无）";
+  const cc=document.getElementById("chipchg");
+  if(cc)cc.style.display=nch?"":"none";
+  renderDims();
+}
+
+
+/* —— 按当前网刷新「筛选维度」的可用性 ——
+   ★ 原则：不给「本网数据里根本不存在」的维度提供入口。
+   联通那网正是这种情况：它的资费目录与 cityId 无关（实测换城市查到的三级菜单
+   与明细逐条相同），数据里压根没有「属于哪个市」这个属性。若照旧让用户选
+   「邢台」，页面会答「0 条」—— 那不是「邢台没有资费」，而是拿一个不存在的
+   维度在筛：一个看着像正常结果、实则是虚伪陈述的答案。
+   所以把「地市 / 专属区域」整组置灰，并在控件上写明原因。
+   （对比「本次变更」：那里 0 条是真的 0 条 —— 本网当天确实无变更，
+     只改文案不禁用，见 renderNet 里的注释。） */
+function renderDims(){
+  const ap=!!net().allProvince,ct=$("#ct");
+  /* 判据用「是否落在某个 optgroup 里」：
+     「全部城市」（空值）与「全省通用」（_none）是 select 的直接子节点，
+     在数据不分城市时语义仍然成立（两者都等于全部），保持可选。 */
+  [...ct.options].forEach(o=>{
+    const inGroup=o.parentElement&&o.parentElement.tagName==="OPTGROUP";
+    o.disabled=ap&&!!inGroup;
+  });
+  /* 当前若正停在某个被置灰的取值上（例如从别网带过来的地市名），
+     就地清掉 —— 留着它，筛选会恒为空而控件与结果对不上。 */
+  const cur=ct.selectedOptions[0];
+  if(cur&&cur.disabled)ct.value="";
+  ct.title=ap
+    ?"本网资费目录不区分地市（数据源按全省下发，与 cityId 无关）⇒ 已停用地市筛选"
+    :"";
+}
+
+function renderBaseWarn(){
+  const w=$("#basewarn");
+  if(BASE_OK||!online(NET)){w.style.display="none";w.textContent="";return}
+  w.style.display="";
+  w.textContent="⚠️ 本网（"+(net().nm||NET)+"）缺少可解析的「数据基线日期」（当前值："
+    +String(net().base||"（空）")+"）⇒ 上架/下线的时间筛选与相对天数已停用（fail-closed），"
+    +"以免给出看似正常的错误结果。";
+}
+
+/* —— 未接入占位 ——
+   已接入：确保工具栏 / 统计行 / 表格 / 分页器可见，并移除占位块。
+   未接入：把它们整个藏起来 —— 给一个能点却点不出东西的工具栏，用户只会
+   怀疑页面坏了；直接说明「尚未接入」更诚实。
+   ★ 用 _emptyFor 记住当前渲染给哪个网：apply() 每次都会调到这里，
+     不加这道闸就是每次筛选都重建一遍 DOM。 */
+let _emptyFor=null;      // 空态当前渲染给哪个网（"" = 已接入 / 非空态）
+function renderEmptyState(){
+  const has=online(NET),key=has?"":NET;
+  if(key===_emptyFor)return;
+  _emptyFor=key;
+  const pager=document.querySelector(".pager"),tbl=document.querySelector("table");
+  $("#bar").style.display=has?"":"none";
+  $("#stat").style.display=has?"":"none";
+  tbl.style.display=has?"":"none";
+  pager.style.display=has?"":"none";
+  /* 不只是藏起来，内容也清掉：藏着的旧统计行 / 旧表格行会留在 DOM 里，
+     于是「看不见」和「没有」变成两件事 —— 之后任何读 #stat / #tb 的代码
+     （包括体检脚本）都可能拿到上一个网的残留值。 */
+  if(!has){$("#stat").innerHTML="";$("#pg").textContent="";$("#tb").innerHTML=""}
+  let ph=document.getElementById("netempty");
+  if(has){if(ph)ph.remove();fixBarh();return}
+  if(!ph){
+    ph=document.createElement("div");ph.id="netempty";ph.className="netempty";
+    pager.parentNode.insertBefore(ph,pager);
+  }
+  const n=net();
+  ph.innerHTML="<h2>"+esc(n.nm||NET)+" · 资费数据尚未接入</h2>"
+    +"<p>页面骨架已就位：网别切换、筛选与排序逻辑四网共用。接入时只需往 "
+    +"<code>NETS['"+esc(NET)+"'].rows</code> 灌数据，并补上 <code>src</code>（来源）"
+    +"与 <code>base</code>（数据基线日期）两项元信息。</p>"
+    +"<p>每网各自带一个<b>数据基线日期</b> —— 上架 / 下线天数与时间筛选都以<b>本网</b>基线为准，"
+    +"不跨网共用：三家的抓取时点不会总落在同一天。</p>";
+  fixBarh();
+}
+
+function clearChips(){document.querySelectorAll("#chips button").forEach(b=>b.classList.remove("on"))}
+function resetAll(){
+  $("#kw").value="";["ty","ct","pf","on","off","bw","chg"].forEach(k=>$("#"+k).value="");
+  sortK="on";sortD=-1;$("#sort").value=sortK;
+  clearChips();apply();
+}
+
+/* —— 导出 CSV ——
+   导的是 **view**（当前筛选 + 排序之后的全部结果），不是当前这一页：
+   否则 49 页就得点 49 次。 */
+const CSV_COLS=[
+  ["月费(元)",d=>d.f],["流量(GB)",d=>d.g],["流量原文",d=>d.d],["流量单位",d=>d.du],
+  ["每元流量(GB)",d=>{const v=perVal(d);return v==null?"":(v===Infinity?"∞":+v.toFixed(3))}],
+  ["通话(分)",d=>d.c],["名称",d=>d.n],["套餐名",d=>d.t],["类型",d=>d.ty],
+  ["宽带字段",d=>d.bw],
+  ["宽带判定",d=>{const i=bwInfo(d);return i?(i.src==="field"?"含宽带":"含宽带(按名称判定)"):"不含宽带"}],
+  ["城市",d=>cityTags(d).join("/")],["目标客户",d=>d.ap],["办理渠道",d=>d.ch],
+  ["报备编号",d=>d.r],["上架日",d=>fmtD(d.o)],["下线日",d=>fmtD(d.e)],
+  ["本次变更",d=>(d.ca?"新增":"")+(d.ca&&d.ck?"/":"")+(d.ck?"字段变更":"")],
+  ["超套资费",d=>d.ex],["有效期",d=>d.vp],["权益说明",d=>d.x]];
+/* 换行、逗号、引号都要按 RFC4180 处理：正文里这几种字符都有可能出现
+   （权益说明尤其），不转义就会把一行拆成好几行、整张表错位。 */
+function csvCell(v){
+  const s=String(v==null?"":v).replace(/\r?\n/g," ");
+  return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+}
+function download(name,text,mime){
+  const blob=new Blob([text],{type:mime});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download=name;
+  document.body.appendChild(a);a.click();a.remove();
+  /* 立刻 revoke 会在部分浏览器里把还没写完的下载掐掉，留一点余量。 */
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+function exportCSV(){
+  const L=[CSV_COLS.map(c=>csvCell(c[0])).join(",")];
+  view.forEach(d=>L.push(CSV_COLS.map(c=>csvCell(c[1](d))).join(",")));
+  /* BOM 不能省：不加的话 Excel 会按本地代码页解读 UTF-8，中文全是乱码。
+     文件名用「数据基线日期」而不是当前时刻 —— 同一份数据导两次得到同一个
+     文件名，不会堆出一堆看着不同、其实一样的副本。 */
+  download("河北"+(net().sh||"")+"资费_"+(net().base||"")+".csv",
+           "\ufeff"+L.join("\r\n"),"text/csv;charset=utf-8");
+}
+/* —— 另存为单文件离线副本 ——
+   NETS 是构建时写进页面的真实数据，outerHTML 里自然带着它，
+   所以存下来的这份不联网、不起服务也能直接打开。 */
+function saveOffline(){
+  download("河北四网资费查询_"+(net().base||"")+".html",
+           "<!DOCTYPE html>\n"+document.documentElement.outerHTML,
+           "text/html;charset=utf-8");
+}
+
+/* —— 初始化 ——
+   顺序有讲究：先把排序下拉建好（readHash 要设 #sort），再 renderNav/renderNet
+   建出导航与**按网生成**的类型下拉，readHash 才可能把 ty 设到一个已存在的
+   option 上；最后 apply() 里 setBase() + 首屏渲染。 */
+Object.keys(F).forEach(k=>{
+  const o=document.createElement("option");o.value=k;o.textContent=F[k].lb;$("#sort").appendChild(o);
+});
+$("#sort").value=sortK;
+renderNav();renderNet();
+readHash();
+markHead();
+
+$("#kw").oninput=apply;
+["ty","ct","pf","on","off","bw","chg"].forEach(k=>$("#"+k).onchange=()=>{clearChips();apply()});
+$("#sort").onchange=e=>{sortK=e.target.value;sortD=F[sortK].def;apply()};
+$("#dir").onclick=()=>{sortD=-sortD;apply()};
+$("#reset").onclick=resetAll;
+$("#csv").onclick=exportCSV;
+$("#offline").onclick=saveOffline;
+$("#prev").onclick=()=>{if(pg>0){pg--;render();markHead();scrollTo(0,0)}};
+$("#next").onclick=()=>{if((pg+1)*PAGE<view.length){pg++;render();markHead();scrollTo(0,0)}};
+
+document.querySelectorAll("th[data-k]").forEach(th=>{
+  th.onclick=()=>{
+    const k=th.dataset.k;
+    if(sortK===k)sortD=-sortD;
+    else{sortK=k;sortD=F[k].def}
+    $("#sort").value=sortK;clearChips();apply();
+  };
+});
+
+$("#chips").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-p]");if(!b)return;
+  const p=b.dataset.p;
+  $("#kw").value="";["ty","ct","pf","on","off","bw","chg"].forEach(k=>$("#"+k).value="");
+  const map={new7:["on","7"],new30:["on","30"],new90:["on","90"],exp60:["off","60"],free:["pf","0,0"],bw:["bw","line"],chg:["chg","1"]};
+  if(map[p])$("#"+map[p][0]).value=map[p][1];
+  clearChips();b.classList.add("on");
+  apply();
+});
+
+function fixBarh(){
+  document.documentElement.style.setProperty("--barh",$("#bar").getBoundingClientRect().height+"px");
+}
+window.addEventListener("resize",fixBarh);
+/* 同页跳到另一个 hash（手改地址栏 / 点同页链接）不会重新加载，
+   没这个监听页面就不会跟着变。syncHash 用的是 replaceState（不触发 hashchange），
+   所以加监听不会自激。 */
+window.addEventListener("hashchange",()=>{readHash();apply()});
+fixBarh();
+apply();
+</script>
+</body>
+</html>

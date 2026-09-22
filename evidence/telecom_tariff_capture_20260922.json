@@ -1,0 +1,227 @@
+{
+ "_说明": "中国电信 APP「资费专区」抓包证据（Fiddler Everywhere LiveTraffic）。抓包时刻 2026-09-22 16:00:52~16:02:21；来源为同网段手机（<同网段手机内网IP>）经本机 8866 代理，不是本机浏览器。",
+ "_脱敏": "已抹：Cookie 值、手机号（含 base64 形式）、设备指纹、服务端 sessionid、两条风控 cookie 的值。抹的是**值**不是字段名 —— 字段名会变，值不会。",
+ "_ECB 判据": "密文解码后 160 / 208 字节，**都是 16 的整数倍**（10 块 / 13 块）⇒ 分组密码 + 填充。关键证据：同端点两个请求的密文**共同前缀 128 个 base64 字符 = 96 字节 = 6 个整块**（#998 ↔ #1053）；另一对（分类树 ↔ 列表）共同前缀 42 个 base64 字符 ⇒ 共同 2 个整块。分组链模式（CBC/CFB/OFB/GCM）从第 2 块起就会因前一块密文而不同，绝不可能出现「6 个整块逐字节相同」⇒ **只能是无链接分组模式（ECB）**。⇒ 找密钥时**不必找 IV**。（2026-09-22 17:00 已证实：密钥拿到后逐字节重加密通过，且 96 字节 = 明文里 `…\"requestContent\":{\"ticket\":\"\",\"sessionid\":\"` 这 97 字节的共同前缀所对应 —— 见 `_加解密_已破解`。）",
+ "_加解密_已破解": {
+  "结论": "算法 = **AES-128-ECB + PKCS7**；密钥 = b'telecom_wap_2018'（16 字节，**明文硬编码在一份公开 JS 里**）；**无 IV**。整段包体 = Base64(AES_ECB_PKCS7(UTF-8(JSON)))。",
+  "密钥来源": "https://www.189.cn/client/wapportalweb/vue_common/js/conscript.js（obfuscator 混淆；把 \\xNN 转义解开即见 `CryptoJS.enc.Utf8.parse(key || 'telecom_wap_2018')`）",
+  "算法来源": "https://www.189.cn/client/wap/common/js/aes.js（CryptoJS UMD，**同时打包了 mode-ecb 与 pad-pkcs7** —— 这是它用 ECB 的正面证据）",
+  "反混淆后等价源码": "CryptoJS.AES.encrypt(CryptoJS.enc.Utf8.parse(word), CryptoJS.enc.Utf8.parse(key || 'telecom_wap_2018'), {mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7}).toString()",
+  "静态资源是否可直连": "可以。aes.js（200，md5 2080986a059e6266949418c68c34414f，14470 字节）、conscript.js（200，3327 字节）**都不过 WAF**；412 只拦 rateZone/index.html 本体。⇒ 不必依赖浏览器抓包，curl 带 UA `CtClient;13.4.0;Android;16;…` 即可取。",
+  "逐字节自证": "用页面自己的 encrypt/decrypt（Node 里 vm 加载 aes.js + conscript.js）把三条抓包密文解密，再用同一密钥重新加密 ⇒ **216 / 216 / 280 字符三条全部逐字节相同**。另有两条反证：(1) 错密钥 'telecom_wap_2019' 触发 PKCS7 校验失败（不是解出乱码）；(2) 从金标准密文里反解 sessionid，再用新建的 build_*() 重造，亦逐字节相同。⇒ 契约成立，不是巧合。（实现见 probes/he_ct_tariff.py 的 selftest）",
+  "解开后的请求明文": {
+   "#998  分类树 16:01:42": "{\"headerInfo\": { \"functionCode\": \"tariffSectionHome\"},\"requestContent\":{\"ticket\":\"\",\"sessionid\":\"<SERVER_SESSION>\",\"provCode\":\"1000000037\"}}",
+   "#1053 分类树 16:02:14": "{\"headerInfo\": { \"functionCode\": \"tariffSectionHome\"},\"requestContent\":{\"ticket\":\"\",\"sessionid\":\"<SERVER_SESSION>\",\"provCode\":\"1000000037\"}}",
+   "#1055 列表   16:02:16": "{\"headerInfo\": { \"functionCode\": \"tariffSectionQuery\"},\"requestContent\":{\"sessionid\":\"<SERVER_SESSION>\",\"type\":1,\"provCode\":\"1000000037\",\"lable1Id\":\"69800a2b83bc522f970bd729\"}}"
+  },
+  "明文格式的两个细节": "① `{ \"functionCode\"` 之间那个**空格是源码原样**，不是排版（ECB 无随机化，明文逐字节决定密文）；② `ticket` 为空串 ⇒ **该接口不需要登录**。",
+  "未决疑点": "明文里的 provCode=1000000037 与页面 URL 里的 provCode=609001 **不是同一个值** ⇒ 两者含义不同，哪个才是「省份」尚未确认，别当省码用。",
+  "安全隐患": "ECB + 硬编码密钥 + 无随机化 ⇒ 同一明文永远得到同一密文，报文可被直接指纹化比对。这个接口在密码学意义上**不构成保护**。"
+ },
+ "_抓包残缺说明": "Fiddler netcore.log 里有 189 条 `Chunked body did not terminate properly with 0-sized chunk.` ⇒ 一批 chunked 响应没被完整落盘。本次真正拿到体的只有分类树(2077B)与空列表(256B)，**真正的资费列表响应很可能已经丢了**。",
+ "_窗口易失": "LiveTraffic 是滚动窗口：id 区间在几分钟内从 895~1064 滚到 1544~3544，电信那批随即不可再取。⇒ 证据必须当场落盘。",
+ "capturedAt": "2026-09-22T16:00:52+08:00",
+ "endpoint": "https://www.189.cn/wapportalweb/wapportalweb/tariffSection.do",
+ "page": "https://www.189.cn/wapportalweb/rateZone/index.html",
+ "request": {
+  "method": "POST",
+  "contentType": "application/x-www-form-urlencoded",
+  "note": "声明是 form-urlencoded，但整段包体就是 base64 密文，**没有 k=v**",
+  "headers": {
+   "host": "www.189.cn",
+   "x-requested-with": "com.ct.client",
+   "x-qd-reqtime": "1790064138220（毫秒时间戳；抓包时刻 16:02:18）",
+   "origin": "https://www.189.cn",
+   "referer": "https://www.189.cn/wapportalweb/rateZone/index.html",
+   "user-agent": "CtClient;13.4.0;Android;16;23113RKC6C",
+   "cookie": "<REDACTED>（两条 EYg4xOZq0mLeS/T 风控 cookie：前者跨会话恒定、后者每请求变）"
+  },
+  "contentLengths": [
+   216,
+   280
+  ],
+  "bodies": {
+   "#1053 分类树 16:02:14": "pJcn/pbYWEMS+Kg2i/hQEqsUL53e0f1innArhK0Ve8/SEdEH6L2dTBS54CyEAqOTzqep2za687EO9t0wv5alDiSQGTGyx+VyFXDd1SleGfVvX2gkkH16fBUWwK2S8T9ai+tnKlLNXkLOS7bP6gF0PNMYMg4TvxnQ27/9qTNeHzq2svKcXh+GdBImAyi/pCPKG4+tJsH4xeHsRLFI9tIVHw==",
+   "#998  分类树 16:01:42": "pJcn/pbYWEMS+Kg2i/hQEqsUL53e0f1innArhK0Ve8/SEdEH6L2dTBS54CyEAqOTzqep2za687EO9t0wv5alDiSQGTGyx+VyFXDd1SleGfVvX2gkkH16fBUWwK2S8T9aYKTcP8O53lbsJwDeneiNFVH24m3TboevmhRxu/b+/Xcpys3gJnYtReRqx7MsEei8G4+tJsH4xeHsRLFI9tIVHw==",
+   "#1055 列表   16:02:16": "pJcn/pbYWEMS+Kg2i/hQEqsUL53e0f1innArhK0Ve8+QkXLSm57twFn5oN0u+R8wgGDzg7t26ZuMrXH6y92hJ06y1I2aYWUyeen1yMCAQZCZkKt/86bIfzUawtcSknWWOBPWJ3qcUt9bauX1Fc46O8YOD8TIJl0hupbeHxoaLWlHfDrJ97FAQkOTVWYzV+V20YmxTdHrSDrq2YLntLDZOJ96NVlGsVopV2P2EZKNk/S2RAVt7rWBu0gzfU06h5OMzcyk2+VTazcna39hZtjp9g=="
+  }
+ },
+ "response": {
+  "status": 200,
+  "contentType": "application/json;charset=utf-8",
+  "successCode": "W_0000",
+  "note": "明文 JSON。同族六套体系的成功码各不相同，别串用。",
+  "shapeA_分类树": {
+   "contentLength": 2077,
+   "headerInfo": {
+    "to404": false,
+    "code": "W_0000",
+    "message": "成功",
+    "repeatFlag": false
+   },
+   "responseContent": {
+    "sessionid": "<SERVER_SESSION>（服务端下发，多个响应间复用）",
+    "productName": "",
+    "provCode": "1000000037",
+    "szie": 0,
+    "zoneTitleList": [],
+    "zoneTitleListCount": 0,
+    "serviceCode": "0",
+    "serviceMessage": "成功",
+    "lableOneList": [
+     {
+      "id": "69800a2b83bc522f970bd729",
+      "name": "套餐",
+      "lableTow": []
+     },
+     {
+      "id": "69800a2b83bc522f970bd72a",
+      "name": "加装包",
+      "lableTow": [
+       {
+        "id": "69cb7be8935968a34dd7e76e",
+        "name": "流量包"
+       },
+       {
+        "id": "69cb7c0e2d7cd9989810e6e3",
+        "name": "增值业务"
+       },
+       {
+        "id": "69cb7c1d2d7cd9989810e6e5",
+        "name": "其他"
+       }
+      ]
+     },
+     {
+      "id": "69800a2b83bc522f970bd72b",
+      "name": "营销活动",
+      "lableTow": [
+       {
+        "id": "69cb722a290d533746e6e304",
+        "name": "促销"
+       },
+       {
+        "id": "69cb7256290d533746e6e306",
+        "name": "合约"
+       },
+       {
+        "id": "69cb72758462512e0cf4cdcf",
+        "name": "其他"
+       }
+      ]
+     },
+     {
+      "id": "69800a2b83bc522f970bd72c",
+      "name": "国际/港澳台资费",
+      "lableTow": [
+       {
+        "id": "69cb7454af84043618832078",
+        "name": "中欧"
+       },
+       {
+        "id": "69cb74d5dd5a650197fe1d66",
+        "name": "东南亚"
+       },
+       {
+        "id": "69cb758c702bef13733727fd",
+        "name": "东欧"
+       },
+       {
+        "id": "69cb759a702bef13733727ff",
+        "name": "北美洲及加勒比海"
+       },
+       {
+        "id": "69cb75a4702bef1373372801",
+        "name": "非洲"
+       },
+       {
+        "id": "69cb75b12d7cd9989810e6c8",
+        "name": "南欧"
+       },
+       {
+        "id": "69cb75bf2d7cd9989810e6ca",
+        "name": "大洋洲"
+       },
+       {
+        "id": "69cb75cd2d7cd9989810e6cc",
+        "name": "西亚"
+       },
+       {
+        "id": "69cb75d92d7cd9989810e6ce",
+        "name": "西欧"
+       },
+       {
+        "id": "69cb75e62d7cd9989810e6d0",
+        "name": "中国港澳台地区"
+       },
+       {
+        "id": "69cb763faf8404361883207c",
+        "name": "东亚"
+       },
+       {
+        "id": "69cb76812d7cd9989810e6d5",
+        "name": "北欧"
+       },
+       {
+        "id": "69cb768a2d7cd9989810e6d7",
+        "name": "南亚"
+       },
+       {
+        "id": "69cb76972d7cd9989810e6d9",
+        "name": "中亚"
+       }
+      ]
+     },
+     {
+      "id": "69ca2e1e49279117fdf2c570",
+      "name": "国内（不含港澳台）标准资费",
+      "lableTow": []
+     }
+    ]
+   }
+  },
+  "shapeB_列表": {
+   "contentLength": 256,
+   "headerInfo": {
+    "to404": false,
+    "code": "W_0000",
+    "message": "成功",
+    "repeatFlag": false
+   },
+   "responseContent": {
+    "sessionid": "<SERVER_SESSION>（与形态 A 同一个 —— 故明文里应含 sessionid）",
+    "priceInterval": "",
+    "zoneTitleList": [],
+    "zoneTitleListCount": 0,
+    "serviceCode": "0",
+    "serviceMessage": "成功"
+   }
+  }
+ },
+ "sessions": {
+  "hosts": {
+   "www.189.cn": "主站：tariffSection.do（关键接口）、rateZone/index.html、client/webviewjs/collector.js",
+   "res-behaviordata.189.cn": "埋点上报（zhizhendata SDK）",
+   "bigdata-behaviordata.189.cn:9002": "埋点上报",
+   "capp.189.cn": "POST /mobile/pa/queryMiniList 小程序列表",
+   "appupdates.189.cn": "GET /actives/clientmonitor.json",
+   "reportappgo.189.cn:8443": "POST /ereportinfo/…/clientStartupInfoReport",
+   "appgosz/appgoadsz/appgologinsz/appfuwusz.189.cn": "APP 启动/上报支路",
+   "w.189.cn": "短链"
+  },
+  "waf412": "GET https://www.189.cn/wapportalweb/rateZone/index.html → 412（WAF 挑战；本机 curl 直连同样 412 ⇒ 必须真实浏览器过）",
+  "clientIp": "::ffff:<手机内网IP>（手机）· 本机 WLAN 为 <本机内网IP>"
+ },
+ "_采集落地_20260922": {
+  "结论": "河北(609906) 884 条已采入页面（套餐71/加装包502/营销活动311，国际与国内标准资费河北为空）",
+  "路线": "真实 Chrome --remote-debugging-port=9223（无 --enable-automation ⇒ navigator.webdriver=false） + CDP 页面内执行采集 JS（页面自带 CryptoJS 造包体；响应明文 JSON）",
+  "自动化浏览器被拒": "navigator.webdriver=true ⇒ WAF 直接 400 空响应（chrome-devtools MCP 受管 Chromium 实测）；curl/requests 则 412 挑战页 ⇒ 两条路都封死，只有真浏览器一条路",
+  "type_语义": "type=1 才按 lable1Id 过滤；type=0/2/3 忽略 lable1Id 返回全量 884（对照实测）",
+  "tariffAttr": "1=291/2=592/3=1，与 offlineDay 是否过期零相关（无一条过期），语义未定；页面模板不使用 a1",
+  "sessionid": "请求给空串也放行（W_0000），服务端下发真值；响应不加密",
+  "省份码": "硬编码在页面组件 Index-1f2bc0ae.js：河北=609906、北京=609001、河南=609904、集团=1000000037 等",
+  "费用单位分布": "元/月 474、空 192、元/次 78、元/月/路 46、积分/次 43、元/月最低消费 22、元/每1月 7、元每1月 4 ⇒ 非月费口径 382 条在页面 f 留空、费用原文并入 otherContent",
+  "dataUnit_分布": "空 661、GB 202、MB 14、M 7 ⇒ 统一折 GB",
+  "产物": ".ct_raw.json（已剥 sessionid，gitignore 不入库）→ cloud/tariff/ct_monitor.py fetch_all() → rebuild_ct.py 重建 docs/index.html（四网 9776 条）"
+ }
+}

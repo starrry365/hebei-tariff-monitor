@@ -1,0 +1,163 @@
+# -*- coding: utf-8 -*-
+name: 资费每日巡检 + 页面部署
+
+# 河北四网「资费专区」抓取 → 差异对比 → 生成查询页 → 部署到 GitHub Pages
+#
+# 三网（移动 / 联通 / 广电）走纯 HTTP，无需任何登录凭证
+#（2026-09-20 实测：无 token、无签名，明文请求体即可），不存在 Cookie 过期 / 顶号问题，
+# 适合长期无人值守。
+# 🔴 电信那网**不在 CI 里跑**：它的 WAF 是瑞数类 JS 挑战，纯 HTTP 必 412，
+#    而自动化浏览器（navigator.webdriver=true）会被 400 硬拒 —— 云端 Runner 没有真实浏览器，
+#    注册进来只会天天空跑。电信数据由本机采一次（probes/tools/ct_browser/）后本地重建页面。
+#
+# 页面公开可访问：https://starrry365.github.io/hebei-tariff-monitor/
+# 每次运行都会重新部署，所以线上页面始终是最近一次成功巡检的数据。
+
+on:
+  schedule:
+    # UTC 22:00 = 北京时间次日 06:00
+    # 注：GitHub 定时任务在高峰会排队，实际启动可能晚几分钟
+    - cron: "0 22 * * *"
+  # 允许手动触发（临时补抓 / 改完代码验证）
+  workflow_dispatch:
+
+permissions:
+  contents: write        # 需要把快照 / 报告 / 页面归档提交回本仓库
+  pages: write           # 部署 GitHub Pages
+  id-token: write        # deploy-pages 需要 OIDC
+
+concurrency:
+  group: tariff-daily
+  cancel-in-progress: false
+
+jobs:
+  tariff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # 必须用 POSIX 格式（CST-8）而不是 Asia/Shanghai —— 精简镜像缺 tzdata 会被静默忽略、
+      # 退回 UTC，导致快照文件名与报告日期整体错一天
+      TZ: CST-8
+      # 网关密钥不写进代码，由 Actions Secret 注入（缺了会直接抛错，不会静默回退）
+      NRAPIGATE_KEY: ${{ secrets.NRAPIGATE_KEY }}
+      NRAPIGATE_IV: ${{ secrets.NRAPIGATE_IV }}
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 准备 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: python -m pip install --quiet --disable-pip-version-check pycryptodome
+
+      - name: 环境自检
+        run: |
+          set -e
+          echo "python  : $(python -V)"
+          echo "本地时间: $(date '+%F %T %Z')"
+          python -c "import Crypto; print('pycryptodome', Crypto.__version__)"
+          echo "--- 密钥装载检查 ---"
+          PYTHONPATH=cloud/tariff python -c "import mz_crypto as m; print('    网关密钥已装载: key=%d字节 iv=%d字节' % (len(m.KEY), len(m.IV)))"
+          echo "--- 出口连通预检 ---"
+          echo "    注意：不能用 curl 预检。Linux curl 走 OpenSSL 3.x，会因"
+          echo "    UNSAFE_LEGACY_RENEGOTIATION_DISABLED 误报 HTTP=000，而脚本实际是通的"
+          echo "    （移动服务器不支持 RFC5746，须开 OP_LEGACY_SERVER_CONNECT）"
+          python -c "import ssl,urllib.request as u;c=ssl.create_default_context();c.options|=getattr(ssl,'OP_LEGACY_SERVER_CONNECT',4);o=u.build_opener(u.HTTPSHandler(context=c),u.ProxyHandler({}));r=o.open('https://h.app.coc.10086.cn/cmcc-app/uni-pages/tariffZonePers.html',timeout=25);print('    tariffZone HTTP=%d bytes=%d'%(r.status,len(r.read())))"
+
+      - name: 抓取 + 对比 + 生成并归档页面
+        run: python cloud/tariff/tariff_monitor.py
+
+      - name: 校验页面归档
+        run: |
+          python -c "
+          import gzip, json, re
+          s = gzip.open('cloud/tariff/page/index.html.gz', 'rt', encoding='utf-8').read()
+          # 占位符要逐个列全。__DATA__ 是四网改造前的容器名，模板里早就不存在了，
+          # 留着它等于在检查一个永远不出现的字符串；而漏检 __NETS__ 更糟 ——
+          # 整页 JS 会退化成语法错误，这一步却照样报 OK。
+          left = [p for p in ('__NETS__', '__N__', '__DATE__', '__NOTICE__') if p in s]
+          assert not left, '占位符未替换: %s' % left
+          m = re.search(r'const NETS=', s)
+          assert m, '页面里找不到 const NETS= 数据容器'
+          nets = json.JSONDecoder().raw_decode(s[m.end():])[0]
+          assert set(nets) >= {'move', 'unicom', 'telecom', 'cbn'}, '四网容器不完整: %s' % sorted(nets)
+
+          # ★ 逐网断言，别只查移动那网。接第二网时最容易漏的正是这个 ——
+          #   联通那网若 base 没填、或 rows 忘了灌，页面切过去就是「待接入」白页，
+          #   而只断言 move 的校验会一路放行。
+          #   下限卡「有没有数据」，上限卡「筛条件是不是失效了」（异常膨胀会让
+          #   单页 gz 逼近 1 MB，页面加载明显变慢）。
+          #   ⚠️ 每网的量级不同，下限必须逐网给：广电（公开公示页）只有两百来条，
+          #      照抄 500 会让 CI 天天红，而一旦为此把全局下限调到 100，
+          #      移动/联通那两网的真骤降就再也拦不住了。
+          LIVE = {'move': (500, 20000), 'unicom': (500, 20000), 'cbn': (100, 20000)}
+          for code, (lo, hi) in LIVE.items():
+              n = nets.get(code) or {}
+              rows, base, src = n.get('rows') or [], n.get('base') or '', (n.get('src') or '').strip()
+              assert lo <= len(rows) <= hi, '%s 条数异常: %d（期望 %d~%d）' % (code, len(rows), lo, hi)
+              assert re.fullmatch(r'\d{4}-\d{2}-\d{2}', base), '%s 数据基线缺失/格式不对: %r' % (code, base)
+              assert src, '%s 缺少来源说明 src（页面顶部那行会显示成 —）' % code
+              # 行的字段形态也要看一眼：少一个 o/e/f，页面排序与时间筛选会**静默**失效
+              # （NaN 参与比较恒为 false ⇒ 筛选返回全部），而上面每一步都不会报错。
+              miss = [k for k in ('n', 'o', 'e', 'f', 'ty') if k not in rows[0]]
+              assert not miss, '%s 的行缺少字段 %s（页面排序/时间筛选会静默失效）' % (code, miss)
+              print('  %-7s %5d 条 · 基线 %s · %s' % (code, len(rows), base, src[:40]))
+          # 电信只做「存在 + 形态」检查：它由本机重建，条数取决于上次采集，
+          # 在 CI 里卡数量区间会误报
+          t = nets.get('telecom') or {}
+          if t.get('rows'):
+              miss = [k for k in ('n', 'o', 'e', 'f', 'ty') if k not in t['rows'][0]]
+              assert not miss, 'telecom 的行缺少字段 %s' % miss
+              print('  %-7s %5d 条 · 基线 %s （本地重建，CI 不校验条数区间）'
+                    % ('telecom', len(t['rows']), t.get('base')))
+          else:
+              print('  telecom 无数据（本地未采集），页面会显示占位说明')
+          print('页面校验 OK：CI 采集 %d 网' % len(LIVE))
+          "
+
+      # ── 部署到 GitHub Pages ────────────────────────────────────────────
+      # 部署的是 CI 现场生成的 docs/index.html（未压缩那份，已 gitignore）。
+      # 页面数据全部内联在 HTML 里（const NETS=...），所以 artifact 里只需这一个文件，
+      # 不需要额外托管数据文件 —— 也就不会出现「页面更新了但数据接口还是旧的」这类错配。
+      - name: 准备 Pages 产物
+        run: |
+          set -e
+          test -s cloud/tariff/docs/index.html
+          touch cloud/tariff/docs/.nojekyll          # 禁止 Jekyll 处理，避免下划线文件被吞
+          ls -la cloud/tariff/docs/
+          echo "页面大小：$(du -h cloud/tariff/docs/index.html | cut -f1)"
+
+      - name: 上传 Pages 产物
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: cloud/tariff/docs
+
+      - name: 提交数据与归档
+        run: |
+          set -e
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A cloud/tariff/snapshots cloud/tariff/changes cloud/tariff/page
+          if [ -f cloud/tariff/state.json ]; then git add cloud/tariff/state.json; fi
+          if git diff --staged --quiet; then
+            echo "无变化，跳过提交"
+          else
+            git commit -m "data(tariff): 资费巡检 $(date +%F)"
+            git push
+          fi
+
+  # 部署单独一个 job：Pages 的 environment 需要独立声明，
+  # 也让「抓取失败」和「部署失败」在 Actions 页面上一眼可分。
+  deploy:
+    needs: tariff
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 部署到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

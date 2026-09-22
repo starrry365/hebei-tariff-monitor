@@ -1,0 +1,31 @@
+# 依赖与缓存
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# ── 🔴 绝不入库：密钥 / 凭证 ──────────────────────────────────
+# nrapigate 网关密钥本地副本（CI 走 Actions Secret: NRAPIGATE_KEY / NRAPIGATE_IV）
+# 本仓库是**公开**仓库，这一行是硬红线，不要注释掉。
+cloud/tariff/.nrapigate_key
+
+# ── 本地数据缓存（只是迭代便利，不是真相来源）──────────────────
+# 离线重建用的每网一份：.unicom_cache.json / .cbn_cache.json…（用通配，接新网不用回来补）
+cloud/tariff/.*_cache.json
+# 电信原始采集产物（真实浏览器产出，fetch_all 的输入）
+cloud/tariff/.ct_raw.json
+
+# ── 页面生成产物 ──────────────────────────────────────────────
+# docs/index.html 是 CI 每次运行的中间产物，由 actions/upload-pages-artifact
+# 直接上传部署（不上传 git），同时 gzip 归档成 page/index.html.gz 入库做离线备份。
+cloud/tariff/docs/index.html
+cloud/tariff/docs/.nojekyll
+# 状态文件由 CI 每次运行覆盖
+cloud/tariff/state.json.tmp
+
+# ── 备份与日志 ────────────────────────────────────────────────
+*.bak
+*.bak-*
+*.log
+*.log.stalled
+chrome-prof/
