@@ -29,3 +29,5 @@ cloud/tariff/state.json.tmp
 *.log
 *.log.stalled
 chrome-prof/
+# 本地 CDP Chrome 的临时 profile（cdp_launch.py 用；几十 MB，绝不入库）
+probes/tools/cdp_prof/

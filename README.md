@@ -362,7 +362,13 @@ python tariff_monitor.py                        # 抓取 ~15s，写快照 + 报�
 │   ├── snapshots/ · changes/ · page/ · docs/ · state.json
 ├── probes/                       ← 逆向探针（可独立运行）
 │   ├── he_unicom_tariff.py · he_cbn_tariff.py · he_ct_tariff.py
-│   └── tools/ct_browser/         ← 电信真实 Chrome + CDP 采集工具链（ci_grab.sh 为云端入口）
+│   ├── probe_scope_state.py      ← 地域判据（河北/全国 + 地市）离线回归
+│   ├── probe_city_matrix.py      ← 四网地市粒度可达性矩阵（结论可复现）
+│   ├── probe_zq_text.py          ← 四网「个人/政企」文本分档
+│   └── tools/
+│       ├── ct_browser/           ← 电信真实 Chrome + CDP 采集工具链（ci_grab.sh 为云端入口）
+│       ├── cdp_launch.py         ← 本机 CDP Chrome 启动器（9223）
+│       └── page_e2e_check.js     ← 页面真实浏览器端到端断言（四网）
 ├── evidence/                     ← 抓包证据（已脱敏）
 └── docs/                         ← 逆向过程报告 + 云端采集可行性实测
 ```
