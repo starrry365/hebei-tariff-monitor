@@ -144,9 +144,13 @@ const NETS = {
   且 **`navigator.webdriver=true` 的自动化浏览器直接 400 空响应**（连挑战页都不给）。
   唯一实测通路：真实 Chrome 只加 `--remote-debugging-port`（**不加** `--enable-automation`），
   CDP 进页面后用页面自带的 CryptoJS 造包体发请求，响应是**明文 JSON**。
-- 🔴 **电信不注册 `NET_RUN`**：每日巡检跑在云端（无浏览器），注册了必失败。
-  本机用 `rebuild_ct.py` 单独重建（移动=快照、联通/广电=缓存、电信=`ct_monitor.fetch_all()`
-  读 `.ct_raw.json` 纯转换）。哪天有合规的浏览器通路再注册。
+- 🔴 **电信不注册 `NET_RUN` / `NET_LIVE`，改注册 `NET_SNAP`**：每日巡检跑在云端
+  （没有真实浏览器），注册成可采集的网必然失败，而且会**每天刷一条「采集异常」后
+  沿用上次快照** —— 噪音之外，更坏的是把「这网根本没在更新」掩盖成「运行正常」。
+  注册进 `NET_SNAP` 则只参与**渲染**：页面读 `snapshots/ct_tariff_*.json.gz`，
+  基线日期取自快照自身，陈旧程度对用户是可见的。
+  采集侧在任何有真实浏览器的地方跑完后提交快照即可（`rebuild_ct.py` 仍可用于
+  本机一次性重建 `docs/index.html`）。
 - 🔴 **查询参数 `type=1` 才是「按 lable1Id 过滤」**；type≠1（0/2/3）会忽略 lable1Id
   返回全量 —— 拿它做分类轮询会得到 5 份全同副本。`tariffAttr`(1/2/3) 与过期零相关、
   页面不用；`sessionid` 给空串也放行（服务端下发真值）。
@@ -506,6 +510,7 @@ cd /tmp/servetest && python -m http.server 8123 --bind 127.0.0.1
 | `unicom_monitor.py` | ✅ | 联通数据源适配器（归一化 → 共用渲染/变更链路） |
 | `cbn_monitor.py` | ✅ | 广电数据源适配器（同上；**不抓包**，走公开公示页） |
 | `ct_monitor.py` | ✅ | 电信数据源适配器（读 `.ct_raw.json` 纯转换，**不在 CI 采集**） |
+| `snapshots/ct_tariff_YYYYMMDD.json.gz` | ✅ | ★ 电信归一化快照 —— **CI 就是靠它在页面上渲染这一网的**，新采的提交进来即生效 |
 | `rebuild_ct.py` | ✅ | 电信数据本地重建（真实浏览器采完之后跑） |
 | `rebuild_offline.py` | ✅ | 本机离线重建（**不写快照 / 报告 / state**，见上） |
 | `../probes/he_unicom_tariff.py` | ✅ | 联通资费接口探针 / 采集器（仓库根 `probes/`） |

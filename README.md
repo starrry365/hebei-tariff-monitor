@@ -104,12 +104,24 @@ User-Agent:       CtClient;13.4.0;Android;16;23113RKC6C
 **不给** `--enable-automation`）+ CDP 页面内执行采集 JS —— 页面自带 CryptoJS 造包体。
 工具在 `probes/tools/ct_browser/`。
 
-⚠️ **代价是它进不了云端 CI**（GitHub Runner 上没浏览器）。所以：
+⚠️ **代价是它进不了云端 CI**（GitHub Runner 上没有「真实浏览器」这条路）。所以本仓库用
+**「采集」与「渲染」分离**来处理这一网 —— 这也是「四网」在页面上能成立的原因：
 
-- CI 的每日巡检只跑**移动 / 联通 / 广电**三网；
-- 电信数据由本机采一次，落 `cloud/tariff/.ct_raw.json`（已 gitignore），
-  再用 `cloud/tariff/rebuild_ct.py` 本地重建页面 —— **电信暂不注册 `NET_RUN`**
-  （注册了 CI 必失败）。
+- CI 的每日巡检**直采**移动 / 联通 / 广电三网（`NET_LIVE`）；
+- 电信（`NET_SNAP`）**不注册采集**（注册了云端必失败、还会天天刷「采集异常」），
+  但它照常**渲染**：页面从仓库里那份归一化快照
+  `cloud/tariff/snapshots/ct_tariff_YYYYMMDD.json.gz` 读数据。
+- ★ 关键在于**基线日期取自快照自身**（`data_day()` 读它的 `fetchedAt`），
+  而不是巡检当天 —— 所以页面上电信显示的陈旧程度是**诚实**的：旧就是旧，
+  绝不会拿今天的日期冒充一份上周的数据。
+- 🔴 **对比 `load_prev` 与 `load_latest`**：前者是「上一版」（严格早于今天，用于 diff），
+  后者是「最新版」（不晚于今天，用于渲染）。渲染用错成前者的症状是
+  「今天明明采到了、页面还显示昨天」，看着像没更新，实则是取错了函数。
+
+采集侧（本机 / 任何有真实浏览器的地方）：真实 Chrome + 远程调试口（启动只给
+`--remote-debugging-port`，**不给** `--enable-automation`）+ CDP 页面内执行采集 JS。
+采完把归一化快照提交进 `cloud/tariff/snapshots/`，页面下次运行即生效 ——
+**不需要改任何代码**（这也是把数据做成快照、而不是塞进页面的价值）。
 
 其他实测要点：
 

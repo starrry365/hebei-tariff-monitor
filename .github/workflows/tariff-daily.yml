@@ -6,9 +6,15 @@ name: 资费每日巡检 + 页面部署
 # 三网（移动 / 联通 / 广电）走纯 HTTP，无需任何登录凭证
 #（2026-09-20 实测：无 token、无签名，明文请求体即可），不存在 Cookie 过期 / 顶号问题，
 # 适合长期无人值守。
-# 🔴 电信那网**不在 CI 里跑**：它的 WAF 是瑞数类 JS 挑战，纯 HTTP 必 412，
-#    而自动化浏览器（navigator.webdriver=true）会被 400 硬拒 —— 云端 Runner 没有真实浏览器，
-#    注册进来只会天天空跑。电信数据由本机采一次（probes/tools/ct_browser/）后本地重建页面。
+#
+# 🔴 电信那网**在 CI 里采不到**：它的 WAF 是瑞数类 JS 挑战，纯 HTTP 必 412，
+#    而自动化浏览器（navigator.webdriver=true）会被 400 硬拒 —— 云端 Runner 没有
+#    「真实浏览器」这条路。所以电信走的是**快照直渲**：
+#      · 数据由真实 Chrome 在别处采好后，把归一化快照提交进
+#        `cloud/tariff/snapshots/ct_tariff_YYYYMMDD.json.gz`；
+#      · 本工作流照常把这网渲染进页面，基线日期取自快照自身 ⇒ 页面显示的
+#        新鲜度是诚实的（旧就是旧），不会拿巡检日期冒充数据日期。
+#      · 采集链路见 `probes/tools/ct_browser/`；快照一提交，页面下次运行即生效。
 #
 # 页面公开可访问：https://starrry365.github.io/hebei-tariff-monitor/
 # 每次运行都会重新部署，所以线上页面始终是最近一次成功巡检的数据。
@@ -73,7 +79,7 @@ jobs:
       - name: 校验页面归档
         run: |
           python -c "
-          import gzip, json, re
+          import gzip, json, re, time
           s = gzip.open('cloud/tariff/page/index.html.gz', 'rt', encoding='utf-8').read()
           # 占位符要逐个列全。__DATA__ 是四网改造前的容器名，模板里早就不存在了，
           # 留着它等于在检查一个永远不出现的字符串；而漏检 __NETS__ 更糟 ——
@@ -93,7 +99,17 @@ jobs:
           #   ⚠️ 每网的量级不同，下限必须逐网给：广电（公开公示页）只有两百来条，
           #      照抄 500 会让 CI 天天红，而一旦为此把全局下限调到 100，
           #      移动/联通那两网的真骤降就再也拦不住了。
-          LIVE = {'move': (500, 20000), 'unicom': (500, 20000), 'cbn': (100, 20000)}
+          #
+          # ★ 电信也卡区间 —— 它虽然不在 CI 里被采集，页面读的却是仓库里那份快照，
+          #   条数一样有正常量级（800+）。不卡的话，「快照被误删 / 被清空」会静默
+          #   退化成页面占位说明，而看的人只会觉得「今天少了一网」，联想不到是快照没了。
+          #   ⚠️ 但它的基线日期**允许早于今天**（快照就是那天采的），所以：
+          #      只校验格式；陈旧程度单独告警，**不阻断** —— 电信采不到是常态，
+          #      不该连带把另外三网的页面部署一起卡死。
+          LIVE = {'move': (500, 20000), 'unicom': (500, 20000),
+                  'cbn': (100, 20000), 'telecom': (100, 20000)}
+          STALE_DAYS = 14
+          today = time.strftime('%Y-%m-%d')
           for code, (lo, hi) in LIVE.items():
               n = nets.get(code) or {}
               rows, base, src = n.get('rows') or [], n.get('base') or '', (n.get('src') or '').strip()
@@ -104,18 +120,19 @@ jobs:
               # （NaN 参与比较恒为 false ⇒ 筛选返回全部），而上面每一步都不会报错。
               miss = [k for k in ('n', 'o', 'e', 'f', 'ty') if k not in rows[0]]
               assert not miss, '%s 的行缺少字段 %s（页面排序/时间筛选会静默失效）' % (code, miss)
-              print('  %-7s %5d 条 · 基线 %s · %s' % (code, len(rows), base, src[:40]))
-          # 电信只做「存在 + 形态」检查：它由本机重建，条数取决于上次采集，
-          # 在 CI 里卡数量区间会误报
-          t = nets.get('telecom') or {}
-          if t.get('rows'):
-              miss = [k for k in ('n', 'o', 'e', 'f', 'ty') if k not in t['rows'][0]]
-              assert not miss, 'telecom 的行缺少字段 %s' % miss
-              print('  %-7s %5d 条 · 基线 %s （本地重建，CI 不校验条数区间）'
-                    % ('telecom', len(t['rows']), t.get('base')))
-          else:
-              print('  telecom 无数据（本地未采集），页面会显示占位说明')
-          print('页面校验 OK：CI 采集 %d 网' % len(LIVE))
+
+              tag = ''
+              if code == 'telecom':
+                  age = (time.mktime(time.strptime(today, '%Y-%m-%d'))
+                         - time.mktime(time.strptime(base, '%Y-%m-%d'))) / 86400
+                  tag = ' · 快照直渲（基线比今天早 %d 天）' % age
+                  if age > STALE_DAYS:
+                      tag = ' · 快照已 %d 天未更新' % age
+                      print('::warning title=电信快照陈旧::基线 %s，已 %d 天未更新（阈值 %d 天）。'
+                            '电信在云端采不到（瑞数 WAF），需本机用真实 Chrome 重采后提交'
+                            ' cloud/tariff/snapshots/ct_tariff_*.json.gz' % (base, age, STALE_DAYS))
+              print('  %-7s %5d 条 · 基线 %s · %s%s' % (code, len(rows), base, src[:32], tag))
+          print('页面校验 OK：三网 CI 直采 + 电信快照直渲')
           "
 
       # ── 部署到 GitHub Pages ────────────────────────────────────────────

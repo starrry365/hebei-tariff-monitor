@@ -361,12 +361,24 @@ SRC_OF = {
     "telecom": "中国电信「资费专区」H5（www.189.cn / tariffSection，真实浏览器采集）",
     "cbn":     "中国广电「资费公示」H5（m.10099.com.cn / queryTariffAllByCond）",
 }
-# 已接入真实数据的那几家（有 src / base / rows 的）。
+# 每日巡检里**由脚本直连就能采到**的那几家（有 src / base / rows 的）。
 NET_LIVE = ("move", "unicom", "cbn")
+# 采不到、但能渲染的那几家 —— 目前只有电信。
+#
+# 电信被瑞数类 JS 挑战 WAF 挡着：纯 HTTP 必 412，自动化浏览器（navigator.webdriver=true）
+# 被 400 硬拒，云端 Runner 上没有「真实浏览器」这条路可走。它的数据只能在别处采好，
+# 把**归一化快照**提交进仓库（snapshots/ct_tariff_*.json.gz），页面从这里读。
+#
+# 🔴 它们**不进 NET_LIVE**。进了就会走 net_round()，被当成「可采集的网」：
+#    云端每天抛一次「采集异常」，然后把上一版快照原样当作本轮结果 —— 噪音大，
+#    更要命的是把「这网根本没在更新」这件事掩盖成了「运行正常」。
+#    NET_SNAP 的网只参与**渲染**，基线日期取自快照自身（data_day 读它的 fetchedAt），
+#    所以页面上显示的陈旧程度是**诚实**的，不会拿今天的日期冒充旧数据。
+NET_SNAP = ("telecom",)
 # 每网一份独立快照，文件名前缀区分 —— 共用一套快照会让两网互相覆盖
 # （load_prev 按文件名排序取「最近一份」，混在一起就会拿联通昨天的当移动今天的基准）。
 SNAP_PREFIX = {"move": "hebei_tariff_", "unicom": "unicom_tariff_",
-               "cbn": "cbn_tariff_"}
+               "cbn": "cbn_tariff_", "telecom": "ct_tariff_"}
 # 「移动之外」各网的轮次配置：code → (适配器模块名, 报告/摘要里的中文名, 报告文件名前缀)。
 # 三处必须**成对**出现（模块、显示名、报告文件名），散在 main() 里各写一遍迟早漏一处。
 NET_RUN = {
@@ -378,7 +390,7 @@ UP_N = 0        # 由 build_html 回填：四网总条数（供 __N__ 占位符�
 
 # 页面里的「查看变更明细」链接指向仓库里的 changes/<日期>.md（网页版可直接看）。
 # 与 view_page.py 的 DEFAULT_REPO 同值 —— 两个脚本各有独立入口，不互相 import。
-REPO = "starrry365/hebei-mobile-h5-reverse"
+REPO = "starrry365/hebei-tariff-monitor"
 
 # 页面 gz 体积预警线：单网(3878 条) 约 245 KB，四网全接入会到 1 MB 上下。
 # 超了就只是**提醒**（不改行为）—— 该考虑按网拆分/按需加载，而不是继续往单文件里塞。
@@ -677,6 +689,26 @@ def load_prev(today, prefix="hebei_tariff_"):
         return json.load(f), p
 
 
+def load_latest(today, prefix="hebei_tariff_"):
+    """渲染专用：取「不晚于今天」的最新一份快照（没有就退到全局最新）。
+
+    🔴 刻意**不复用 load_prev()**：两者是不同语义。
+      - load_prev  = 「上一版」，用于 diff —— 严格早于今天，当天有也算不上基准；
+      - load_latest = 「最新版」，用于渲染 —— 当天采到的就要显示当天那份。
+    用 load_prev 渲染，会出现「今天明明采到了、页面却还显示昨天」这种
+    看着像没更新的假故障（NET_SNAP 的网尤其容易踩：它一天只可能被采一次）。
+    """
+    fs = [p for p in snap_paths(prefix)
+          if os.path.basename(p)[len(prefix):-len(".json.gz")] <= today]
+    if not fs:
+        fs = snap_paths(prefix)
+    if not fs:
+        return None, None
+    p = fs[-1]
+    with gzip.open(p, "rt", encoding="utf-8") as f:
+        return json.load(f), p
+
+
 def emit_summary(new_o, added, removed, changed, report_path, has_prev,
                  net="河北移动"):
     sp = os.environ.get("GITHUB_STEP_SUMMARY")
@@ -763,6 +795,10 @@ def other_nets(today):
     ★ 新增一网时**只需要动 NET_RUN**：main() 里不再逐个写 uni/cbn 变量。
       原来 main() 里两处（首版基线分支、常规分支）各写一遍联通的调用与提示拼接，
       接第三网就得改四处 —— 漏一处就是「某网采了但页面没提示 / 提示错字」。
+
+    ★ 2026-09-22 追加 NET_SNAP：电信那种「采不到但快照在仓库里」的网，
+      在这里补进 sources 参与渲染。**不能**只改 main()，因为进入页面有两条路
+      （首版基线分支 & 常规分支）都调本函数 —— 只补一处，另一处就会静默少一网。
     """
     sources, diffs, tails = {}, {}, []
     sh_of = {c: sh for c, sh, _ in NETS_META}
@@ -778,6 +814,22 @@ def other_nets(today):
                 tails.append(f' · {cn}新增 {len(dd["added"])} / 变更 {len(dd["changed"])}')
             else:
                 tails.append(f" · {cn}无变化")
+
+    # ── 快照直渲的网（电信）──────────────────────────────────────────
+    # 提示语里必须带上**快照日期**：这一网在本轮里没有发生任何采集，
+    # 只说「电信 884 条」会让人以为它今天也被抓过一次。日期是它唯一诚实的时效声明。
+    for code in NET_SNAP:
+        cn = sh_of.get(code, code)
+        o, p = load_latest(today, SNAP_PREFIX[code])
+        if not o:
+            log(f"!! {cn}没有可用快照（snapshots/{SNAP_PREFIX[code]}*.json.gz 缺失），"
+                f"页面这一网将显示占位说明")
+            continue
+        sources[code] = o
+        d8 = os.path.basename(p)[len(SNAP_PREFIX[code]):-len(".json.gz")]
+        d10 = f"{d8[:4]}-{d8[4:6]}-{d8[6:]}" if re.fullmatch(r"\d{8}", d8) else d8
+        tails.append(f" · {cn}沿用 {d10} 快照")
+        log(f"{cn}由快照渲染：{os.path.basename(p)}（{len(o.get('entries') or [])} 条）")
     return sources, diffs, tails
 
 

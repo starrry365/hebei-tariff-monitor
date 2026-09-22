@@ -1,0 +1,141 @@
+# -*- coding: utf-8 -*-
+name: 电信云端采集探针（临时）
+
+# 2026-09-22 立的试验，只为回答一个问题：
+#   **GitHub Runner 上能不能用真实 Chrome 过瑞数 WAF，把电信那网采下来？**
+#
+#   · 能 ⇒ 电信也能进每日巡检，四网全部云端直采，不再依赖本机。
+#   · 不能 ⇒ 维持「快照直渲」（见 tariff-daily.yml 头部），电信数据由有真实
+#     浏览器的机器采完后提交 snapshots/ct_tariff_*.json.gz。
+#
+# 无论结论如何，都要把结果写进 docs/ 后**删掉这个 workflow** —— 它是探针，
+# 不该长期挂在仓库里当摆设。绝不排程：手动触发，跑一次看一次。
+#
+# 与 tariff-daily.yml 的关键差异（也是本试验的全部立足点）：
+#   启动项只给 --remote-debugging-port，**绝不给 --enable-automation** ——
+#   后者会让 navigator.webdriver=true，被 WAF 直接 400 空响应（本机实测过）。
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 准备 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 装依赖（CDP 客户端 + 虚拟显示）
+        run: |
+          python -m pip install --quiet --disable-pip-version-check websocket-client
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb >/dev/null
+
+      - name: 确认 / 安装 Chrome
+        run: |
+          set -e
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$CHROME" ]; then
+            echo "runner 自带 chrome 未找到，改用官方 deb 安装"
+            curl -sSL -o /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+            sudo apt-get install -y -qq /tmp/chrome.deb >/dev/null
+            CHROME="$(command -v google-chrome-stable)"
+          fi
+          echo "CHROME=$CHROME"
+          "$CHROME" --version
+          echo "CHROME=$CHROME" >> "$GITHUB_ENV"
+
+      - name: 起 Xvfb + 真实 Chrome（有头模式，不给 --enable-automation）
+        run: |
+          set -e
+          # 用 xvfb 而不是 --headless：headless 的 UA 带 HeadlessChrome，
+          # 且瑞数对 headless 指纹另有识别，等于自己把难度调高。
+          Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp &
+          sleep 2
+          DISPLAY=:99 nohup "$CHROME" \
+            --remote-debugging-port=9223 \
+            --user-data-dir=/tmp/ctprof \
+            --no-first-run --no-default-browser-check \
+            --no-sandbox --disable-dev-shm-usage --disable-gpu \
+            about:blank >/tmp/chrome.log 2>&1 &
+          sleep 6
+          echo "--- chrome.log ---"; tail -20 /tmp/chrome.log || true
+          echo "--- DevTools 端点 ---"
+          curl -s --max-time 10 http://127.0.0.1:9223/json/version | head -c 400; echo
+
+      - name: 导航 → 过挑战 → 采集
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          S=probes/tools/ct_browser/cdp_desktop_step.py
+
+          echo "=== 1) 起始状态（webdriver 必须是 false）==="
+          python "$S" state
+
+          echo
+          echo "=== 2) 导航到资费专区 ==="
+          python "$S" nav "https://www.189.cn/wapportalweb/rateZone/index.html?provCode=609906"
+          for i in 1 2 3 4 5 6; do sleep 5; echo "  …等待挑战通过 ${i}/6"; done
+
+          echo
+          echo "=== 3) 挑战后状态 ==="
+          python "$S" state
+
+          echo
+          echo "=== 4) 截图（失败现场唯一可靠的证据）==="
+          python "$S" shot /tmp/ct_shot.png || true
+          ls -la /tmp/ct_shot.png 2>/dev/null || echo "  （无截图）"
+
+          echo
+          echo "=== 5) 页面环境：CryptoJS 是否就绪 / cookie 是否拿到 ==="
+          printf '%s' 'JSON.stringify({cjs: typeof CryptoJS, ck: document.cookie.length, ua: navigator.userAgent, t: document.title, u: location.href})' > /tmp/env.js
+          python "$S" eval /tmp/env.js || true
+
+          echo
+          echo "=== 6) 采集 ==="
+          set +e
+          python "$S" eval probes/tools/ct_browser/harvest_hb.js /tmp/ct_raw.json
+          HC=$?
+          set -e
+          echo "harvest exit=$HC"
+          if [ ! -s /tmp/ct_raw.json ]; then
+            echo "::warning title=电信云端采集失败::没有产出 /tmp/ct_raw.json，看上面的截图与状态"
+            exit 0
+          fi
+          # 用 heredoc 而不是 python -c '…'：代码要写在第 0 列才不会 IndentationError，
+          # 而块标量里「第 0 列」就意味着缩进比块还浅 ⇒ YAML 直接解析失败。
+          # heredoc 的两端都跟块同缩进，YAML 剥掉缩进后正好回到第 0 列，两边都满足。
+          python - <<'PY'
+          import json
+          d = json.load(open("/tmp/ct_raw.json", encoding="utf-8"))
+          if "raw" in d and len(d) == 1:
+              print("!! 采集返回的是未解析字符串，前 400 字：")
+              print(d["raw"][:400]); raise SystemExit(0)
+          print("  fetchedAt :", d.get("fetchedAt"))
+          print("  provCode  :", d.get("provCode"), " codes:", d.get("codes"))
+          tot = 0
+          for k, v in (d.get("sections") or {}).items():
+              n = len(v.get("zoneTitleList") or []); tot += n
+              print("   %-24s count=%-6s len=%s" % (k, v.get("count"), n))
+          print("  合计 %d 条" % tot)
+          print("  ★ 结论：%s" % ("云端采集可行" if tot > 500 else "条数不足，判定失败"))
+          PY
+
+      - name: 留存取证
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ct-cloud-probe
+          path: |
+            /tmp/ct_shot.png
+            /tmp/ct_raw.json
+            /tmp/chrome.log
+          if-no-files-found: warn

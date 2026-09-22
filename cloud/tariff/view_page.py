@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""拉取最新的「河北移动资费查询页」并打开。
+"""拉取最新的「河北四网资费查询页」并在本机打开。
 
-页面自 2026-09-20 起不再有公网入口（GitHub 免费版 Pages 只支持公开仓库），
-改为按 gzip 归档存在本仓库（hebei-mobile-h5-reverse）里：
-    cloud/tariff/page/index.html.gz
-用本脚本拉到本机解压查看，本机不对外托管。
+页面自 2026-09-22 拆库后有**公网入口**（仓库已公开，Pages 自动部署）：
+    https://starrry365.github.io/hebei-tariff-monitor/
+所以本脚本现在的用途是「离线 / 断网时看最近一次归档」：
+仓库里那份 gzip 归档（cloud/tariff/page/index.html.gz）拉到本机解压打开，
+本机不对外托管。
 
 页面上的日期是「数据基线日期」（数据自己的版本，没变就不前进）；
 巡检有没有在跑看「最近巡检」（本脚本会从 state.json 读出来一起打印）。
@@ -29,7 +30,7 @@ import urllib.error
 import urllib.request
 
 # 默认仓库；一般会用 git remote 自动推断（换 clone 也不再写死）
-DEFAULT_REPO = "starrry365/hebei-mobile-h5-reverse"
+DEFAULT_REPO = "starrry365/hebei-tariff-monitor"
 ARCHIVE = "cloud/tariff/page/index.html.gz"   # 仓库内 gzip 归档路径
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "docs", "index.html")  # 本机解压落点（已 gitignore）

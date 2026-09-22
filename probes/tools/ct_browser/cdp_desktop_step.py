@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""桌面 Chrome(9223) CDP 驱动：nav / eval / cookies / state
+"""桌面 Chrome(9223) CDP 驱动：nav / eval / cookies / state / shot
 用法:
   python ct_step.py nav <url>
-  python ct_step.py eval <js文件>
+  python ct_step.py eval <js文件> [输出json文件]
   python ct_step.py cookies
   python ct_step.py state     # 标题/url/readyState/webdriver
+  python ct_step.py shot <输出png>   # 截图（失败现场取证）
 """
 import json
 import sys
@@ -100,6 +101,21 @@ def main():
                  {"urls": ["https://www.189.cn/", "https://wap.189.cn/"]})
         for c in r.get("result", {}).get("cookies", []):
             print(f"{c['name']}={c['value'][:40]}... dom={c.get('domain')}")
+        return
+    if cmd == "shot":
+        # 失败现场的唯一可靠证据：WAF 拦下时页面是挑战页/空白页，
+        # 单看 eval 报的异常分不清「被拦」还是「页面没加载完」。
+        page = pick_page()
+        r = call(page, "Page.captureScreenshot", {"format": "png"})
+        b64 = r.get("result", {}).get("data")
+        if not b64:
+            print("!! 截图失败:", json.dumps(r, ensure_ascii=False)[:400])
+            return
+        import base64
+        p = sys.argv[2] if len(sys.argv) > 2 else "ct_shot.png"
+        with open(p, "wb") as f:
+            f.write(base64.b64decode(b64))
+        print("shot ->", p)
         return
     if cmd == "eval":
         page = pick_page()
