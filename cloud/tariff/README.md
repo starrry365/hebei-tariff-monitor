@@ -581,6 +581,7 @@ cd /tmp/servetest && python -m http.server 8123 --bind 127.0.0.1
 | `../probes/tools/ct_browser/` | ✅ | 电信真实 Chrome + CDP 采集工具链（本机 / 云端通用） |
 | `../probes/probe_scope_state.py` | ✅ | 地域判据（河北/全国 + 地市码）离线回归探针，逐网打印分档分布并断言形态 |
 | `../probes/probe_city_matrix.py` | ✅ | ★ 四网**地市粒度可达性矩阵**探针（深挖结论 移动/电信有 · 联通/广电无 的可复现证据） |
+| `../probes/probe_upstream_limits.py` | ✅ | ★ **实时**探针：联通旁路 `/queryTariff/*` 未路由、广电区域表只到省级 + ZQ 空壳（成因，需联网） |
 | `../probes/probe_zq_text.py` | ✅ | 四网「个人/政企」文本分档探针（政企层不可得的旁证：未标注占 84%~99%） |
 | `../probes/tools/cdp_launch.py` | ✅ | 本机 CDP Chrome 启动器（9223，**不带** `--enable-automation`） |
 | `../probes/tools/page_e2e_check.js` | ✅ | ★ 页面真实浏览器端到端断言（四网 `#sc`/`#ct` 显隐、幽灵塞值、下架页签） |

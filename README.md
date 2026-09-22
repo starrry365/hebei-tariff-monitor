@@ -365,6 +365,7 @@ python tariff_monitor.py                        # 抓取 ~15s，写快照 + 报�
 │   ├── probe_scope_state.py      ← 地域判据（河北/全国 + 地市）离线回归
 │   ├── probe_city_matrix.py      ← 四网地市粒度可达性矩阵（结论可复现）
 │   ├── probe_zq_text.py          ← 四网「个人/政企」文本分档
+│   ├── probe_upstream_limits.py  ← 实时探针：联通旁路接口未路由 / 广电区域表只到省级
 │   └── tools/
 │       ├── ct_browser/           ← 电信真实 Chrome + CDP 采集工具链（ci_grab.sh 为云端入口）
 │       ├── cdp_launch.py         ← 本机 CDP Chrome 启动器（9223）
