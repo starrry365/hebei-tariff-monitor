@@ -54,6 +54,7 @@ type2, type2Name, entries:[]}], entries:[]}``，供 ``tariff_monitor.rows_of()``
 与 ``build_html()`` 消费（entry 字段名对齐移动那套：name/fees/data/dataUnit/
 call/applicablePeople/channel/onlineDay/offineDay/reportNo/otherContent/...）。
 """
+import datetime
 import json
 import os
 import re
@@ -167,6 +168,38 @@ def raw_path():
     return RAW if os.path.exists(RAW) else (RAW_GZ if os.path.exists(RAW_GZ) else None)
 
 
+# 采集器（harvest_hb.js）记的是 `new Date().toISOString()` —— **UTC**，带 Z 后缀。
+_ISO = re.compile(r"^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|\+00:?00)?$", re.I)
+
+
+def _local_ts(v):
+    """采集时刻 → **北京时间** 'YYYY-MM-DD HH:MM:SS'。
+
+    🔴 为什么要转：定时任务是北京时间 06:00 = UTC 前一天 22:00，直接取字符串前 10 位
+    会把「今天采的」记成昨天。后果有两处，都很难查：
+      · 页面基线日期比真实采集日晚一天（数据看着永远慢一拍）；
+      · `tariff_monitor` 的「本轮采到了吗」闸门（比对日期）会**拒绝**当天采到的数据，
+        悄悄退回快照渲染，页面上却只显示「沿用快照」——像是采集失败，其实成功了。
+
+    🔴 **只在明确带 UTC 标记（`Z` / `+00:00`）时才 +8**。不带标记的一律当成
+    已经是本地时间原样返回 —— 否则「别的网那种已经是北京时间的 fetchedAt」
+    会被二次偏移（实测：`'2026-09-22 18:52:49'` 会变成次日 02:52）。
+    显式判断，不依赖 runner 的 TZ。
+    """
+    s = str(v or "").strip()
+    m = _ISO.match(s)
+    if not m:
+        return s
+    y, mo, d, h, mi, sec, tz = m.groups()
+    try:
+        dt = datetime.datetime(int(y), int(mo), int(d), int(h), int(mi), int(sec))
+    except ValueError:
+        return s
+    if tz:                      # 带 Z / +00:00 ⇒ UTC，加 8 小时
+        dt += datetime.timedelta(hours=8)
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
 def raw_day():
     """原始采集产物里记的**采集日期**（YYYYMMDD）；文件缺失 / 损坏则返回空串。
 
@@ -175,6 +208,8 @@ def raw_day():
       采不到 → `.ct_raw.json` 根本不存在（该文件不入库）⇒ 调用方退回**快照渲染**。
       ⚠️ 用文件 mtime 判断是不行的：CI 每次都是新 checkout，mtime 恒为「现在」，
          一份上周提交进来的 .ct_raw.json 也会被当成刚采的。
+      ⚠️ 日期必须走 `_local_ts()` 转成北京时间：定时任务落在 UTC 的**前一天**，
+         直接用 UTC 日期会把当天采集判成「非当天」。
     """
     p = raw_path()
     if not p:
@@ -189,7 +224,7 @@ def raw_day():
                 raw = json.load(f)
     except Exception:
         return ""
-    return str(raw.get("fetchedAt") or "")[:10].replace("-", "")
+    return _local_ts(raw.get("fetchedAt"))[:10].replace("-", "")
 
 
 def fetch_all():
@@ -242,7 +277,7 @@ def fetch_all():
     groups.sort(key=lambda g: ({"套餐": 0, "加装包": 1, "营销活动": 2}.get(g["type2Name"], 9),
                                g["type2Name"]))
     return {"province": PROV, "provinceName": PROV_NAME + "省",
-            "endpoint": EP, "fetchedAt": str(raw.get("fetchedAt") or ""),
+            "endpoint": EP, "fetchedAt": _local_ts(raw.get("fetchedAt")),
             "sourceUrl": PROV_URL,
             "groups": groups, "entries": entries}
 
