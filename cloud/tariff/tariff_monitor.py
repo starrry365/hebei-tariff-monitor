@@ -340,34 +340,79 @@ def call(path, body, retry=2):
     return {"_err": last}
 
 
+def _declared(b):
+    """系列声明的明细条数 = nonModuleListTotal + moduleListTotal；取不到返回 None。"""
+    try:
+        n, m = b.get("nonModuleListTotal"), b.get("moduleListTotal")
+        if n is None and m is None:
+            return None
+        return int(n or 0) + int(m or 0)
+    except (TypeError, ValueError):
+        return None
+
+
 def fetch_group(c):
     a, t1, t2v = str(c.get("tariffAttr")), str(c.get("type1")), str(c.get("type2"))
     entries, beans_all, page, total, fails = [], [], 1, None, 0
+    short, miss_eg = 0, []
     while True:
+        # ★★ fistLimit = **每个系列最多返回多少条明细**（不是外层分页大小！）
+        #   默认传 100 时，条目数 >100 的系列会被静默截断（2026-09-23 实锤：
+        #   attr=1/t2=4 某个系列声明 178 条只回 100；全网加装包某系列声明 244 只回 100）。
+        #   ⇒ 传 5000（实测 0 / 1000 / 5000 拿到的条数一致且等于上游声明数）。
+        #   limit=100 才是外层「每页几个系列」，page 翻的是系列页。
         lst = call("nrtariff/new/Tariff/getTariffListInfo",
                    {"cellNum": "", "province": PROV, "isPublic": "1", "linkScn": "2",
                     "tariffAttr": a, "type1": t1, "type2": t2v,
-                    "page": page, "limit": 100, "fistLimit": 100})
+                    "page": page, "limit": 100, "fistLimit": 5000})
         d = lst.get("data") if isinstance(lst, dict) else None
         if not isinstance(d, dict):
             fails += 1
             log(f"  !! attr={a} t1={t1} t2={t2v} page={page} 异常: {str(lst)[:150]}")
             break
         for b in d.get("beans") or []:
-            en = b.get("nonModuleList") or []
+            # ★★ 一个系列下的明细有**两种容器**，只取 nonModuleList 会整栏漏采：
+            #   nonModuleList          —— 大多数栏目走这里
+            #   moduleList[].tariffList —— 「模组化」资费走这里（上游另有 moduleListTotal
+            #                              / nonModuleListTotal 两个计数，本来就是并列的两种）
+            #   2026-09-23 实锤：attr=1/type2=4（全网资费·港澳台国际专区）34 个系列的
+            #   **1240 条全在 moduleList**，nonModuleList 恒空 ⇒ 页面这一栏一直是 0 条，
+            #   而且因为「枚举组合是对的、接口也 200」，日志里完全看不出异常。
+            #   全量核对：18 个组合里 4 个有 moduleList，合计 1257 条（占当时总量 32.6%）。
+            # ★ 两类容器**互斥**（按 (name, reportNo) 求交集 = 0），可直接拼接、无需去重。
+            en = list(b.get("nonModuleList") or [])
+            n_mod = 0
+            for m in b.get("moduleList") or []:
+                tl = m.get("tariffList") or []
+                n_mod += len(tl)
+                en.extend(tl)
             entries.extend(en)
             beans_all.append({"tariffSeqno": b.get("tariffSeqno"),
-                              "tariffName": b.get("tariffName"), "count": len(en)})
+                              "tariffName": b.get("tariffName"), "count": len(en),
+                              "nonModule": len(en) - n_mod, "module": n_mod,
+                              "declared": _declared(b)})
+            # ★★ 对账守卫：上游**每个系列**都带 nonModuleListTotal / moduleListTotal。
+            #   声明数 ≠ 实取数 ⇒ 要么还有第三种容器没消费，要么 fistLimit 又截断了。
+            #   这个判据比外层的 data.page.total 精确得多：
+            #   上面 moduleList 整栏漏采（1240 条）和 fistLimit 截断（单系列 244→100）
+            #   在旧逻辑下**接口都返回 rc=0、外层 total 也正常**，只有这里能照出来。
+            dec = _declared(b)
+            if dec is not None and dec != len(en):
+                short += max(0, dec - len(en))
+                if len(miss_eg) < 5:
+                    miss_eg.append(f"{b.get('tariffSeqno')}:{len(en)}/{dec}")
         pg = d.get("page") or {}
         total = pg.get("total")
         pages = pg.get("pages") or 1
         if page >= pages:
             break
         page += 1
+    n_mod_all = sum(b.get("module") or 0 for b in beans_all)
     log(f"  attr={a} t1={t1} t2={t2v} total={total} series={len(beans_all)} "
-        f"entries={len(entries)} fails={fails}")
+        f"entries={len(entries)} (其中 moduleList={n_mod_all}) fails={fails}"
+        + (f"  ⚠️ 缺 {short} 条 例 {miss_eg}" if short else ""))
     return {"tariffAttr": a, "type1": t1, "type2": t2v, "total": total,
-            "series": beans_all, "entries": entries}
+            "series": beans_all, "entries": entries, "short": short}
 
 
 def fetch_all(workers=4):
@@ -381,11 +426,20 @@ def fetch_all(workers=4):
     with ThreadPoolExecutor(max_workers=workers) as ex:
         groups = list(ex.map(fetch_group, combos))
     n = sum(len(g["entries"]) for g in groups)
-    log(f"抓取完成：{n} 条 / {time.time() - t0:.0f}s")
+    # 空栏目自检：上游说有数据（系列数 > 0）而我们一条都没取到 ⇒ 一定是容器/参数没对上，
+    # 不能当「这个栏目本来就没内容」放过去（2026-09-23：全网·港澳台国际专区就是这么丢的）。
+    empty = [f"attr={g['tariffAttr']}/t1={g['type1']}/t2={g['type2']}"
+             for g in groups if (g.get("series") or []) and not g.get("entries")]
+    if empty:
+        log(f"  ⚠️ 有系列却零条目的栏目：{empty}")
+    total_short = sum(g.get("short") or 0 for g in groups)
+    log(f"抓取完成：{n} 条 / {time.time() - t0:.0f}s"
+        + (f"；⚠️ 声明对账缺 {total_short} 条（看上面 ⚠️ 行）" if total_short else
+           "；声明对账 0 缺口"))
     return {"province": PROV, "provinceName": "河北",
             "fetchedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
             "endpoint": ROOT + "nrtariff/new/Tariff/getTariffListInfo",
-            "groups": groups}
+            "short": total_short, "groups": groups}
 
 
 def index_rows(o):
