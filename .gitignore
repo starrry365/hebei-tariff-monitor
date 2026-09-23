@@ -8,6 +8,8 @@ venv/
 # nrapigate 网关密钥本地副本（CI 走 Actions Secret: NRAPIGATE_KEY / NRAPIGATE_IV）
 # 本仓库是**公开**仓库，这一行是硬红线，不要注释掉。
 cloud/tariff/.nrapigate_key
+# Fiddler MCP 的 ApiKey 本地副本（公开仓库，绝不入库）
+probes/.fiddler_mcp_key
 
 # ── 本地数据缓存（只是迭代便利，不是真相来源）──────────────────
 # 离线重建用的每网一份：.unicom_cache.json / .cbn_cache.json…（用通配，接新网不用回来补）
