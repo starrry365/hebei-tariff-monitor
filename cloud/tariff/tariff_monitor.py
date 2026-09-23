@@ -873,6 +873,26 @@ PLACEHOLDERS = ("__NETS__", "__N__", "__DATE__", "__CAT_ORDER__",
                 "__OW_ORDER__", "__HIST__", "__NOTICE__")
 
 
+def js_json(obj):
+    """把对象序列化成能**安全嵌进内联 <script> 块**的 JSON 字面量。
+
+    🔴 为什么不能直接用 ``json.dumps``：它（尤其 ``ensure_ascii=False`` 时）
+       **不转义** ``<`` ``>`` ``&``，而这些字符放在内联 ``<script>`` 里是
+       HTML 解析器的雷 —— 只要数据里出现 ``</script``，HTML 解析器就在那里
+       **提前闭合脚本块**，其后所有 JS 变成普通文本 ⇒ 整页白屏、交互全废，
+       而页面看起来只是「打开是空的」，没人会想到是某条资费文案的锅。
+
+       这不是假想风险：上游资费文案**实测带富文本 HTML** —— 移动的「权益说明」
+       字段含真正的 ``<p>…</p>``（2026-09-23 实测 19 个 ``<``、11 个 ``</p>``）。
+       文案由运营商运营人员填写，出现 ``</script`` 只是时间问题。
+
+       ``\\u003c`` 在 JSON 里与 ``<`` **完全等价**，JS 解析后字符串一模一样，
+       所以对页面功能零影响；体积只多几个字节（四网实测 +0.02%）。
+    """
+    return (json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
+            .replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026"))
+
+
 def fill_template(tpl, vals):
     """把模板占位符一次填掉。缺任何一个都**报错**，而不是留下 `__X__` 让页面坏掉。"""
     miss = [p for p in PLACEHOLDERS if p not in tpl]
@@ -938,18 +958,17 @@ def build_html(sources, notice="", diffs=None):
     #   这个占位符只留作无 JS 时的后备文本，取移动的 base 最不容易误导。
     date = (payloads.get("move") or {}).get("base") or data_day(
         sources.get("move") or {}, time.strftime("%Y-%m-%d"))
-    payload = json.dumps(net_payload(payloads), ensure_ascii=False, separators=(",", ":"))
+    payload = js_json(net_payload(payloads))
     out = fill_template(html, {
         "__NETS__": payload, "__N__": str(total), "__DATE__": date,
         # 大类顺序（不是数据）注入页面：页面按它生成下拉，顺序才和构建日志一致。
         # 在页面里另写一份常量就会漂移 —— 而漂移的表现是「下拉顺序和日志对不上」，
         # 不报错、只是慢慢让人不敢信。
-        "__CAT_ORDER__": json.dumps(list(CAT_ORDER), ensure_ascii=False),
+        "__CAT_ORDER__": js_json(list(CAT_ORDER)),
         # 归属档位顺序（同 CAT_ORDER 的理由：顺序只此一份，页面不另写常量）。
-        "__OW_ORDER__": json.dumps(list(OW_ORDER), ensure_ascii=False),
+        "__OW_ORDER__": js_json(list(OW_ORDER)),
         # 变更历史（页面时间线）。走紧凑序列化 —— 它一年年涨，白空格也是体积。
-        "__HIST__": json.dumps(load_history().get("items") or [],
-                               ensure_ascii=False, separators=(",", ":")),
+        "__HIST__": js_json(load_history().get("items") or []),
         "__NOTICE__": notice or "本次巡检未检测到变化"})
     with open(HTML_DST, "w", encoding="utf-8") as f:
         f.write(out)
@@ -1029,15 +1048,15 @@ def render_only():
     mv["base"] = date     # 回填，保证静态 sub 与容器里的基线一致
     mv["rows"] = rows
 
-    payload = json.dumps(nets, ensure_ascii=False, separators=(",", ":"))
+    # 同 build_html：内联进 <script> 的 JSON 必须走 js_json 转义（防 </script 提前闭合）
+    payload = js_json(nets)
     tpl = open(os.path.join(BASE, "template.html"), encoding="utf-8").read()
     try:
         out = fill_template(tpl, {
             "__NETS__": payload, "__N__": str(all_n), "__DATE__": date,
-            "__CAT_ORDER__": json.dumps(list(CAT_ORDER), ensure_ascii=False),
-            "__OW_ORDER__": json.dumps(list(OW_ORDER), ensure_ascii=False),
-            "__HIST__": json.dumps(load_history().get("items") or [],
-                                   ensure_ascii=False, separators=(",", ":")),
+            "__CAT_ORDER__": js_json(list(CAT_ORDER)),
+            "__OW_ORDER__": js_json(list(OW_ORDER)),
+            "__HIST__": js_json(load_history().get("items") or []),
             "__NOTICE__": notice})
     except RuntimeError as e:
         log(f"!! {e}，中止（否则会留下未替换的标记把页面搞坏）")

@@ -49,6 +49,15 @@ BW_BADVAL = r"^(0|[-—－\/\\]|无|没有|否)$"
 BW_NOTLINE = r"提速|电视|IPTV|检修|装机|调测|加速|绿色上网|调优|扩容|移机"
 CITY_LS = ["石家庄", "唐山", "秦皇岛", "邯郸", "邢台", "保定", "张家口", "承德", "沧州", "廊坊", "衡水"]
 CT_ALIAS = {"雄安新区": r"雄安", "华北油田": r"华北油田|华油"}
+# 河北 12 地市码 → 中文名。**必须与 template.html 的 HB_CITY_LB 完全一致**
+# （页面拿它把条目级地市码 d.cty 翻成名字；两处漂移 ⇒ 对账用例全部对不上）。
+HB_CITY_LB = {"3100": "邯郸", "3110": "石家庄", "3120": "保定",
+              "3121": "省直辖（定州/辛集）", "3130": "张家口", "3140": "承德",
+              "3150": "唐山", "3160": "廊坊", "3170": "沧州", "3180": "衡水",
+              "3190": "邢台", "3350": "秦皇岛"}
+# 本网数据源是否「数据本身不分城市」（联通/广电）。由 load_rows() 填充 ——
+# 页面 cityTags() 的**第一步**就是判它，本脚本不跟着判的话，那两网的用例会全错。
+ALL_PROVINCE = False
 # 城市判定实际扫描的字段（顺序无关）
 CITY_FIELDS = ("n", "t", "ap", "x")
 # 页面搜索实际覆盖的字段（用于比对是否漏字段）
@@ -83,9 +92,15 @@ def load_rows():
     if not m:
         sys.exit("页面里找不到 `const NETS=`")
     nets, _ = json.JSONDecoder().raw_decode(raw[m.end():])
-    rows = ((nets or {}).get(NET_LIVE) or {}).get("rows") or []
+    live_net = (nets or {}).get(NET_LIVE) or {}
+    rows = live_net.get("rows") or []
     if not rows:
         sys.exit("NETS[%r].rows 为空 —— 移动那网的数据没灌进去？" % NET_LIVE)
+    # 顺带把「本网是否不分城市」存到全局：city_tags() 的判据第一步就要它。
+    # 不在这里取，就得让每个调用方都多传一个参数 —— 那样 conformance.py 也跟着改，
+    # 而它俩迟早漂移（两个脚本各自传参，漏一个就是静默算错）。
+    global ALL_PROVINCE
+    ALL_PROVINCE = bool(live_net.get("allProvince"))
     return raw, rows
 
 
@@ -102,8 +117,24 @@ def bw_info(x):
     return None
 
 
-def city_tags(x):
-    """复现 template.html 的 cityTags()：返回城市列表（可多值）。"""
+def city_tags(x, all_province=None):
+    """复现 template.html 的 cityTags()：返回城市列表（可多值）。
+
+    🔴 2026-09-23 修正：页面的判据已升级为「**上游地市码 ``d.cty`` 优先**，文本只兜底」，
+       而本脚本原先**只复现了文本那一段** —— 结果 conformance 的 37 个地市用例
+       **恒失败**（石家庄：期望 57 / 页面 141，差值是 cty 字段带来的，页面是对的）。
+
+       这是「独立复现」类脚本的固有风险：页面判据一升级，这里不跟着改，
+       对账就从「对得上」滑成「永远差一截」；又因为平时没人跑，
+       看上去只是噪音，于是这个偏差安静地存在了很久。
+       ⚠️ 改 template.html 的 cityTags() 时**必须同步这里**。
+    """
+    ap = ALL_PROVINCE if all_province is None else all_province
+    if ap:
+        return []                      # 数据源自己声明「不分城市」⇒ 一律全省通用
+    cs = x.get("cty") or []
+    if cs:                             # 上游声明的适用范围，以它为准
+        return [HB_CITY_LB[c] for c in cs if c in HB_CITY_LB]
     s = " ".join(str(x.get(k) or "") for k in CITY_FIELDS)
     out = [c for c in CITY_LS if c in s]
     for k, pat in CT_ALIAS.items():
@@ -227,6 +258,11 @@ def check_city(rows):
     combo = {}
     xonly = []
     for x, _ in hit_any:
+        # 有地市码的条目是**上游直接声明**的适用范围，不做文本归因
+        #（cty 不在任何文本字段里，逐字段判会得到全 "-" 的假象）。
+        if x.get("cty"):
+            combo["cty码"] = combo.get("cty码", 0) + 1
+            continue
         # 逐字段判：该字段单独出现时能否命中城市（N=n T=套餐名 A=目标客户 X=权益）
         f = {k: city_tags({k: x.get(k)}) for k in CITY_FIELDS}
         key = "".join(k.upper() if f[k] else "-" for k in CITY_FIELDS)
@@ -288,6 +324,26 @@ def check_sync():
         tpl_alias = {k: v for k, v in pairs}
         if tpl_alias != CT_ALIAS:
             errs.append("CT_ALIAS 与模板不一致：模板=%r 脚本=%r" % (tpl_alias, CT_ALIAS))
+
+    # ★ 地市码表：页面用它把 d.cty 翻成城市名，本脚本用它复现判据。
+    #   2026-09-23 补上这一项 —— 那次 drift 的正是这张表（页面已改用 cty 优先，
+    #   而「规则同步」只比 CITY_LS/CT_ALIAS 两个**文本**常量，照样报 OK）。
+    #   只比常量不比**判据结构**，等于给一张过期的地图盖了个合格的章。
+    m5 = re.search(r"const HB_CITY_LB=(\{.*?\});", tpl, re.S)
+    if not m5:
+        errs.append("模板里找不到 HB_CITY_LB 常量（地市码表）")
+    else:
+        pairs5 = re.findall(r'"(\d{4})":"([^"]+)"', m5.group(1))
+        tpl_lb = {k: v for k, v in pairs5}
+        if tpl_lb != HB_CITY_LB:
+            errs.append("HB_CITY_LB 与模板不一致：模板=%r 脚本=%r" % (tpl_lb, HB_CITY_LB))
+
+    # ★ 判据结构：页面是不是仍然是「cty 优先、文本兜底」？
+    #   只比常量的漏洞就在这里 —— 哪天页面又换判据（比如改回纯文本，或加第三层），
+    #   四个常量全都一致，对账却悄悄失效。用一段**特征代码**把结构钉住。
+    if "d.cty||[]" not in tpl:
+        errs.append("模板的 cityTags() 里找不到 `d.cty||[]` —— 地市判据结构已变，"
+                    "本脚本的 city_tags() 复现必须同步改")
     return errs
 
 
@@ -346,7 +402,12 @@ def main():
 
     print("\n[5] 城市判定（复现 template.html 的 cityTags）")
     st = check_city(rows)
-    zero = [c for c in CITY_LS + list(CT_ALIAS) if st["counts"].get(c, 0) == 0]
+    # 零命中分两类判：**12 市**有地市码，恒应为非 0（为 0 ⇒ 城市名写错或 cty 映射断了）；
+    # 「雄安新区 / 华北油田」**没有地市码**，只能靠文本兜底 —— 判据改成「地市码优先」
+    # 之后，这些条目一旦都带上了码，它们就会是 0。那是判据升级的正常结果，
+    # 不是拼写错误 ⇒ 只提示，不判失败（否则升级判据当天这里会红，逼人回滚）。
+    zero = [c for c in CITY_LS if st["counts"].get(c, 0) == 0]
+    zero_alias = [c for c in CT_ALIAS if st["counts"].get(c, 0) == 0]
     for c in CITY_LS + list(CT_ALIAS):
         print("      %-6s %4d" % (c, st["counts"].get(c, 0)))
     print("      命中任一城市 %d 条 · 全省通用（四字段都没提地市）%d 条"
@@ -355,7 +416,8 @@ def main():
           % (len(st["multi"]),
              "；".join("%s%s" % ((x.get("n") or "")[:20], tg) for x, tg in st["multi"]) or "（无）"))
     combo_txt = "  ".join("%s=%d" % (k, v) for k, v in sorted(st["combo"].items(), key=lambda z: -z[1]))
-    print("      字段来源（N名称 T套餐名 A目标客户 X权益）: %s" % combo_txt)
+    print("      命中来源（cty码 = 上游地市字段；N名称 T套餐名 A目标客户 X权益 = 文本兜底）: %s"
+          % combo_txt)
     print("      　文案提示：「--AP-」= 地名只在目标客户里，只看名称会静默漏掉；"
           "「NT--」= 目标客户写的是通用话术，只读该字段同样会漏 ⇒ 必须取并集。")
     if st["xonly"]:
@@ -372,6 +434,9 @@ def main():
     print("      河北其他地名（0 = 城市表未漏）: %s"
           % ", ".join("%s %d" % (k, v) for k, v in st["others"].items()))
     rep("城市表存在零命中的城市（疑拼写错误）", zero, 0)
+    if zero_alias:
+        print("      ⚠️ 专属区域零命中：%s —— 判据改为「地市码优先」后属正常结果"
+              "（这些区域没有地市码，只在条目没带码时才走文本兜底）" % "、".join(zero_alias))
 
     print("\n[6] 规则同步（脚本 ↔ template.html）")
     errs = check_sync()
@@ -380,7 +445,8 @@ def main():
             print("  !! %s" % e)
         problems.append("规则未同步")
     else:
-        print("  OK  BW_BADVAL / BW_NOTLINE / CITY_LS / CT_ALIAS 与模板一致")
+        print("  OK  BW_BADVAL / BW_NOTLINE / CITY_LS / CT_ALIAS / HB_CITY_LB 与模板一致，"
+              "且地市判据仍为「cty 优先 + 文本兜底」")
 
     print()
     if problems:

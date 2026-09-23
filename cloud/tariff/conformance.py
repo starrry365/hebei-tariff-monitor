@@ -131,7 +131,23 @@ def main():
 
     m = build_oracle(rows, base)
     ty_vals = sorted({d.get("ty") for d in rows if d.get("ty")})
-    cities = A.CITY_LS + list(A.CT_ALIAS)
+    # ★ 只给「本网真能取到」的地市档生成用例。页面 renderDims 会把 **0 条**的档
+    #   置灰，并在 apply 里加了保险丝（置灰档当没筛）—— 所以那类档在页面上
+    #   根本筛不出东西。**照旧为它们生成用例，对账必然失败，且失败指向错误方向**
+    #   （期望 0、实际 = 全部条数，看起来像「地市筛选整体失效」）。
+    #   典型的就是「雄安新区 / 华北油田」：判据改成「地市码优先」后它们没有码，
+    #   只在条目连码都没有时才走文本兜底，实测恒 0 条。
+    ccount = {}
+    for d in rows:
+        tg = A.city_tags(d)
+        if tg:
+            for c in tg:
+                ccount[c] = ccount.get(c, 0) + 1
+    cities_all = A.CITY_LS + list(A.CT_ALIAS)
+    cities = [c for c in cities_all if ccount.get(c)]
+    skipped = [c for c in cities_all if not ccount.get(c)]
+    if skipped:
+        print("⏭️  跳过页面上会被置灰的地市档（本网 0 条）: %s" % "、".join(skipped))
 
     def C(**kw):
         c = dict(kw=kw.get("kw", ""), ty=kw.get("ty", ""), ct=kw.get("ct", ""),

@@ -134,12 +134,13 @@ jobs:
           python -c "
           import gzip, json, re, time
           s = gzip.open('cloud/tariff/page/index.html.gz', 'rt', encoding='utf-8').read()
-          # 占位符要逐个列全。__DATA__ 是四网改造前的容器名，模板里早就不存在了，
-          # 留着它等于在检查一个永远不出现的字符串；而漏检 __NETS__ 更糟 ——
-          # 整页 JS 会退化成语法错误，这一步却照样报 OK。
+          # 占位符要逐个列全。漏检 __NETS__ 尤其糟 —— 整页 JS 会退化成语法错误，
+          # 而这一步照样报 OK。
           # ⚠️ 这份列表和 tariff_monitor.PLACEHOLDERS 是**两处**，加新占位符时都要改
           #    （2026-09-22 加 __CAT_ORDER__ 时先漏了 render_only，又漏了这一处；
           #      2026-09-23 加 __OW_ORDER__ / __HIST__ 时同样只改了 tarif_monitor 那侧）。
+          #    注：现在只剩这两处 —— rebuild_offline.py 改为直接调 build_html()，
+          #    不再自带一份替换列表（它那份曾在改造中静默漏掉过占位符）。
           #    漏检的后果很隐蔽：占位符原样留在页面里，而 JS 里 `const HIST=__HIST__`
           #    会**直接变成语法错误**，整页功能全废 —— 但标签看着都在。
           left = [p for p in ('__NETS__', '__N__', '__DATE__', '__CAT_ORDER__',

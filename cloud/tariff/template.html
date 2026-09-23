@@ -1049,6 +1049,12 @@ function apply(){
   /* ★ 当前「城市」这个维度在本网是否**不存在**（见 renderDims，联通/广电直接隐藏）：
      取一次就够，filter 要跑几千遍，在里面 querySelector 纯属白烧。 */
   const ctDimOff=$("#ct").style.display==="none";
+  /* 保险丝：当前取值若是「本网已置灰的档」（如判据升级后恒为 0 条的「雄安新区」），
+     当没筛。与 owDimOff 同一条原则 —— UI 上点不到置灰项，但脚本 / 深链 /
+     地址栏仍可能把它设进来，那时按它筛会给出「雄安 0 条」这种看着正常、
+     实则拿一个不存在的取值筛出来的假答案。**无效筛选 = 不筛**。 */
+  const ctOpt=$("#ct").selectedOptions[0];
+  const ctDisabled=!!(ctOpt&&ctOpt.disabled);
   /* 归属维度在本网是否不存在（联通/电信/广电上游无 type1 ⇒ 见 renderDims 隐藏）。 */
   const owDimOff=$("#ow").style.display==="none";
   view=rowsOf(NET).filter(d=>{
@@ -1080,7 +1086,7 @@ function apply(){
        UI 上点不到置灰项，但脚本 / 程序化赋值仍可能把它设进来（实测可行）——
        那时按它筛会输出「邢台 0 条」这类看着正常、实则拿不存在的维度筛出来的
        假答案。口径与 readHash 的「认不出来就当没传」一致：**无效筛选 = 不筛**。 */
-    if(ct&&!ctDimOff){
+    if(ct&&!ctDimOff&&!ctDisabled){
       const tg=cityTags(d);
       if(ct==="_none"){if(tg.length)return false}   // 全省通用 = 既无地市码、名称里也没提地市
       else if(tg.indexOf(ct)<0)return false;
@@ -1413,6 +1419,29 @@ function renderDims(){
     const cs=sc.selectedOptions[0];
     if(cs&&cs.disabled)sc.value="";
     sc.title="地域范围：河北省（含各地市专属与全省通用）/ 全国（本网没有的那一档会置灰）";
+  }
+  /* —— 地市（#ct）：与 #sc 同一条原则，本网**取不到**的档就置灰 ——
+     判据改成「地市码优先 + 文本兜底」之后，「雄安新区 / 华北油田」这类
+     **没有地市码**的专属区域常常是 0 条（它们只在条目连码都没有时才走文本兜底）。
+     不置灰的话，用户选了拿到 0 条只会以为筛选坏了 —— 而真相是「这个取值在
+     当前判据下确实不存在」，正是 #sc 置灰要传达的同一件事。
+     ⚠️ 判据用**实际条数**而不是硬编码哪个区域没数据：上游哪天补了，这里自动放开。 */
+  if(ct&&!ap){
+    const cc={};
+    let noneN=0;
+    rs.forEach(d=>{
+      const tg=cityTags(d);
+      if(!tg.length)noneN++;                       // 「全省通用」= 码与文本都没提到地市
+      else tg.forEach(c=>{cc[c]=(cc[c]||0)+1});
+    });
+    [...ct.querySelectorAll("option")].forEach(o=>{
+      if(!o.value){o.disabled=false;return}        // 「全部城市」恒可用
+      if(o.value==="_none"){o.disabled=noneN===0;return}
+      o.disabled=!cc[o.textContent];
+    });
+    // 选中项若被置灰（切网 / 上游数据变了），清掉 —— 否则控件显示一个筛不出东西的值
+    const csel=ct.selectedOptions[0];
+    if(csel&&csel.disabled)ct.value="";
   }
   /* —— 归属（个人 / 政企）：本网**实际有数据**才给入口 ——
      判据用数据而不是硬编码「只有移动有」：上游哪天给别的网补了这个字段，
