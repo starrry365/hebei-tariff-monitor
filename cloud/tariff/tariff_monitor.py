@@ -136,6 +136,21 @@ def type_cat(ty):
 # —— 看着像线下，其实是纯线上）。按原文筛毫无意义，归一到三档才有用。
 # ★ 判定顺序要紧：先判「两者都有」，再判单一 —— 「线上线下」两个词都命中时
 #   若先判单边就会把它误归成其中一边。
+# ★ 归属（个人 / 政企）—— 四网里**只有移动**的上游接口带这个字段：
+#   条目级 ``type1``（1=个人、2=政企）。联通/电信/广电的条目**根本没有 type1 键**。
+#   ★ 2026-09-23 修正：此前「政企四网全不可得 ⇒ 不做政企层」的结论是**错的**。
+#     当时拿 applicablePeople（目标客户）文本去猜，四网只捞到 68 条；
+#     而真正的判据 type1 一直躺在快照里 —— 它被当成「分类层级」只用于分组，
+#     从未落到行数据上，于是「字段在手却判成没有」。参考同类开源项目时才发现。
+OW_CN = {"1": "个人", "2": "政企"}
+OW_ORDER = ("个人", "政企")
+
+# 变更历史 —— 逐次追加、不覆盖，是页面「变化历史」时间线的**唯一**数据源。
+# changes/*.md 是给人读的长文（含逐条明细），不适合页面解析：正则一改版就全废，
+# 而它本身是产物、不是接口。另存一份结构化摘要，两边各干各的。
+HIST_FILE = os.path.join(BASE, "history.json")
+HIST_KEEP = 400          # 只留最近 400 条「网×批次」（约 100 次巡检，够回溯半年）
+
 CH_ORDER = ("线上", "线下", "线上+线下", "其他")
 # 「全渠道 / 全部」这类没点名线上线下的写法，语义就是「两边都能办」——
 # 漏进「其他」会让「线上」这一档少掉 120 条（实测移动 15 + 联通 105）。
@@ -413,6 +428,53 @@ def brief(row):
     return f"月费 {fee} 元 · 流量 {gb} · 通话 {row.get('call') or '—'} 分 · {ap}"
 
 
+def load_history():
+    """读 history.json。缺失/损坏一律回空表 —— 它是展示用的旁路数据，
+    **不该**因为一份坏文件把整轮巡检或页面构建打断。"""
+    try:
+        with open(HIST_FILE, encoding="utf-8") as f:
+            d = json.load(f)
+        if isinstance(d, dict) and isinstance(d.get("items"), list):
+            return d
+    except Exception:
+        pass
+    return {"schema": 1, "items": []}
+
+
+def _code_of_net(net):
+    """报告里的中文网名 → 网 code（NETS_META 的显示名是后缀匹配：
+    「河北移动」「河北联通」「中国广电」「河北电信」都对得上）。"""
+    for c, cn, _ in NETS_META:
+        if net == cn or net.endswith(cn):
+            return c
+    return ""
+
+
+def hist_append(rec):
+    """往 history.json 追加一条「某网某次巡检」的变更记录。
+
+    ★ 先按 (ts, code) 去重再追加：同一次巡检被重跑（本地补跑 / CI 重试 / 手动
+      workflow_dispatch）时，不去重就会出现两个长得一样、数字也一样的节点 ——
+      在时间线上看着像「同一天变了两次」，比缺一条更容易误导人。
+    ★ 只保留最近 HIST_KEEP 条：这个文件在仓库里、每次巡检都提交，
+      不设上限就会一年年涨上去。
+    """
+    h = load_history()
+    items = [x for x in h["items"]
+             if not (x.get("ts") == rec.get("ts") and x.get("code") == rec.get("code"))]
+    items.append(rec)
+    h["schema"] = 1
+    h["items"] = items[-HIST_KEEP:]
+    # indent=1 而不是紧凑：这个文件每天被 CI 提交一次，缩进让 diff 只显示
+    # 「新增了哪条记录」；紧凑格式整个文件是一行，diff 里什么都看不出来。
+    # 🔴 newline="\n" 必须显式给：Windows 下默认会把 \n 翻译成 \r\n，
+    #    于是每次 CI（Linux，写 LF）与本地（Windows，写 CRLF）交替提交时，
+    #    整个文件的每一行都显示为「已修改」，真正的变更淹没在行尾噪音里。
+    with open(HIST_FILE, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(h, f, ensure_ascii=False, indent=1)
+    return h
+
+
 def write_report(old_o, new_o, added, removed, changed,
                  net="河北移动", fname=None):
     """写变更报告。
@@ -462,6 +524,25 @@ def write_report(old_o, new_o, added, removed, changed,
     p = os.path.join(CHG, fname or f"{d}.md")
     with open(p, "w", encoding="utf-8") as f:
         f.write(txt)
+    # ★ 顺手把这一网的变更摘要追加进 history.json（页面时间线用）。
+    #   放在 write_report 里、而不是各调用点：移动走 main()、其余三网走 net_round()，
+    #   两处**都**经过这里；写在调用点就得分两遍，漏一处 = 时间线里少一网且不报错。
+    _smp = []
+    for k in added[:6]:
+        r = idx[k]
+        _smp.append({"n": (r.get("_name") or r.get("_tname") or "")[:60],
+                     "ty": r.get("_ty") or "", "k": "a"})
+    for k in removed[:4]:
+        r = oidx[k]
+        _smp.append({"n": (r.get("_name") or r.get("_tname") or "")[:60],
+                     "ty": r.get("_ty") or "", "k": "r"})
+    for k, dd in changed[:4]:
+        r = idx[k]
+        _smp.append({"n": (r.get("_name") or r.get("_tname") or "")[:60],
+                     "ty": r.get("_ty") or "", "k": "c", "f": list(dd.keys())[:3]})
+    hist_append({"ts": str(new_o.get("fetchedAt") or "")[:19], "d": d,
+                 "code": _code_of_net(net), "net": net, "n": len(idx),
+                 "a": len(added), "r": len(removed), "c": len(changed), "smp": _smp})
     return p, txt
 
 
@@ -719,6 +800,12 @@ def rows_of(o, diff=None, code=""):
                    #   ② CI 断言能直接校验取值域（cat 必须落在 CAT_ORDER 内）；
                    #   ③ 探针复用同一份函数，结论与页面必然一致。
                    "cat": type_cat(ty), "chx": ch_norm(chn)}
+            # ★ 归属（个人/政企）：只有移动的条目带 type1，其余三网连键都没有。
+            #   与 cty 同策略 —— **有值才写**，免得页面拿到一堆空串还要判断。
+            #   页面显隐该维度时看「本网有没有任一条目带 ow」，与地市判据一致。
+            ow = OW_CN.get(s("type1", 4))
+            if ow:
+                rec["ow"] = ow
             # ★ 地市码只在**本网真有**时才写（联通/广电恒空）—— 空列表不落盘，
             #   免得页面拿到一堆 `cty: []` 误以为「这些条目属于第 0 个地市」。
             #   有值 = 该资费限这几个市；无此键 = 全省通用。
@@ -750,7 +837,8 @@ def rows_of(o, diff=None, code=""):
 #   整页白屏；而且**本地不一定复现**（要么走 build_html、要么走 render_only）。
 #   原先是 build_html 与 render_only 各写一遍替换列表 —— 2026-09-22 加 __CAT_ORDER__
 #   时就只改了 build_html，render_only 那侧静默漏掉。合并到一处，从结构上消除这种漏。
-PLACEHOLDERS = ("__NETS__", "__N__", "__DATE__", "__CAT_ORDER__", "__NOTICE__")
+PLACEHOLDERS = ("__NETS__", "__N__", "__DATE__", "__CAT_ORDER__",
+                "__OW_ORDER__", "__HIST__", "__NOTICE__")
 
 
 def fill_template(tpl, vals):
@@ -825,6 +913,11 @@ def build_html(sources, notice="", diffs=None):
         # 在页面里另写一份常量就会漂移 —— 而漂移的表现是「下拉顺序和日志对不上」，
         # 不报错、只是慢慢让人不敢信。
         "__CAT_ORDER__": json.dumps(list(CAT_ORDER), ensure_ascii=False),
+        # 归属档位顺序（同 CAT_ORDER 的理由：顺序只此一份，页面不另写常量）。
+        "__OW_ORDER__": json.dumps(list(OW_ORDER), ensure_ascii=False),
+        # 变更历史（页面时间线）。走紧凑序列化 —— 它一年年涨，白空格也是体积。
+        "__HIST__": json.dumps(load_history().get("items") or [],
+                               ensure_ascii=False, separators=(",", ":")),
         "__NOTICE__": notice or "本次巡检未检测到变化"})
     with open(HTML_DST, "w", encoding="utf-8") as f:
         f.write(out)
@@ -910,6 +1003,9 @@ def render_only():
         out = fill_template(tpl, {
             "__NETS__": payload, "__N__": str(all_n), "__DATE__": date,
             "__CAT_ORDER__": json.dumps(list(CAT_ORDER), ensure_ascii=False),
+            "__OW_ORDER__": json.dumps(list(OW_ORDER), ensure_ascii=False),
+            "__HIST__": json.dumps(load_history().get("items") or [],
+                                   ensure_ascii=False, separators=(",", ":")),
             "__NOTICE__": notice})
     except RuntimeError as e:
         log(f"!! {e}，中止（否则会留下未替换的标记把页面搞坏）")

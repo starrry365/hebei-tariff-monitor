@@ -120,7 +120,9 @@ def main():
     if cmd == "eval":
         page = pick_page()
         expr = open(sys.argv[2], encoding="utf-8").read()
-        r = evaluate(page, expr, timeout=120)
+        # 超时给到 300s：全路径遍历探针要在 4 个网 × 13 个下拉 × 每个 option
+        # 上各渲染一次（本页 1.3 万条），120s 不够会被当成「脚本坏了」。
+        r = evaluate(page, expr, timeout=300)
         if len(sys.argv) > 3:  # eval <jsfile> <outfile> : 完整结果落盘
             res = r.get("result", {}).get("result", {})
             v = res.get("value")

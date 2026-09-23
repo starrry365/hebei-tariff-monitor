@@ -138,9 +138,12 @@ jobs:
           # 留着它等于在检查一个永远不出现的字符串；而漏检 __NETS__ 更糟 ——
           # 整页 JS 会退化成语法错误，这一步却照样报 OK。
           # ⚠️ 这份列表和 tariff_monitor.PLACEHOLDERS 是**两处**，加新占位符时都要改
-          #    （2026-09-22 加 __CAT_ORDER__ 时先漏了 render_only，又漏了这一处）。
+          #    （2026-09-22 加 __CAT_ORDER__ 时先漏了 render_only，又漏了这一处；
+          #      2026-09-23 加 __OW_ORDER__ / __HIST__ 时同样只改了 tarif_monitor 那侧）。
+          #    漏检的后果很隐蔽：占位符原样留在页面里，而 JS 里 `const HIST=__HIST__`
+          #    会**直接变成语法错误**，整页功能全废 —— 但标签看着都在。
           left = [p for p in ('__NETS__', '__N__', '__DATE__', '__CAT_ORDER__',
-                              '__NOTICE__') if p in s]
+                              '__OW_ORDER__', '__HIST__', '__NOTICE__') if p in s]
           assert not left, '占位符未替换: %s' % left
           m = re.search(r'const NETS=', s)
           assert m, '页面里找不到 const NETS= 数据容器'
@@ -211,6 +214,32 @@ jobs:
                   # 说明上游语义变了或我们的判据错了，都得人工看一眼再说。
                   assert stop_n == 0, ('移动公开接口取不到下架数据，却出现了 %d 条 —— '
                                        '判据或上游语义已变，需人工确认' % stop_n)
+
+              # ★ 归属（ow = 个人 / 政企）：来自上游条目级 type1 字段的归一
+              #   （1→个人、2→政企），由 rows_of() 写进行数据。
+              #   🔴 这条断言是 2026-09-23 一次纠错的固化：此前判政企用的是
+              #      applicablePeople（「目标客户」）文本，只捞到 68 条，
+              #      并据此得出了「政企四网公开渠道都取不到」的**错误结论**。
+              #      真相是移动的 type1=2 一直就在自己的快照里（河北 24 条政企）。
+              #      所以两侧都要卡死，防止再退回「靠文本猜」那套：
+              #        · 移动：政企必须存在（否则上游语义变了或 rows_of 漏写 ow）
+              #        · 其余三网：必须**一条 ow 都没有**（上游条目里连 type1 键都不存在）
+              ows = {r.get('ow') for r in rows if r.get('ow')}
+              assert ows <= {'个人', '政企'}, '%s 的归属 ow 取值异常: %s' % (code, ows)
+              if code == 'move':
+                  n_gq = sum(1 for r in rows if r.get('ow') == '政企')
+                  n_gr = sum(1 for r in rows if r.get('ow') == '个人')
+                  assert n_gq > 0, ('移动的政企资费(type1=2)归零 —— 上游语义变了，'
+                                    '或 rows_of 忘了把 type1 写进 ow')
+                  # 反向：政企占比必须仍是「少数派」（实测 24/3887 ≈ 0.6%）。
+                  # 突然占到大比例 ⇒ 判据把个人条目也算成政企了。
+                  assert n_gq < len(rows) * 0.2, \
+                      '移动政企占比异常高（%d/%d）—— 归属判据可能把个人也算进去了' % (n_gq, len(rows))
+                  assert n_gr > n_gq, '移动个人资费应远多于政企（实测 %d : %d）' % (n_gr, n_gq)
+              else:
+                  assert not ows, ('%s 上游没有 type1 字段，却出现归属标注 %s —— '
+                                   '归属只能来自 type1，不能从「目标客户」文本猜'
+                                   % (code, sorted(ows)))
 
               # ★ 渠道档（chx）：构建期按 ch_norm 把上游那几十种写法归一到三档。
               #   取值域必须封闭；落「其他」的比例锁在 2% 以内（实测四网 0.38%）。

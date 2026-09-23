@@ -1,155 +1,402 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light" data-net="move">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>河北四网资费全量查询</title>
 <style>
-:root{--bg:#f6f7f9;--card:#fff;--bd:#e3e6ea;--tx:#1f2328;--tx2:#6b7280;--ac:#185fa5;--ac2:#e6f1fb;--warn:#854f0b;--wbg:#faeeda;--new:#0f6e56;--nbg:#e3f4ec;--barh:60px}
-*{box-sizing:border-box}
-body{margin:0;font:400 14px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--tx)}
-header{padding:20px 24px 14px;border-bottom:1px solid var(--bd);background:var(--card)}
-h1{margin:0 0 4px;font-size:19px;font-weight:600}
-.sub{color:var(--tx2);font-size:13px}
-.notice{margin-top:9px;padding:7px 12px;border-radius:8px;background:var(--ac2);color:var(--ac);font-size:12.5px;display:inline-block;font-weight:500}
-.notice.warn{background:#fdecec;color:#a33333}
+/* ═══════════════════════════════════════════════════════════════
+   主题变量：**四网主题色 × 深浅双主题**
+   ★ 两层正交：data-net 决定「是哪一家的色」，data-theme 决定「深底还是浅底」。
+     拆成两层而不是四套主题，是因为「移动的深色」和「联通的深色」在
+     版面/对比度上完全一样，只有色相不同 —— 写四遍必然漂移。
+   ★ 参考同类开源站点的视觉语言（玻璃拟态 + 极光背景 + 运营商主题色），
+     但不照抄：色板按本页的表格密度重调，且极光尊重 prefers-reduced-motion。
+   ═══════════════════════════════════════════════════════════════ */
+:root{
+  /* 默认＝移动蓝 */
+  --op1:#0085d0; --op2:#4cc9f0; --op3:#2dd4a7; --op1d:#0067b3;
+  --bg1:#e9f2fb; --bg2:#f5fafe; --bg3:#ffffff;
+  --glass:rgba(255,255,255,.66); --glass2:rgba(255,255,255,.82); --glass3:rgba(255,255,255,.94);
+  --bd:rgba(255,255,255,.92); --bd2:rgba(0,20,50,.14);
+  --tx:#08202f; --tx2:#33566f; --tx3:#5b748c;
+  --ok:#059669; --okbg:rgba(5,150,105,.10); --warn:#b45309; --warnbg:rgba(180,83,9,.10);
+  --bad:#e11d48; --badbg:rgba(225,29,72,.09);
+  --ac:var(--op1d); --ac2:rgba(0,133,208,.10);
+  --sh:0 14px 36px rgba(0,40,80,.10); --sh2:0 20px 48px rgba(0,40,80,.16);
+  --r:16px; --r2:11px; --blur:18px;
+  --zebra:rgba(0,40,80,.022); --hover:rgba(0,133,208,.055);
+  --blobmix:multiply; --blobop:.30;
+}
+[data-net="unicom"]{ --op1:#e2231a; --op2:#ff7a45; --op3:#ffb199; --op1d:#c4160c; }
+[data-net="telecom"]{ --op1:#0057b8; --op2:#00a0e9; --op3:#4ad3c8; --op1d:#004494; }
+[data-net="cbn"]{ --op1:#c8102e; --op2:#ff4d6d; --op3:#ff9bb0; --op1d:#a50c24; }
+
+[data-theme="dark"]{
+  --bg1:#061021; --bg2:#0a1c31; --bg3:#0e2540;
+  --glass:rgba(255,255,255,.075); --glass2:rgba(255,255,255,.11); --glass3:rgba(255,255,255,.15);
+  --bd:rgba(255,255,255,.13); --bd2:rgba(255,255,255,.22);
+  --tx:#f7fbff; --tx2:#cfdcec; --tx3:#9fb2c9;
+  --ok:#34d399; --okbg:rgba(52,211,153,.14); --warn:#fbbf24; --warnbg:rgba(251,191,36,.14);
+  --bad:#fb7185; --badbg:rgba(251,113,133,.14);
+  --ac:var(--op2); --ac2:rgba(76,201,240,.14);
+  --sh:0 16px 42px rgba(0,0,0,.42); --sh2:0 24px 56px rgba(0,0,0,.5);
+  --zebra:rgba(255,255,255,.028); --hover:rgba(255,255,255,.055);
+  --blobmix:screen; --blobop:.42;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{min-height:100vh;background:var(--bg1);color:var(--tx);
+  font:400 14px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+  overflow-x:hidden;transition:background .4s,color .4s}
+
+/* ── 极光背景 ────────────────────────────────────────────────── */
+.aurora{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.aurora::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(1200px 800px at 18% -12%,var(--bg2),transparent 62%),
+             radial-gradient(1000px 700px at 92% 8%,var(--bg3),transparent 60%),
+             linear-gradient(180deg,var(--bg1),var(--bg2));transition:background .4s}
+.blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:var(--blobop);
+  mix-blend-mode:var(--blobmix);transition:background .5s}
+.b1{width:440px;height:440px;background:var(--op1);top:-130px;left:-90px;animation:fl1 22s ease-in-out infinite}
+.b2{width:360px;height:360px;background:var(--op2);top:20%;right:-120px;animation:fl2 27s ease-in-out infinite}
+.b3{width:400px;height:400px;background:var(--op3);bottom:-150px;left:16%;animation:fl3 31s ease-in-out infinite}
+@keyframes fl1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(64px,54px) scale(1.12)}}
+@keyframes fl2{0%,100%{transform:translate(0,0) scale(1.05)}50%{transform:translate(-70px,44px) scale(.93)}}
+@keyframes fl3{0%,100%{transform:translate(0,0) scale(.97)}50%{transform:translate(56px,-62px) scale(1.1)}}
+/* 动效开关：系统设了「减弱动态效果」就不动。持续的气泡动画在低端设备上
+   会让滚动掉帧 —— 而这一页最常见的操作恰恰是长表格滚动。 */
+@media(prefers-reduced-motion:reduce){
+  .blob{animation:none}
+  *{transition:none!important}
+}
+.grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.03;
+  background-image:radial-gradient(currentColor 1px,transparent 1px);background-size:3px 3px}
+
+.wrap{position:relative;z-index:2;max-width:1320px;margin:0 auto;padding:12px 16px 40px}
+.glass{background:var(--glass);backdrop-filter:blur(var(--blur)) saturate(160%);
+  -webkit-backdrop-filter:blur(var(--blur)) saturate(160%);
+  border:1px solid var(--bd);box-shadow:var(--sh);border-radius:var(--r)}
+
+/* ── 顶栏 ────────────────────────────────────────────────────── */
+.nav{position:sticky;top:0;z-index:40;padding:11px 15px;margin-bottom:10px}
+.nav-in{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+#logo{width:38px;height:38px;border-radius:12px;flex:none;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--op1),var(--op2));color:#fff;
+  font-weight:800;font-size:16px;box-shadow:0 8px 20px rgba(0,0,0,.22);transition:background .4s}
+.brand-t{min-width:0}
+#h1{font-size:15.5px;font-weight:700;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;max-width:52vw}
+#sub{font-size:11.5px;color:var(--tx3);margin-top:2px;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;max-width:56vw}
+.nav-mid{flex:1 1 auto;display:flex;align-items:center;justify-content:center;gap:10px;min-width:0}
+.nav-cnt{font-size:11.5px;color:var(--tx3);white-space:nowrap}
+.nav-cnt b{color:var(--tx);font-weight:800;font-size:12.5px}
+.upd{font-size:11.5px;color:var(--tx3);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--ok);animation:pulse 2.2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(52,211,153,.5)}70%{box-shadow:0 0 0 8px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+.nav-act{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.btn{cursor:pointer;font-size:13px;font-weight:600;padding:8px 14px;border-radius:11px;
+  border:1px solid var(--bd2);background:var(--glass2);color:var(--tx);
+  font-family:inherit;transition:transform .18s,box-shadow .18s,border-color .18s,background .3s;
+  display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{transform:translateY(-1px);border-color:var(--ac);box-shadow:0 8px 20px rgba(0,0,0,.12)}
+.btn:active{transform:translateY(0)}
+.btn.pri{background:linear-gradient(135deg,var(--op1),var(--op2));color:#fff;border-color:transparent}
+
+/* 四网切换：顶栏下方一行，全局生效（总览/明细/历史都跟随） */
+.netnav{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+.netbtn{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border:1px solid var(--bd2);
+  background:var(--glass2);border-radius:10px;cursor:pointer;font-size:13px;color:var(--tx2);
+  font-family:inherit;transition:.16s}
+.netbtn:hover{border-color:var(--ac);color:var(--ac);transform:translateY(-1px)}
+.netbtn.on{background:linear-gradient(135deg,var(--op1),var(--op2));border-color:transparent;color:#fff;
+  box-shadow:0 6px 16px rgba(0,0,0,.16)}
+.netbtn .nc{font-size:11px;color:var(--tx3)}
+.netbtn.on .nc{color:rgba(255,255,255,.85)}
+.netbtn .nb{font-size:10.5px;padding:1px 7px;border-radius:999px;background:var(--warnbg);color:var(--warn);font-weight:600}
+.netbtn.on .nb{background:rgba(255,255,255,.22);color:#fff}
+.notice{margin-top:10px;padding:7px 12px;border-radius:9px;background:var(--ac2);color:var(--ac);
+  font-size:12.5px;font-weight:500;display:inline-block}
+.notice.warn{background:var(--badbg);color:var(--bad)}
 .notice a{color:inherit;font-weight:600;text-decoration:underline;text-underline-offset:2px}
-footer a{color:var(--ac)}
 
-.bar{display:flex;flex-wrap:wrap;gap:8px;padding:10px 24px;background:var(--card);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:9}
-input,select{padding:7px 10px;border:1px solid var(--bd);border-radius:8px;font-size:13px;background:#fff;color:var(--tx)}
-input:focus,select:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 2px rgba(24,95,165,.12)}
-input#kw{flex:1;min-width:180px}
-.vsep{width:1px;height:22px;background:var(--bd);align-self:center}
+/* ── 页签（总览 / 明细 / 历史 / 说明）────────────────────────── */
+#vtab{position:sticky;top:0;z-index:39;display:flex;gap:4px;padding:5px;margin-bottom:10px;
+  overflow-x:auto;scrollbar-width:none}
+#vtab::-webkit-scrollbar{display:none}
+#vtab .tab{flex:1 0 auto;border:0;background:transparent;padding:9px 15px;border-radius:11px;
+  font-size:13.5px;font-weight:600;color:var(--tx2);cursor:pointer;font-family:inherit;
+  transition:.16s;white-space:nowrap}
+#vtab .tab:hover{color:var(--ac);background:var(--hover)}
+#vtab .tab.on{background:linear-gradient(135deg,var(--op1),var(--op2));color:#fff;
+  box-shadow:0 6px 18px rgba(0,0,0,.16)}
+.view{display:none}
+.view.on{display:block}
+
+/* ── 工具条（保留原 12 维控件的 id 契约，只换皮）─────────────── */
+.bar{display:flex;flex-wrap:wrap;gap:8px;padding:11px 14px;margin-bottom:10px;
+  position:sticky;top:0;z-index:38}
+input,select{padding:7px 10px;border:1px solid var(--bd2);border-radius:9px;font-size:13px;
+  background:var(--glass3);color:var(--tx);font-family:inherit}
+input:focus,select:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2)}
+input#kw{flex:1;min-width:170px}
+.vsep{width:1px;height:22px;background:var(--bd2);align-self:center}
 button{font-family:inherit}
-#dir{width:40px;font-size:15px;font-weight:600;border:1px solid var(--bd);background:#fff;border-radius:8px;cursor:pointer;color:var(--ac)}
-#reset,#csv,#offline{padding:7px 13px;border:1px solid var(--bd);background:#fff;border-radius:8px;cursor:pointer;font-size:13px;color:var(--tx2)}
+#dir{width:40px;font-size:15px;font-weight:600;border:1px solid var(--bd2);background:var(--glass3);
+  border-radius:9px;cursor:pointer;color:var(--ac)}
+#reset,#csv,#offline{padding:7px 13px;border:1px solid var(--bd2);background:var(--glass3);
+  border-radius:9px;cursor:pointer;font-size:13px;color:var(--tx2);transition:.16s}
 #reset:hover,#csv:hover,#offline:hover{border-color:var(--ac);color:var(--ac)}
-.chips{display:flex;flex-wrap:wrap;gap:6px;width:100%;padding-top:2px}
-.chips button{padding:4px 11px;border:1px solid var(--bd);background:#fff;border-radius:999px;font-size:12.5px;cursor:pointer;color:var(--tx2);transition:.12s}
-.chips button:hover{border-color:var(--ac);color:var(--ac)}
-.chips button.on{background:var(--ac);border-color:var(--ac);color:#fff}
-
-/* 换行锚：把工具栏切分成「核心筛选」与「精细筛选」两行 ——
-   筛选维度加到 12 个以后，靠自然换行会出现「一行 3 个一行 9 个」这种参差，
-   读的人每次都要重新定位。固定断点让「地域/大类」这种高频维度始终在上一行。 */
 .brk{flex-basis:100%;height:0;margin:0;padding:0}
-/* 下拉宽度按内容自适应，但不允许某一项（如「线上 + 线下都可办」）把整行撑歪 */
-.bar select{max-width:230px}
-
-/* 当前生效的筛选标签：点 × 直接摘掉**这一个**条件 ——
-   逐个回去找对应下拉再改回「全部」，在 12 个维度下是件很烦的事。 */
+.bar select{max-width:232px}
+/* 状态页签（在售 / 已下架 / 全部） */
+#tabs{display:inline-flex;border:1px solid var(--bd2);border-radius:10px;overflow:hidden;background:var(--glass3)}
+#tabs button{border:0;background:transparent;padding:7px 13px;font-size:13px;cursor:pointer;
+  color:var(--tx2);font-weight:600}
+#tabs button+button{border-left:1px solid var(--bd2)}
+#tabs button.on{background:linear-gradient(135deg,var(--op1),var(--op2));color:#fff}
+#tabs button:disabled{color:var(--tx3);opacity:.55;cursor:not-allowed}
+#tabs button:disabled.on{background:var(--tx3);color:#fff}
+/* 快捷 chip */
+.chips{display:flex;flex-wrap:wrap;gap:6px;width:100%;padding-top:2px}
+.chips button{padding:4px 11px;border:1px solid var(--bd2);background:var(--glass3);border-radius:999px;
+  font-size:12.5px;cursor:pointer;color:var(--tx2);transition:.14s}
+.chips button:hover{border-color:var(--ac);color:var(--ac)}
+.chips button.on{background:linear-gradient(135deg,var(--op1),var(--op2));border-color:transparent;color:#fff}
+/* 生效中的筛选标签：点 × 摘掉这一个条件 */
 .fchips{display:inline-flex;flex-wrap:wrap;gap:5px;vertical-align:middle}
-.fchip{padding:1px 9px;border:1px solid #c3dcf5;background:var(--ac2);color:var(--ac);border-radius:999px;font-size:12px;cursor:pointer;line-height:1.7;font-family:inherit}
-.fchip:hover{background:#d6e8fa;border-color:var(--ac)}
+.fchip{padding:1px 9px;border:1px solid var(--bd2);background:var(--ac2);color:var(--ac);
+  border-radius:999px;font-size:12px;cursor:pointer;line-height:1.7;font-family:inherit}
+.fchip:hover{border-color:var(--ac)}
 .fchip i{font-style:normal;font-weight:700;margin-left:4px}
 
-/* 展开详情里的「复制这条资费」 */
-.detact{margin-top:9px}
-.cpbtn{padding:4px 12px;border:1px solid var(--bd);background:#fff;border-radius:8px;
-       font-size:12px;cursor:pointer;color:var(--tx2);font-family:inherit}
-.cpbtn:hover{border-color:var(--ac);color:var(--ac)}
-/* 轻提示（复制成功 / 失败）—— 1.8 秒自动淡出，不打断任何操作，
-   也不弹 confirm 那种要用户点一下才消失的东西 */
-#toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,10px);
-       background:#1f2328;color:#fff;padding:8px 17px;border-radius:9px;font-size:13px;
-       opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:99}
-#toast.on{opacity:1;transform:translate(-50%,0)}
-
-/* —— 地域徽标 / 下架页签（需求：只要「河北 + 全国」；下架单独一个页签）—— */
-.bg-sc{background:#eef1f5;color:#4a5568;border:1px solid #dfe4ea}
-.bg-sc-hb{background:#e6f1fb;color:#185fa5;border:1px solid #c3dcf5}
-.bg-sc-cn{background:#fdf3e3;color:#8a5a00;border:1px solid #f0dcb4}
-.bg-stop{background:#f4f4f6;color:#8a8a8a;border:1px solid #e0e0e5}
-/* 已下架行整体压暗，但**不清除可读性** —— 它仍是要看的资料，不是错误 */
-tr.row.stopped .nm{color:#8a8a8a}
-tr.row.stopped .fee{color:#8a8a8a}
-.tabs{display:inline-flex;border:1px solid var(--bd);border-radius:8px;overflow:hidden;background:#fff}
-.tabs button{border:0;background:transparent;padding:7px 13px;font-size:13px;cursor:pointer;color:var(--tx2)}
-.tabs button+button{border-left:1px solid var(--bd)}
-.tabs button.on{background:var(--ac);color:#fff}
-.tabs button:disabled{color:#c2c6cc;cursor:not-allowed}
-.tabs button:disabled.on{background:#c2c6cc;color:#fff}
-
-#stat{padding:10px 24px;color:var(--tx2);font-size:13px;background:var(--bg)}
+/* ── 统计行 ─────────────────────────────────────────────────── */
+#stat{padding:9px 3px;color:var(--tx2);font-size:13px}
 #stat b{color:var(--tx)}
-#stat .sortinfo{color:var(--ac);font-weight:500}
-table{width:100%;border-collapse:collapse;background:var(--card);font-size:13px}
-th{position:sticky;top:var(--barh);background:#eef1f4;text-align:left;padding:9px 10px;font-weight:600;border-bottom:1px solid var(--bd);white-space:nowrap;user-select:none;z-index:5}
+#stat .sortinfo{color:var(--ac);font-weight:600}
+
+/* ── 表格（用户选择：保留表格形态，只做美化）────────────────── */
+table{width:100%;border-collapse:separate;border-spacing:0;background:var(--glass);
+  backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
+  border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;font-size:13px;box-shadow:var(--sh)}
+th{position:sticky;top:var(--topbarh,150px);z-index:5;background:var(--glass3);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  text-align:left;padding:10px;font-weight:700;border-bottom:1px solid var(--bd2);
+  white-space:nowrap;user-select:none;font-size:12.5px;color:var(--tx2)}
 th[data-k]{cursor:pointer}
-th[data-k]:hover{background:#e6eaef}
-th .ar{opacity:.28;margin-left:3px;font-size:10px}
+th[data-k]:hover{color:var(--ac)}
+th .ar{opacity:.3;margin-left:3px;font-size:10px}
 th.act{color:var(--ac)}
 th.act .ar{opacity:1}
-th .hint{display:block;font-weight:400;font-size:11px;color:var(--tx2);opacity:.75}
-td{padding:8px 10px;border-bottom:1px solid #f0f2f4;vertical-align:top}
-tr.row:hover{background:#fafbfc;cursor:pointer}
-tr.row.isnew td{background:#fbfdfb}
-tr.row.isnew:hover td{background:#f6faf8}
-.nm{font-weight:500}
-.tg{display:inline-block;padding:1px 7px;border-radius:6px;background:var(--ac2);color:var(--ac);font-size:12px}
-.fee{font-weight:600;white-space:nowrap}
-.fee.free{color:var(--new)}
+td{padding:9px 10px;border-bottom:1px solid var(--bd2);vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+tbody tr.row:nth-child(4n+3){background:var(--zebra)}
+tr.row:hover{background:var(--hover);cursor:pointer}
+.nm{font-weight:600}
+.tg{display:inline-block;padding:1px 7px;border-radius:6px;background:var(--ac2);color:var(--ac);font-size:12px;font-weight:600;white-space:nowrap}
+.fee{font-weight:700;white-space:nowrap}
+.fee.free{color:var(--ok)}
 .fee.low{color:var(--warn)}
 .ap{color:var(--tx2);font-size:12px;max-width:320px}
-.mut{color:var(--tx2);font-size:11.5px}
-.bwtg{display:inline-block;padding:0 6px;border-radius:4px;background:var(--nbg);color:var(--new);font-size:11.5px;font-weight:600}
-.bwv{font-size:12px;color:var(--tx);white-space:nowrap}
-.bwv small{color:var(--tx2)}
-.soon{color:var(--warn);font-size:11.5px;font-weight:500}
-.exp{color:#a33333;font-size:11.5px;font-weight:500}
-.bg{display:inline-block;padding:0 5px;border-radius:4px;font-size:11px;font-weight:600;line-height:16px}
-.bg-new{background:var(--nbg);color:var(--new)}
-.bg-wait{background:var(--wbg);color:var(--warn)}
-.bg-add{background:var(--nbg);color:var(--new);border:1px solid #bfe3d3}
-.bg-chg{background:#fdecec;color:#a33333;border:1px solid #f3c9c9}
-.nm .bg{margin-left:5px;font-weight:600}
-.det{display:none;background:#fbfcfd}
+.mut{color:var(--tx3);font-size:11.5px}
+.bwtg{display:inline-block;padding:0 6px;border-radius:5px;background:var(--okbg);color:var(--ok);
+  font-size:11.5px;font-weight:700}
+.bwv{font-size:12px;white-space:nowrap}
+.soon{color:var(--warn);font-size:11.5px;font-weight:600}
+.exp{color:var(--bad);font-size:11.5px;font-weight:600}
+.bg{display:inline-block;padding:0 6px;border-radius:5px;font-size:11px;font-weight:700;line-height:17px;white-space:nowrap}
+.bg-new{background:var(--okbg);color:var(--ok)}
+.bg-wait{background:var(--warnbg);color:var(--warn)}
+.bg-add{background:var(--okbg);color:var(--ok);border:1px solid currentColor}
+.bg-chg{background:var(--badbg);color:var(--bad);border:1px solid currentColor}
+.bg-sc{background:var(--ac2);color:var(--ac);border:1px solid transparent}
+.bg-sc-cn{background:var(--warnbg);color:var(--warn)}
+.bg-stop{background:var(--badbg);color:var(--bad)}
+/* 归属徽标：个人 / 政企（仅移动有该字段）。
+   类名用 bg-ow / bg-ow-g 而不是拼中文（bg-ow-政企）—— 中文标识符虽然合法，
+   但在被压缩、被正则处理、或被别的工具解析时是常见的踩坑点，没必要冒这个险。 */
+.bg-ow{background:var(--ac2);color:var(--ac)}
+.bg-ow-g{background:var(--warnbg);color:var(--warn)}
+.nm .bg{margin-left:5px}
+tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
+.det{display:none}
 .det.on{display:table-row}
-.det div{padding:10px 14px;border-bottom:1px solid #eef1f4;line-height:1.75}
-.det b{color:var(--tx2);font-weight:500;display:inline-block;min-width:96px}
-.pager{display:flex;gap:8px;align-items:center;justify-content:center;padding:18px}
-.pager button{padding:6px 14px;border:1px solid var(--bd);background:#fff;border-radius:8px;cursor:pointer;font-size:13px}
+.det>td{padding:0;background:var(--zebra)}
+.det div{padding:11px 15px;line-height:1.85;border-bottom:1px solid var(--bd2)}
+.det b{color:var(--tx2);font-weight:600;display:inline-block;min-width:96px}
+.detact{margin-top:9px}
+.cpbtn{padding:4px 12px;border:1px solid var(--bd2);background:var(--glass3);border-radius:9px;
+  font-size:12px;cursor:pointer;color:var(--tx2);font-family:inherit}
+.cpbtn:hover{border-color:var(--ac);color:var(--ac)}
+.pager{display:flex;gap:8px;align-items:center;justify-content:center;padding:18px 0}
+.pager button{padding:6px 14px;border:1px solid var(--bd2);background:var(--glass2);border-radius:9px;
+  cursor:pointer;font-size:13px;color:var(--tx)}
+.pager button:hover:not(:disabled){border-color:var(--ac);color:var(--ac)}
 .pager button:disabled{opacity:.4;cursor:default}
-.empty{padding:40px;text-align:center;color:var(--tx2)}
-footer{padding:16px 24px 40px;color:var(--tx2);font-size:12px}
-code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
-
-/* —— 网别切换入口 —— */
-.netnav{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
-.netbtn{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border:1px solid var(--bd);
-  background:#fff;border-radius:9px;cursor:pointer;font-size:13.5px;color:var(--tx2);transition:.12s}
-.netbtn:hover{border-color:var(--ac);color:var(--ac)}
-.netbtn.on{background:var(--ac);border-color:var(--ac);color:#fff}
-.netbtn .nc{font-size:11.5px;color:var(--tx2)}
-.netbtn.on .nc{color:#d6e6f7}
-.netbtn .nb{font-size:11px;padding:1px 7px;border-radius:999px;background:var(--wbg);color:var(--warn);font-weight:600}
-.netbtn.on .nb{background:rgba(255,255,255,.22);color:#fff}
-
-/* —— 未接入占位 —— */
-.netempty{max-width:760px;margin:52px auto;padding:26px 30px;background:var(--card);border:1px solid var(--bd);border-radius:14px}
-.netempty h2{margin:0 0 12px;font-size:17px;font-weight:600}
-.netempty p{margin:9px 0;color:var(--tx2);font-size:13.5px;line-height:1.85}
+.empty{padding:44px;text-align:center;color:var(--tx2)}
+.empty a{color:var(--ac)}
+.netempty{max-width:760px;margin:40px auto;padding:26px 30px}
+.netempty h2{margin:0 0 12px;font-size:17px}
+.netempty p{margin:9px 0;color:var(--tx2);font-size:13.5px;line-height:1.9}
 .netempty p b{color:var(--tx)}
-.netempty code{background:#eef1f4;padding:1px 6px;border-radius:4px;font-size:12px}
 
-@media(max-width:760px){.ap{max-width:180px}input#kw{min-width:120px}}
+/* ── 总览视图 ───────────────────────────────────────────────── */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:11px;margin-bottom:12px}
+.stat{padding:15px 17px;border-radius:var(--r);background:var(--glass);border:1px solid var(--bd);
+  backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));box-shadow:var(--sh)}
+.stat .si{font-size:16px;margin-bottom:6px;opacity:.85}
+.stat .sn{font-size:26px;font-weight:800;letter-spacing:-1px;line-height:1.15;
+  background:linear-gradient(135deg,var(--op1),var(--op2));-webkit-background-clip:text;
+  background-clip:text;-webkit-text-fill-color:transparent}
+.stat .sl{font-size:11.5px;color:var(--tx3);margin-top:3px;font-weight:600}
+.stat.k{border-left:3px solid var(--op1)}
+.panel{padding:16px 18px;margin-bottom:12px;border-radius:var(--r);background:var(--glass);
+  border:1px solid var(--bd);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
+  box-shadow:var(--sh)}
+.ph{display:flex;align-items:baseline;gap:11px;flex-wrap:wrap;margin-bottom:13px}
+.pt{margin:0;font-size:14.5px;font-weight:700}
+.ps{font-size:11.5px;color:var(--tx3)}
+.bars{display:flex;flex-direction:column;gap:7px}
+.brow{display:grid;grid-template-columns:minmax(112px,150px) 1fr 62px;gap:9px;align-items:center;font-size:12.5px}
+.blab{color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.btrack{height:19px;background:var(--zebra);border-radius:6px;overflow:hidden;position:relative}
+.bfill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--op1),var(--op2));
+  transition:width .5s cubic-bezier(.4,0,.2,1);min-width:2px}
+.bval{text-align:right;font-variant-numeric:tabular-nums;color:var(--tx2);font-weight:700}
+.btrack .bpct{position:absolute;right:7px;top:0;line-height:19px;font-size:10.5px;
+  color:var(--tx3);font-weight:700}
+
+/* ── 变化历史（时间线）──────────────────────────────────────── */
+.tl{position:relative;padding-left:21px}
+.tl::before{content:'';position:absolute;left:5px;top:5px;bottom:5px;width:2px;
+  background:linear-gradient(180deg,var(--op1),var(--op2),transparent);border-radius:2px;opacity:.5}
+.tnode{position:relative;padding:11px 0 11px 3px}
+.tnode::before{content:'';position:absolute;left:-20px;top:17px;width:10px;height:10px;
+  border-radius:50%;background:var(--op1);box-shadow:0 0 0 3px var(--bg1);transition:background .4s}
+.tnode.zero::before{background:var(--tx3);opacity:.45}
+.thd{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:12.5px;cursor:pointer}
+.thd .ts{font-weight:700;color:var(--tx)}
+.thd .tm{color:var(--tx3);font-variant-numeric:tabular-nums}
+.tbd{display:none;margin-top:9px}
+.tnode.open .tbd{display:block}
+.tnet{margin:7px 0;padding:9px 12px;border-radius:10px;background:var(--zebra);border:1px solid var(--bd2)}
+.tnet .nh{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:12.5px;font-weight:700}
+.tnet .nn{color:var(--tx2);font-weight:400}
+.tcaps{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.tcap{padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;
+  background:var(--glass3);border:1px solid var(--bd2);color:var(--tx2)}
+.tcap.a{background:var(--okbg);color:var(--ok);border-color:transparent}
+.tcap.r{background:var(--badbg);color:var(--bad);border-color:transparent}
+.tcap.c{background:var(--warnbg);color:var(--warn);border-color:transparent}
+.tgl{padding:4px 11px;border:1px solid var(--bd2);background:var(--glass3);border-radius:999px;
+  font-size:12px;cursor:pointer;color:var(--tx2);font-family:inherit}
+.tgl:hover{border-color:var(--ac);color:var(--ac)}
+
+/* ── 数据说明 ───────────────────────────────────────────────── */
+.ab p{margin:10px 0;font-size:13px;line-height:1.92;color:var(--tx2)}
+.ab p b{color:var(--tx)}
+.ab code{background:var(--zebra);padding:1px 6px;border-radius:5px;font-size:12px;
+  border:1px solid var(--bd2)}
+.ab h3{margin:18px 0 7px;font-size:13.5px;color:var(--tx)}
+.ab ul{margin:7px 0;padding-left:20px}
+.ab li{margin:5px 0;font-size:13px;line-height:1.85;color:var(--tx2)}
+.ab a{color:var(--ac)}
+
+#toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,12px);z-index:99;
+  background:#111c2b;color:#fff;padding:9px 18px;border-radius:10px;font-size:13px;
+  box-shadow:var(--sh2);opacity:0;pointer-events:none;transition:opacity .18s,transform .18s}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+
+@media(max-width:900px){
+  .nav-mid{order:3;flex:1 1 100%;justify-content:space-between;margin-top:3px}
+  #h1{max-width:70vw}#sub{max-width:76vw}
+}
+@media(max-width:760px){
+  .wrap{padding:8px 10px 32px}
+  .ap{max-width:150px}
+  input#kw{min-width:110px}
+  .bar select{max-width:150px}
+  .brow{grid-template-columns:minmax(78px,100px) 1fr 52px;font-size:12px}
+  .stat .sn{font-size:22px}
+  th,td{padding:8px 7px}
+}
 </style>
 </head>
 <body>
-<header>
-<h1 id="h1">河北移动 · 资费全量目录</h1>
-<div class="sub" id="sub">来源：中国移动 APP「资费专区」（nrapigate / nrtariff） · 数据基线 __DATE__ · 共 __N__ 条 · 单位已按 dataUnit 归一</div>
-<nav class="netnav" id="netnav"></nav>
-<div class="notice" id="notice">__NOTICE__</div>
-<div class="notice warn" id="basewarn" style="display:none"></div>
+<div class="aurora"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+<div class="grain"></div>
+
+<div class="wrap">
+<header class="nav glass">
+  <div class="nav-in">
+    <div class="brand">
+      <div id="logo">移</div>
+      <div class="brand-t">
+        <div id="h1">河北移动 · 资费全量目录</div>
+        <div id="sub">来源：中国移动 APP「资费专区」 · 数据基线 __DATE__ · 共 __N__ 条</div>
+      </div>
+    </div>
+    <div class="nav-mid">
+      <div class="upd"><span class="dot"></span><span id="updTxt">加载中…</span></div>
+      <div class="nav-cnt">在架 <b id="navCnt">—</b></div>
+      <div class="nav-cnt">已下架 <b id="navStop">—</b></div>
+      <div class="nav-cnt">本次变更 <b id="navChg">—</b></div>
+    </div>
+    <div class="nav-act">
+      <button class="btn" id="themeBtn" title="切换深色 / 浅色主题（记住选择）">🌙 深色</button>
+    </div>
+  </div>
+  <!-- 四网切换：放在顶栏这一层（而不是「资费明细」页签里），
+       因为总览与变化历史也按当前网渲染 —— 放在明细页里会让另外两个页签
+       「跟着哪个网」变得说不清。 -->
+  <nav class="netnav" id="netnav"></nav>
+  <div class="notice" id="notice">__NOTICE__</div>
+  <div class="notice warn" id="basewarn" style="display:none"></div>
 </header>
 
-<div class="bar" id="bar">
-  <!-- 在售 / 已下架 页签：两个口径物理分开，互不污染。
-       在售那页的月费/流量排序与「本次变更」都只统计在售条目；
-       下架的另外一页专门用来看「哪些资费没了」。 -->
-  <div class="tabs" id="tabs">
+<nav id="vtab">
+  <button class="tab on" data-v="ov">数据总览</button>
+  <button class="tab" data-v="list">资费明细</button>
+  <button class="tab" data-v="hist">变化历史</button>
+  <button class="tab" data-v="about">数据说明</button>
+</nav>
+
+<main>
+<!-- ═══ 数据总览 ═══ -->
+<section class="view on" id="v-ov">
+  <div class="stats" id="ovStats"></div>
+  <div class="panel">
+    <div class="ph"><h2 class="pt">分类构成</h2><span class="ps" id="ovCatNote">四网统一口径的大类</span></div>
+    <div class="bars" id="ovCat"></div>
+  </div>
+  <div class="panel">
+    <div class="ph"><h2 class="pt">地域构成</h2><span class="ps" id="ovScNote"></span></div>
+    <div class="bars" id="ovSc"></div>
+  </div>
+  <div class="panel" id="ovOwPanel">
+    <div class="ph"><h2 class="pt">个人 / 政企构成</h2><span class="ps">上游 type1 字段（仅移动提供）</span></div>
+    <div class="bars" id="ovOw"></div>
+  </div>
+  <div class="panel" id="ovCityPanel">
+    <div class="ph"><h2 class="pt">地市分布</h2><span class="ps" id="ovCityNote"></span></div>
+    <div class="bars" id="ovCity"></div>
+  </div>
+  <div class="panel">
+    <div class="ph"><h2 class="pt">月费档位分布</h2><span class="ps">按标准月费（元）分档</span></div>
+    <div class="bars" id="ovFee"></div>
+  </div>
+  <div class="panel">
+    <div class="ph"><h2 class="pt">上架时间分布</h2><span class="ps">相对本网数据基线</span></div>
+    <div class="bars" id="ovAge"></div>
+  </div>
+</section>
+
+<!-- ═══ 资费明细 ═══ -->
+<section class="view" id="v-list">
+<div class="bar glass" id="bar">
+  <div id="tabs">
     <button data-v="0">在售</button><button data-v="1">已下架</button><button data-v="">全部</button>
   </div>
   <input id="kw" placeholder="搜索名称 / 套餐 / 客户 / 渠道 / 报备编号 / 权益 / 宽带速率…">
@@ -158,11 +405,11 @@ code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
     <option value="hb">仅河北省</option>
     <option value="cn">仅全国</option>
   </select>
-  <!-- 类型**两级**：大类（四网统一口径）+ 细分（上游原始分类）。
-       四网的原始分类根本不同构 —— 广电那网压根没有「套餐」这个词（它写「5G套餐」「流量包」），
-       直接拿原始分类当筛选项，等于让用户按「上游怎么分的」去理解四个网。
-       大类由构建脚本按 TYPE_CAT 归一后写进行数据（见 tariff_monitor.py），
-       页面只读不算；选了大类后不属于它的细分项会**置灰**，从根上杜绝筛出空集。 -->
+  <!-- 归属（个人 / 政企）：只有移动的上游接口带 type1 字段，其余三网该下拉隐藏 -->
+  <select id="ow" title="归属：个人资费 / 政企资费（上游 type1 字段；仅移动提供，其余三网上游没有这个字段）">
+    <option value="">全部归属</option>
+  </select>
+  <!-- 类型两级：大类（四网统一口径）+ 细分（上游原始分类） -->
   <select id="cat" title="类型大类（四网统一口径：套餐 / 加装包 / 营销活动 / 标准资费 / 宽带 / 港澳台-国际）">
     <option value="">全部大类</option>
   </select>
@@ -215,7 +462,7 @@ code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
     <option value="m500">宽带 ≥ 500M</option>
     <option value="m1000">宽带 ≥ 1000M</option>
   </select>
-  <select id="chx" title="办理渠道：上游原文（「线下及线上渠道」「自有渠道（中国联通APP等）、互联网渠道」…）已归一到三档。线上＝APP/网站/热线/短信，线下＝营业厅/门店/校园/代理">
+  <select id="chx" title="办理渠道：上游原文已归一到三档。线上＝APP/网站/热线/短信，线下＝营业厅/门店/校园/代理">
     <option value="">不限渠道</option>
     <option value="线上">线上</option>
     <option value="线下">线下</option>
@@ -268,6 +515,7 @@ code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
   <th data-k="call">通话<span class="ar"></span></th>
   <th data-k="name">名称<span class="ar"></span></th>
   <th data-k="ty" title="类型大类（四网统一口径：套餐 / 加装包 / …）；点列头排序，上游原始分类见展开详情">类型<span class="ar"></span></th>
+  <th title="归属：个人资费 / 政企资费（上游 type1 字段；仅移动提供）">归属</th>
   <th data-k="bw">宽带<span class="ar"></span></th>
   <th>目标客户</th>
   <th data-k="on">上架<span class="ar"></span></th>
@@ -278,18 +526,71 @@ code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:11.5px}
 <div class="pager">
   <button id="prev">上一页</button><span id="pg"></span><button id="next">下一页</button>
 </div>
-<footer>数据为运营商报备公示口径；「目标客户」为原文条件，能否办理需以营业厅/10086 为准。<br>
-上架 / 下线天数以页面顶部的<b>数据基线日期</b>为基准 —— 四网<b>各自一个基线</b>、不跨网共用（数据没变，页面就逐字节一致，便于归档去重）。<br>
-<b>地域</b>按各网<b>原始地域字段</b>判定（不是从名称里猜地名）：移动看 <code>applicableArea</code>/<code>city</code>/<code>province</code>，电信看 <code>applicableArea</code>，广电看 <code>_areaNames</code>；<b>地市</b>取条目自带的 4 位地市码（<b>移动</b> 12 市命中 1974 次、<b>电信</b> 265 次，是上游声明的适用范围）；
-<b>联通与广电上游没有地市级数据</b>（联通：12 城分类骨架逐条一致 + 明细零地域字段 + 旁路接口族不路由；广电：区域码表只有「全国/河北省」两档，传地市码回 <code>BASE102</code>）⇒ 这两网<b>不出地市这一层</b>，全部归入「河北省（全省）」。
-与河北无关的（其他省份专属）已按需求剔除。<br>
-<b>类型</b>分两级、且<b>四网同构</b>：<b>大类</b>（套餐 / 加装包 / 营销活动 / 标准资费 / 宽带 / 港澳台-国际）由构建脚本按 <code>TYPE_CAT</code> 归一后写进行数据 —— 四网的原始分类本来不同构（广电那网根本没有「套餐」这个词，它写「5G套餐」「流量包」「语音包」），不归一就没法横向比；选了某个大类后，不属于它的<b>细分</b>项会置灰，免得选出「套餐 ＋ 加装包」这种不存在的组合。<br>
-<b>渠道</b>同样做了归一（线上 / 线下 / 线上+线下 / 其他）：上游原文极碎 —— 光移动一家就有「线上渠道」「线上及线下渠道」「线上、线下渠道，具体以各省实际为准…」等 8 种写法表达同一件事，还有「自有渠道（中国联通APP等）、互联网渠道（飞猪、携程等）」这种看着像线下、其实纯线上的。四网合计 <b>99.6%</b> 能归上，剩下的原文没写明，一律落「其他」（不猜）。<br>
-<b>月费 / 流量 / 通话 / 宽带速率</b>四档区间都按<b>数值</b>卡（流量已按 <code>dataUnit</code> 归一为 GB）；「无流量 / 无通话」含两种情形 —— 填 0 的，和压根没填那个字段的（后者在移动那网占 34.8%，把它们排除在外会让这一档明显偏少，且看不出少了谁）。<br>
-<b>「已下架」页签</b>的判据各网不同、且只用上游给的信号：联通＝归入一级分类「99 停售套餐」（<b>不能</b>靠下线日判，实测那批一条都没过期）；广电＝服务端 <code>stateFlag≠1</code>；
-电信＝下线日早于数据基线日；<b>移动公开接口取不到下架数据</b>（<code>isPublic=0</code> 能列出分类但明细恒返回 0 条），故该网「已下架」页签置灰。<br>
-每日 <b>06:00（北京时间）</b>自动巡检 · <a href="https://github.com/starrry365/hebei-tariff-monitor" target="_blank" rel="noopener">仓库与变更记录</a>
-</footer>
+</section>
+
+<!-- ═══ 变化历史 ═══ -->
+<section class="view" id="v-hist">
+  <div class="panel">
+    <div class="ph">
+      <h2 class="pt">资费变更时间线</h2>
+      <button class="tgl" id="histTog">全部展开</button>
+      <span class="ps" id="histNote"></span>
+    </div>
+    <div class="tl" id="histBox"></div>
+  </div>
+</section>
+
+<!-- ═══ 数据说明 ═══ -->
+<section class="view" id="v-about">
+  <div class="panel ab">
+    <div class="ph"><h2 class="pt">数据说明与口径</h2></div>
+    <p>数据为运营商<b>报备公示口径</b>；「目标客户」为原文条件，能否办理需以营业厅 / 客服为准。
+    每日 <b>06:00（北京时间）</b>自动巡检，
+    源码与变更记录见 <a href="https://github.com/starrry365/hebei-tariff-monitor" target="_blank" rel="noopener">GitHub 仓库</a>。</p>
+
+    <h3>来源</h3>
+    <ul id="abSrc"></ul>
+
+    <h3>地域口径（河北省 / 全国 + 地市）</h3>
+    <p>按各网<b>原始地域字段</b>判定（不是从名称里猜地名）：移动看 <code>applicableArea</code> / <code>city</code> / <code>province</code>，
+    电信看 <code>applicableArea</code>，广电看 <code>_areaNames</code>。与河北无关的（其他省份专属）已按需求剔除。</p>
+    <p><b>地市</b>取条目自带的 4 位地市码（移动 12 市命中 1974 次、电信 265 次，是上游声明的适用范围）。
+    <b>联通与广电上游没有地市级数据</b> ⇒ 这两网<b>不出地市这一层</b>（隐藏，不是置灰 —— 置灰会让人以为
+    「本网暂时没有」，而真相是上游根本没有这个维度）。
+    联通侧的判据：12 城分类骨架逐条一致 + 明细 24 字段零地域字段 + 旁路接口族在河北侧不路由；
+    广电侧：区域码表只有「全国 / 河北省」两档，传地市码回 <code>BASE102</code>。</p>
+
+    <h3>归属（个人 / 政企）</h3>
+    <p>取上游接口条目的 <code>type1</code> 字段（<code>1</code>=个人资费、<code>2</code>=政企资费）。
+    <b>四网里只有移动提供这个字段</b>，联通 / 电信 / 广电的条目里连 <code>type1</code> 键都不存在 ⇒ 这三网的「归属」下拉隐藏。
+    这是<b>上游字段口径</b>，不是从「目标客户」文本里猜的 —— 后者会把「中国移动用户（不含港澳台）」这种
+    没写明客户类型的大批量条目判成未知（实测占比 84%~99%），撑不起一个筛选维度。</p>
+
+    <h3>类型（两级 + 四网同名）</h3>
+    <p>四网的原始分类<b>本来不同构</b> —— 广电那网根本没有「套餐」这个词（它写「5G套餐」「流量包」「语音包」）。
+    所以由构建脚本按 <code>TYPE_CAT</code> 归一成统一<b>大类</b>（套餐 / 加装包 / 营销活动 / 标准资费 / 宽带 / 港澳台-国际）后写进行数据，
+    页面只读不算。选了某个大类后，不属于它的<b>细分</b>项会置灰，免得选出「套餐 ＋ 加装包」这种不存在的组合。</p>
+
+    <h3>渠道</h3>
+    <p>同样做了归一（线上 / 线下 / 线上+线下 / 其他）：上游原文极碎，光移动一家就有 8 种写法表达「线上」。
+    四网合计 <b>99.6%</b> 能归上，剩下的原文没写明，一律落「其他」（不猜）。</p>
+
+    <h3>数值与时间</h3>
+    <p><b>月费 / 流量 / 通话 / 宽带速率</b>四档区间都按<b>数值</b>卡（流量已按 <code>dataUnit</code> 归一为 GB）；
+    「无流量 / 无通话」含两种情形 —— 填 0 的，和压根没填那个字段的。</p>
+    <p><b>上架 / 下线天数以各网自己的「数据基线日期」为基准</b>，四网各自一个、不跨网共用
+    （数据没变，页面就逐字节一致，便于归档去重）。基线一旦解析失败，时间筛选会整体停用（fail-closed）并给出可见警告 ——
+    绝不放行成「全部通过」那种看不出来的错。</p>
+
+    <h3>「已下架」页签</h3>
+    <p>判据各网不同，且只用上游给的信号：联通＝归入一级分类「99 停售套餐」（<b>不能</b>靠下线日判，实测那批一条都没过期）；
+    广电＝服务端 <code>stateFlag≠1</code>；电信＝下线日早于数据基线日；
+    <b>移动公开接口取不到下架数据</b>（<code>isPublic=0</code> 能列出分类但明细恒返回 0 条），故该网「已下架」页签置灰。</p>
+  </div>
+</section>
+</main>
+</div>
+<div id="toast"></div>
 <script>
 /* —— 四网数据容器 ——
    骨架阶段：只有「移动」接了真实数据，其余三家的 rows 为空、src/base 待补。
@@ -302,11 +603,16 @@ const NETS=__NETS__;
    在页面里另写一份常量会与 Python 那份漂移，而漂移只表现为「下拉顺序和构建日志对不上」，
    不报错 —— 这种没人会去查的不一致最难防，所以干脆只留一份权威。 */
 const CAT_ORDER=__CAT_ORDER__;
+/* 归属档位顺序。同 CAT_ORDER 的理由：顺序只留一份权威，页面不另写常量。 */
+const OW_ORDER=__OW_ORDER__;
+/* 变更历史 —— 页面时间线的**唯一**数据源，由构建脚本从 history.json 注入。
+   空数组是正常状态（首次部署时还没有任何一次带变更的巡检），不是错误。 */
+const HIST=__HIST__;
 /* 所有「枚举型筛选维度」的控件 id —— 全页只此一份。
    清空筛选 / 切网复位 / 深链读写本来都要遍历同一批控件，而原先是**每处各写一遍字面量**
    （5 处），加一个维度就得记得改 5 个地方。漏一处的后果是「切网后这个维度没被清掉」：
    上个网选中的条件继续生效，页面却毫无提示 —— 与「幽灵筛选值」是同一类静默错。 */
-const DIMS=["sc","cat","ty","ct","pf","gf","cf","bw","chx","on","off","chg"];
+const DIMS=["sc","ow","cat","ty","ct","pf","gf","cf","bw","chx","on","off","chg"];
 function clearDims(){DIMS.forEach(k=>{const e=document.getElementById(k);if(e)e.value=""})}
 const NET_LS=["move","unicom","telecom","cbn"];      // 顺序即导航条顺序
 const rowsOf=n=>((NETS[n]||{}).rows)||[];
@@ -374,6 +680,14 @@ function chgTag(d){
 function scTag(d){
   const lb=SC_LB[d.sc];
   return lb?'<span class="bg bg-sc bg-sc-'+esc(d.sc)+'" title="适用地域：'+esc(lb)+'">'+esc(lb)+'</span>':"";
+}
+/* 归属徽标（个人 / 政企）。四网里只有移动的数据带 d.ow ⇒ 其余三网不会渲染出这个标签。
+   类名走 bg-ow / bg-ow-g 两个固定值，不拼中文 —— 中文标识符虽合法，
+   但在压缩、正则处理、别的工具解析时都是常见踩坑点。 */
+function owTag(d){
+  if(!d.ow)return"";
+  return '<span class="bg bg-ow'+(d.ow==="政企"?" bg-ow-g":"")+'" title="归属：'
+    +esc(d.ow)+'（上游 type1 字段）">'+esc(d.ow)+'</span>';
 }
 function stopTag(d){
   return d.st?' <span class="bg bg-stop" title="已下架（判据见「关于本页」页脚）">已下架</span>':"";
@@ -559,8 +873,8 @@ function sortView(){
 }
 
 /* 维度的显示前缀。空串＝这个维度的选项文本本身就能读懂（如「本次变更」）。 */
-const DIM_PRE={sc:"地域：",cat:"类型：",ty:"细分：",ct:"城市：",pf:"月费：",gf:"流量：",
-               cf:"通话：",bw:"宽带：",chx:"渠道：",on:"上架：",off:"下线：",chg:""};
+const DIM_PRE={sc:"地域：",ow:"归属：",cat:"类型：",ty:"细分：",ct:"城市：",pf:"月费：",
+               gf:"流量：",cf:"通话：",bw:"宽带：",chx:"渠道：",on:"上架：",off:"下线：",chg:""};
 /* 读某个维度控件当前选中项的**可读文本**。
    选项文本带条数（如「加装包（2135）」）—— 那是给下拉里挑的时候看的，
    写进筛选说明 / 标签里就是噪音，这里统一削掉。 */
@@ -646,7 +960,7 @@ function render(){
   $("#pg").textContent="第 "+(pg+1)+" / "+Math.max(1,Math.ceil(view.length/PAGE))+" 页";
   $("#prev").disabled=pg===0;$("#next").disabled=st+PAGE>=view.length;
   if(!view.length){
-    tb.innerHTML='<tr><td colspan="9" class="empty">没有匹配的资费 · 试试 <a href="#" id="clr">重置全部筛选</a></td></tr>';
+    tb.innerHTML='<tr><td colspan="10" class="empty">没有匹配的资费 · 试试 <a href="#" id="clr">重置全部筛选</a></td></tr>';
     const c=$("#clr");if(c)c.onclick=e=>{e.preventDefault();resetAll()};
     return;
   }
@@ -659,14 +973,16 @@ function render(){
       +'<td>'+(d.c&&d.c!=="0"?esc(d.c)+" 分":"—")+'</td>'
       +'<td class="nm">'+scTag(d)+esc(d.n||d.t)+chgTag(d)+stopTag(d)+'</td>'
       +'<td><span class="tg" title="类型大类（四网统一口径）；上游原始分类见展开详情">'+esc(d.cat||"—")+'</span></td>'
+      +'<td>'+owTag(d)+'</td>'
       +'<td>'+bwCell(d)+'</td>'
       +'<td class="ap">'+esc((d.ap||"—").slice(0,90))+'</td>'
       +'<td style="white-space:nowrap">'+onCell(d)+'</td>'
       +'<td style="white-space:nowrap">'+offCell(d)+'</td>';
     const dr=document.createElement("tr");dr.className="det";
-    dr.innerHTML='<td colspan="9"><div>'
+    dr.innerHTML='<td colspan="10"><div>'
       +((d.ca||d.ck)?'<b>本次巡检</b>'+esc((d.ca?"新增":"")+(d.ca&&d.ck?" · ":"")
           +(d.ck?"关键字段有变更（月费 / 流量 / 上下线 / 权益等）":""))+'<br>':"")
+      +(d.ow?'<b>归属</b>'+esc(d.ow)+'（上游 type1 字段）<br>':"")
       +'<b>类型</b>'+esc(d.cat||"—")
         +(d.ty&&d.ty!==d.cat?' <span class="mut">（上游分类：'+esc(d.ty)+'）</span>':"")+'<br>'
       +'<b>套餐名</b>'+esc(d.t||"—")+'<br>'
@@ -709,13 +1025,16 @@ function apply(){
      「正常」统计，看着像筛选把数据全滤掉了。 */
   if(!online(NET)){view=[];renderEmptyState();syncHash();return}
   renderEmptyState();
-  const kw=$("#kw").value.trim().toLowerCase(),scv=$("#sc").value,cat=$("#cat").value,
+  const kw=$("#kw").value.trim().toLowerCase(),scv=$("#sc").value,owv=$("#ow").value,
+        cat=$("#cat").value,
         ty=$("#ty").value,ct=$("#ct").value,pf=$("#pf").value,gf=$("#gf").value,
         cf=$("#cf").value,bw=$("#bw").value,chx=$("#chx").value,
         on=$("#on").value,off=$("#off").value,chg=$("#chg").value;
   /* ★ 当前「城市」这个维度在本网是否**不存在**（见 renderDims，联通/广电直接隐藏）：
      取一次就够，filter 要跑几千遍，在里面 querySelector 纯属白烧。 */
   const ctDimOff=$("#ct").style.display==="none";
+  /* 归属维度在本网是否不存在（联通/电信/广电上游无 type1 ⇒ 见 renderDims 隐藏）。 */
+  const owDimOff=$("#ow").style.display==="none";
   view=rowsOf(NET).filter(d=>{
     /* 「在售 / 已下架」页签先判 —— 它是这一页的**前提**，不是并列条件。
        d.st 为 1 表示已下架（由采集侧按各网判据写好，见 tariff_monitor.state_of）；
@@ -734,6 +1053,11 @@ function apply(){
        两者是「且」关系，但**不会互相打架** —— 选了大类之后，不属于它的细分项
        在 UI 上已经被置灰（见 syncTyOptions），用户根本选不出
        「大类＝加装包 ＋ 细分＝5G套餐」这种必然为空的自相矛盾组合。 */
+    /* 归属（个人 / 政企）：只有移动的条目带 d.ow。
+       owDimOff 是保险丝，与地市同一条原则 —— UI 上点不到隐藏项，但脚本 /
+       深链仍可能把它设进来（实测可行），那时按它筛会给出「政企 0 条」这类
+       看着正常、实则拿不存在的维度筛出来的假答案。无效筛选 = 不筛。 */
+    if(owv&&!owDimOff&&d.ow!==owv)return false;
     if(cat&&d.cat!==cat)return false;
     if(ty&&d.ty!==ty)return false;
     /* 保险丝：当前取值若是「本网已置灰的维度」，当没筛。
@@ -848,6 +1172,9 @@ function syncHash(){
      时默认网由 NET_DEF 决定，而 NET_DEF 会随「哪网有数据」变化 ——
      显式写出 net，分享出去的链接才会一直指向同一网。 */
   const m={net:NET,st:STA,kw:$("#kw").value.trim(),s:sortK,d:sortD};
+  /* 页签也进深链（但「资费明细」是默认值、不写）—— 分享「总览」或「变化历史」
+     时，收链接的人应该直接落在同一屏，而不是又回到明细表。 */
+  if(VIEW!=="list")m.v=VIEW;
   /* 枚举型维度统一从 DIMS 取 —— 加维度时不用回来改这里（漏改＝新维度分享不出去） */
   DIMS.forEach(k=>{const e=$("#"+k);if(e)m[k]=e.value});
   for(const k in m)if(m[k]!== ""&&m[k]!=null)p.set(k,m[k]);
@@ -901,6 +1228,9 @@ function readHash(){
   const s=p.get("s");if(s&&F[s])sortK=s;
   const d=p.get("d");if(d==="1"||d==="-1")sortD=+d;
   $("#sort").value=sortK;
+  /* 页签：只认白名单里的四个值，认不出来就当没传（同「枚举参数先核对」的原则）。 */
+  const vv=p.get("v");
+  if(vv&&["ov","list","hist","about"].indexOf(vv)>=0)setView(vv);
 }
 
 /* —— 网别导航 —— */
@@ -943,6 +1273,16 @@ function renderNet(){
   const n=net(),rs=rowsOf(NET),has=online(NET),name="河北"+(n.sh||"");
   $("#h1").textContent=name+" · 资费全量目录";
   document.title=name+"资费全量查询"+(has?"（"+rs.length+" 条）":"");
+  /* 主题色跟着当前网走：文档级属性一变，所有 --op* 变量同时切到那家的色板。 */
+  document.documentElement.setAttribute("data-net",NET);
+  /* 顶栏统计。切网时必须整行重算 —— 只改标题不改这里，顶栏会一直挂着
+     上一家的数字，且**完全不报错**（看着像「页面没刷新」，实际是漏了一处）。 */
+  const nStop=rs.filter(d=>d.st).length,nChg=rs.filter(d=>d.ca||d.ck).length;
+  $("#logo").textContent=(n.sh||name).slice(0,1);
+  $("#navCnt").textContent=has?String(rs.length-nStop):"—";
+  $("#navStop").textContent=has?String(nStop):"—";
+  $("#navChg").textContent=has?String(nChg):"—";
+  $("#updTxt").textContent=has?("更新于 "+(n.base||"—")):"本网数据尚未接入";
   /* 分档条数写进副标题：只报一个总数看不出「邢台有几条 / 全国有几条」，
      而「邢台没有的自动取河北/全国」这个口径正需要这三档的规模才读得懂。 */
   let scTxt="";
@@ -1000,8 +1340,22 @@ function renderNet(){
   if(oc)oc.textContent=nch?("本次变更（"+nch+" 条）"):"本次变更（本网无）";
   const cc=document.getElementById("chipchg");
   if(cc)cc.style.display=nch?"":"none";
+  /* —— 归属下拉：按本网**实际出现的取值**建，并带条数 ——
+     与地域「本网没有的那档置灰」同一条原则：不给不存在的取值留选项，
+     否则用户选了会拿到 0 条，而那不是「本网没有政企资费」，是问了个不存在的值。 */
+  const owc={};rs.forEach(d=>{if(d.ow)owc[d.ow]=(owc[d.ow]||0)+1});
+  const owSel=$("#ow");
+  owSel.innerHTML='<option value="">全部归属</option>';
+  OW_ORDER.filter(o=>owc[o]).forEach(o=>{
+    const op=document.createElement("option");
+    op.value=o;op.textContent=o+"（"+owc[o]+"）";
+    owSel.appendChild(op);
+  });
   syncTabs();
   renderDims();
+  /* 总览与本页共用同一份行数据，切网时它也得跟着刷 —— 放在这里而不是
+     只在「切到总览页签」时算，是为了让两个页签的数字**永远同源**。 */
+  renderOverview();
 }
 
 
@@ -1039,6 +1393,17 @@ function renderDims(){
     const cs=sc.selectedOptions[0];
     if(cs&&cs.disabled)sc.value="";
     sc.title="地域范围：河北省（含各地市专属与全省通用）/ 全国（本网没有的那一档会置灰）";
+  }
+  /* —— 归属（个人 / 政企）：本网**实际有数据**才给入口 ——
+     判据用数据而不是硬编码「只有移动有」：上游哪天给别的网补了这个字段，
+     这里自动放开，不必回来改代码。联通/电信/广电实测条目里连 type1 键都没有。 */
+  const owSel=$("#ow");
+  if(owSel){
+    const hasOw=rs.some(d=>d.ow);
+    owSel.style.display=hasOw?"":"none";
+    if(!hasOw)owSel.value="";   // 切网时把别网带过来的归属值清掉，否则筛选恒空
+    owSel.title=hasOw?"归属：个人资费 / 政企资费（上游 type1 字段）"
+      :"本网上游没有「归属」字段（条目里无 type1），该维度不提供";
   }
 }
 
@@ -1101,6 +1466,7 @@ function rowText(d){
   return [
     (d.n||d.t||"").trim(),
     "类型："+(d.cat||"—")+(d.ty&&d.ty!==d.cat?" / "+d.ty:""),
+    (d.ow?"归属："+d.ow:""),
     "月费："+(d.f!==""&&d.f!=null?d.f+" 元":"—"),
     "流量："+fmtGb(d.g),
     "通话："+(d.c&&d.c!=="0"?d.c+" 分钟":"—"),
@@ -1149,7 +1515,7 @@ function copyText(s){
    导的是 **view**（当前筛选 + 排序之后的全部结果），不是当前这一页：
    否则 49 页就得点 49 次。 */
 const CSV_COLS=[
-  ["地域",d=>SC_LB[d.sc]||""],["状态",d=>d.st?"已下架":"在售"],
+  ["地域",d=>SC_LB[d.sc]||""],["状态",d=>d.st?"已下架":"在售"],["归属",d=>d.ow||""],
   ["月费(元)",d=>d.f],["流量(GB)",d=>d.g],["流量原文",d=>d.d],["流量单位",d=>d.du],
   ["每元流量(GB)",d=>{const v=perVal(d);return v==null?"":(v===Infinity?"∞":+v.toFixed(3))}],
   ["通话(分)",d=>d.c],["名称",d=>d.n],["套餐名",d=>d.t],
@@ -1195,6 +1561,218 @@ function saveOffline(){
            "text/html;charset=utf-8");
 }
 
+
+/* ══════════════════════════════════════════════════════════════════════
+   视图页签（数据总览 / 资费明细 / 变化历史 / 数据说明）
+   ★ 只切显示，不碰筛选状态 —— 页签是「看哪一块」，不是筛选条件。
+     切回明细页时筛选原样还在，用户不会因为看了一眼总览就丢掉筛选。
+   ══════════════════════════════════════════════════════════════════════ */
+let VIEW="ov";
+const VIEWS=["ov","list","hist","about"];
+function setView(v){
+  if(VIEWS.indexOf(v)<0)v="ov";
+  VIEW=v;
+  document.querySelectorAll("#vtab .tab").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
+  VIEWS.forEach(k=>{
+    const s=document.getElementById("v-"+k);
+    if(s)s.classList.toggle("on",k===v);
+  });
+  /* 切回明细页要**重新量**工具条高度：在别的页签里它是 display:none、
+     量出来是 0，不重量就会把粘性表头钉到错的位置（滚动时才看得出来）。 */
+  requestAnimationFrame(fixBarh);
+  if(v==="ov")renderOverview();
+  if(v==="hist")renderHistory();
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   数据总览
+   ★ 所有数字都从**行数据现算**，不复用构建期统计：两者必须同源，
+     否则一旦出现「总览说 3887、明细说 3883」这种不一致，整页的可信度就没了。
+   ══════════════════════════════════════════════════════════════════════ */
+function ovBar(label,val,max,note){
+  const pct=max>0?Math.round(val*100/max):0;
+  const w=max>0?(val>0?Math.max(pct,1):0):0;
+  return '<div class="brow"><div class="blab"'+(note?' title="'+esc(note)+'"':"")+'>'+esc(label)+'</div>'
+    +'<div class="btrack"><div class="bfill" style="width:'+w+'%"></div>'
+    +(val?'<span class="bpct">'+pct+'%</span>':"")+'</div>'
+    +'<div class="bval">'+val+'</div></div>';
+}
+/* 一组 {名称: 条数} → 横条图。按**给定顺序**而不是按条数排：
+   顺序稳定才能逐日比对（今天冒出来的是哪一类，一眼可见）。
+   🔴 第 4 参允许**两种形态**：函数 ⇒ 逐条取备注；字符串 ⇒ 整组共用一条备注。
+   早先只按「函数」写，而月费/上架时间两个调用点传的是字符串 —— 字符串是 truthy，
+   于是被当函数调用，抛 TypeError 把 renderOverview() 整个中断：页面框架看着都在、
+   总览页却全空，控制台之外毫无迹象（典型的静默失效）。 */
+function ovBars(el,order,obj,note){
+  const max=Math.max.apply(null,order.map(k=>obj[k]||0).concat([0]));
+  const nf=typeof note==="function"?note:(note==null?()=>"":()=>note);
+  el.innerHTML=order.filter(k=>obj[k]).map(k=>ovBar(k,obj[k],max,nf(k))).join("")
+    || '<div class="mut">本网无此类数据</div>';
+}
+function renderOverview(){
+  const rs=rowsOf(NET),has=online(NET);
+  if(!has){
+    $("#ovStats").innerHTML='<div class="stat k"><div class="si">⏳</div>'
+      +'<div class="sn">—</div><div class="sl">本网数据尚未接入</div></div>';
+    ["ovCat","ovSc","ovOw","ovCity","ovFee","ovAge"].forEach(k=>{
+      const e=document.getElementById(k);if(e)e.innerHTML="";
+    });
+    return;
+  }
+  const live=rs.filter(d=>!d.st);
+  /* ── KPI 卡 ── */
+  const gq=rs.filter(d=>d.ow==="政企").length;
+  const k=[];
+  k.push(["🗂️","在架资费",live.length,"本网当前在售 + 未标下架的全部条目"]);
+  k.push(["📍","河北",live.filter(d=>d.sc==="hb").length,"适用地域为河北省（含各地市专属与全省通用）"]);
+  k.push(["🌐","全国",live.filter(d=>d.sc==="cn").length,"适用地域为全国"]);
+  if(!net().allProvince)
+    k.push(["🏙️","地市专属",live.filter(d=>(d.cty||[]).length).length,
+            "条目自带地市码、只适用某几个市（上游声明的适用范围）"]);
+  if(rs.some(d=>d.ow))k.push(["🏢","政企资费",gq,"上游 type1=2 的条目（仅移动提供该字段）"]);
+  k.push(["📴","已下架",rs.filter(d=>d.st).length,"本网判据下已停售/下线的条目"]);
+  k.push(["🔄","本次变更",rs.filter(d=>d.ca||d.ck).length,"本次巡检新增或关键字段有变动的条目"]);
+  $("#ovStats").innerHTML=k.map(x=>
+    '<div class="stat k" title="'+esc(x[3])+'"><div class="si">'+x[0]+'</div>'
+    +'<div class="sn">'+x[2]+'</div><div class="sl">'+esc(x[1])+'</div></div>').join("");
+
+  /* ── 分类构成 ── */
+  const cat={};rs.forEach(d=>{const c=d.cat||"其他";cat[c]=(cat[c]||0)+1});
+  $("#ovCatNote").textContent="共 "+CAT_ORDER.filter(c=>cat[c]).length+" 个大类 · 四网统一口径";
+  ovBars($("#ovCat"),CAT_ORDER,cat);
+
+  /* ── 地域构成 ── */
+  const sc={};rs.forEach(d=>{const k2=SC_LB[d.sc]||"未知";sc[k2]=(sc[k2]||0)+1});
+  $("#ovScNote").textContent=net().allProvince
+    ? "本网上游只有「河北 / 全国」两档地域"
+    : "河北含各地市专属与全省通用；另见下方地市分布";
+  ovBars($("#ovSc"),["河北","全国","未知"],sc);
+
+  /* ── 个人 / 政企 ── */
+  const op=$("#ovOwPanel"),owc={};
+  rs.forEach(d=>{if(d.ow)owc[d.ow]=(owc[d.ow]||0)+1});
+  if(rs.some(d=>d.ow)){
+    op.style.display="";
+    ovBars($("#ovOw"),OW_ORDER,owc);
+  }else{
+    op.style.display="none";
+  }
+
+  /* ── 地市分布 ── */
+  const cp=$("#ovCityPanel");
+  if(net().allProvince){
+    cp.style.display="none";
+  }else{
+    cp.style.display="";
+    const cm={};
+    rs.forEach(d=>(d.cty||[]).forEach(c=>{const n2=HB_CITY_LB[c];if(n2)cm[n2]=(cm[n2]||0)+1}));
+    const order=Object.keys(HB_CITY_LB).map(c=>HB_CITY_LB[c]);
+    const hit=rs.filter(d=>(d.cty||[]).length).length;
+    $("#ovCityNote").textContent="条目级地市码命中 "+hit+" 条（一条可属多市，故合计可大于命中数）";
+    ovBars($("#ovCity"),order,cm);
+  }
+
+  /* ── 月费档位 ── */
+  const FEES=[["0 元",d=>num(d.f)===0],["≤ 10 元",d=>{const v=num(d.f);return v>0&&v<=10}],
+    ["10 ~ 30 元",d=>{const v=num(d.f);return v>10&&v<=30}],
+    ["30 ~ 60 元",d=>{const v=num(d.f);return v>30&&v<=60}],
+    ["60 ~ 100 元",d=>{const v=num(d.f);return v>60&&v<=100}],
+    ["≥ 100 元",d=>{const v=num(d.f);return v!=null&&v>100}],
+    ["未标月费",d=>num(d.f)==null]];
+  const fc={};FEES.forEach(f=>{fc[f[0]]=rs.filter(f[1]).length});
+  ovBars($("#ovFee"),FEES.map(f=>f[0]),fc,"按标准月费（元），与「月费」筛选同口径");
+
+  /* ── 上架时间 ── */
+  const AGES=[["7 天内",7],["30 天内",30],["90 天内",90],["一年内",365],["一年以上",1e9]];
+  const ac={},un=[];
+  rs.forEach(d=>{
+    const dt=toDate(d.o);
+    if(!BASE_OK||dt==null){un.push(d);return}
+    const a=ago(dt);
+    if(a<0)return;                      // 还没上架的（待上架）不计入历史分布
+    for(let i=0;i<AGES.length;i++)if(a<=AGES[i][1]){ac[AGES[i][0]]=(ac[AGES[i][0]]||0)+1;break}
+  });
+  if(un.length)ac["无上架日期"]=un.length;
+  ovBars($("#ovAge"),AGES.map(a=>a[0]).concat(["无上架日期"]),ac,
+         "相对本网数据基线日期"+(BASE_OK?"":"（当前基线不可解析）"));
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   变化历史（时间线）
+   ★ 数据来自构建脚本注入的 HIST（history.json 的 items），不解析 changes/*.md：
+     那是给人读的长文，正则一改版就全废 —— 产物不该当接口用。
+   ══════════════════════════════════════════════════════════════════════ */
+function renderHistory(){
+  const box=$("#histBox"),note=$("#histNote");
+  const items=(HIST||[]).slice().sort((a,b)=>String(b.ts||"").localeCompare(String(a.ts||"")));
+  if(!items.length){
+    box.innerHTML='<div class="empty">还没有可展示的变更记录 —— 自本次部署起开始累积，'
+      +'下一次巡检有变化时就会出现。</div>';
+    note.textContent="";
+    return;
+  }
+  /* 按**日期**聚合成节点（而不是按 ts）：同一天里四网是分几轮跑的，
+     按 ts 分会变成一串只含一个网的小节点，反而看不出「这一天整体变了什么」。 */
+  const byD={};
+  items.forEach(x=>{const d=x.d||String(x.ts||"").slice(0,10);(byD[d]=byD[d]||[]).push(x)});
+  const days=Object.keys(byD).sort().reverse();
+  note.textContent="共 "+items.length+" 次网级巡检 · "+days.length+" 天 · 点击任一行展开";
+  box.innerHTML=days.map(d=>{
+    const ns=byD[d].slice().sort((a,b)=>String(a.net||"").localeCompare(String(b.net||"")));
+    let A=0,R=0,C=0;
+    ns.forEach(x=>{A+=x.a||0;R+=x.r||0;C+=x.c||0});
+    const zero=!(A||R||C);
+    return '<div class="tnode'+(zero?" zero":"")+'">'
+      +'<div class="thd"><span class="ts">'+esc(d)+'</span>'
+      +'<span class="tcap a">新增 '+A+'</span>'
+      +'<span class="tcap r">下架 '+R+'</span>'
+      +'<span class="tcap c">字段变更 '+C+'</span>'
+      +'<span class="tm">'+ns.length+' 个网</span></div>'
+      +'<div class="tbd">'+ns.map(x=>{
+          const caps=[];
+          if(x.a)caps.push('<span class="tcap a">新增 '+x.a+'</span>');
+          if(x.r)caps.push('<span class="tcap r">下架 '+x.r+'</span>');
+          if(x.c)caps.push('<span class="tcap c">字段变更 '+x.c+'</span>');
+          if(!caps.length)caps.push('<span class="tcap">本次无变化</span>');
+          const smp=(x.smp||[]).map(s=>{
+            const mark=s.k==="a"?"＋":s.k==="r"?"－":"⇄";
+            const fb=(s.f&&s.f.length)?(" · "+s.f.join("/")):"";
+            return '<span class="tcap'+(s.k==="a"?" a":s.k==="r"?" r":" c")+'" title="'
+              +esc((s.ty||"")+fb)+'">'+mark+esc(s.n||"")+'</span>';
+          }).join("");
+          return '<div class="tnet"><div class="nh"><span>'+esc(x.net||x.code||"")
+            +'</span><span class="nn">'+(x.n==null?"":x.n+" 条")+'</span></div>'
+            +'<div class="tcaps">'+caps.join("")+'</div>'
+            +(smp?'<div class="tcaps">'+smp+'</div>':"")
+            +'</div>';
+        }).join("")+'</div></div>';
+  }).join("");
+  box.querySelectorAll(".thd").forEach(h=>{
+    h.onclick=()=>h.parentNode.classList.toggle("open");
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   深浅主题
+   ★ 默认跟随系统；用户手动切过之后以手动为准，并只把**用户的选择**写进
+     localStorage —— 不缓存「系统当前是什么」，否则「我明明一直用浅色，
+     系统切成深色后页面前一刷新就变了」这种事必然发生。
+   ══════════════════════════════════════════════════════════════════════ */
+const THEME_KEY="hb-tariff-theme";
+function applyTheme(t){
+  document.documentElement.setAttribute("data-theme",t);
+  const b=$("#themeBtn");
+  if(b)b.textContent=t==="dark"?"☀️ 浅色":"🌙 深色";
+}
+function initTheme(){
+  let t=null;
+  try{t=localStorage.getItem(THEME_KEY)}catch(e){}
+  if(t!=="dark"&&t!=="light"){
+    t=(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";
+  }
+  applyTheme(t);
+}
+
 /* —— 初始化 ——
    顺序有讲究：先把排序下拉建好（readHash 要设 #sort），再 renderNav/renderNet
    建出导航与**按网生成**的类型下拉，readHash 才可能把 ty 设到一个已存在的
@@ -1203,6 +1781,7 @@ Object.keys(F).forEach(k=>{
   const o=document.createElement("option");o.value=k;o.textContent=F[k].lb;$("#sort").appendChild(o);
 });
 $("#sort").value=sortK;
+initTheme();
 renderNav();renderNet();
 readHash();
 markHead();
@@ -1224,6 +1803,22 @@ document.querySelectorAll("#tabs button").forEach(b=>{
 $("#sort").onchange=e=>{sortK=e.target.value;sortD=F[sortK].def;apply()};
 $("#dir").onclick=()=>{sortD=-sortD;apply()};
 $("#reset").onclick=resetAll;
+/* 视图页签 / 主题切换 / 历史展开。都是纯粹的「显示层」操作，
+   一律不碰筛选状态（见 setView 注释）。 */
+$("#vtab").addEventListener("click",e=>{
+  const b=e.target.closest(".tab");if(b)setView(b.dataset.v);
+});
+$("#themeBtn").onclick=()=>{
+  const t=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";
+  applyTheme(t);
+  try{localStorage.setItem(THEME_KEY,t)}catch(e){}
+};
+$("#histTog").onclick=()=>{
+  const ns=document.querySelectorAll("#histBox .tnode");
+  const anyClosed=[].some.call(ns,n=>!n.classList.contains("open"));
+  [].forEach.call(ns,n=>n.classList.toggle("open",anyClosed));
+  $("#histTog").textContent=anyClosed?"全部收起":"全部展开";
+};
 $("#csv").onclick=exportCSV;
 $("#offline").onclick=saveOffline;
 
@@ -1276,8 +1871,18 @@ $("#chips").addEventListener("click",e=>{
   apply();
 });
 
+/* 粘性表头的 top 偏移。
+   ★ 现在顶部有两层固定内容（顶栏 .nav + 视图页签 #vtab），表头必须让过它们，
+     否则会被压在下面 —— 而这类问题只在滚动时看得见，静态检查发现不了。
+   ★ 另外 `.bar`（筛选工具条）只在「资费明细」页签里可见，其它页签里它是
+     display:none、量出来高度为 0，所以切回明细页要**重新量一次**（见 setView）。 */
 function fixBarh(){
-  document.documentElement.style.setProperty("--barh",$("#bar").getBoundingClientRect().height+"px");
+  const nav=document.querySelector(".nav");
+  const vt=document.getElementById("vtab");
+  const bh=document.getElementById("bar");
+  const top=(nav?nav.getBoundingClientRect().height:0)+(vt?vt.getBoundingClientRect().height:0);
+  document.documentElement.style.setProperty("--topbarh",top+"px");
+  document.documentElement.style.setProperty("--barh",(bh?bh.getBoundingClientRect().height:0)+"px");
 }
 window.addEventListener("resize",fixBarh);
 /* 同页跳到另一个 hash（手改地址栏 / 点同页链接）不会重新加载，
@@ -1286,6 +1891,9 @@ window.addEventListener("resize",fixBarh);
 window.addEventListener("hashchange",()=>{readHash();apply()});
 fixBarh();
 apply();
+/* 首屏落在哪个页签：readHash() 里若带了 #v=… 已 self 设定过（setView 是幂等的，
+   重设一遍只是保证「没有 hash 时」也走一次完整的显隐 + 尺寸重算）。 */
+setView(VIEW);
 </script>
 </body>
 </html>
