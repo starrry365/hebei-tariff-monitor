@@ -79,6 +79,14 @@ def main():
             "--user-data-dir=" + PROF,
             "--no-first-run", "--no-default-browser-check",
             "--disable-features=Translate,OptimizationHints",
+            # 🔴 这是个「后台跑、没有人在看」的调试实例，必须关掉节流：
+            #    窗口不在前台时 rAF / 定时器会被节流甚至完全不执行，
+            #    于是依赖 requestAnimationFrame 的布局逻辑实测不到效果 ——
+            #    2026-09-23 就因此误判过（--barh 恒为 0，其实是 rAF 没跑）。
+            #    这三个开关也只影响调度，不改 UA、不设 webdriver，不影响过 WAF。
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-renderer-backgrounding",
             "--window-size=1280,900",
             "about:blank"]
 

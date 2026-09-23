@@ -19,6 +19,8 @@
  *   views  四个视图页签是否都能切、对应 section 是否显示
  *   nets   每个网：条数、每个筛选下拉逐 option 试值后的结果条数、异常
  *   misc   排序逐项、翻页、行展开、主题、chips、关键词
+ *   misc.geom  滚动 600px 后的常驻层几何 + 命中测试（筛选控件是否真能点到）
+ *              —— 这一项专治「看着都在、其实点不到」
  *   errs   捕获到的全部异常
  */
 (function () {
@@ -270,6 +272,51 @@
 
   m.reset = "?";
   safe("reset", function () { $s("#reset").click(); m.reset = String(live()); });
+
+  /* ══ F. 常驻层几何自检：滚动之后筛选控件是否还**可见、可点** ══
+     ★ 这一类故障点按钮的遍历**测不到**：控件都在、事件也绑上了，
+       只是被别的层压在底下（或粘性被 overflow 破坏）。2026-09-23 用户报的
+       「筛选框不对」就是它 —— .nav / #vtab / .bar 三层都写 sticky;top:0，
+       滚动后页签和 13 个下拉全被顶栏盖住，只剩筛选栏底部那行芯片露出。
+     ★ 判据（滚动 600px 后）：
+         vt.top == 0                      页签钉在视口顶
+         bar.top == vt.h                  筛选栏紧贴页签下沿（不留缝、不重叠）
+         th.top  == vt.h + bar.h          表头紧贴筛选栏下沿
+         命中测试三个点分别落在 #sc / #kw / .tab 上 —— 这是「点得到」的直接证据，
+         只看 rect 是不够的（被盖住时 rect 完全正常，elementFromPoint 才会暴露）。 */
+  safe("geom", function () {
+    if (NETKEYS.length) switchNet(NETKEYS[0]);
+    setView("list");
+    scrollTo(0, 600);
+    function box(sel) {
+      var e = document.querySelector(sel); if (!e) return null;
+      var r = e.getBoundingClientRect();
+      return { top: Math.round(r.top), h: Math.round(r.height) };
+    }
+    function hit(sel) {
+      var e = document.querySelector(sel); if (!e) return null;
+      var r = e.getBoundingClientRect();
+      var t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      if (!t) return null;
+      return { id: t.id || "", cls: String(t.className || ""), tag: t.tagName };
+    }
+    var vt = box("#vtab"), bar = box("#bar"), th = box("thead th");
+    var hSc = hit("#sc"), hKw = hit("#kw"), hTab = hit("#vtab .tab");
+    m.geom = {
+      vtabTop: vt && vt.top, vtabH: vt && vt.h,
+      barTop: bar && bar.top, barH: bar && bar.h,
+      thTop: th && th.top,
+      hitSc: hSc && hSc.id, hitKw: hKw && hKw.id,
+      hitTab: hTab && (hTab.cls + "|" + hTab.tag),
+      /* 三项都必须 true；任一为 false 就是「滚动后筛选不可用」 */
+      vtabOk: !!vt && vt.top === 0,
+      barOk: !!vt && !!bar && Math.abs(bar.top - vt.h) <= 1,
+      thOk: !!th && !!bar && Math.abs(th.top - (vt.h + bar.h)) <= 2,
+      hitOk: !!hSc && hSc.id === "sc" && !!hKw && hKw.id === "kw"
+             && !!hTab && /(^|\s)tab(\s|$)/.test(hTab.cls)
+    };
+    scrollTo(0, 0);
+  });
 
   /* 视图切回总览，页签复原 */
   safe("final", function () { setView("ov"); });

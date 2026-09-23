@@ -5,9 +5,9 @@
 而 changes/ 里已经躺着前几天的真实变更报告。不回填的话，页面时间线的起点
 就是「部署当天」，看起来像「这个站刚建、之前什么都没发生」—— 明明有历史却装作没有。
 
-★ 是**合并**而不是覆盖：重复运行只会把 md 里的记录补进 history.json，
-  不会把运行时已经追加进去的记录（那些没有对应 md 的，例如基线）抹掉。
-★ 幂等：按 (ts, code) 去重，跑一百遍结果一样。
+★ md 是**权威来源**：同 (日期, 网) 的既有记录会被 md 里的数字覆盖 —— md 可能被
+  当天更晚的一轮巡检重写过。没有对应 md 的记录（例如基线那轮）不动，不会被抹掉。
+★ 幂等：按 (日期, 网) 归并，跑一百遍结果一样。
 """
 import glob
 import json
@@ -75,8 +75,23 @@ def load_hist():
 
 def main():
     h = load_hist()
-    have = {(x.get("ts"), x.get("code")) for x in h["items"]}
-    add, dup, skip = [], 0, 0
+
+    # ① 既有记录先按 (日期, 网) 归并、保留**最后一条**。
+    #    一天跑多轮会在文件里留下同一天同网的多条，时间线上表现为「同一天两套
+    #    互相矛盾的数字」；后一轮的比对基线也是「上一个不同日期的快照」，
+    #    数字本身就覆盖前一轮，所以留后一条是对的。
+    items, seen, dup = [], {}, 0
+    for x in h["items"]:
+        k = (x.get("d"), x.get("code"))
+        if k in seen:
+            dup += 1
+            items[seen[k]] = x
+        else:
+            seen[k] = len(items)
+            items.append(x)
+
+    # ② changes/*.md 覆盖同 (日期, 网) 的既有记录（见模块头注释：md 是权威来源）
+    md, skip = {}, 0
     for p in sorted(glob.glob(os.path.join(CHG, "*.md"))):
         stem = os.path.basename(p)[:-3]
         day = stem.rsplit("-", 3)[-3:]          # 2026-09-22
@@ -92,13 +107,18 @@ def main():
         rec = parse(p, tag)
         if not rec:
             continue
-        if (rec["ts"], rec["code"]) in have:
-            dup += 1
-            continue
-        have.add((rec["ts"], rec["code"]))
-        add.append(rec)
+        md[(rec["d"], rec["code"])] = rec
 
-    items = h["items"] + add
+    add, repl = [], 0
+    for k, rec in md.items():
+        if k in seen:
+            items[seen[k]] = rec
+            repl += 1
+        else:
+            seen[k] = len(items)
+            items.append(rec)
+            add.append(rec)
+
     items.sort(key=lambda x: (x.get("ts") or "", x.get("code") or ""))
     h["schema"] = 1
     h["items"] = items
@@ -106,8 +126,8 @@ def main():
     # CRLF 而 CI（Linux）写 LF，让这个每天提交的文件整篇显示为「已修改」。
     with open(HIST, "w", encoding="utf-8", newline="\n") as f:
         json.dump(h, f, ensure_ascii=False, indent=1)
-    print("回填 %d 条（跳过重复 %d，无关文件 %d），history.json 现有 %d 条"
-          % (len(add), dup, skip, len(items)))
+    print("回填：新增 %d 条 · 按 md 覆盖 %d 条 · 归并同天重复 %d 条（无关文件 %d），"
+          "history.json 现有 %d 条" % (len(add), repl, dup, skip, len(items)))
     for r in add:
         print("   %s  %-6s 条数 %-5s 新增 %-3s 下线 %-3s 变更 %-3s 样本 %d"
               % (r["ts"], r["net"], r["n"], r["a"], r["r"], r["c"], len(r["smp"])))

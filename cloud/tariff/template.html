@@ -79,7 +79,14 @@ body{min-height:100vh;background:var(--bg1);color:var(--tx);
   border:1px solid var(--bd);box-shadow:var(--sh);border-radius:var(--r)}
 
 /* ── 顶栏 ────────────────────────────────────────────────────── */
-.nav{position:sticky;top:0;z-index:40;padding:11px 15px;margin-bottom:10px}
+/* 🔴 顶栏**不能**和下面的 #vtab / .bar 一样写 `position:sticky;top:0`。
+   三层 top 相同、z-index 递减（40/39/38）时，滚动后它们会叠在同一个位置，
+   后写的被顶栏整个盖住。2026-09-23 实测症状：滚到 400px 时 #vtab 与 .bar 的
+   rect.top 都是 0，13 个筛选下拉全部落在顶栏（高 155px）底下，看不见也点不到，
+   只有筛选栏最底部那行芯片露出 75px —— 用户看到的就是「筛选框怎么不对」。
+   所以顶栏只做 relative（保留 z-index 压住极光背景层），常驻交给
+   「页签 + 筛选栏」两层（页面性质决定的：浏览表格时真正要用的就是它们）。 */
+.nav{position:relative;z-index:40;padding:11px 15px;margin-bottom:10px}
 .nav-in{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:11px;min-width:0}
 #logo{width:38px;height:38px;border-radius:12px;flex:none;display:grid;place-items:center;
@@ -137,7 +144,10 @@ body{min-height:100vh;background:var(--bg1);color:var(--tx);
 
 /* ── 工具条（保留原 12 维控件的 id 契约，只换皮）─────────────── */
 .bar{display:flex;flex-wrap:wrap;gap:8px;padding:11px 14px;margin-bottom:10px;
-  position:sticky;top:0;z-index:38}
+  /* top 必须让过上面那层常驻的页签：#vtab 钉在 0，筛选栏就钉在它下沿。
+     --vtabh 由 fixBarh() 实量写入（写死数字会在窄窗口换行时错位）。
+     这里写 0 就会和页签完全重叠 —— 整条筛选栏被页签压住。 */
+  position:sticky;top:var(--vtabh,46px);z-index:38}
 input,select{padding:7px 10px;border:1px solid var(--bd2);border-radius:9px;font-size:13px;
   background:var(--glass3);color:var(--tx);font-family:inherit}
 input:focus,select:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2)}
@@ -178,10 +188,16 @@ button{font-family:inherit}
 #stat .sortinfo{color:var(--ac);font-weight:600}
 
 /* ── 表格（用户选择：保留表格形态，只做美化）────────────────── */
+/* 🔴 这里必须用 overflow:clip，**不能**用 overflow:hidden。
+   hidden 会把表格变成滚动容器，于是表头 th 的「最近滚动容器」变成了表格本身
+   （表格不滚动）⇒ position:sticky 彻底失效：实测 th.top 随页面滚动 1:1 下移
+   （scrollY 0/900/2600 → th.top 796/-104/-1804），一个 5000px 高的表滚起来
+   完全不知道自己在看哪一列。
+   clip 同样裁掉圆角外的内容，但**不创建滚动容器**，sticky 仍以视口为基准。 */
 table{width:100%;border-collapse:separate;border-spacing:0;background:var(--glass);
   backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
-  border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;font-size:13px;box-shadow:var(--sh)}
-th{position:sticky;top:var(--topbarh,150px);z-index:5;background:var(--glass3);
+  border:1px solid var(--bd);border-radius:var(--r);overflow:clip;font-size:13px;box-shadow:var(--sh)}
+th{position:sticky;top:var(--stackh,276px);z-index:5;background:var(--glass3);
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   text-align:left;padding:10px;font-weight:700;border-bottom:1px solid var(--bd2);
   white-space:nowrap;user-select:none;font-size:12.5px;color:var(--tx2)}
@@ -1353,6 +1369,10 @@ function renderNet(){
   });
   syncTabs();
   renderDims();
+  /* 切网会增删「归属」「地市」两个下拉（移动有、联通/广电没有），筛选栏因此
+     高低不同 —— 常驻偏移必须跟着重量，否则表头会钉在错的位置、或者被筛选栏盖住。
+     放在 renderDims() **之后**：此刻 #ow / #ct 的显隐已经定下来了。 */
+  fixBarh();
   /* 总览与本页共用同一份行数据，切网时它也得跟着刷 —— 放在这里而不是
      只在「切到总览页签」时算，是为了让两个页签的数字**永远同源**。 */
   renderOverview();
@@ -1578,8 +1598,12 @@ function setView(v){
     if(s)s.classList.toggle("on",k===v);
   });
   /* 切回明细页要**重新量**工具条高度：在别的页签里它是 display:none、
-     量出来是 0，不重量就会把粘性表头钉到错的位置（滚动时才看得出来）。 */
-  requestAnimationFrame(fixBarh);
+     量出来是 0，不重量就会把粘性表头钉到错的位置（滚动时才看得出来）。
+     ★ 同步调用，**不要**包 requestAnimationFrame：rAF 在窗口不在前台时会被
+       节流甚至完全不执行（实测：CDP 后台窗口里 --barh 一直是 0，
+       表头钉在 46px、正好被筛选栏压住）。classList.toggle 之后读 offsetHeight
+       会强制一次同步布局，拿到的一定是新值。 */
+  fixBarh();
   if(v==="ov")renderOverview();
   if(v==="hist")renderHistory();
 }
@@ -1871,18 +1895,26 @@ $("#chips").addEventListener("click",e=>{
   apply();
 });
 
-/* 粘性表头的 top 偏移。
-   ★ 现在顶部有两层固定内容（顶栏 .nav + 视图页签 #vtab），表头必须让过它们，
-     否则会被压在下面 —— 而这类问题只在滚动时看得见，静态检查发现不了。
-   ★ 另外 `.bar`（筛选工具条）只在「资费明细」页签里可见，其它页签里它是
-     display:none、量出来高度为 0，所以切回明细页要**重新量一次**（见 setView）。 */
+/* 粘性偏移：实量常驻层的高度写进 CSS 变量，供 .bar 与 th 取用。
+   ★ 常驻的是「视图页签 #vtab」+「筛选工具条 .bar」，顶栏 .nav 不常驻（见其样式注释）。
+     top 必须**递增**：页签 0 → 筛选栏 页签高 → 表头 页签高 + 筛选栏高。
+     三层全写 top:0、只靠 z-index 分先后时，滚动后页签和筛选栏会被顶栏压住，
+     筛选控件全部不可点 —— 这是滚动时才看得见的故障，静态检查发现不了。
+   ★ 量高度用 offsetHeight 而不是 getBoundingClientRect().height：元素一旦处于
+     sticky 状态，rect 会带上偏移量；offset* 是布局尺寸，永远是自然高度。
+   ★ 数字不写死：筛选栏高度随网变化（联通/广电没有「归属」「地市」两个下拉，
+     矮一截），也随窗口宽度换行数变化，所以 resize / 切网 / 切页签都要重量。 */
 function fixBarh(){
-  const nav=document.querySelector(".nav");
   const vt=document.getElementById("vtab");
   const bh=document.getElementById("bar");
-  const top=(nav?nav.getBoundingClientRect().height:0)+(vt?vt.getBoundingClientRect().height:0);
-  document.documentElement.style.setProperty("--topbarh",top+"px");
-  document.documentElement.style.setProperty("--barh",(bh?bh.getBoundingClientRect().height:0)+"px");
+  const vh=vt?vt.offsetHeight:0;
+  /* offsetParent 为 null ＝ 祖先里有 display:none（当前不在「资费明细」页签），
+     此时量到 0 是**对的**：表头只在明细页可见，而明细页里筛选栏必然可见。 */
+  const barh=(bh&&bh.offsetParent!==null)?bh.offsetHeight:0;
+  const st=document.documentElement.style;
+  st.setProperty("--vtabh",vh+"px");
+  st.setProperty("--barh",barh+"px");
+  st.setProperty("--stackh",(vh+barh)+"px");
 }
 window.addEventListener("resize",fixBarh);
 /* 同页跳到另一个 hash（手改地址栏 / 点同页链接）不会重新加载，

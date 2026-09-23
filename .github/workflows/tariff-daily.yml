@@ -283,6 +283,25 @@ jobs:
                             '云端连续采集失败，需检查 ci_grab.sh 或改回本机采集后提交快照'
                             % (base, age, STALE_DAYS))
               print('  %-7s %5d 条 · 基线 %s · %s%s' % (code, len(rows), base, src[:32], tag))
+          # ── history.json：页面「变化历史」时间线的数据源 ──
+          # ① 它必须**入库**（见「提交数据与归档」那步）。2026-09-23 之前一直被漏掉，
+          #    结果每轮新追加的节点随 runner 一起销毁 —— 页面用的是当轮内存里的版本
+          #    （看着有今天），仓库里那份却没有，下次构建又退回去。
+          # ② 同一天同网只允许有一条：一天跑两轮很正常（定时 + 手动 dispatch / 重试），
+          #    若按抓取时刻各记一条，时间线上同一天会显示两套互相矛盾的数字，
+          #    而页面顶部「本次巡检」只显示最新那套 —— 用户看到的就是「对不上」。
+          h = json.load(open('cloud/tariff/history.json', encoding='utf-8'))
+          it = h.get('items') or []
+          keys = [(x.get('d'), x.get('code')) for x in it]
+          dups = sorted({k for k in keys if keys.count(k) > 1})
+          assert not dups, ('history.json 里同一天同网有多条（时间线会显示两套矛盾数字）：%s'
+                            % dups)
+          hist_today = [x for x in it if x.get('d') == today]
+          assert hist_today, ('history.json 里没有 %s 的记录 —— 本轮没写入，'
+                              '或文件没被提交（后者会让时间线永远长不起来）' % today)
+          for x in hist_today:
+              print('  历史 %s %-8s 条数 %-5s 新增 %-3s 下线 %-3s 变更 %-3s'
+                    % (x.get('d'), x.get('code'), x.get('n'), x.get('a'), x.get('r'), x.get('c')))
           print('页面校验 OK：四网齐备（电信为直采或快照兜底，上方逐网标注）')
           "
 
@@ -310,6 +329,11 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A cloud/tariff/snapshots cloud/tariff/changes cloud/tariff/page
           if [ -f cloud/tariff/state.json ]; then git add cloud/tariff/state.json; fi
+          # 🔴 history.json（「变化历史」时间线的数据源）也必须提交。
+          #    2026-09-23 发现：它一直被漏掉，于是每轮新追加的节点随 runner 一起销毁，
+          #    时间线永远只有仓库里那一份、长不起来。页面用的却是当轮内存里的版本，
+          #    所以「页面看着有今天、仓库里没有」，下次构建又退回去。
+          if [ -f cloud/tariff/history.json ]; then git add cloud/tariff/history.json; fi
           if git diff --staged --quiet; then
             echo "无变化，跳过提交"
           else

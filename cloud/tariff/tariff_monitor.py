@@ -451,18 +451,28 @@ def _code_of_net(net):
 
 
 def hist_append(rec):
-    """往 history.json 追加一条「某网某次巡检」的变更记录。
+    """往 history.json 写一条「某网某轮巡检」的变更记录 —— 同一天同一网只留最新一条。
 
-    ★ 先按 (ts, code) 去重再追加：同一次巡检被重跑（本地补跑 / CI 重试 / 手动
-      workflow_dispatch）时，不去重就会出现两个长得一样、数字也一样的节点 ——
-      在时间线上看着像「同一天变了两次」，比缺一条更容易误导人。
-    ★ 只保留最近 HIST_KEEP 条：这个文件在仓库里、每次巡检都提交，
+    ★ 去重键是 **(日期, 网)**，不是 (抓取时刻, 网)。一天里跑两轮是常态
+      （定时巡检 + 手动 workflow_dispatch / CI 重试），而两轮的比对基线都是
+      「上一个不同日期的快照」，所以后一轮的数字**覆盖**前一轮，不该各记一条。
+      按时刻去重会让时间线上同一天冒出两组互相矛盾的数字
+      （2026-09-23 实测：上午移动 3861 · 新增 0，下午 3862 · 新增 1 ——
+       页面顶部「本次巡检」显示的是后者，历史页里两条并存，看着像数据错乱）。
+    ★ 覆盖时**原位替换**，不删掉再追加：items 按时间顺序读，当天那条本就该待在
+      自己日期的位置上。
+    ★ 只保留最近 HIST_KEEP 条：这个文件在仓库里、每轮巡检都提交，
       不设上限就会一年年涨上去。
     """
     h = load_history()
-    items = [x for x in h["items"]
-             if not (x.get("ts") == rec.get("ts") and x.get("code") == rec.get("code"))]
-    items.append(rec)
+    items = list(h["items"])
+    key = (rec.get("d"), rec.get("code"))
+    for i, x in enumerate(items):
+        if (x.get("d"), x.get("code")) == key:
+            items[i] = rec
+            break
+    else:
+        items.append(rec)
     h["schema"] = 1
     h["items"] = items[-HIST_KEEP:]
     # indent=1 而不是紧凑：这个文件每天被 CI 提交一次，缩进让 diff 只显示
@@ -665,6 +675,28 @@ UP_N = 0        # 由 build_html 回填：四网总条数（供 __N__ 占位符�
 # 页面里的「查看变更明细」链接指向仓库里的 changes/<日期>.md（网页版可直接看）。
 # 与 view_page.py 的 DEFAULT_REPO 同值 —— 两个脚本各有独立入口，不互相 import。
 REPO = "starrry365/hebei-tariff-monitor"
+
+
+def repo_rel(path):
+    """把路径换算成「相对**仓库根**」的形式 —— GitHub 链接必须以仓库根做基准。
+
+    🔴 别写成 os.path.relpath(path, BASE)：BASE 是**模块目录**（cloud/tariff），
+      那样算出来是 "changes/2026-09-23.md"，少了 cloud/tariff/ 这一层前缀，
+      生成的链接指向仓库里不存在的路径、点开就是 GitHub 404
+      （2026-09-23 用户报障「查看变更明细 → 也不同」）。
+
+    这里从 BASE 逐级往上找 .git 来定位仓库根：模块将来换到别的子目录也不用改。
+    万一找不到 .git（比如脚本被单独拷出来跑），退化成相对 BASE —— 至少不会崩。
+    """
+    d = BASE
+    for _ in range(6):
+        if os.path.isdir(os.path.join(d, ".git")):
+            return os.path.relpath(path, d).replace(os.sep, "/")
+        up = os.path.dirname(d)
+        if up == d:
+            break
+        d = up
+    return os.path.relpath(path, BASE).replace(os.sep, "/")
 
 # 页面 gz 体积预警线：单网(3878 条) 约 245 KB，四网全接入会到 1 MB 上下。
 # 超了就只是**提醒**（不改行为）—— 该考虑按网拆分/按需加载，而不是继续往单文件里塞。
@@ -1337,7 +1369,7 @@ def main():
         # 「变更了多少条」是一句话能说完的，「哪几条、变了什么」说不完 ——
         # 明细细在 changes/<日期>.md 里，所以摘要后面挂一条直达链接，
         # 别让用户自己翻仓库找当天那份。
-        rel = os.path.relpath(rp, BASE).replace(os.sep, "/")
+        rel = repo_rel(rp)
         tail = (f' · <a href="https://github.com/{REPO}/blob/main/{rel}"'
                 f' target="_blank" rel="noopener">查看变更明细 →</a>')
         notice = ((f"本次巡检：新增 {len(a)} 条 · 下线 {len(r)} 条 · 字段变更 {len(c)} 条"
