@@ -127,8 +127,11 @@
    新事实：`type=1` 才是「按 lable1Id 过滤」，type≠1 忽略 lable1Id 回全量；
    tariffAttr(1/2/3) 与过期零相关、页面不使用；sessionid 给空串也能过。
    省份码硬编码在 Index-1f2bc0ae.js（河北=609906、北京=609001、集团=1000000037）。
-⬜ 云端自动化：电信采集依赖真实浏览器，暂不注册 NET_RUN（rebuild_ct.py 单独重建）；
-   哪天有合规的浏览器通路再进每日巡检。
+✅ 云端自动化：**已接入**每日巡检（2026-09-22 实测 ubuntu-latest + Xvfb + 有头 Chrome
+   即可通过瑞数挑战，884 条逐项采全）。电信已注册 NET_LIVE / NET_RUN；
+   采集脚本 probes/tools/ct_browser/ci_grab.sh，采不到时自动退回仓库快照渲染。
+   （旧注记写的「暂不注册 NET_RUN、rebuild_ct.py 单独重建」已作废 ——
+     那个脚本已删除，本机重建改走 rebuild_offline.py。）
 
 用法：
     python he_ct_tariff.py                 # 默认：跑 selftest（不联网）

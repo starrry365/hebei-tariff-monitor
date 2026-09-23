@@ -23,7 +23,10 @@ python rebuild_offline.py --fresh cbn  # 只重采广电，其余仍用缓存（
 
 ⚠️ 缓存只是**迭代便利**，不是真相来源：正式发布与每日巡检仍走
 `net_round()` 的实时采集 + 快照链路。
-⚠️ 本脚本**只调 `build_html`**，不碰 `snapshots/` `changes/` `state.json`。
+⚠️ 本脚本**只调 `build_html` 且 archive=False**：不碰 `snapshots/` `changes/`
+`state.json`，也**不覆盖入库的官方归档 `page/index.html.gz`** ——
+那是「与快照同源」的那一份，用本地缓存重建的结果盖掉它，归档就再也无法自证了。
+需要刷新归档走 `tariff_monitor.py --render-only`（数据取自官方页面产物）。
 """
 import io
 import json
@@ -59,10 +62,16 @@ print("移动快照:", os.path.basename(p or ""), "·",
 srcs = {"move": mv}
 for code, (mod_name, cn, _tag) in T.NET_RUN.items():
     path = cache_path(code)
+    # ★ 适配器若是**纯本地转换**（电信：读浏览器采集产物，不发网络请求），
+    #   一律不进缓存 —— 缓存永远不会失效，采集产物更新后被缓存挡住是**静默**的
+    #   （2026-09-23 实测踩到：.telecom_cache.json 停在 09-22）。
+    nocache = code in T.NET_NOCACHE
     # 只要列了网名就只重采列出来的；没列（--fresh 单独用）就全部重采
     want_fresh = fresh and (not only or code in only)
     d = None
-    if not want_fresh and os.path.exists(path):
+    if nocache:
+        print(f"{cn}：纯本地转换网，跳过缓存直读适配器（{path} 已废弃，可删）")
+    elif not want_fresh and os.path.exists(path):
         try:
             d = json.load(io.open(path, encoding="utf-8"))
             print(f"{cn}缓存:", len(d.get("entries") or []), "条 ·", d.get("fetchedAt"))
@@ -79,8 +88,10 @@ for code, (mod_name, cn, _tag) in T.NET_RUN.items():
              else mod.fetch_all())
         if not d:
             sys.exit(f"!! {cn}采集失败")
-        io.open(path, "w", encoding="utf-8").write(json.dumps(d, ensure_ascii=False))
-        print(f"{cn}采集: {len(d['entries'])} 条 · {time.time() - t0:.0f}s（已缓存）")
+        if not nocache:
+            io.open(path, "w", encoding="utf-8").write(json.dumps(d, ensure_ascii=False))
+        print(f"{cn}采集: {len(d['entries'])} 条 · {time.time() - t0:.0f}s"
+              + ("" if nocache else "（已缓存）"))
     srcs[code] = d
 
 def count_of(code, o):
@@ -98,6 +109,10 @@ def count_of(code, o):
 
 nets = " · ".join("%s %d 条" % (c, count_of(c, srcs.get(c)))
                   for c in ("move",) + tuple(T.NET_RUN))
+# 🔴 archive=False：**绝不覆盖入库的官方归档** page/index.html.gz。
+#   本脚本的数据来自本地采集缓存（不入库），而归档进 git 的那一份必须与
+#   snapshots/ 同源 —— 否则归档无法自证，而改动是静默的（只表现为 git 里一个二进制变化）。
 n = T.build_html(srcs,
-                 f"本机重建：移动取当日快照 · 其余各网为本地缓存或实时采集（{nets}）", None)
+                 f"本机重建：移动取当日快照 · 其余各网为本地缓存或实时采集（{nets}）", None,
+                 archive=False)
 print("已完成，合计 %d 条（%s）" % (n, nets))

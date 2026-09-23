@@ -723,6 +723,13 @@ NET_RUN = {
 # 需求：「各运营商下架的资费也要收集全」。移动**不在**此列：实测它的 isPublic=0
 # 虽能列出分类，但明细接口恒返回 0 条，本网拿不到下架数据（见 state_of 注释）。
 NET_STOPPED = {"unicom", "cbn"}
+# ★「适配器是**纯本地转换**」的网 —— 它的 fetch_all() 不发网络请求，
+#   读的是浏览器采集产物（电信读 .ct_raw.json）。这类网**不该进本地缓存**：
+#   缓存只带来一种风险 —— 采集产物更新了而缓存还是旧的，
+#   本地重建出来的页面看不出这一点，且没有任何提示（2026-09-23 实测踩到：
+#   .telecom_cache.json 停在 09-22，重跑采集也不会被用上）。
+#   直读适配器是毫秒级往返，缓存它没有任何收益。
+NET_NOCACHE = {"telecom"}
 # 页面顶部那行「来源」在各网切换时要跟着变，所以它不能是静态文本（模板里改成由 JS 渲染）
 UP_N = 0        # 由 build_html 回填：四网总条数（供 __N__ 占位符）
 
@@ -957,13 +964,19 @@ def fill_template(tpl, vals):
     return tpl
 
 
-def build_html(sources, notice="", diffs=None):
+def build_html(sources, notice="", diffs=None, archive=True):
     """重建查询页（多网）。
 
     ``sources``：``{网code: 数据源对象}`` —— 目前是 ``{"move": o, "unicom": o}``，
     缺哪家就哪家留空壳。
     ``diffs``：``{网code: {"added": set(键), "changed": set(键)}}``，按网各给一份；
     变更标注必须**按网分别算**（键里带分类号，两网的键空间不通用）。
+    ``archive``：是否把结果 gzip 归档进 ``page/index.html.gz``（**入库的官方页面快照**）。
+    🔴 本机预览路径（``rebuild_offline.py``）必须传 ``archive=False``：
+       它的数据来自**本地采集缓存**（不入库），而归档进 git 的应是「与快照同源」的
+       那一份。用本地缓存重建的页面盖掉官方归档，结果是归档与任何一份快照都对不上 ——
+       既无法自证，也没人会注意到（2026-09-23 实测：跑一次本机重建，
+       ``page/index.html.gz`` 就从 867218 字节变成 862474 字节，静默入库级别的改动）。
     """
     global UP_N
     payloads, total = {}, 0
@@ -1036,7 +1049,10 @@ def build_html(sources, notice="", diffs=None):
         log(f"!! 页面 gz 已 {gz/1024:.0f} KB，超过 {GZ_WARN/1024:.0f} KB 预警线。"
             f"再接入一家会继续翻 —— 该考虑按网拆分 / 按需加载，"
             f"而不是继续往单文件里塞")
-    archive_page()
+    if archive:
+        archive_page()
+    else:
+        log("（本机预览模式：不覆盖入库的官方归档 page/index.html.gz）")
     return total
 
 

@@ -20,10 +20,13 @@
 用法:
     python audit_data.py            # 体检并断言，有异常时退出码 1
     python audit_data.py --quiet    # 只输出结论行
-数据来源：``docs/index.html`` 里那段 ``const NETS``（四网容器）里**移动**那一网的 rows
-          （由 --render-only 或巡检生成）；``NET_LIVE`` 与 tariff_monitor.py 保持一致。
-          其余三家接入后若要体检，把 net 参数化即可 —— 但别直接套用本脚本的判据：
-          各网的字段名与城市口径未必与移动相同。
+数据来源：``docs/index.html`` 里那段 ``const NETS``（四网容器）里的 rows
+          （由 --render-only 或巡检生成）。``NET_LIVE`` 只决定**默认**体检哪一网；
+          要体检别的网，用 ``python audit_data.py --net cbn`` 显式指定。
+          ⚠️ 但**判据不通用**：本脚本的城市口径（CITY_LS / CT_ALIAS / 地市码表）
+            只在「有条目级地市」的网（移动 / 电信）成立；联通、广电的数据源
+            自己声明 ``allProvince`` ⇒ city_tags() 一律返回「全省通用」，
+            给它们跑城市类判据没有意义（不会报错，但也不会告诉你任何事）。
 
 ⚠️ 只断言「结构性」不变量（城市表无零命中、常量与模板同步），
    不断言具体条数 —— 条数随上游数据每天变，断言必假警报。
@@ -58,6 +61,8 @@ HB_CITY_LB = {"3100": "邯郸", "3110": "石家庄", "3120": "保定",
 # 本网数据源是否「数据本身不分城市」（联通/广电）。由 load_rows() 填充 ——
 # 页面 cityTags() 的**第一步**就是判它，本脚本不跟着判的话，那两网的用例会全错。
 ALL_PROVINCE = False
+# 本网自己的数据基线（YYYY-MM-DD），由 load_rows() 填充。四网理论上可不同。
+NET_BASE = ""
 # 城市判定实际扫描的字段（顺序无关）
 CITY_FIELDS = ("n", "t", "ap", "x")
 # 页面搜索实际覆盖的字段（用于比对是否漏字段）
@@ -69,22 +74,21 @@ NOTLINE_RE = re.compile(BW_NOTLINE)
 
 problems = []
 
-# 本脚本体检的是**基准网（移动）**那一份数据。
+# 默认体检的网（可用 --net 覆盖）。
 # ⚠️ 别把它当成「tariff_monitor.NET_LIVE 的副本」——那边是**已接入网的元组**
-#    （现在等于 ("move","unicom","cbn")），这里只要一个能取到 rows 的网名。
+#    （现在是 ("move","unicom","cbn","telecom")），这里只要一个能取到 rows 的网名。
 #    两边同名不同型，是接第二网时就留下的；改名会牵动 conformance.py 的文案，先留着但说清楚。
 NET_LIVE = "move"
 
 
-def load_rows():
-    """取「移动」那一网的 rows。
+def load_rows(net=None):
+    """取 ``net``（默认 NET_LIVE）那一网的 rows。
 
     四网改造后页面里的容器是 ``const NETS={move:{...},unicom:{...},...}``。
-    本脚本体检的是**数据**，而体检口径（城市归属、宽带判定）只对移动那网成立，
-    所以只取 NETS[NET_LIVE].rows。
-    其余三家接入后若也要体检，把 net 参数化即可 —— 但注意各网的字段名与
-    城市口径未必与移动相同，别直接拿本脚本的判据套上去。
+    体检口径（城市归属、宽带判定）**只对有条目级地市的网成立**（移动 / 电信），
+    所以默认取移动；要体检别的网必须显式传 net —— 别指望判据能通用。
     """
+    net = net or NET_LIVE
     if not os.path.exists(HTML):
         sys.exit("找不到 %s —— 先跑 python tariff_monitor.py --render-only" % HTML)
     raw = open(HTML, encoding="utf-8").read()
@@ -92,15 +96,20 @@ def load_rows():
     if not m:
         sys.exit("页面里找不到 `const NETS=`")
     nets, _ = json.JSONDecoder().raw_decode(raw[m.end():])
-    live_net = (nets or {}).get(NET_LIVE) or {}
+    live_net = (nets or {}).get(net) or {}
     rows = live_net.get("rows") or []
     if not rows:
-        sys.exit("NETS[%r].rows 为空 —— 移动那网的数据没灌进去？" % NET_LIVE)
+        sys.exit("NETS[%r].rows 为空 —— 那一网的数据没灌进去？（已接入：%s）"
+                 % (net, "/".join(sorted(nets))))
     # 顺带把「本网是否不分城市」存到全局：city_tags() 的判据第一步就要它。
     # 不在这里取，就得让每个调用方都多传一个参数 —— 那样 conformance.py 也跟着改，
     # 而它俩迟早漂移（两个脚本各自传参，漏一个就是静默算错）。
-    global ALL_PROVINCE
+    global ALL_PROVINCE, NET_BASE
     ALL_PROVINCE = bool(live_net.get("allProvince"))
+    # ★ 基线取**本网自己的** base 字段，而不是全页正则的第一个「数据基线」——
+    #   四网基线理论上可以不同（某网某天采失败会沿用前一天），
+    #   拿别网的基线算相对天数会**静默**偏移，时间筛选全错还看不出来。
+    NET_BASE = str(live_net.get("base") or "")
     return raw, rows
 
 
@@ -349,9 +358,13 @@ def check_sync():
 
 def main():
     quiet = "--quiet" in sys.argv
-    raw, rows = load_rows()
-    print("数据基线 %s · %d 条 · 页面 %.2f MB"
-          % ((re.search(r"数据基线 ([\d-]+)", raw) or [None, "?"])[1],
+    net = NET_LIVE
+    if "--net" in sys.argv:
+        i = sys.argv.index("--net")
+        net = (sys.argv[i + 1] if i + 1 < len(sys.argv) else "") or NET_LIVE
+    raw, rows = load_rows(net)
+    print("体检网别 %s（数据基线 %s · %d 条 · 页面 %.2f MB）"
+          % (net, NET_BASE or (re.search(r"数据基线 ([\d-]+)", raw) or [None, "?"])[1],
              len(rows), len(raw.encode("utf-8")) / 1048576))
 
     def rep(title, items, expect=0):
@@ -362,7 +375,7 @@ def main():
         return ok
 
     print("\n[0] 页面元信息")
-    raw_base = (re.search(r"数据基线 ([\d-]+)", raw) or [None, ""])[1]
+    raw_base = NET_BASE or (re.search(r"数据基线 ([\d-]+)", raw) or [None, ""])[1]
     base_ok = False
     mb = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", raw_base or "")
     if mb:
@@ -433,7 +446,15 @@ def main():
                 print("        %-6s %s" % (c, s))
     print("      河北其他地名（0 = 城市表未漏）: %s"
           % ", ".join("%s %d" % (k, v) for k, v in st["others"].items()))
-    rep("城市表存在零命中的城市（疑拼写错误）", zero, 0)
+    # ★ 零命中只在**默认网（移动）**算失败：那边的 12 个地市都有条目级地市码，
+    #   某个市恒 0 ⇒ 是城市名写错或 cty 映射断了，必须拦。
+    #   其它网（如电信）地市覆盖本来就稀疏 —— 实测电信 11 个市有码、廊坊没有，
+    #   那是上游就没给，不是我们的 bug ⇒ 只提示不判失败（否则每天误报）。
+    if net == NET_LIVE:
+        rep("城市表存在零命中的城市（疑拼写错误）", zero, 0)
+    elif zero:
+        print("      ⚠️ %s 网零命中城市：%s —— 覆盖率低于默认网属正常"
+              "（上游没给这些市的地市码），**不判失败**" % (net, "、".join(zero)))
     if zero_alias:
         print("      ⚠️ 专属区域零命中：%s —— 判据改为「地市码优先」后属正常结果"
               "（这些区域没有地市码，只在条目没带码时才走文本兜底）" % "、".join(zero_alias))

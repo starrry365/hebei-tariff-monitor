@@ -6,27 +6,31 @@
 只复用 audit_data.py 里已做同步校验的 bw_info() / city_tags()（同一套判据的既有复现）。
 
 用法：
-    python conformance.py                # 生成 cases.json（默认写到系统临时目录）
-    python conformance.py out.json       # 指定输出路径
+    python conformance.py                       # 生成 cases.json（默认临时目录）
+    python conformance.py out.json              # 指定输出路径
+    python conformance.py out.json --net telecom   # 换一网生成（默认 move）
 
-拿到 cases.json 后，与页面产物一起放进一个只含这两份文件的目录、起本地服务，
-     把产物拷成 index.html、cases.json 放同级，python -m http.server 8123 --bind 127.0.0.1
-页面里 fetch('/cases.json') 即可逐条比对（file:// 下 fetch 会被 CORS 拦，故走同源 HTTP）。
-⚠️ 务必 md5 校验拷过去的 index.html 与真产物字节一致，否则验的是另一个文件。
+🔴 生成完**必须真的跑一遍消费侧**，否则这份文件毫无意义（历史教训）：
+   本脚本从诞生起就没有消费方 —— 文档里曾写「页面里 fetch('/cases.json') 即可逐条比对」，
+   而页面里**根本没有那段代码**。oracle 每天照常生成，对不上也没人知道。
+   现在消费方是 `probes/tools/run_conformance.py`（+ page_conformance_check.js），
+   它把用例灌进真实 DOM 控件、调页面自己的 apply()、读页面自己的 view.length：
+        python probes/tools/run_conformance.py --net <网>
+   ⚠️ 别在 template.html 里加 fetch 钩子 —— 生产页面不该为自检背调试代码，
+      还会把用例文件暴露给访问者。
+
+⚠️ 覆盖范围（**不是四网全量**，别被文件名误导）：
+   · **有条目级地市的网**（移动 / 电信）→ 本脚本可对账，含地市维度的用例。
+   · **数据源自己声明 allProvince 的网**（联通 / 广电）→ 上游没有地市级数据，
+     `cityTags()` 一律返回「全省通用」，硬套移动那套 city_tags() oracle 会产出
+     「邢台 N 条」这种与页面（全部条数）正面矛盾的期望值 —— 一个必然失败、
+     且指错方向的用例。故这两网**不生成**城市用例（其余各维同构，已用
+     `probes/tools/page_walk_check.js` 的遍历逐项实测过）。
+   ⚠️ 2026-09-23 修正：这段话原先只列了「联通/广电」，**漏了电信** ——
+      电信接入时明确带条目级地市码（886 条里 31 条有码，页面 16 档地市可用），
+      它**属于**可对账的那一类。旧文案会让人以为四网都不可对账、于是连电信也没验。
 
 只断言「结构性」不变量（用例可生成、基准日期可解析），具体条数随上游数据每天变。
-
-★★ 覆盖范围：**只有移动那一网**（经 A.load_rows()，即 NET_LIVE="move"）。
-   四网改造后页面容器是 {move, unicom, telecom, cbn}，本脚本只对 move 生成用例 ——
-   其余各网的筛选一条都没对账。这不是疏漏，而是判据不同：
-     · 联通的「城市」维度**不存在**（数据与 cityId 无关，页面上地市选项已置灰），
-       硬套移动那套 city_tags() oracle 会产出「邢台 N 条」这种与页面（全部 4806 条）
-       正面矛盾的期望值 —— 一个必然失败、且指错方向的用例；
-     · 广电同理：它只有「全国 / 河北省」两级**地区**（两份数据交集为 0，都采），
-       条目里没有地市字段，页面按 allProvince 处理 ⇒ 城市用例同样不适用；
-     · 其余各维（类型 / 月费 / 上下架 / 含宽带 / 关键词）三网同构，已在
-       联通、广电接入时用浏览器逐项实测过（见 `probes/tools/page_walk_check.js` 的遍历结果）。
-   故联通/广电侧验收 = 浏览器逐项实测 + CI 的逐网容器断言，**不是**本脚本。
 """
 import io, json, math, os, re, sys, tempfile
 from datetime import date
@@ -39,6 +43,17 @@ import audit_data as A
 # 名为 `--help` 的文件：它会出现在 git status 里，而很难联想到是这条命令干的。
 _arg = sys.argv[1] if len(sys.argv) > 1 else ""
 OUT = _arg if _arg and not _arg.startswith("-") else os.path.join(tempfile.gettempdir(), "cases.json")
+
+# 有地市维度的网才能用本脚本对账（见文件头「覆盖范围」）。默认移动。
+_NET = "move"
+if "--net" in sys.argv:
+    _i = sys.argv.index("--net")
+    if _i + 1 < len(sys.argv):
+        _NET = sys.argv[_i + 1]
+NETS_OK = ("move", "telecom")
+if _NET not in NETS_OK:
+    sys.exit("--net 只支持 %s（其它网的数据源声明 allProvince，没有地市维度可对账）"
+             % "/".join(NETS_OK))
 
 # ---------- 与模板逐字对应的判据 ----------
 SEARCH_FIELDS = ("n", "t", "ap", "ch", "r", "ty", "x", "bw", "ex", "vp")
@@ -119,13 +134,12 @@ def build_oracle(rows, base):
 
 
 def main():
-    raw, rows = A.load_rows()
-    dm = re.search(r"数据基线 ([\d-]+)", raw)
-    date = dm.group(1) if dm else ""
+    raw, rows = A.load_rows(_NET)
+    # 基线取本网自己的 base，而不是全页第一个「数据基线」（四网基线理论上可不同）
+    date = A.NET_BASE or ((re.search(r"数据基线 ([\d-]+)", raw) or [None, ""])[1] or "")
     base = to_date(date.replace("-", ""))
-    print("数据基线 %s → BASE=%s · %d 条" % (date, base, len(rows)))
-    print("⚠️  仅覆盖【移动】那一网（NET_LIVE=%r）—— 联通/广电没有地市维度"
-          "（城市判据不适用），不在本脚本对账范围内" % A.NET_LIVE)
+    print("网 %s · 数据基线 %s → BASE=%s · %d 条" % (_NET, date, base, len(rows)))
+    print("覆盖 %s（上游有条目级地市码）" % "、".join(NETS_OK))
     if base is None:
         sys.exit("!! 数据基线解析失败，无法建立基准")
 

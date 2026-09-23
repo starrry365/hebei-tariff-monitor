@@ -30,6 +30,8 @@ cloud/tariff/state.json.tmp
 *.bak-*
 *.log
 *.log.stalled
+# 筛选口径对账的中间产物（run_conformance.py：cases.json / runner.js / result.json）
+.conformance/
 chrome-prof/
 # 本地 CDP Chrome 的临时 profile（cdp_launch.py 用；几十 MB，绝不入库）
 probes/tools/cdp_prof/
