@@ -65,6 +65,13 @@ python rebuild_offline.py --fresh cbn    # 只重采广电
 同一条资费可以挂多个栏目，快照 `entries` 是**按 `reportNo` 去重**后的
 （实测 9120 → 8041，差 1079 是重复挂载，**不是漏**）。
 
+🔴🔴 **`get_level3` 返回 `None` 是「未知」，不是「空目录」**（2026-09-24 修，CI 曾因此挂掉）：
+`post()` 只重试**网络异常**；限流/业务码返回的是非 `0000/0001` 的 JSON，`post` 不会重试，
+`get_level3` 便返回 `None`。把它当 0 ⇒ 「第三个板块存在、只是这次没取到」被判成「不存在」——
+方向固定、症状静默。正确做法：**失败重试一次，仍失败就记 unknown 并判失败**（重跑可自愈），
+绝不冒充 `[]`。本次事故现场：`probe_coverage_axes.py` 探上游未声明的 `tariffAttributes=3/4/5`
+时撞上限流，`len(None)` 直接抛 `TypeError`，整个 CI 从第 12 步起全部 skip。
+
 🔴 **`probe_sticky_layers.py` 与 `page_walk_check.js` 的 `opaqueOk` 是同一件事的两种测法**
 （2026-09-24 立，用户报「界面有问题」）：前者静态读 CSS（进 CI），后者在真实浏览器里
 逐元素读 `getComputedStyle().backgroundColor` 的 alpha（本机跑）。

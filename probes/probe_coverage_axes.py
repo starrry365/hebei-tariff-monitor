@@ -36,6 +36,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -155,25 +156,60 @@ def uni_check_skeleton(workers=8):
 
 
 def uni_check_attrs():
+    """tariffAttributes 取值域：只有 1/2 吗（有没有第三个板块被整栏漏采）。
+
+    🔴🔴 这里探的是**上游没声明**的取值（3/4/5/''/0），而 get_level3 的返回值
+    有**三种**必须分开的情况（见 he_unicom_tariff.get_level3 的文档）：
+        list（非空）→ 这个板块有数据
+        []          → 上游明说「暂无资费信息」（code=0001），是**真的没有**
+        None        → **未知**：请求失败（限流 / 超时 / 非 0000/0001 的业务码）
+    把 None 当 0 会把「第三个板块存在、只是这次没取到」判成「不存在」——
+    方向固定、症状静默，正是本探针存在的理由（2026-09-24 CI 挂过一次：
+    attr=5 撞上限流返回 None，旧代码直接 len(None) 崩 TypeError）。
+    ⇒ 失败重试一次；仍失败就记为 unknown 并**判失败**，绝不冒充空目录。
+    """
     log("\n[C] tariffAttributes 取值域（有没有第三个板块被漏掉）")
     base = U.CITY
-    hits = {}
     levels, _ = U.get_menu(base)
+
+    def l3(a, first, second):
+        lst = U.get_level3(a, first, second, base)
+        if lst is None:                 # 抖动很常见，重试一次（代价极低）
+            time.sleep(0.8)
+            lst = U.get_level3(a, first, second, base)
+        return lst
+
+    hits, unknown = {}, {}
     for a in ("1", "2", "3", "4", "5", "", "0"):
-        n = 0
+        n = bad = 0
         for lv in levels:
             for sub in lv.get("secondLevels") or []:
-                n += len(U.get_level3(a, lv.get("firstLevel"), sub.get("secondLevel"), base))
-        hits[a] = n
-        log("   tariffAttributes=%-3s → 三级目录合计 %d" % (repr(a), n))
+                v = l3(a, lv.get("firstLevel"), sub.get("secondLevel"))
+                if v is None:
+                    bad += 1
+                else:
+                    n += len(v)
+            if n:                        # 命中即止：省请求，也少给上游限流的理由
+                break
+        hits[a], unknown[a] = n, bad
+        log("   tariffAttributes=%-4s → 三级目录 %d%s"
+            % (repr(a), n, "" if not bad else "，另有 %d 格**请求失败（未知）**" % bad))
+
     nonzero = sorted(k for k, v in hits.items() if v)
+    failed = sorted(k for k, v in unknown.items() if v)
     log("   有效取值：%s" % nonzero)
-    if set(nonzero) <= {"1", "2"}:
-        log("   ✅ 只有 1/2（与其他证据一致）—— 采集侧 ATTRS=('1','2') 是完备的")
-    else:
+    ok = True
+    if not (set(nonzero) <= {"1", "2"}):
         log("   ⚠️⚠️ 出现 1/2 之外的取值：%s ⇒ 采集侧 ATTRS 必须扩"
             % [k for k in nonzero if k not in ("1", "2")])
-    return {"ok": set(nonzero) <= {"1", "2"}, "hits": hits}
+        ok = False
+    else:
+        log("   ✅ 只有 1/2（与其他证据一致）—— 采集侧 ATTRS=('1','2') 是完备的")
+    if failed:
+        # 「未知」不能当「没有」：这一格没查清，结论就不成立（重跑可自愈）
+        log("   🔴 有取值没能查清（重试后仍失败）：%s ⇒ 结论不成立，需重跑" % failed)
+        ok = False
+    return {"ok": ok, "hits": hits, "unknown_failed": unknown}
 
 
 # ═══════════════════════════ 移动 ═══════════════════════════
