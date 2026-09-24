@@ -99,11 +99,18 @@ def build_oracle(rows, base):
         if c["ty"] and d.get("ty") != c["ty"]:
             return False
         if c["ct"]:
+            # 口径必须与页面的 apply() **逐字一致**（这里就是那个独立 oracle）：
+            #   · 「仅全省通用」= 构建期标了 pw（不限地市）的那批；
+            #   · 选某个市    = 「不限地市」的那批 **＋** 该市专属。
+            #     旧口径是「只留 cty 含该市的」，那答的是「上游目录里恰好写了谁」，
+            #     不是「这个市能办什么」—— 用户按邢台筛会得到「在售 0 条」的假答案
+            #     （2026-09-24 用户报障）。已下架条目两者皆无 ⇒ 任何具体地市档都筛不到它们。
             tg = A.city_tags(d)
+            pw = bool(d.get("pw"))
             if c["ct"] == "_none":
-                if tg:
+                if not pw:
                     return False
-            elif c["ct"] not in tg:
+            elif not (pw or c["ct"] in tg):
                 return False
         if c["pf"]:
             lo, hi = [float(x) for x in c["pf"].split(",")]
@@ -159,15 +166,29 @@ def main():
     #   （期望 0、实际 = 全部条数，看起来像「地市筛选整体失效」）。
     #   典型的就是「雄安新区 / 华北油田」：判据改成「地市码优先」后它们没有码，
     #   只在条目连码都没有时才走文本兜底，实测恒 0 条。
-    ccount = {}
+    # 档位条数的口径必须与页面 renderDims() 的建选项**逐字一致**（否则会出现
+    # 「页面置灰了、这里却照着生成用例」，或反过来）。页面侧是：
+    #   每个城市档 = 「不限地市」(pw) ＋ 该市专属，且只算**在售**
+    #   （已下架条目没有地市归属，见 tariff_monitor.rows_of）。
+    # 🔴 必须遍历**全部**城市档再累加，不能只遍历「有专属的那些」：专属于某市为 0 时
+    #    那一档的条数就是 pw 本身（>0），页面上它**不置灰** —— 这里照抄同一算法才不会
+    #    一边生成用例、另一边把档置灰。
+    ccount, pw_n = {}, 0
     for d in rows:
-        tg = A.city_tags(d)
-        if tg:
-            for c in tg:
-                ccount[c] = ccount.get(c, 0) + 1
+        if d.get("st"):
+            continue
+        if d.get("pw"):
+            pw_n += 1
+            continue
+        for c in A.city_tags(d):
+            ccount[c] = ccount.get(c, 0) + 1
     cities_all = list(T.CITY_ORDER) + list(T.CITY_EXTRA)
+    for c in cities_all:
+        ccount[c] = ccount.get(c, 0) + pw_n
     cities = [c for c in cities_all if ccount.get(c)]
     skipped = [c for c in cities_all if not ccount.get(c)]
+    print("   地市档位条数（不限地市 %d ＋ 各市专属）：%s"
+          % (pw_n, "、".join("%s %d" % (c, ccount[c]) for c in cities) or "（无）"))
     if skipped:
         print("⏭️  跳过页面上会被置灰的地市档（本网 0 条）: %s" % "、".join(skipped))
 

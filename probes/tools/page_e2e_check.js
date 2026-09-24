@@ -10,10 +10,13 @@
  *   · 地市筛选 #ct 的**显隐**（本网一条地市归属都没有的必须隐藏，而不是置灰）
  *     —— 判据是**数据**（有没有 d.cty），不是任何「本网不分城市」的声明：联通那网
  *        声明过 allProvince 而它与事实相反，地市维度因此被整层藏掉，无人察觉。
- *   · 地市筛选**真的能筛**（选一个地市 ⇒ 结果收窄且 > 0；
- *     样本取**当前页签下真有条目**的那个，避免「本网该地市整批已下架」造成的假失败）
+ *   · 地市筛选**真的筛对了**：每个可点地市档的条数必须与数据**精确相符**，
+ *     口径 = 「不限地市(pw) ＋ 该市专属(cty)」，样本取**当前页签下真有条目**的那个。
+ *     🔴 判据**不是**「结果必须收窄」—— 本网常常绝大部分都是不限地市，选一个市
+ *        不收窄是正确行为，旧判据会把正确结果判成失败（2026-09-24 改口径时更正）。
  *   · 幽灵塞值：隐藏维度手工塞值必须**不生效**（否则等于拿不存在的维度筛）
- *   · 已下架页签的可用性与条数
+ *   · 已下架页签的可用性与条数；且该页签下**地市维度必须整体禁用**、
+ *     塞进去的地市值也不得生效（已下架条目没有地市归属）
  *   · 类型**两级**：#cat 大类的顺序与条数（必须与数据逐条对齐）、
  *     以及大类 → 细分的**联动置灰**（否则能选出「加装包 + 5G套餐」这种不存在的组合）
  *   · 渠道 #chx、流量 #gf、通话 #cf 三档筛选真的生效
@@ -132,24 +135,61 @@
     //    而它们的下拉档按**全量**建、不算置灰 ⇒ 拿第一个可点档当样本会得到
     //    「地市 石家庄 筛出 0 条」的**假失败**，看着像地市筛选坏了（2026-09-24 实测踩到）。
     //    ⇒ 逐个试，取第一个筛出 > 0 的；一个都没有才判失败（那才是真筛不动）。
+    /* 🔴🔴 与数据的对账口径（2026-09-24 改）：**不再用「结果必须收窄」当判据**。
+       口径已改成「选某个市 = 不限地市 ＋ 该市专属」，而本网常常绝大部分都是不限地市
+       （联通在售 4820 条里 4775 条不限地市）⇒ 选一个市**完全可以不收窄**，
+       「未收窄」不再是失效的证据，反而是正确行为。旧判据会把正确结果判成失败。
+       现在改成与数据**精确对账**：页面条数 == 数据里「pw 或 cty 含该市」的条数。
+       这比「收窄了」强得多 —— 收窄只证明筛掉了点东西，证明不了筛对了。 */
     if (o.ctVisible && o.ctValues.length) {
       var real = o.ctChoosable;
       if (real.length) {
-        var picked = null, tried = [];
+        var picked = null, tried = [], badCity = [];
         for (var ci = 0; ci < real.length; ci++) {
           $("#ct").value = real[ci];
           try { clearChips(); } catch (e) {}
           try { apply(); } catch (e) {}
-          tried.push({ city: real[ci], rows: view.length });
-          if (view.length > 0) { picked = tried[tried.length - 1]; break; }
+          var cw = wantBy(function (d) {
+            return !!d.pw || (d.cty || []).indexOf(real[ci]) >= 0;
+          });
+          var rec = { city: real[ci], rows: view.length, want: cw };
+          tried.push(rec);
+          if (rec.rows !== rec.want) { badCity.push(rec); }
+          if (view.length > 0 && !picked) { picked = rec; }
         }
         o.cityFilterTried = tried;
-        o.cityFilterSample = picked
-          ? { city: picked.city, rows: picked.rows, narrowed: picked.rows < o.rows }
-          : { error: "所有可选地市在本页签下都筛出 0 条（试了 " + tried.length + " 个）" };
+        o.cityFilterBad = badCity;
+        o.cityFilterSample = picked || (tried.length
+          ? { error: "所有可选地市在本页签下都筛出 0 条（试了 " + tried.length + " 个）" }
+          : null);
       } else {
         o.cityFilterSample = { error: "没有可用的非空地市值" };
       }
+      resetAll();
+    }
+
+    /* ★★ 「已下架」页签下地市维度必须**整体禁用** —— 已下架条目没有地市归属
+       （上游「停售目录」是各城各自的遗留清单，同一条停售资费被哪些城市收录不固定，
+       构建期刻意不写 cty）。不禁用的话，用户选中某个市会得到 0 条，
+       而那会被读成「这个市没有下架资费」—— 真相是「这个维度对该批数据不存在」。
+       顺带记下：此刻按地市筛不该生效（无效筛选 = 不筛）。 */
+    if ((o.tabs || []).some(function (t) { return /已下架/.test(t.t) && !t.disabled; })) {
+      try {
+        STA = "1"; syncTabs();
+        if ($("#ct")) { $("#ct").value = ""; }
+        try { clearChips(); } catch (e) {}
+        apply();
+        o.rowsOnStop = view.length;
+        var ctEl = $("#ct");
+        o.ctDisabledOnStop = !!(ctEl && ctEl.disabled);
+        /* 再塞一个具体地市值：禁用态下它必须**不生效**（否则又会给出 0 条的假答案） */
+        if (ctEl && o.ctChoosable.length) {
+          ctEl.value = o.ctChoosable[0];
+          try { clearChips(); } catch (e) {}
+          apply();
+          o.stopTabCityRows = view.length;
+        }
+      } catch (e) { o.stopTabErr = String(e && e.message || e); }
       resetAll();
     }
 
@@ -274,10 +314,32 @@
       var s = o.cityFilterSample || {};
       if (!s.city) { bad.push("地市筛选未取到非空样本（可点的地市档全是 0 条？）"); }
       else if (!(s.rows > 0)) { bad.push("地市 " + s.city + " 筛出 0 条"); }
-      else if (s.narrowed === false) { bad.push("地市 " + s.city + " 未收窄结果（筛选失效？）"); }
+      /* ★ 每个可点地市档都要与数据精确对上（口径 = 不限地市 ＋ 该市专属）。
+         ⚠️ 不能用「结果必须收窄」当判据：本网常常绝大部分都是不限地市，
+            选一个市**不收窄是正确行为**（见 snap() 里的注释）。 */
+      if ((o.cityFilterBad || []).length) {
+        bad.push("地市档条数与数据不符（口径应为「不限地市 ＋ 该市专属」）："
+          + o.cityFilterBad.slice(0, 4).map(function (r) {
+              return r.city + " 页面" + r.rows + "≠数据" + r.want;
+            }).join(" / "));
+      }
       // 选项上写着「（N）」而有值的没被置灰的项，N 必须 > 0 —— 否则建选项与置灰两处口径不一致
       if ((o.ctZeroText || []).length) {
         bad.push("地市选项写着 0 条却没置灰：" + o.ctZeroText.join("/"));
+      }
+    }
+    /* ★ 「已下架」页签下：地市维度必须禁用，且塞进去的地市值必须**不生效**
+       （已下架条目没有地市归属，见 snap() 的注释）。 */
+    if (exp.stopped) {
+      if (o.stopTabErr) { bad.push("已下架页签操作异常: " + o.stopTabErr); }
+      else {
+        if (o.ctDisabledOnStop === false) {
+          bad.push("「已下架」页签下地市维度没被禁用（选地市会给出 0 条这种假答案）");
+        }
+        if (o.stopTabCityRows != null && o.stopTabCityRows !== o.rowsOnStop) {
+          bad.push("「已下架」页签下地市值竟然生效了："
+            + o.stopTabCityRows + " ≠ " + o.rowsOnStop);
+        }
       }
     }
 

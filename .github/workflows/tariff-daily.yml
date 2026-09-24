@@ -240,6 +240,11 @@ jobs:
                   # 说明上游变了，得人工看 —— 而不是让页面悄悄多出一层。
                   assert n_cty == 0, ('广电上游本无地市级数据，却出现 %d 条带地市 —— '
                                       '上游语义已变，需人工确认' % n_cty)
+                  # 同理：没有地市维度就不该有「不限地市」标（它的含义是「不限地市」，
+                  # 隐含「本网有地市这一层」）。冒出来说明 CITY_NETS 该不该加它需要人工定。
+                  n_pw0 = sum(1 for r in rows if r.get('pw'))
+                  assert n_pw0 == 0, ('广电没有地市维度，却写了 %d 条 pw=1 —— '
+                                      'CITY_NETS 是否该加上它？需人工确认' % n_pw0)
               if code == 'unicom':
                   # 🔴🔴 联通**必须**有地市（2026-09-24 纠错）。此前这里断言的是 n_cty == 0，
                   #   依据是「上游没有地市级数据」—— 那是**抽样假阴性**：当时只采了邢台一城，
@@ -254,6 +259,24 @@ jobs:
                   # 电信有条目级地市码，但覆盖率不高（实测 265 次命中 / 884 条）。
                   # 断言「至少存在」而不是「有多少」：完全是 0 说明 _areaCodes 丢了。
                   assert n_cty > 0, '电信地市码全丢（_areaCodes 没进行数据？）'
+              # ★★ pw（不限地市，2026-09-24 新口径）/ cty 的**互斥与完备**：
+              #   页面按地市筛的逻辑就是「pw 或 cty 含该市」，所以两者必须把**在售**条目
+              #   恰好覆盖一遍。「已下架」条目刻意两者皆无 —— 那批的归属来自各城
+              #   「停售目录」的差异，同一条停售资费被哪些城市收录是任意的，不可信。
+              #   缺一个 ⇒ 那条资费在任何具体地市档下都看不到（页面不报错，只是少一批）；
+              #   多一个 ⇒ 两档各算它一次，选项上的条数与真实结果对不上。
+              #   判据网别不在 CI 里另写一份 —— audit_data.py 已按 tariff_monitor.CITY_NETS
+              #   判过；这里只兜「送进页面的数据本身是否自洽」。
+              n_pw = sum(1 for r in rows if r.get('pw'))
+              _live = [r for r in rows if not r.get('st')]
+              _both = [r for r in _live if r.get('cty') and r.get('pw')]
+              _neither = [r for r in _live if not r.get('cty') and not r.get('pw')]
+              assert not _both, '%s 有 %d 条同时写了 cty 与 pw（归属自相矛盾）' % (code, len(_both))
+              if code != 'cbn':
+                  assert not _neither, ('%s 有 %d 条在售条目既无 cty 也无 pw —— 按地市筛时'
+                                        '整批看不到（口径必须互斥且完备）' % (code, len(_neither)))
+                  assert n_cty > 0 and n_pw > 0, \
+                      '%s 地市维度残缺（cty %d / pw %d）' % (code, n_cty, n_pw)
               stop_n = sum(1 for r in rows if r.get('st'))
               if code in ('unicom', 'cbn'):
                   assert stop_n > 0, ('%s 本轮一条下架资费都没有 —— include_stopped 掉了？'

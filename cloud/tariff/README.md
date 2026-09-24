@@ -53,6 +53,7 @@ python probes/tools/run_checks.py --net unicom   # 体检 / 对账只跑联通
 | `probes/probe_city_matrix.py` | 四网**有没有**条目级地市归属（读快照，不猜） | 否 |
 | `probes/probe_upstream_limits.py` | 联通 / 广电**为什么**（不）能按地市取数 | 是 |
 | `probes/probe_unicom_city_scope.py` | 联通地市差异的**四层判据**（同城重复 / 跨省区分 / 差异语义 / 全组合覆盖） | 是 |
+| `probes/probe_city_only.py` | 某个地市**独有**的三级目录有哪些、落在哪个分类（回答「为什么按这个市筛只出来 N 条」） | 是 |
 
 🔴 这三支探针的结论**曾经错过一次**：`probe_upstream_limits.py` 当年只比 `indexData` 的
 **两级骨架**，而真正随城市变的是**三级目录 id** ⇒ 得出「联通地市无影响」，主链路据此

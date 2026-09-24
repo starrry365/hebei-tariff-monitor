@@ -121,6 +121,14 @@ CITY_ALL = frozenset(CITY_ORDER) | frozenset(CITY_EXTRA)
 #     再从文案里认一遍反而会把实为全省的资费错标成某个市（下拉里就会少掉「全省通用」）。
 #     广电上游没有地市粒度，更不该猜。
 CITY_TEXT = frozenset(("move", "telecom"))
+# ★★ 有「条目级地市维度」的网 —— 只有它们的条目才需要区分
+#   「限定地市」（写 `cty`）与「不限地市」（写 `pw=1`，页面「仅全省通用」档读它）。
+#   ★ 广电**不在此列**：上游区域码表只有「全国 / 河北省」两档，条目里没有地市，
+#     页面上这一层整层隐藏（判据是「本网有没有 cty」，与这里同源）。
+#   🔴 这个集合与**数据**必须一致，两个方向都有判据兜着（audit_data.check_city）：
+#      在集合里却产不出任何 cty ⇒ 采集侧断了，页面会静默藏掉整个维度；
+#      不在集合里却出现了 cty / pw ⇒ 有人漏把它加进来。
+CITY_NETS = frozenset(("move", "telecom", "unicom"))
 # 文案兜底的判据（与 CITY_ORDER / CITY_EXTRA 配对）；只在 code in CITY_TEXT 时用。
 TEXT_CITY_LS = ("石家庄", "唐山", "秦皇岛", "邯郸", "邢台", "保定",
                 "张家口", "承德", "沧州", "廊坊", "衡水")
@@ -1044,16 +1052,30 @@ def rows_of(o, diff=None, code=""):
             ow = OW_CN.get(s("type1", 4))
             if ow:
                 rec["ow"] = ow
-            # ★ 地市只在**真有**时才写 —— 空列表不落盘，免得页面拿到一堆 `cty: []`
-            #   误以为「这些条目属于第 0 个地市」。
-            #   有值 = 该资费限这几个市（**中文名**，取值域 = CITY_ORDER ∪ CITY_EXTRA）；
-            #   无此键 = 全省通用。
+            # ★ 在售 / 已下架必须在写地市**之前**算出来 —— 地市与「不限地市」
+            #   两档都只对在售条目成立（见下）。
+            st = bool(code and state_of(code, e, g, base_day))
+            # ★ 地市归属只有三种合法形态，**互斥且完备**（audit_data.check_city 会断言）：
+            #     · `cty` 有值  = 该资费限这几个市（**中文名**，取值域 = CITY_ORDER ∪ CITY_EXTRA）
+            #     · `pw=1`      = 不限地市（全省通用）—— 页面「仅全省通用」档读它
+            #     · 两者皆无    = 归属不详（当前只出现在**已下架**条目上）
+            #   空列表不落盘：免得页面拿到一堆 `cty: []` 误以为「这些条目属于第 0 个地市」。
             #   ★ 页面据此决定**要不要出地市这一层**（本网一条 cty 都没有 ⇒ 不出），
             #     不再依赖任何「本网不分城市」的声明 —— 那个声明错过一次，代价是
             #     整个维度被藏起来而无人察觉（见 WHERE_OF / net_payload 的注释）。
-            if cty:
-                rec["cty"] = cty
-            if code and state_of(code, e, g, base_day):
+            # 🔴🔴 已下架条目的地市归属是**不可信**的，刻意不写：它的来源是各城
+            #   「停售目录」的差异，而停售目录本质是各城各自的遗留清单 —— 同一条停售
+            #   资费被哪些城市收录是**任意**的。实测 139 条「城市专属」里 18 条其实是
+            #   9~11 城共有（含 6 条明摆着是「…-河北省版」的省版资费）；把它们算成
+            #   「邢台专属」，用户按邢台筛时就会混进一批与邢台无关的条目。
+            #   ⇒ 宁可让它们**没有任何地市归属**（只在「全部城市」下可见），
+            #     也不要给一个看着正常、实则随机的标签。
+            if not st:
+                if cty:
+                    rec["cty"] = cty
+                elif code in CITY_NETS:
+                    rec["pw"] = 1
+            if st:
                 rec["st"] = 1
             # ★ 行级变更标注：键必须与 index_rows() **逐字一致** ——
             #   取**未截断**的 name（name 缺失时退回 tariffName），重名追加 #2/#3。
@@ -1135,19 +1157,23 @@ def build_html(sources, notice="", diffs=None, archive=True):
             continue
         d = (diffs or {}).get(code)
         rows = rows_of(o, d, code)
-        sc_stat, cat_stat, st_n, cty_n, unmapped = {}, {}, 0, 0, {}
+        sc_stat, cat_stat, st_n, cty_n, pw_n, unmapped = {}, {}, 0, 0, 0, {}
         for r in rows:
             sc_stat[r.get("sc")] = sc_stat.get(r.get("sc"), 0) + 1
             cat_stat[r.get("cat")] = cat_stat.get(r.get("cat"), 0) + 1
             st_n += 1 if r.get("st") else 0
             cty_n += 1 if r.get("cty") else 0
+            pw_n += 1 if r.get("pw") else 0
             if r.get("cat") == "其他":
                 unmapped[r.get("ty") or "(空)"] = unmapped.get(r.get("ty") or "(空)", 0) + 1
+        # 地市那一格要**成对**打印（限定地市 / 不限地市）：
+        # 只报「地市专属 N」看不出「剩下的都是不限地市」，也看不出某天采集侧
+        # 把归属整批丢了（那一栏会从「专属 N」直接变成「无地市维度」，看着像正常的）。
         log("   %s：%d 条（%s%s%s）" % (
             code, len(rows),
             " · ".join("%s %d" % (SCOPE_CN.get(k, k or "?"), v)
                        for k, v in sorted(sc_stat.items())),
-            (" · 地市专属 %d" % cty_n) if cty_n else " · 无地市维度",
+            (" · 地市专属 %d · 不限地市 %d" % (cty_n, pw_n)) if cty_n else " · 无地市维度",
             " · 已下架 %d" % st_n if st_n else ""))
         # 大类分布按 CAT_ORDER 输出（而不是 most_common）—— 顺序固定才便于逐日比对，
         # 也才能一眼看出「某网这次少了一整类」。

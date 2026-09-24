@@ -10,12 +10,17 @@
   判据一旦写成「非空即含」，就会静默多算 116 条、少算 36 条 —— 肉眼翻 3878 行发现不了。
 - ``onlineDay`` / ``offineDay``：页面按 8 位数字解析，格式一变（如 ``2003-05-17``）解析就返回 null，
   所有时间筛选会**静默漏掉**那些条目，而页面照样正常渲染。
-- 城市：判据在**构建期**（tariff_monitor.WHERE_OF + text_cities）算好写进行数据
-  （`d.cty` = 中文名列表）。页面只读。本脚本不再复现那套判据（**复现一份就等于又开一份
-  会漂的副本** —— 它已经漂过一次：页面判据升级成「地市码优先」而这里没跟上，
-  37 个地市用例恒失败却没人发现，因为平时没人跑）。
+- 城市：判据在**构建期**（tariff_monitor.WHERE_OF + text_cities）算好写进行数据，
+  且**只有两种合法形态**（2026-09-24 起）：
+  `d.cty` = 该资费限这几个市（中文名列表）；`d.pw=1` = 不限地市（全省通用）。
+  二者互斥且完备地覆盖**在售**条目；**已下架**条目刻意两者皆无（那批的城市归属
+  来自各城「停售目录」的差异，收录范围任意、不可信）。页面只读。
+  本脚本不再复现那套判据（**复现一份就等于又开一份会漂的副本** —— 它已经漂过一次：
+  页面判据升级成「地市码优先」而这里没跟上，37 个地市用例恒失败却没人发现，
+  因为平时没人跑）。
   现在改成查**结果**：取值域是否封闭（每个值都能在页面的下拉里选到）、
-  「没有 cty 的行」是不是真的从文案里也认不出地市（即文案兜底有没有被漏跑）。
+  上一条的互斥/完备、以及「没有 cty 的行」是不是真的从文案里也认不出地市
+  （即文案兜底有没有被漏跑）。
 
 本脚本把页面的判据在 Python 侧复现一遍，把「多算 / 少算」直接算成具体条数；
 并额外校验 ``template.html`` 里的规则与这里是否**已经不同步**（改了一边忘了另一边是最大隐患）。
@@ -248,7 +253,13 @@ def check_city(rows, net_code):
     stat = {}
     cnt = {}
     hit_any = []
+    live_n = 0
     for x in rows:
+        # ★ 已下架条目**不参与**地市归属（构建期刻意不给它们写 cty，见 rows_of）——
+        #   那批归属来自各城「停售目录」的差异，收录范围是任意的。
+        if x.get("st"):
+            continue
+        live_n += 1
         tg = city_tags(x)
         if tg:
             hit_any.append((x, tg))
@@ -256,8 +267,21 @@ def check_city(rows, net_code):
                 cnt[c] = cnt.get(c, 0) + 1
     stat["counts"] = cnt
     stat["hit_any"] = len(hit_any)
-    stat["none"] = len(rows) - len(hit_any)
     stat["multi"] = [(x, tg) for x, tg in hit_any if len(tg) > 1]
+    # 不限地市（全省通用）—— 构建期标的 pw。页面「仅全省通用」档读它。
+    stat["pw"] = sum(1 for x in rows if x.get("pw"))
+
+    # ★★ 地市归属的**互斥与完备** —— 这三条是本轮（2026-09-24）新加的判据：
+    #   在售条目必须**恰有** `cty` 或 `pw` 之一。
+    #     两者皆无 ⇒ 页面按地市筛时整批看不到它（既不属于某市、也不属于「不限地市」）；
+    #     两者皆有 ⇒ 归属自相矛盾（既限这几个市、又不限地市），页面两档都会算它一次。
+    #   已下架条目刻意两者皆无，不在本判据内。
+    stat["both"] = [x for x in rows if x.get("cty") and x.get("pw")]
+    stat["neither"] = [x for x in rows
+                       if not x.get("st") and not x.get("cty") and not x.get("pw")]
+    # 无地市维度的网（广电）反向判据：一条 cty / pw 都不该有。
+    stat["any_mark"] = [x for x in rows if x.get("cty") or x.get("pw")]
+    stat["live_n"] = live_n
 
     # ★ 取值域：构建期写进行数据的每个地市名，页面下拉里必须**选得到**。
     #   选不到的取值在页面上等于不存在（下拉里没有那一项），点不到、也筛不出 ——
@@ -270,8 +294,10 @@ def check_city(rows, net_code):
     #   构建期的规则是「上游字段没给出地市时才查文案」⇒ 一条没有 cty 的行，
     #   从文案里也应当认不出地市。认得出而 cty 为空 = rows_of 里那一步漏跑了
     #   （症状是这批条目一律落进「全省通用」，即使用户选具体地市也看不到它们）。
-    miss = [x for x in rows
-            if not x.get("cty") and T.text_cities(x)] if (net_code or "") in T.CITY_TEXT else []
+    #   ⚠️ 已下架条目要排除在外：它们**本来**就没有 cty（不管文案认不认得出），
+    #      不排除的话电信那批下架条目会天天误报（2026-09-24 改口径时实测）。
+    miss = [x for x in rows if not x.get("st") and not x.get("cty") and T.text_cities(x)] \
+        if (net_code or "") in T.CITY_TEXT else []
     stat["fallback_miss"] = miss
     return stat
 
@@ -398,8 +424,8 @@ def main():
     zero = [c for c in T.CITY_ORDER if st["counts"].get(c, 0) == 0]
     for c in allc:
         print("      %-14s %4d" % (c, st["counts"].get(c, 0)))
-    print("      命中任一城市 %d 条 · 全省通用（构建期一条地市都没判出来）%d 条"
-          % (st["hit_any"], st["none"]))
+    print("      在售 %d 条：地市专属 %d 条 · 不限地市（构建期标了 pw）%d 条"
+          % (st["live_n"], st["hit_any"], st["pw"]))
     if st["multi"]:
         print("      多市条目 %d 条：%s"
               % (len(st["multi"]),
@@ -409,6 +435,19 @@ def main():
     rep("地市取值不在页面下拉里（写进去也选不到）", st["bad_names"], 0)
     # ★ 文案兜底有没有漏跑（只对移动/电信：见 tariff_monitor.CITY_TEXT）。
     rep("文案能认出地市、却没有 cty（rows_of 漏跑兜底）", st["fallback_miss"], 0)
+    # ★★ pw / cty 的**互斥与完备** —— 本轮（2026-09-24）新加的判据。
+    #   页面按地市筛的逻辑就是「pw 或 cty 含该市」，所以这两者必须把在售条目**恰好**覆盖一遍：
+    #     缺一个 ⇒ 那条资费在任何具体地市档下都看不到（页面不会报错，只是少了一批）；
+    #     多一个 ⇒ 同一条被两档各算一次，选项上的条数与真实结果对不上。
+    #   判据网别用 tariff_monitor.CITY_NETS（唯一权威），**不是**硬编码一串网名。
+    if net in T.CITY_NETS:
+        rep("在售条目既无 cty 也无 pw（按地市筛时整批看不到）", st["neither"], 0)
+        rep("地市归属自相矛盾（同时写了 cty 与 pw）", st["both"], 0)
+        rep("有地市维度的网却一条 cty 都没有（页面会静默藏掉整个维度）",
+            [] if st["hit_any"] else ["<该网 0 条带 cty>"])
+    else:
+        rep("本网（无地市维度）却写了 cty / pw 标记（CITY_NETS 漏了它？）",
+            st["any_mark"], 0)
     # ★ 零命中只在**默认网（移动）**算失败：那边的 12 个地市都有条目级地市码，
     #   某个市恒 0 ⇒ 是城市名写错或 cty 映射断了，必须拦。
     #   其它网地市覆盖本来就稀疏 —— 实测电信 11 个市有码、廊坊没有；联通 139/8042 条
