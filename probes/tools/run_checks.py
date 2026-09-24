@@ -133,6 +133,18 @@ def main():
         [sys.executable, os.path.join(REPO, "probes", "probe_sticky_layers.py")],
         quiet_tail=14)
 
+    # ── 2e. 联通栏目覆盖（★ 2026-09-24 新增）────────────────────────
+    #   2c 问的是**骨架**（cityList / 栏目签名 / 板块取值），它**不问**「每个组合
+    #   到底有没有数据」。而「整栏从未被请求过」失效时接口全 200、日志无异常，
+    #   唯一症状就是「少了」。这一步逐组合打真接口，把「三级目录 id 数」与
+    #   「快照落在该组合的条目数」并排对：id > 0 而条目 == 0 ⇒ 整栏漏采。
+    #   ⚠️ 判据只能是「一边有、一边零」，不能是「两个数相等」—— 同一条资费可以挂
+    #      多个栏目，快照 entries 是按 reportNo 去重后的（去重前后差 ~1079）。
+    print("\n[2e] 联通栏目覆盖（44 组合 × 12 城逐格：上游有目录 / 快照有没有条目）")
+    run("probe_unicom_axes.py",
+        [sys.executable, os.path.join(REPO, "probes", "probe_unicom_axes.py")],
+        quiet_tail=16)
+
     if NO_BROWSER:
         return finish()
 

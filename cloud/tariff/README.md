@@ -30,6 +30,7 @@ python rebuild_offline.py --fresh cbn    # 只重采广电
 | `probes/probe_city_code_semantics.py` | **地市码名 ↔ 条目文案**是否一致（码名错挂）+ 上游「全省的第二种写法」是否被识别 | 否 |
 | `probes/probe_coverage_axes.py --net unicom\|move` | **采集维度是否穷尽**：上游目录 / 地市集合 / 板块取值 / 目录未声明的组合是否真没数据 | 是（打真接口） |
 | `probes/probe_sticky_layers.py` | **吸顶层是否不透明**：每条 `position:sticky` 的规则必须自带实色背景（`--card*`），存在唯一吸顶根 `#deck` | 否 |
+| `probes/probe_unicom_axes.py` | **联通栏目覆盖**：44 个 (板块 × 一级 × 二级) 组合 × 12 城逐格打真接口，上游有三级目录而快照 0 条 ⇒ 整栏漏采 | 是（打真接口） |
 
 🔴 **前两条与前面所有检查问的不是同一件事**（2026-09-24 立）：
 前者问「**已经采到的那批**对不对」，后者问「**该采的是不是都去采了**」。
@@ -38,6 +39,14 @@ python rebuild_offline.py --fresh cbn    # 只重采广电
 当天两个真错（`3121` 码名错挂成「省直辖（定州/辛集）」实际是雄安新区、
 上游用「12 个地市码全列」表达全省却没被识别）**全在这一层**，
 而当时其它所有检查步都照不出来。
+
+🔴 **`probe_coverage_axes.py` 与 `probe_unicom_axes.py` 问的不是同一件事**（2026-09-24 补）：
+前者问**骨架**（上游 cityList 是不是 12 城 / 12 城栏目签名一致吗 / 板块取值只有 1、2 吗），
+后者问**覆盖**（每个组合到底有没有数据、有没有进快照）。骨架对而覆盖错是很常见的：
+整栏**从未被请求过**时接口全 200、日志无异常，唯一症状是「少了」。
+⚠️ 后者判据只能是「一边有、一边零」（`id > 0` 而条目 `== 0`）——
+同一条资费可以挂多个栏目，快照 `entries` 是**按 `reportNo` 去重**后的
+（实测 9120 → 8041，差 1079 是重复挂载，**不是漏**）。
 
 🔴 **`probe_sticky_layers.py` 与 `page_walk_check.js` 的 `opaqueOk` 是同一件事的两种测法**
 （2026-09-24 立，用户报「界面有问题」）：前者静态读 CSS（进 CI），后者在真实浏览器里
@@ -85,6 +94,7 @@ python probes/tools/run_checks.py --net unicom   # 体检 / 对账只跑联通
 | `probes/probe_unicom_harvest_health.py` | 联通「逐城取并集」这一步有没有**把请求失败当成空目录**（会静默污染「不限地市」判定） | 是 |
 | `probes/probe_city_code_semantics.py` | 4 位地市**码的语义**（码名对不对）+ 「全省」的两种写法（**阴性对照**：把 `3121` 改回旧名应当报错退出） | 否 |
 | `probes/probe_sticky_layers.py` | 吸顶层有没有**实色背景**（**阴性对照**：把 `.deck` 的背景换成 `var(--glass)` 应当报错退出 2） | 否 |
+| `probes/probe_unicom_axes.py` | 联通 44 组合的三级目录数 ↔ 快照条目数（`evidence/unicom-axes-coverage.json`） | 是 |
 
 🔴 这三支探针的结论**曾经错过一次**：`probe_upstream_limits.py` 当年只比 `indexData` 的
 **两级骨架**，而真正随城市变的是**三级目录 id** ⇒ 得出「联通地市无影响」，主链路据此
