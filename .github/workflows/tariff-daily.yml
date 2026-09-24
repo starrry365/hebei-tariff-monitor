@@ -388,7 +388,19 @@ jobs:
             echo "无变化，跳过提交"
           else
             git commit -m "data(tariff): 资费巡检 $(date +%F)"
-            git push
+            # 🔴 裸 `git push` 只在「远端没动过」时才成功。一旦本机手动推过、
+            #    或两轮 CI 重叠，就必然被拒（`! [rejected] ... (fetch first)`），
+            #    本轮现采的数据随 runner 一起销毁 —— 2026-09-24 实测踩到一次。
+            #    被拒就 fetch + rebase 再推，重试 3 次。
+            #    冲突一律取**本轮**（数据是刚采的、比远端新）：
+            #    ⚠️ rebase 里 `ours`=远端、`theirs`=本地，与 merge 相反，别搞反。
+            pushed=""
+            for i in 1 2 3; do
+              if git push; then pushed=1; echo "push 成功（第 $i 次尝试）"; break; fi
+              echo "::warning::push 被拒（远端有新提交），rebase 后重试（第 $i 次）"
+              git pull --rebase -X theirs
+            done
+            test -n "$pushed"     # 三次仍失败则让本步失败（在 Actions 上看得见）
           fi
 
   # 部署单独一个 job：Pages 的 environment 需要独立声明，
