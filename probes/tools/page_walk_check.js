@@ -302,18 +302,53 @@
     }
     var vt = box("#vtab"), bar = box("#bar"), th = box("thead th");
     var hSc = hit("#sc"), hKw = hit("#kw"), hTab = hit("#vtab .tab");
+
+    /* ── 吸顶层**不透明**自检 ──────────────────────────────────────────
+       ★ 2026-09-24 用户截图顶部那条乱码：
+           「0 元 —  数据总览  全国 通话尊享服…  资费明细  个人 —  变化历史  20 数据说明」
+         根因＝吸顶的视图页签条**没有背景**（`.bar` 有 glass，`#vtab` 忘了加），
+         滚动时表格行从它下面透上来，与页签文字叠成一坨。
+       ★ 这一条**其它检查全都测不出来**：
+           rect.top 正常（透明不影响几何）、elementFromPoint 正常（命中测试
+           返回最上层元素，与透明度无关）、事件绑定正常、异常数 0、连跑一致。
+           唯一能表达它的量就是**背景色的 alpha**。
+       ★ 判据：每个「吸顶根」（自身 position:sticky 且没有 sticky 祖先）的背景
+         必须接近不透明。内层吸顶元素可以借祖先的面 —— 现在的 #vtab 就不画背景，
+         面由外层的 #deck 提供，这正是「合成一个盒子」想要的效果。
+         半透明 + backdrop-filter 不算合格：blur 只是把下面的字糊掉，还在。
+       ★ 反空转：一条吸顶根都没扫到就判失败（否则选择器改名/正则坏了会静默通过）。 */
+    var stickyRoots = [], stickyBad = [];
+    var all = document.querySelectorAll("*");
+    for (var i = 0; i < all.length; i++) {
+      var e = all[i];
+      if (getComputedStyle(e).position !== "sticky") continue;
+      var up = e, isRoot = true;
+      while ((up = up.parentElement)) {
+        if (getComputedStyle(up).position === "sticky") { isRoot = false; break; }
+      }
+      if (!isRoot) continue;
+      var bg = getComputedStyle(e).backgroundColor;
+      var mm = /rgba?\(([^)]+)\)/.exec(bg), alpha = 1;
+      if (mm) { var ps = mm[1].split(","); if (ps.length === 4) alpha = parseFloat(ps[3]); }
+      var tag = (e.id ? "#" + e.id : e.tagName.toLowerCase());
+      stickyRoots.push(tag + "=" + bg);
+      if (!(alpha >= 0.98)) stickyBad.push(tag + "=" + bg + " α=" + alpha);
+    }
+    m.sticky = { roots: stickyRoots, bad: stickyBad, n: stickyRoots.length };
+
     m.geom = {
       vtabTop: vt && vt.top, vtabH: vt && vt.h,
       barTop: bar && bar.top, barH: bar && bar.h,
       thTop: th && th.top,
       hitSc: hSc && hSc.id, hitKw: hKw && hKw.id,
       hitTab: hTab && (hTab.cls + "|" + hTab.tag),
-      /* 三项都必须 true；任一为 false 就是「滚动后筛选不可用」 */
+      /* 四项都必须 true；任一为 false 就是「滚动后筛选不可用/读不清」 */
       vtabOk: !!vt && vt.top === 0,
       barOk: !!vt && !!bar && Math.abs(bar.top - vt.h) <= 1,
       thOk: !!th && !!bar && Math.abs(th.top - (vt.h + bar.h)) <= 2,
       hitOk: !!hSc && hSc.id === "sc" && !!hKw && hKw.id === "kw"
-             && !!hTab && /(^|\s)tab(\s|$)/.test(hTab.cls)
+             && !!hTab && /(^|\s)tab(\s|$)/.test(hTab.cls),
+      opaqueOk: stickyRoots.length > 0 && stickyBad.length === 0
     };
     scrollTo(0, 0);
   });

@@ -124,6 +124,15 @@ def main():
         [sys.executable, os.path.join(REPO, "probes", "probe_coverage_axes.py"),
          "--net", "unicom"], quiet_tail=20)
 
+    # ── 2d. 吸顶层不透明（★ 2026-09-24 新增）─────────────────────────
+    #   抓的是「吸顶层半透明 ⇒ 滚动内容从它下面透上来叠成乱码」这一类。
+    #   为什么必须单独一条：rect / elementFromPoint / 手工点按钮**全都测不出来**
+    #   —— 透明元素的几何完全正常、命中测试也正常。唯一能表达它的量是背景 alpha。
+    print("\n[2d] 吸顶层不透明（每条 position:sticky 的规则都要自带实色背景）")
+    run("probe_sticky_layers.py",
+        [sys.executable, os.path.join(REPO, "probes", "probe_sticky_layers.py")],
+        quiet_tail=14)
+
     if NO_BROWSER:
         return finish()
 
@@ -152,7 +161,7 @@ def main():
         bad = {k: v for k, v in (d1.get("bind") or {}).items()
                if v != "function" and not isinstance(v, (int, dict))}
         geom = (d1.get("misc") or {}).get("geom") or {}
-        geom_ok = all(geom.get(k) for k in ("vtabOk", "barOk", "thOk", "hitOk"))
+        geom_ok = all(geom.get(k) for k in ("vtabOk", "barOk", "thOk", "hitOk", "opaqueOk"))
         ok = (not errs) and (not bad) and (b1 == b2) and geom_ok
         why = []
         if errs:
@@ -163,6 +172,11 @@ def main():
             why.append("连跑不一致")
         if not geom_ok:
             why.append("几何自检未过")
+            st = (d1.get("misc") or {}).get("sticky") or {}
+            if st.get("bad"):
+                why.append("吸顶层半透明 %s" % st["bad"])
+            if not st.get("n"):
+                why.append("一个吸顶根都没扫到（判据空转）")
         results.append(("walk：异常 0 + 连跑一致 + 几何命中",
                         ok, "异常 0 · 连跑一致 · 几何 OK" if ok else "；".join(why)))
         print("  %s %-42s %s" % ("OK  " if ok else "!!  ", results[-1][0], results[-1][2]))

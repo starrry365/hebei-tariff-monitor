@@ -5,44 +5,48 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>河北四网资费全量查询</title>
 <style>
-/* ═══════════════════════════════════════════════════════════════
-   主题变量：**四网主题色 × 深浅双主题**
-   ★ 两层正交：data-net 决定「是哪一家的色」，data-theme 决定「深底还是浅底」。
-     拆成两层而不是四套主题，是因为「移动的深色」和「联通的深色」在
-     版面/对比度上完全一样，只有色相不同 —— 写四遍必然漂移。
-   ★ 参考同类开源站点的视觉语言（玻璃拟态 + 极光背景 + 运营商主题色），
-     但不照抄：色板按本页的表格密度重调，且极光尊重 prefers-reduced-motion。
-   ═══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════════
+   河北四网资费查询页 —— 样式表
+   ★★ 一条硬规则（2026-09-24 事故后立的）：
+      **凡是要「压在滚动内容之上」的面，一律不透明。**
+      半透明的面（哪怕 0.94 + blur）在滚动时都会让表体从下面透出来：
+      顶部那条页签以前忘了给背景，用户看到的就是「0 元 — 数据总览 全国 通话尊享服…
+      资费明细 个人 — 变化历史 20 数据说明」叠成一坨乱码。
+      所以这里是 --card / --card2（实色），不是 --glass（半透明）。
+   ══════════════════════════════════════════════════════════════════════ */
 :root{
-  /* 默认＝移动蓝 */
   --op1:#0085d0; --op2:#4cc9f0; --op3:#2dd4a7; --op1d:#0067b3;
-  --bg1:#e9f2fb; --bg2:#f5fafe; --bg3:#ffffff;
-  --glass:rgba(255,255,255,.66); --glass2:rgba(255,255,255,.82); --glass3:rgba(255,255,255,.94);
-  --bd:rgba(255,255,255,.92); --bd2:rgba(0,20,50,.14);
+  --bg1:#eaf2fb; --bg2:#f7fbfe; --bg3:#ffffff;
+  /* 面：实色（吸顶/表头用） */
+  --card:#ffffff; --card2:#f1f7fc; --card3:#e6eff8;
+  /* 玻璃：只给「不压滚动内容」的装饰面板用 */
+  --glass:rgba(255,255,255,.74); --glass2:rgba(255,255,255,.88); --glass3:rgba(255,255,255,.96);
+  --bd:rgba(255,255,255,.92); --bd2:rgba(0,20,50,.13);
   --tx:#08202f; --tx2:#33566f; --tx3:#5b748c;
   --ok:#059669; --okbg:rgba(5,150,105,.10); --warn:#b45309; --warnbg:rgba(180,83,9,.10);
   --bad:#e11d48; --badbg:rgba(225,29,72,.09);
   --ac:var(--op1d); --ac2:rgba(0,133,208,.10);
-  --sh:0 14px 36px rgba(0,40,80,.10); --sh2:0 20px 48px rgba(0,40,80,.16);
-  --r:16px; --r2:11px; --blur:18px;
-  --zebra:rgba(0,40,80,.022); --hover:rgba(0,133,208,.055);
-  --blobmix:multiply; --blobop:.30;
+  --sh:0 10px 28px rgba(0,40,80,.09); --sh2:0 20px 48px rgba(0,40,80,.16);
+  --r:14px; --r2:10px; --blur:16px;
+  --zebra:rgba(0,40,80,.022); --hover:rgba(0,133,208,.06);
+  --blobmix:multiply; --blobop:.26;
 }
-[data-net="unicom"]{ --op1:#e2231a; --op2:#ff7a45; --op3:#ffb199; --op1d:#c4160c; }
-[data-net="telecom"]{ --op1:#0057b8; --op2:#00a0e9; --op3:#4ad3c8; --op1d:#004494; }
-[data-net="cbn"]{ --op1:#c8102e; --op2:#ff4d6d; --op3:#ff9bb0; --op1d:#a50c24; }
+[data-net="unicom"]{ --op1:#e2231a; --op2:#ff7a45; --op3:#ffb199; --op1d:#c4160c; --ac2:rgba(226,35,26,.10); }
+[data-net="telecom"]{ --op1:#0057b8; --op2:#00a0e9; --op3:#4ad3c8; --op1d:#004494; --ac2:rgba(0,87,184,.10); }
+[data-net="cbn"]{ --op1:#c8102e; --op2:#ff4d6d; --op3:#ff9bb0; --op1d:#a50c24; --ac2:rgba(200,16,46,.10); }
 
 [data-theme="dark"]{
   --bg1:#061021; --bg2:#0a1c31; --bg3:#0e2540;
-  --glass:rgba(255,255,255,.075); --glass2:rgba(255,255,255,.11); --glass3:rgba(255,255,255,.15);
-  --bd:rgba(255,255,255,.13); --bd2:rgba(255,255,255,.22);
+  --card:#0d2138; --card2:#132c48; --card3:#1a3757;
+  --glass:rgba(255,255,255,.08); --glass2:rgba(255,255,255,.12); --glass3:rgba(255,255,255,.16);
+  --bd:rgba(255,255,255,.13); --bd2:rgba(255,255,255,.20);
   --tx:#f7fbff; --tx2:#cfdcec; --tx3:#9fb2c9;
   --ok:#34d399; --okbg:rgba(52,211,153,.14); --warn:#fbbf24; --warnbg:rgba(251,191,36,.14);
   --bad:#fb7185; --badbg:rgba(251,113,133,.14);
   --ac:var(--op2); --ac2:rgba(76,201,240,.14);
-  --sh:0 16px 42px rgba(0,0,0,.42); --sh2:0 24px 56px rgba(0,0,0,.5);
-  --zebra:rgba(255,255,255,.028); --hover:rgba(255,255,255,.055);
-  --blobmix:screen; --blobop:.42;
+  --sh:0 12px 32px rgba(0,0,0,.42); --sh2:0 24px 56px rgba(0,0,0,.5);
+  --zebra:rgba(255,255,255,.026); --hover:rgba(255,255,255,.06);
+  --blobmix:screen; --blobop:.36;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -50,55 +54,44 @@ body{min-height:100vh;background:var(--bg1);color:var(--tx);
   font:400 14px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI","Microsoft YaHei",system-ui,sans-serif;
   overflow-x:hidden;transition:background .4s,color .4s}
 
-/* ── 极光背景 ────────────────────────────────────────────────── */
+/* ── 背景 ─────────────────────────────────────────────────────── */
 .aurora{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
 .aurora::before{content:'';position:absolute;inset:0;
-  background:radial-gradient(1200px 800px at 18% -12%,var(--bg2),transparent 62%),
-             radial-gradient(1000px 700px at 92% 8%,var(--bg3),transparent 60%),
+  background:radial-gradient(1200px 780px at 16% -14%,var(--bg2),transparent 62%),
+             radial-gradient(1000px 680px at 94% 6%,var(--bg3),transparent 60%),
              linear-gradient(180deg,var(--bg1),var(--bg2));transition:background .4s}
-.blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:var(--blobop);
+.blob{position:absolute;border-radius:50%;filter:blur(72px);opacity:var(--blobop);
   mix-blend-mode:var(--blobmix);transition:background .5s}
-.b1{width:440px;height:440px;background:var(--op1);top:-130px;left:-90px;animation:fl1 22s ease-in-out infinite}
-.b2{width:360px;height:360px;background:var(--op2);top:20%;right:-120px;animation:fl2 27s ease-in-out infinite}
-.b3{width:400px;height:400px;background:var(--op3);bottom:-150px;left:16%;animation:fl3 31s ease-in-out infinite}
+.b1{width:420px;height:420px;background:var(--op1);top:-140px;left:-100px;animation:fl1 22s ease-in-out infinite}
+.b2{width:340px;height:340px;background:var(--op2);top:22%;right:-130px;animation:fl2 27s ease-in-out infinite}
+.b3{width:380px;height:380px;background:var(--op3);bottom:-160px;left:14%;animation:fl3 31s ease-in-out infinite}
 @keyframes fl1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(64px,54px) scale(1.12)}}
 @keyframes fl2{0%,100%{transform:translate(0,0) scale(1.05)}50%{transform:translate(-70px,44px) scale(.93)}}
 @keyframes fl3{0%,100%{transform:translate(0,0) scale(.97)}50%{transform:translate(56px,-62px) scale(1.1)}}
-/* 动效开关：系统设了「减弱动态效果」就不动。持续的气泡动画在低端设备上
-   会让滚动掉帧 —— 而这一页最常见的操作恰恰是长表格滚动。 */
-@media(prefers-reduced-motion:reduce){
-  .blob{animation:none}
-  *{transition:none!important}
-}
+@media(prefers-reduced-motion:reduce){.blob{animation:none}*{transition:none!important}}
 .grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.03;
   background-image:radial-gradient(currentColor 1px,transparent 1px);background-size:3px 3px}
 
-.wrap{position:relative;z-index:2;max-width:1320px;margin:0 auto;padding:12px 16px 40px}
+.wrap{position:relative;z-index:2;max-width:1360px;margin:0 auto;padding:14px 16px 48px}
 .glass{background:var(--glass);backdrop-filter:blur(var(--blur)) saturate(160%);
   -webkit-backdrop-filter:blur(var(--blur)) saturate(160%);
   border:1px solid var(--bd);box-shadow:var(--sh);border-radius:var(--r)}
 
-/* ── 顶栏 ────────────────────────────────────────────────────── */
-/* 🔴 顶栏**不能**和下面的 #vtab / .bar 一样写 `position:sticky;top:0`。
-   三层 top 相同、z-index 递减（40/39/38）时，滚动后它们会叠在同一个位置，
-   后写的被顶栏整个盖住。2026-09-23 实测症状：滚到 400px 时 #vtab 与 .bar 的
-   rect.top 都是 0，13 个筛选下拉全部落在顶栏（高 155px）底下，看不见也点不到，
-   只有筛选栏最底部那行芯片露出 75px —— 用户看到的就是「筛选框怎么不对」。
-   所以顶栏只做 relative（保留 z-index 压住极光背景层），常驻交给
-   「页签 + 筛选栏」两层（页面性质决定的：浏览表格时真正要用的就是它们）。 */
-.nav{position:relative;z-index:40;padding:11px 15px;margin-bottom:10px}
-.nav-in{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+/* ── 顶栏（**不吸顶**：真正要常驻的是下面的 #deck）───────────────── */
+.nav{position:relative;z-index:40;padding:13px 16px;margin-bottom:12px}
+.nav-in{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:11px;min-width:0}
-#logo{width:38px;height:38px;border-radius:12px;flex:none;display:grid;place-items:center;
-  background:linear-gradient(135deg,var(--op1),var(--op2));color:#fff;
-  font-weight:800;font-size:16px;box-shadow:0 8px 20px rgba(0,0,0,.22);transition:background .4s}
+#logo{width:40px;height:40px;border-radius:13px;flex:none;display:grid;place-items:center;
+  background:linear-gradient(140deg,var(--op1),var(--op2));color:#fff;
+  font-weight:800;font-size:17px;box-shadow:0 8px 20px rgba(0,0,0,.22);transition:background .4s}
 .brand-t{min-width:0}
-#h1{font-size:15.5px;font-weight:700;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;
+#h1{font-size:16px;font-weight:750;letter-spacing:-.25px;white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis;max-width:52vw}
 #sub{font-size:11.5px;color:var(--tx3);margin-top:2px;white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis;max-width:56vw}
-.nav-mid{flex:1 1 auto;display:flex;align-items:center;justify-content:center;gap:10px;min-width:0}
-.nav-cnt{font-size:11.5px;color:var(--tx3);white-space:nowrap}
+.nav-mid{flex:1 1 auto;display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;flex-wrap:wrap}
+.nav-cnt{font-size:11.5px;color:var(--tx3);white-space:nowrap;padding:3px 10px;border-radius:999px;
+  background:var(--card2);border:1px solid var(--bd2)}
 .nav-cnt b{color:var(--tx);font-weight:800;font-size:12.5px}
 .upd{font-size:11.5px;color:var(--tx3);display:flex;align-items:center;gap:5px;white-space:nowrap}
 .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);animation:pulse 2.2s infinite}
@@ -108,14 +101,14 @@ body{min-height:100vh;background:var(--bg1);color:var(--tx);
   border:1px solid var(--bd2);background:var(--glass2);color:var(--tx);
   font-family:inherit;transition:transform .18s,box-shadow .18s,border-color .18s,background .3s;
   display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-.btn:hover{transform:translateY(-1px);border-color:var(--ac);box-shadow:0 8px 20px rgba(0,0,0,.12)}
+.btn:hover{transform:translateY(-1px);border-color:var(--ac);box-shadow:0 8px 18px rgba(0,0,0,.12)}
 .btn:active{transform:translateY(0)}
 .btn.pri{background:linear-gradient(135deg,var(--op1),var(--op2));color:#fff;border-color:transparent}
 
-/* 四网切换：顶栏下方一行，全局生效（总览/明细/历史都跟随） */
-.netnav{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
-.netbtn{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border:1px solid var(--bd2);
-  background:var(--glass2);border-radius:10px;cursor:pointer;font-size:13px;color:var(--tx2);
+/* 四网切换 */
+.netnav{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.netbtn{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border:1px solid var(--bd2);
+  background:var(--glass2);border-radius:11px;cursor:pointer;font-size:13px;color:var(--tx2);
   font-family:inherit;transition:.16s}
 .netbtn:hover{border-color:var(--ac);color:var(--ac);transform:translateY(-1px)}
 .netbtn.on{background:linear-gradient(135deg,var(--op1),var(--op2));border-color:transparent;color:#fff;
@@ -124,95 +117,116 @@ body{min-height:100vh;background:var(--bg1);color:var(--tx);
 .netbtn.on .nc{color:rgba(255,255,255,.85)}
 .netbtn .nb{font-size:10.5px;padding:1px 7px;border-radius:999px;background:var(--warnbg);color:var(--warn);font-weight:600}
 .netbtn.on .nb{background:rgba(255,255,255,.22);color:#fff}
-.notice{margin-top:10px;padding:7px 12px;border-radius:9px;background:var(--ac2);color:var(--ac);
+.notice{margin-top:11px;padding:8px 12px;border-radius:10px;background:var(--ac2);color:var(--ac);
   font-size:12.5px;font-weight:500;display:inline-block}
 .notice.warn{background:var(--badbg);color:var(--bad)}
 .notice a{color:inherit;font-weight:600;text-decoration:underline;text-underline-offset:2px}
 
-/* ── 页签（总览 / 明细 / 历史 / 说明）────────────────────────── */
-#vtab{position:sticky;top:0;z-index:39;display:flex;gap:4px;padding:5px;margin-bottom:10px;
+/* ══ #deck：全页**唯一**的吸顶层 ══════════════════════════════════════
+   🔴 为什么合成一个盒子，而不是让 #vtab 和 #bar 各自 sticky：
+      各自 sticky 时「吸顶层有背景」「三层 top 递增」两条都是**需要人去记住的约定**，
+      漏一条就出事（漏背景 ⇒ 表体透上来叠成乱码；top 算错 ⇒ 被顶栏盖住）。
+      合成一个盒子后这两条成了结构性质，写不出来错。
+   🔴 背景必须是**实色**（--card）。半透明 + blur 仍会让滚动内容透出来。
+   🔴 这里**不能有** border-top / padding-top：验收判据要求滚动后
+      #vtab.getBoundingClientRect().top === 0，边框和内边距都会把它顶下去 1~N px。
+      分隔用 box-shadow 的 1px 扩边（画在盒子外，不吃内部坐标）。
+   🔴 圆角只给下面两角：吸顶时上沿要严丝合缝贴住视口顶。 */
+.deck{position:sticky;top:0;z-index:39;margin-bottom:12px;
+  background:var(--card);border-radius:0 0 var(--r) var(--r);
+  box-shadow:0 0 0 1px var(--bd2), 0 12px 26px rgba(0,40,80,.10)}
+.deck::before{content:'';position:absolute;left:0;right:0;top:0;height:2px;pointer-events:none;
+  background:linear-gradient(90deg,var(--op1),var(--op2),transparent 92%)}
+
+/* 视图页签（总览 / 明细 / 历史 / 说明） */
+#vtab{display:flex;gap:5px;padding:9px 10px 7px;border-bottom:1px solid var(--bd2);
   overflow-x:auto;scrollbar-width:none}
 #vtab::-webkit-scrollbar{display:none}
-#vtab .tab{flex:1 0 auto;border:0;background:transparent;padding:9px 15px;border-radius:11px;
-  font-size:13.5px;font-weight:600;color:var(--tx2);cursor:pointer;font-family:inherit;
+#vtab .tab{flex:1 0 auto;border:0;background:transparent;padding:9px 16px;border-radius:11px;
+  font-size:13.5px;font-weight:650;color:var(--tx2);cursor:pointer;font-family:inherit;
   transition:.16s;white-space:nowrap}
 #vtab .tab:hover{color:var(--ac);background:var(--hover)}
 #vtab .tab.on{background:linear-gradient(135deg,var(--op1),var(--op2));color:#fff;
-  box-shadow:0 6px 18px rgba(0,0,0,.16)}
+  box-shadow:0 6px 16px rgba(0,0,0,.16)}
 .view{display:none}
 .view.on{display:block}
 
-/* ── 工具条（保留原 12 维控件的 id 契约，只换皮）─────────────── */
-.bar{display:flex;flex-wrap:wrap;gap:8px;padding:11px 14px;margin-bottom:10px;
-  /* top 必须让过上面那层常驻的页签：#vtab 钉在 0，筛选栏就钉在它下沿。
-     --vtabh 由 fixBarh() 实量写入（写死数字会在窄窗口换行时错位）。
-     这里写 0 就会和页签完全重叠 —— 整条筛选栏被页签压住。 */
-  position:sticky;top:var(--vtabh,46px);z-index:38}
+/* ── 工具条 #bar：只属于「资费明细」页 ────────────────────────────
+   以前它嵌在 #v-list 里；现在它在吸顶层内部（结构上必须与 #vtab 同盒），
+   显隐改由 body[data-view] 控制 —— setView() 里同步写这个属性。 */
+.bar{display:none;padding:12px 12px 11px}
+body[data-view="list"] .bar{display:block}
+.brow1{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.brow1 #kw{flex:1 1 260px;min-width:150px}
 input,select{padding:7px 10px;border:1px solid var(--bd2);border-radius:9px;font-size:13px;
-  background:var(--glass3);color:var(--tx);font-family:inherit}
+  background:var(--card);color:var(--tx);font-family:inherit}
 input:focus,select:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2)}
-input#kw{flex:1;min-width:170px}
-.vsep{width:1px;height:22px;background:var(--bd2);align-self:center}
 button{font-family:inherit}
-#dir{width:40px;font-size:15px;font-weight:600;border:1px solid var(--bd2);background:var(--glass3);
-  border-radius:9px;cursor:pointer;color:var(--ac)}
-#reset,#csv,#offline{padding:7px 13px;border:1px solid var(--bd2);background:var(--glass3);
-  border-radius:9px;cursor:pointer;font-size:13px;color:var(--tx2);transition:.16s}
+#dir{width:100%;min-width:44px;font-size:15px;font-weight:700;border:1px solid var(--bd2);
+  background:var(--card);border-radius:9px;cursor:pointer;color:var(--ac);padding:7px 0}
+#reset,#csv,#offline{padding:8px 13px;border:1px solid var(--bd2);background:var(--card);
+  border-radius:9px;cursor:pointer;font-size:13px;color:var(--tx2);transition:.16s;white-space:nowrap}
 #reset:hover,#csv:hover,#offline:hover{border-color:var(--ac);color:var(--ac)}
-.brk{flex-basis:100%;height:0;margin:0;padding:0}
-.bar select{max-width:232px}
-/* 状态页签（在售 / 已下架 / 全部） */
-#tabs{display:inline-flex;border:1px solid var(--bd2);border-radius:10px;overflow:hidden;background:var(--glass3)}
-#tabs button{border:0;background:transparent;padding:7px 13px;font-size:13px;cursor:pointer;
-  color:var(--tx2);font-weight:600}
+
+/* 筛选维度网格：**每个控件带标签**。以前是一排没有标签的下拉，
+   用户只能靠默认项的文字（「全部月费」「不限流量」）反推这一格是什么 ——
+   13 个挤在一行，改完值之后就再也认不出哪格是哪格了。 */
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(122px,1fr));gap:9px 10px;margin-top:11px}
+/* 「全部地域（河北 + 全国）」这类长默认项放一格里会被截成「全部地域（河…」，
+   给需要两格的维度一个 .w2（grid-column:span 2）。 */
+.f.w2{grid-column:span 2}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f>.fl{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--tx3);padding-left:3px}
+.f select,.f input,.f button{width:100%;max-width:none}
+.f select{text-overflow:ellipsis}
+#tabs{display:inline-flex;border:1px solid var(--bd2);border-radius:10px;overflow:hidden;background:var(--card2)}
+#tabs button{border:0;background:transparent;padding:8px 14px;font-size:13px;cursor:pointer;
+  color:var(--tx2);font-weight:650}
 #tabs button+button{border-left:1px solid var(--bd2)}
 #tabs button.on{background:linear-gradient(135deg,var(--op1),var(--op2));color:#fff}
 #tabs button:disabled{color:var(--tx3);opacity:.55;cursor:not-allowed}
 #tabs button:disabled.on{background:var(--tx3);color:#fff}
 /* 快捷 chip */
-.chips{display:flex;flex-wrap:wrap;gap:6px;width:100%;padding-top:2px}
-.chips button{padding:4px 11px;border:1px solid var(--bd2);background:var(--glass3);border-radius:999px;
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding-top:11px}
+.chips button{padding:5px 12px;border:1px solid var(--bd2);background:var(--card2);border-radius:999px;
   font-size:12.5px;cursor:pointer;color:var(--tx2);transition:.14s}
 .chips button:hover{border-color:var(--ac);color:var(--ac)}
 .chips button.on{background:linear-gradient(135deg,var(--op1),var(--op2));border-color:transparent;color:#fff}
-/* 生效中的筛选标签：点 × 摘掉这一个条件 */
 .fchips{display:inline-flex;flex-wrap:wrap;gap:5px;vertical-align:middle}
 .fchip{padding:1px 9px;border:1px solid var(--bd2);background:var(--ac2);color:var(--ac);
   border-radius:999px;font-size:12px;cursor:pointer;line-height:1.7;font-family:inherit}
 .fchip:hover{border-color:var(--ac)}
 .fchip i{font-style:normal;font-weight:700;margin-left:4px}
 
-/* ── 统计行 ─────────────────────────────────────────────────── */
-#stat{padding:9px 3px;color:var(--tx2);font-size:13px}
+/* ── 结果统计行 ─────────────────────────────────────────────────── */
+#stat{padding:10px 4px;color:var(--tx2);font-size:13px}
 #stat b{color:var(--tx)}
 #stat .sortinfo{color:var(--ac);font-weight:600}
 
-/* ── 表格（用户选择：保留表格形态，只做美化）────────────────── */
-/* 🔴 这里必须用 overflow:clip，**不能**用 overflow:hidden。
-   hidden 会把表格变成滚动容器，于是表头 th 的「最近滚动容器」变成了表格本身
-   （表格不滚动）⇒ position:sticky 彻底失效：实测 th.top 随页面滚动 1:1 下移
-   （scrollY 0/900/2600 → th.top 796/-104/-1804），一个 5000px 高的表滚起来
-   完全不知道自己在看哪一列。
-   clip 同样裁掉圆角外的内容，但**不创建滚动容器**，sticky 仍以视口为基准。 */
-table{width:100%;border-collapse:separate;border-spacing:0;background:var(--glass);
-  backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
-  border:1px solid var(--bd);border-radius:var(--r);overflow:clip;font-size:13px;box-shadow:var(--sh)}
-th{position:sticky;top:var(--stackh,276px);z-index:5;background:var(--glass3);
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  text-align:left;padding:10px;font-weight:700;border-bottom:1px solid var(--bd2);
-  white-space:nowrap;user-select:none;font-size:12.5px;color:var(--tx2)}
+/* ── 表格 ───────────────────────────────────────────────────────── */
+/* 🔴 必须 overflow:clip，**不能** overflow:hidden：
+   hidden 会让表格成为滚动容器，th 的「最近滚动容器」变成表格本身（而表格不滚），
+   position:sticky 于是彻底失效（实测 th.top 随页面 1:1 下移）。 */
+table{width:100%;border-collapse:separate;border-spacing:0;
+  background:var(--card);border:1px solid var(--bd2);border-radius:var(--r);overflow:clip;
+  font-size:13px;box-shadow:var(--sh)}
+/* 🔴 th 背景必须**实色**：它压在滚动的行上面，半透明会透出下面的字。 */
+th{position:sticky;top:var(--stackh,276px);z-index:5;background:var(--card2);
+  text-align:left;padding:11px 10px;font-weight:700;font-size:12.5px;color:var(--tx2);
+  border-bottom:1px solid var(--bd2);white-space:nowrap;user-select:none}
 th[data-k]{cursor:pointer}
 th[data-k]:hover{color:var(--ac)}
 th .ar{opacity:.3;margin-left:3px;font-size:10px}
 th.act{color:var(--ac)}
 th.act .ar{opacity:1}
-td{padding:9px 10px;border-bottom:1px solid var(--bd2);vertical-align:top}
+td{padding:10px;border-bottom:1px solid var(--bd2);vertical-align:top}
 tbody tr:last-child td{border-bottom:0}
-tbody tr.row:nth-child(4n+3){background:var(--zebra)}
-tr.row:hover{background:var(--hover);cursor:pointer}
+tbody tr.row:nth-child(4n+3) td{background:var(--zebra)}
+tr.row:hover td{background:var(--hover);cursor:pointer}
 .nm{font-weight:600}
-.tg{display:inline-block;padding:1px 7px;border-radius:6px;background:var(--ac2);color:var(--ac);font-size:12px;font-weight:600;white-space:nowrap}
-.fee{font-weight:700;white-space:nowrap}
+.tg{display:inline-block;padding:1px 8px;border-radius:6px;background:var(--ac2);color:var(--ac);
+  font-size:11.5px;font-weight:650;white-space:nowrap}
+.fee{font-weight:750;white-space:nowrap;font-variant-numeric:tabular-nums}
 .fee.free{color:var(--ok)}
 .fee.low{color:var(--warn)}
 .ap{color:var(--tx2);font-size:12px;max-width:320px}
@@ -230,52 +244,53 @@ tr.row:hover{background:var(--hover);cursor:pointer}
 .bg-sc{background:var(--ac2);color:var(--ac);border:1px solid transparent}
 .bg-sc-cn{background:var(--warnbg);color:var(--warn)}
 .bg-stop{background:var(--badbg);color:var(--bad)}
-/* 归属徽标：个人 / 政企（仅移动有该字段）。
-   类名用 bg-ow / bg-ow-g 而不是拼中文（bg-ow-政企）—— 中文标识符虽然合法，
-   但在被压缩、被正则处理、或被别的工具解析时是常见的踩坑点，没必要冒这个险。 */
+/* 归属徽标：类名用 bg-ow / bg-ow-g，不拼中文标识符（压缩/正则处理时是常见坑） */
 .bg-ow{background:var(--ac2);color:var(--ac)}
 .bg-ow-g{background:var(--warnbg);color:var(--warn)}
 .nm .bg{margin-left:5px}
 tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 .det{display:none}
 .det.on{display:table-row}
-.det>td{padding:0;background:var(--zebra)}
-.det div{padding:11px 15px;line-height:1.85;border-bottom:1px solid var(--bd2)}
+.det>td{padding:0;background:var(--card2)}
+.det div{padding:12px 16px;line-height:1.85;border-bottom:1px solid var(--bd2)}
 .det b{color:var(--tx2);font-weight:600;display:inline-block;min-width:96px}
 .detact{margin-top:9px}
-.cpbtn{padding:4px 12px;border:1px solid var(--bd2);background:var(--glass3);border-radius:9px;
+.cpbtn{padding:5px 12px;border:1px solid var(--bd2);background:var(--card);border-radius:9px;
   font-size:12px;cursor:pointer;color:var(--tx2);font-family:inherit}
 .cpbtn:hover{border-color:var(--ac);color:var(--ac)}
-.pager{display:flex;gap:8px;align-items:center;justify-content:center;padding:18px 0}
-.pager button{padding:6px 14px;border:1px solid var(--bd2);background:var(--glass2);border-radius:9px;
+.pager{display:flex;gap:8px;align-items:center;justify-content:center;padding:20px 0}
+.pager button{padding:7px 15px;border:1px solid var(--bd2);background:var(--card);border-radius:10px;
   cursor:pointer;font-size:13px;color:var(--tx)}
 .pager button:hover:not(:disabled){border-color:var(--ac);color:var(--ac)}
 .pager button:disabled{opacity:.4;cursor:default}
-.empty{padding:44px;text-align:center;color:var(--tx2)}
+#pg{color:var(--tx2);font-size:13px;font-variant-numeric:tabular-nums}
+.empty{padding:48px;text-align:center;color:var(--tx2)}
 .empty a{color:var(--ac)}
 .netempty{max-width:760px;margin:40px auto;padding:26px 30px}
 .netempty h2{margin:0 0 12px;font-size:17px}
 .netempty p{margin:9px 0;color:var(--tx2);font-size:13.5px;line-height:1.9}
 .netempty p b{color:var(--tx)}
 
-/* ── 总览视图 ───────────────────────────────────────────────── */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:11px;margin-bottom:12px}
-.stat{padding:15px 17px;border-radius:var(--r);background:var(--glass);border:1px solid var(--bd);
-  backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));box-shadow:var(--sh)}
+/* ── 总览 ───────────────────────────────────────────────────────── */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:12px}
+.stat{padding:16px 18px;border-radius:var(--r);background:var(--card);border:1px solid var(--bd2);
+  box-shadow:var(--sh);position:relative;overflow:hidden}
+.stat::after{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:linear-gradient(180deg,var(--op1),var(--op2))}
 .stat .si{font-size:16px;margin-bottom:6px;opacity:.85}
-.stat .sn{font-size:26px;font-weight:800;letter-spacing:-1px;line-height:1.15;
+.stat .sn{font-size:27px;font-weight:800;letter-spacing:-1px;line-height:1.15;
   background:linear-gradient(135deg,var(--op1),var(--op2));-webkit-background-clip:text;
   background-clip:text;-webkit-text-fill-color:transparent}
-.stat .sl{font-size:11.5px;color:var(--tx3);margin-top:3px;font-weight:600}
+.stat .sl{font-size:11.5px;color:var(--tx3);margin-top:4px;font-weight:600}
 .stat.k{border-left:3px solid var(--op1)}
-.panel{padding:16px 18px;margin-bottom:12px;border-radius:var(--r);background:var(--glass);
+.panel{padding:17px 19px;margin-bottom:12px;border-radius:var(--r);background:var(--glass);
   border:1px solid var(--bd);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
   box-shadow:var(--sh)}
-.ph{display:flex;align-items:baseline;gap:11px;flex-wrap:wrap;margin-bottom:13px}
+.ph{display:flex;align-items:baseline;gap:11px;flex-wrap:wrap;margin-bottom:14px}
 .pt{margin:0;font-size:14.5px;font-weight:700}
 .ps{font-size:11.5px;color:var(--tx3)}
-.bars{display:flex;flex-direction:column;gap:7px}
-.brow{display:grid;grid-template-columns:minmax(112px,150px) 1fr 62px;gap:9px;align-items:center;font-size:12.5px}
+.bars{display:flex;flex-direction:column;gap:8px}
+.brow{display:grid;grid-template-columns:minmax(112px,152px) 1fr 62px;gap:10px;align-items:center;font-size:12.5px}
 .blab{color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
 .btrack{height:19px;background:var(--zebra);border-radius:6px;overflow:hidden;position:relative}
 .bfill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--op1),var(--op2));
@@ -284,36 +299,36 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 .btrack .bpct{position:absolute;right:7px;top:0;line-height:19px;font-size:10.5px;
   color:var(--tx3);font-weight:700}
 
-/* ── 变化历史（时间线）──────────────────────────────────────── */
-.tl{position:relative;padding-left:21px}
+/* ── 变化历史（时间线）────────────────────────────────────────── */
+.tl{position:relative;padding-left:22px}
 .tl::before{content:'';position:absolute;left:5px;top:5px;bottom:5px;width:2px;
   background:linear-gradient(180deg,var(--op1),var(--op2),transparent);border-radius:2px;opacity:.5}
 .tnode{position:relative;padding:11px 0 11px 3px}
 .tnode::before{content:'';position:absolute;left:-20px;top:17px;width:10px;height:10px;
-  border-radius:50%;background:var(--op1);box-shadow:0 0 0 3px var(--bg1);transition:background .4s}
+  border-radius:50%;background:var(--op1);box-shadow:0 0 0 3px var(--card);transition:background .4s}
 .tnode.zero::before{background:var(--tx3);opacity:.45}
 .thd{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:12.5px;cursor:pointer}
 .thd .ts{font-weight:700;color:var(--tx)}
 .thd .tm{color:var(--tx3);font-variant-numeric:tabular-nums}
 .tbd{display:none;margin-top:9px}
 .tnode.open .tbd{display:block}
-.tnet{margin:7px 0;padding:9px 12px;border-radius:10px;background:var(--zebra);border:1px solid var(--bd2)}
+.tnet{margin:7px 0;padding:10px 13px;border-radius:10px;background:var(--card2);border:1px solid var(--bd2)}
 .tnet .nh{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:12.5px;font-weight:700}
 .tnet .nn{color:var(--tx2);font-weight:400}
 .tcaps{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
 .tcap{padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;
-  background:var(--glass3);border:1px solid var(--bd2);color:var(--tx2)}
+  background:var(--card3);border:1px solid var(--bd2);color:var(--tx2)}
 .tcap.a{background:var(--okbg);color:var(--ok);border-color:transparent}
 .tcap.r{background:var(--badbg);color:var(--bad);border-color:transparent}
 .tcap.c{background:var(--warnbg);color:var(--warn);border-color:transparent}
-.tgl{padding:4px 11px;border:1px solid var(--bd2);background:var(--glass3);border-radius:999px;
+.tgl{padding:5px 12px;border:1px solid var(--bd2);background:var(--card);border-radius:999px;
   font-size:12px;cursor:pointer;color:var(--tx2);font-family:inherit}
 .tgl:hover{border-color:var(--ac);color:var(--ac)}
 
-/* ── 数据说明 ───────────────────────────────────────────────── */
+/* ── 数据说明 ───────────────────────────────────────────────────── */
 .ab p{margin:10px 0;font-size:13px;line-height:1.92;color:var(--tx2)}
 .ab p b{color:var(--tx)}
-.ab code{background:var(--zebra);padding:1px 6px;border-radius:5px;font-size:12px;
+.ab code{background:var(--card2);padding:1px 6px;border-radius:5px;font-size:12px;
   border:1px solid var(--bd2)}
 .ab h3{margin:18px 0 7px;font-size:13.5px;color:var(--tx)}
 .ab ul{margin:7px 0;padding-left:20px}
@@ -321,20 +336,20 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 .ab a{color:var(--ac)}
 
 #toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,12px);z-index:99;
-  background:#111c2b;color:#fff;padding:9px 18px;border-radius:10px;font-size:13px;
+  background:#111c2b;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;
   box-shadow:var(--sh2);opacity:0;pointer-events:none;transition:opacity .18s,transform .18s}
 #toast.on{opacity:1;transform:translate(-50%,0)}
 
 @media(max-width:900px){
-  .nav-mid{order:3;flex:1 1 100%;justify-content:space-between;margin-top:3px}
+  .nav-mid{order:3;flex:1 1 100%;justify-content:space-between;margin-top:4px}
   #h1{max-width:70vw}#sub{max-width:76vw}
 }
 @media(max-width:760px){
   .wrap{padding:8px 10px 32px}
   .ap{max-width:150px}
   input#kw{min-width:110px}
-  .bar select{max-width:150px}
-  .brow{grid-template-columns:minmax(78px,100px) 1fr 52px;font-size:12px}
+  .fgrid{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
+  .brow{grid-template-columns:minmax(78px,104px) 1fr 52px;font-size:12px}
   .stat .sn{font-size:22px}
   th,td{padding:8px 7px}
 }
@@ -372,13 +387,143 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   <div class="notice warn" id="basewarn" style="display:none"></div>
 </header>
 
-<nav id="vtab">
-  <button class="tab on" data-v="ov">数据总览</button>
-  <button class="tab" data-v="list">资费明细</button>
-  <button class="tab" data-v="hist">变化历史</button>
-  <button class="tab" data-v="about">数据说明</button>
-</nav>
-
+<!-- ══════════════════════════════════════════════════════════════════════
+     #deck：整页**唯一**的吸顶层（视图页签 ＋ 筛选工具条同属一个盒子）
+     🔴 2026-09-24 事故：页签和工具条各自 sticky，而页签那条忘了给背景 ⇒
+        滚动后表体从页签下面透上来，与「数据总览 / 资费明细 / 变化历史 / 数据说明」
+        叠成一坨乱码（用户截图顶部那条「0 元 — 数据总览 全国 通话尊享服…」）。
+        根因不是「漏了一个 CSS 值」，而是**吸顶层被拆成了三层各自定位的元素** ——
+        任何一层忘了不透明、或 top 算错一点，就重现。
+        合成一个盒子后，「吸顶层必须有实色背景」「top 必须递增」不再是需要记住的
+        约定，而是结构性质：写不出这个错。
+     🔴 工具条 #bar 原先嵌在 #v-list 里（只有明细页才有筛选），现在它必须与 #vtab
+        同盒，显隐改由 body[data-view] 控制（见 .bar 的 CSS 与 setView()）。
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="deck" id="deck">
+  <nav id="vtab">
+    <button class="tab on" data-v="ov">数据总览</button>
+    <button class="tab" data-v="list">资费明细</button>
+    <button class="tab" data-v="hist">变化历史</button>
+    <button class="tab" data-v="about">数据说明</button>
+  </nav>
+  <div class="bar" id="bar">
+    <div class="brow1">
+      <div id="tabs">
+        <button data-v="0">在售</button><button data-v="1">已下架</button><button data-v="">全部</button>
+      </div>
+      <input id="kw" placeholder="搜索名称 / 套餐 / 客户 / 渠道 / 报备编号 / 权益 / 宽带速率…">
+      <button id="reset">重置</button>
+      <button id="csv" title="把当前筛选结果导出为 CSV（全部结果、不只是本页；Excel 可直接打开）">导出 CSV</button>
+      <button id="offline" title="把当前页面另存为一份可离线打开的单文件 HTML">保存本页</button>
+    </div>
+    <!-- 维度网格：每个控件带标签。以前是一排无标签的下拉，
+         改完值就认不出哪格是哪格了。 -->
+    <div class="fgrid">
+      <label class="f w2"><span class="fl">地域</span>
+        <select id="sc" title="地域范围：河北省（含各地市专属与全省通用）/ 全国">
+          <option value="">全部地域（河北 + 全国）</option>
+          <option value="hb">仅河北省</option>
+          <option value="cn">仅全国</option>
+        </select></label>
+      <label class="f"><span class="fl">归属</span>
+        <select id="ow" title="归属：个人资费 / 政企资费（上游 type1 字段；仅移动提供，其余三网上游没有这个字段）">
+          <option value="">全部归属</option>
+        </select></label>
+      <label class="f"><span class="fl">类型</span>
+        <select id="cat" title="类型大类（四网统一口径：套餐 / 加装包 / 营销活动 / 标准资费 / 宽带 / 港澳台-国际）">
+          <option value="">全部大类</option>
+        </select></label>
+      <label class="f"><span class="fl">细分</span>
+        <select id="ty" title="类型细分（上游原始分类，如 流量包 / 语音包 / 促销；选了大类后不属于它的会置灰）">
+          <option value="">全部细分</option>
+        </select></label>
+      <label class="f"><span class="fl">地市</span>
+        <select id="ct">
+          <option value="">全部城市</option>
+          <option value="_none">仅全省通用（不限地市）</option>
+        </select></label>
+      <label class="f"><span class="fl">月费</span>
+        <select id="pf" title="按标准月费（元）筛选">
+          <option value="">全部月费</option>
+          <option value="0,0">仅 0 元</option>
+          <option value="0,10">≤ 10 元</option>
+          <option value="0,30">≤ 30 元</option>
+          <option value="0,60">≤ 60 元</option>
+          <option value="60,100">60 ~ 100 元</option>
+          <option value="100,99999">≥ 100 元</option>
+        </select></label>
+      <label class="f"><span class="fl">流量</span>
+        <select id="gf" title="按流量筛选（已按 dataUnit 归一到 GB）。「无流量」含两种：流量填 0 的，和压根没填流量字段的">
+          <option value="">不限流量</option>
+          <option value="none">无流量</option>
+          <option value="0,5">≤ 5 GB</option>
+          <option value="5,30">5 ~ 30 GB</option>
+          <option value="30,100">30 ~ 100 GB</option>
+          <option value="100,99999">≥ 100 GB</option>
+        </select></label>
+      <label class="f"><span class="fl">通话</span>
+        <select id="cf" title="按国内通话时长（分钟）筛选，与「月费」上的通话是同一口径">
+          <option value="">不限通话</option>
+          <option value="none">无通话</option>
+          <option value="0,100">≤ 100 分</option>
+          <option value="100,500">100 ~ 500 分</option>
+          <option value="500,99999">≥ 500 分</option>
+        </select></label>
+      <label class="f"><span class="fl">宽带</span>
+        <select id="bw" title="宽带：前两档是「有没有这条宽带线路」，后三档按下行速率卡">
+          <option value="">不限宽带</option>
+          <option value="line">含宽带（有宽带线路）</option>
+          <option value="speed">宽带提速 / 光网组网</option>
+          <option value="m200">宽带 ≥ 200M</option>
+          <option value="m500">宽带 ≥ 500M</option>
+          <option value="m1000">宽带 ≥ 1000M</option>
+        </select></label>
+      <label class="f"><span class="fl">渠道</span>
+        <select id="chx" title="办理渠道：上游原文已归一到三档。线上＝APP/网站/热线/短信，线下＝营业厅/门店/校园/代理">
+          <option value="">不限渠道</option>
+          <option value="线上">线上</option>
+          <option value="线下">线下</option>
+          <option value="线上+线下">线上+线下</option>
+          <option value="其他">其他 / 未注明</option>
+        </select></label>
+      <label class="f"><span class="fl">上架时间</span>
+        <select id="on">
+          <option value="">全部上架时间</option>
+          <option value="7">7 天内上架</option>
+          <option value="30">30 天内上架</option>
+          <option value="90">90 天内上架</option>
+          <option value="180">半年内上架</option>
+          <option value="365">一年内上架</option>
+          <option value="none">无上架日期</option>
+        </select></label>
+      <label class="f"><span class="fl">下线时间</span>
+        <select id="off">
+          <option value="">全部下线时间</option>
+          <option value="30">30 天内下线</option>
+          <option value="60">60 天内下线</option>
+          <option value="90">90 天内下线</option>
+        </select></label>
+      <label class="f"><span class="fl">变更</span>
+        <select id="chg">
+          <option value="">全部资费</option>
+          <option value="1">本次变更</option>
+        </select></label>
+      <label class="f"><span class="fl">排序</span><select id="sort"></select></label>
+      <label class="f"><span class="fl">方向</span><button id="dir" title="切换升序 / 降序">↓</button></label>
+    </div>
+    <div class="chips" id="chips">
+      <button data-p="all">全部</button>
+      <button data-p="new7">🆕 7 天内上架</button>
+      <button data-p="new30">🆕 30 天内上架</button>
+      <button data-p="new90">🆕 90 天内上架</button>
+      <button data-p="exp60">⏳ 60 天内下线</button>
+      <button data-p="free">0 元</button>
+      <button data-p="bw">含宽带</button>
+      <button data-p="g100">≥ 100GB 流量</button>
+      <button data-p="chg" id="chipchg">🔄 本次变更</button>
+    </div>
+  </div>
+</div>
 <main>
 <!-- ═══ 数据总览 ═══ -->
 <section class="view on" id="v-ov">
@@ -411,113 +556,6 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 
 <!-- ═══ 资费明细 ═══ -->
 <section class="view" id="v-list">
-<div class="bar glass" id="bar">
-  <div id="tabs">
-    <button data-v="0">在售</button><button data-v="1">已下架</button><button data-v="">全部</button>
-  </div>
-  <input id="kw" placeholder="搜索名称 / 套餐 / 客户 / 渠道 / 报备编号 / 权益 / 宽带速率…">
-  <select id="sc" title="地域范围：河北省（含各地市专属与全省通用）/ 全国">
-    <option value="">全部地域（河北 + 全国）</option>
-    <option value="hb">仅河北省</option>
-    <option value="cn">仅全国</option>
-  </select>
-  <!-- 归属（个人 / 政企）：只有移动的上游接口带 type1 字段，其余三网该下拉隐藏 -->
-  <select id="ow" title="归属：个人资费 / 政企资费（上游 type1 字段；仅移动提供，其余三网上游没有这个字段）">
-    <option value="">全部归属</option>
-  </select>
-  <!-- 类型两级：大类（四网统一口径）+ 细分（上游原始分类） -->
-  <select id="cat" title="类型大类（四网统一口径：套餐 / 加装包 / 营销活动 / 标准资费 / 宽带 / 港澳台-国际）">
-    <option value="">全部大类</option>
-  </select>
-  <select id="ty" title="类型细分（上游原始分类，如 流量包 / 语音包 / 促销；选了大类后不属于它的会置灰）">
-    <option value="">全部细分</option>
-  </select>
-  <!-- 地市：两个固定档 + 两组按 CITY_ORDER / CITY_EXTRA 生成的地市项。
-       🔴 地市项**不写死在这里**，由 buildCtOptions() 在 renderDims() 里按注入清单建 ——
-          写死的那份与构建脚本各存一份，迟早漂（漂了的表现是「某个地市在下拉里选不到」，
-          而数据里明明有，没有任何提示）。这里只留「与地市清单无关」的两个档。 -->
-  <select id="ct">
-    <option value="">全部城市</option>
-    <option value="_none">仅全省通用（不限地市）</option>
-  </select>
-  <span class="brk"></span>
-  <select id="pf" title="按标准月费（元）筛选">
-    <option value="">全部月费</option>
-    <option value="0,0">仅 0 元</option>
-    <option value="0,10">≤ 10 元</option>
-    <option value="0,30">≤ 30 元</option>
-    <option value="0,60">≤ 60 元</option>
-    <option value="60,100">60 ~ 100 元</option>
-    <option value="100,99999">≥ 100 元</option>
-  </select>
-  <select id="gf" title="按流量筛选（已按 dataUnit 归一到 GB）。「无流量」含两种：流量填 0 的，和压根没填流量字段的">
-    <option value="">不限流量</option>
-    <option value="none">无流量</option>
-    <option value="0,5">≤ 5 GB</option>
-    <option value="5,30">5 ~ 30 GB</option>
-    <option value="30,100">30 ~ 100 GB</option>
-    <option value="100,99999">≥ 100 GB</option>
-  </select>
-  <select id="cf" title="按国内通话时长（分钟）筛选，与「月费」上的通话是同一口径">
-    <option value="">不限通话</option>
-    <option value="none">无通话</option>
-    <option value="0,100">≤ 100 分</option>
-    <option value="100,500">100 ~ 500 分</option>
-    <option value="500,99999">≥ 500 分</option>
-  </select>
-  <select id="bw" title="宽带：前两档是「有没有这条宽带线路」，后三档按下行速率卡">
-    <option value="">不限宽带</option>
-    <option value="line">含宽带（有宽带线路）</option>
-    <option value="speed">宽带提速 / 光网组网</option>
-    <option value="m200">宽带 ≥ 200M</option>
-    <option value="m500">宽带 ≥ 500M</option>
-    <option value="m1000">宽带 ≥ 1000M</option>
-  </select>
-  <select id="chx" title="办理渠道：上游原文已归一到三档。线上＝APP/网站/热线/短信，线下＝营业厅/门店/校园/代理">
-    <option value="">不限渠道</option>
-    <option value="线上">线上</option>
-    <option value="线下">线下</option>
-    <option value="线上+线下">线上+线下</option>
-    <option value="其他">其他 / 未注明</option>
-  </select>
-  <select id="on">
-    <option value="">全部上架时间</option>
-    <option value="7">7 天内上架</option>
-    <option value="30">30 天内上架</option>
-    <option value="90">90 天内上架</option>
-    <option value="180">半年内上架</option>
-    <option value="365">一年内上架</option>
-    <option value="none">无上架日期</option>
-  </select>
-  <select id="off">
-    <option value="">全部下线时间</option>
-    <option value="30">30 天内下线</option>
-    <option value="60">60 天内下线</option>
-    <option value="90">90 天内下线</option>
-  </select>
-  <select id="chg">
-    <option value="">全部资费</option>
-    <option value="1">本次变更</option>
-  </select>
-  <span class="vsep"></span>
-  <select id="sort"></select>
-  <button id="dir" title="切换升序 / 降序">↓</button>
-  <button id="reset">重置</button>
-  <button id="csv" title="把当前筛选结果导出为 CSV（全部结果、不只是本页；Excel 可直接打开）">导出 CSV</button>
-  <button id="offline" title="把当前页面另存为一份可离线打开的单文件 HTML">保存本页</button>
-  <div class="chips" id="chips">
-    <button data-p="all">全部</button>
-    <button data-p="new7">🆕 7 天内上架</button>
-    <button data-p="new30">🆕 30 天内上架</button>
-    <button data-p="new90">🆕 90 天内上架</button>
-    <button data-p="exp60">⏳ 60 天内下线</button>
-    <button data-p="free">0 元</button>
-    <button data-p="bw">含宽带</button>
-    <button data-p="g100">≥ 100GB 流量</button>
-    <button data-p="chg" id="chipchg">🔄 本次变更</button>
-  </div>
-</div>
-
 <div id="stat"></div>
 <table>
 <thead><tr>
@@ -1731,6 +1769,11 @@ const VIEWS=["ov","list","hist","about"];
 function setView(v){
   if(VIEWS.indexOf(v)<0)v="ov";
   VIEW=v;
+  /* ★ 工具条 #bar 现在住在吸顶层 #deck 里（必须与 #vtab 同盒），
+     而吸顶层不能被 .view 的 display 控制 —— 所以显隐改由这里声明的
+     body[data-view] 驱动（CSS 里 `body[data-view="list"] .bar{display:block}`）。
+     setView 是唯一的视图切换入口，写在这里就不用担心漏掉某条切换路径。 */
+  document.body.dataset.view=v;
   document.querySelectorAll("#vtab .tab").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
   VIEWS.forEach(k=>{
     const s=document.getElementById("v-"+k);
@@ -2060,7 +2103,13 @@ function fixBarh(){
   const st=document.documentElement.style;
   st.setProperty("--vtabh",vh+"px");
   st.setProperty("--barh",barh+"px");
-  st.setProperty("--stackh",(vh+barh)+"px");
+  /* ★ 表头钉在**整个吸顶层**的下沿。以前是「页签高 + 工具条高」两数相加 ——
+     相加等于视觉下沿，前提是两层之间没有边框/间距，属于「隐含约定」。
+     现在直接量 #deck：#deck 是全页唯一的吸顶层，它的下沿就是表头该钉的位置。
+     （工具条隐藏时（非明细页）deck 高度自然等于页签高，不用特判。） */
+  const dk=document.getElementById("deck");
+  const sh=(dk&&dk.offsetParent!==null)?dk.offsetHeight:(vh+barh);
+  st.setProperty("--stackh",sh+"px");
 }
 window.addEventListener("resize",fixBarh);
 /* 同页跳到另一个 hash（手改地址栏 / 点同页链接）不会重新加载，

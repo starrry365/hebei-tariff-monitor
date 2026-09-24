@@ -183,6 +183,22 @@ jobs:
           # 拿联通当代表：它是唯二能逐城取数的网（另一网是电信，需真实浏览器）。
           python probes/probe_coverage_axes.py --net unicom
 
+      - name: 核对吸顶层不透明（滚动内容不许从吸顶层下面透出来）
+        run: |
+          set -e
+          # ★ 2026-09-24 新增。用户报「界面有问题」，截图顶部是一条叠在一起的乱码：
+          #     「0 元 — 数据总览 全国 通话尊享服… 资费明细 个人 — 变化历史 20 数据说明」
+          #   根因＝吸顶的「视图页签条」**没有背景**（筛选栏有 glass，页签条忘了加）
+          #   ⇒ 滚动时表格行从它下面透上来，与页签文字叠在一起。
+          #   ★ 这一条**其它所有检查都照不出来**：rect.top 正常（透明不影响几何）、
+          #     elementFromPoint 正常（命中测试返回最上层元素，与透明度无关）、
+          #     事件绑定正常、异常 0、连跑一致。唯一能表达它的量是**背景色的 alpha**。
+          #   判据：模板里每条 position:sticky 的规则都必须自带**实色**背景
+          #     （--card/--card2/--card3 或 hex/rgb），出现 --glass/rgba(...,<1) 
+          #     /transparent 一律失败；且必须存在唯一吸顶根 #deck（防止再被拆成
+          #     几层各自 sticky —— 那是这次事故的结构成因）。
+          python probes/probe_sticky_layers.py
+
       - name: 校验页面归档
         run: |
           python -c "
