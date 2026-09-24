@@ -50,6 +50,7 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
+html{color-scheme:light dark}
 body{min-height:100vh;background:var(--bg1);color:var(--tx);
   font:400 14px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI","Microsoft YaHei",system-ui,sans-serif;
   overflow-x:hidden;transition:background .4s,color .4s}
@@ -170,8 +171,9 @@ body[data-view="list"] .bar{display:block}
 .brow1{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 .brow1 #kw{flex:1 1 260px;min-width:150px}
 input,select{padding:7px 10px;border:1px solid var(--bd2);border-radius:9px;font-size:13px;
-  background:var(--glass3);color:var(--tx);font-family:inherit}
+  background:var(--glass3);color:var(--tx);font-family:inherit;color-scheme:light dark}
 input:focus,select:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2)}
+option,select optgroup{background:var(--card2);color:var(--tx)}
 button{font-family:inherit}
 #dir{width:100%;min-width:44px;font-size:15px;font-weight:700;border:1px solid var(--bd2);
   background:var(--glass3);border-radius:9px;cursor:pointer;color:var(--ac);padding:7px 0}
@@ -2133,6 +2135,7 @@ function renderHistory(){
 const THEME_KEY="hb-tariff-theme";
 function applyTheme(t){
   document.documentElement.setAttribute("data-theme",t);
+  document.documentElement.style.colorScheme=t;
   const b=$("#themeBtn");
   if(b)b.textContent=t==="dark"?"☀️ 浅色":"🌙 深色";
 }
