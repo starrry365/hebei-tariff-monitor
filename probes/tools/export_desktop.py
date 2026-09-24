@@ -67,8 +67,7 @@ def per_val(d):
     return float("inf") if f == 0 else g / f
 
 
-def row_out(net, d, all_province):
-    AD.ALL_PROVINCE = all_province
+def row_out(net, d):
     pv = per_val(d)
     bi = AD.bw_info(d)
     return [
@@ -87,7 +86,7 @@ def row_out(net, d, all_province):
         d.get("ty") or "",
         d.get("bw") or "",
         ("含宽带" if bi and bi[0] == "field" else ("含宽带(按名称判定)" if bi else "不含宽带")),
-        "/".join(AD.city_tags(d, all_province)),
+        "/".join(AD.city_tags(d)),
         d.get("ap") or "",
         d.get("chx") or "",
         d.get("ch") or "",
@@ -154,8 +153,7 @@ def main():
     for code in NET_ORDER:
         nd = (nets or {}).get(code) or {}
         rows = nd.get("rows") or []
-        ap = bool(nd.get("allProvince"))
-        out_rows = [row_out(code, d, ap) for d in rows]
+        out_rows = [row_out(code, d) for d in rows]
         per[code] = out_rows
         total.extend([[NET_CN[code]] + r for r in out_rows]) if False else None
         print("  %-4s %5d 条" % (NET_CN[code], len(out_rows)))
@@ -198,7 +196,8 @@ def main():
         c.font = Font(bold=True)
     ov.append([])
     ov.append(["说明", "列口径与线上页面「导出 CSV」完全一致（26 列）；"
-                     "「城市」列联通/广电恒空 —— 上游没有地市级数据，不是采集漏了。"])
+                     "「城市」列 = 条目级适用范围：移动/电信读上游地市字段（少数条目按文案兜底），"
+                     "联通读 12 城资费目录的归属；只有广电恒空（上游没有地市级数据，不是采集漏了）。"])
     ov.column_dimensions["A"].width = 12
     ov.column_dimensions["B"].width = 80
 

@@ -71,7 +71,8 @@ ZFLX = {"1": "套餐", "2": "加装包", "3": "营销活动", "4": "港澳台/�
 # 四网的地域字段差异极大，**逐网判** —— 不存在一套通用规则：
 #   移动：applicableArea / city / province **三个**字段都可能带地域。取值形态有
 #         2 字母省码（HE）、全国标记（000）、4 位地市码、多省 CSV、`!XX` 排除式
-#   联通：条目里**没有**地域字段（实测 cityId 只影响能否办理，不影响有哪些）⇒ 一律河北
+#   联通：条目里没有地域字段，但**采集侧**有 —— 12 城并集采集时逐条记了城市归属
+#         （`_cityNames` / `_allCity`，见 probes/he_unicom_tariff.collect）
 #   电信：applicableArea（HE / 地市码 CSV）+ applicableAreaLabel
 #   广电：`_areaNames` 只有「全国 / 河北省」两档（上游无地市粒度）
 #
@@ -80,16 +81,50 @@ ZFLX = {"1": "套餐", "2": "加装包", "3": "营销活动", "4": "港澳台/�
 #   验证这一步不能省：分类器写错了不会报错，只会**静默少一批条目**，
 #   而页面上「少了些什么」这件事没有任何提示。
 XINGTAI_CODE = "3190"        # 已实锤：条目名「邢台爱家光网服务预存活动-冀享专属」
-# 河北 12 个地市码 → 中文名（移动 / 电信的 applicableArea 用这套码）。
+# 河北 12 个地市码 → 中文名（**移动/电信**的 applicableArea 用这套 4 位码；
+# 联通的地市码是另一套 3 位码，在 probes/he_unicom_tariff.CITY_CODES 里，
+# 已在采集侧换成同一批中文名 —— 页面与对账脚本只看得到名字）。
 # ★ 地市码是**条目级**信息：一条资费可覆盖多个市（CSV），也可能一个都不限（全省通用）。
-# ★ 只有**移动和电信**有条目级地市码（2026-09-22 实测）：
-#     移动 12 市命中 1974 次、电信 265 次；联通条目零地域字段、广电区域码表只有省级。
-#   所以页面按 `allProvince` 决定「要不要出地市这一层」——见 template.html 的 renderDims。
+# ★ 三条网有条目级地市信息（2026-09-24 更正）：
+#     移动（4 位码，实测命中 1974 次）+ 文案兜底、电信（4 位码 CSV，265 次）、
+#     联通（12 城并集采集，139/8042 条没有覆盖全部城市）。
+#   🔴 广电是唯一真的没有的（区域码表只有省级）。
+#   🔴🔴 这里曾把联通也归到「没有」那一档，依据是「采集侧只采了邢台一城 + 条目零地域
+#     字段」—— 那是**抽样假阴性**：单城采集当然看不到城市差异（详见
+#     docs/联通河北资费-地市维度纠错-20260924.md）。
 HB_CITY = {"3100": "邯郸", "3110": "石家庄", "3120": "保定",
            "3121": "省直辖（定州/辛集）", "3130": "张家口", "3140": "承德",
            "3150": "唐山", "3160": "廊坊", "3170": "沧州", "3180": "衡水",
            "3190": "邢台", "3350": "秦皇岛"}
 HB_CITY_CODES = frozenset(HB_CITY)
+
+# ★★ 地市的**统一命名空间** —— 页面下拉、行数据（`cty`）、对账脚本都用它。
+#   刻意用**中文名**而不是任何一套码：
+#     移动/电信是 4 位码（3190=邢台）、联通是 3 位码（185=邢台）。两套码并存时，
+#     页面拿到一个 `cty` 值得先问「这是哪张表的」—— 而值本身长得也像（纯数字），
+#     判错的结果是「某个市的筛选恒为空」，不报错、看着像「这个市本来就没资费」。
+#   统一成名字后只有一套，且与下拉里显示的文本逐字相同。
+#   ★ 页面由 __CITY_ORDER__ / __CITY_EXTRA__ 注入，不再自带副本 ——
+#     自带副本的下场见 audit_data.check_sync 的历史注释（改了一边忘了另一边）。
+CITY_ORDER = ("石家庄", "唐山", "秦皇岛", "邯郸", "邢台", "保定",
+              "张家口", "承德", "沧州", "廊坊", "衡水", "省直辖（定州/辛集）")
+# 「专属区域」：没有独立地市码的行政/功能区，只能从文案里认出来，页面下拉里单列一组。
+#   雄安新区在**移动**那网就是这样（移动的 12 个码里没有雄安）；联通侧它有码
+#   （CITY_CODES 里的 782），两条路最后都产出同一个名字 —— 这是刻意的：
+#   名字一致，页面/筛选/分布图才不会把同一个地方当成两个。
+CITY_EXTRA = ("雄安新区", "华北油田")
+CITY_ALL = frozenset(CITY_ORDER) | frozenset(CITY_EXTRA)
+# 允许「从文案里认地市」的网。
+#   ★ 只有移动 / 电信：这两网的 applicableArea 覆盖不全（雄安新区 / 华北油田这类区域
+#     根本没有码），而它们的文案写地市是可靠信号（实测移动文本兜底命中 373 条）。
+#   ★ 联通**不在此列**：它每条资费都带回采集侧的城市归属，没标到的就是全省通用；
+#     再从文案里认一遍反而会把实为全省的资费错标成某个市（下拉里就会少掉「全省通用」）。
+#     广电上游没有地市粒度，更不该猜。
+CITY_TEXT = frozenset(("move", "telecom"))
+# 文案兜底的判据（与 CITY_ORDER / CITY_EXTRA 配对）；只在 code in CITY_TEXT 时用。
+TEXT_CITY_LS = ("石家庄", "唐山", "秦皇岛", "邯郸", "邢台", "保定",
+                "张家口", "承德", "沧州", "廊坊", "衡水")
+TEXT_CITY_ALIAS = (("雄安新区", "雄安"), ("华北油田", "华北油田|华油"))
 HB_PROV_TOK = "HE"           # 2 字母省码 = 河北
 HB_PROV_NUM = "311"          # 数字省码 = 河北
 CN_TOK = "000"               # 全国标记
@@ -199,18 +234,42 @@ def _toks(v):
     return [t.strip() for t in str(v or "").split(",") if t.strip()]
 
 
+def _mk_cities(codes):
+    """4 位地市码列表 → 统一中文名列表（去重、丢掉码表里没有的）。"""
+    return _uniq([HB_CITY[t] for t in _uniq(codes) if t in HB_CITY])
+
+
+def text_cities(e):
+    """从**文案**里认地市 —— 只给 ``CITY_TEXT`` 里那两网用（见常量注释）。
+
+    返回中文名列表（可为空）。四个字段取**并集**，缺一不可，这是实测的：
+      · 只看名称 → 漏 46 条：地市只写在「目标客户」里的「移动云盘2026特惠季包」（秦皇岛）
+      · 只看「目标客户」→ 漏 103 条：市级包名带地市、但该字段只写通用话术的
+        「邯郸179元低消回馈」「秦皇岛10元语音低消」…
+    返回数组而非单值：一条可属多市（IPTV 类在目标客户里列 4 个市；
+    「沧州华油尊享礼包」同属沧州与华北油田）。
+    """
+    s = " ".join(str(e.get(k) or "") for k in ("name", "tariffName",
+                                               "applicablePeople", "otherContent"))
+    out = [c for c in TEXT_CITY_LS if c in s]
+    for name, pat in TEXT_CITY_ALIAS:
+        if re.search(pat, s):
+            out.append(name)
+    return _uniq(out)
+
+
 def _mv_where(e):
-    """移动条目地域 → ``(sc, cities)``。
+    """移动条目地域 → ``(sc, cities)``（cities 是**中文名**）。
 
     ``sc``      ``"hb"`` 河北 / ``"cn"`` 全国 / ``""`` 与河北无关（整条丢弃）
-    ``cities``  地市码列表（空列表 = 全省通用）。一条资费可覆盖多个市（CSV），
+    ``cities``  地市名列表（空列表 = 全省通用）。一条资费可覆盖多个市（CSV），
                 也可能同时出现在 `applicableArea` 与 `city` 两个字段里 ⇒ 去重。
 
     ★ 判序要点：**地市码优先于全国码**。实测有条目 `applicableArea` 同时含
       地市码与 `000`，它的语义是「这个市里按全国资费执行」⇒ 归地市更具体。
     """
     aa, ct, pv = _toks(e.get("applicableArea")), _toks(e.get("city")), _toks(e.get("province"))
-    cities = _uniq([t for t in (aa + ct) if t in HB_CITY])
+    cities = _mk_cities(aa + ct)
     if cities:
         return "hb", cities
     if CN_TOK in aa:
@@ -228,29 +287,47 @@ def _mv_where(e):
     if len(pv) == 1:
         return ("hb", []) if pv[0] == HB_PROV_NUM else ("", [])
     if ct and all(t in HB_CITY for t in ct):
-        return "hb", _uniq(ct)
+        return "hb", _mk_cities(ct)
     if not aa and not ct and not pv:           # 三字段全空 = 无地域限制 ⇒ 全省通用
         return "hb", []
     return "", []
 
 
 def _ct_where(e):
-    """电信条目地域 → ``(sc, cities)``。
+    """电信条目地域 → ``(sc, cities)``（cities 是**中文名**）。
 
     ★ 整套电信数据的 provCode 就是 609906（河北），所以**默认 hb 是保守且正确的**；
       只有条目自己声明了地市码时才细分（`applicableArea` 是 CSV，含 3190 即邢台）。
       这里读的是 ct_monitor 归一化时特意保留的 `_areaCodes`（原来是丢掉的）。
     """
-    aa = _toks(e.get("_areaCodes"))
-    return "hb", _uniq([t for t in aa if t in HB_CITY])
+    return "hb", _mk_cities(_toks(e.get("_areaCodes")))
+
+
+def _uc_where(e):
+    """联通条目地域 → ``(sc, cities)``（cities 是**中文名**）。
+
+    联通**没有地域字段**，但采集侧有 —— 12 城并集采集时，每条资费都带回了
+    「它的三级目录出现在哪些城市」（见 probes/he_unicom_tariff.collect）：
+
+      · ``_cityNames``：城市名列表，**没有**覆盖全部城市 ⇒ 只在这些城市的目录里；
+      · ``_allCity=1``：覆盖了全部城市 ⇒ 全省通用（采集侧刻意不落列表，见那边注释）。
+
+    🔴 这里读的键必须在**采集侧**就被换成中文名（同 CITY_ORDER / CITY_EXTRA 那套）。
+      不要在这边另配一张「联通 3 位码 → 名字」的表 —— 两张表要同步，而它们迟早会漂。
+
+    ⚠️ 老快照（2026-09-24 之前采的）两个键都没有 ⇒ 一律按「全省通用」渲染，
+      页面因此**不出地市这一层**（它按「有没有 cty」判）。这是刻意的 fail-safe：
+      数据里没有地市信息时，宁可不给这个维度，也不要拿一个不存在的维度去筛
+      （用户选「邢台」会得到 0 条，而那看起来像「邢台没有资费」）。
+    """
+    return "hb", _uniq([n for n in (e.get("_cityNames") or []) if n in CITY_ALL])
 
 
 WHERE_OF = {
     "move": _mv_where,
     "telecom": _ct_where,
-    # 联通无地域字段（实测 cityId 只影响能否办理）；广电只有「全国 / 河北省」两档。
-    # 两网都**没有地市**（cities 恒空）—— 页面据此不出这一层。
-    "unicom": lambda e: ("hb", []),
+    "unicom": _uc_where,
+    # 广电在上游只有「全国 / 河北省」两档地区，条目里没有地市字段 ⇒ cities 恒空。
     "cbn": lambda e: (("cn" if "全国" in str(e.get("_areaNames") or "") else "hb"), []),
 }
 
@@ -781,10 +858,12 @@ def net_payload(payloads):
         out[code] = {"sh": sh, "nm": nm,
                      "src": p.get("src") or "",
                      "base": p.get("base") or "",
-                     # 「本网数据不分城市」由数据源自己声明（联通为真）。页面拿到它就把
-                     # 该网全部条目按「全省通用」处理，不再去名称文本里猜地市 ——
-                     # 否则选任何地市都返回 0 条，看着像 bug，实际是拿不存在的维度在筛。
-                     "allProvince": bool(p.get("allProvince")),
+                     # ★ 这里**曾有**一个 allProvince 声明（「本网数据不分城市」），
+                     #   页面拿它决定要不要出地市那一层。2026-09-24 删掉：
+                     #   联通那网的声明是**错的**（它按城市分数据），而页面信声明、
+                     #   不信数据 ⇒ 一个错的声明就能把整个维度藏掉，且毫无提示。
+                     #   现在页面按「本网有没有 d.cty」自己判（数据驱动，见 renderDims）。
+                     #   教训：**声明与现实脱节时不会有任何报警**，能不用就别用。
                      "rows": p.get("rows") or []}
     return out
 
@@ -806,6 +885,59 @@ def _mark_changes(rows, diff):
             r.pop("ca", None)
             r.pop("ck", None)
     return rows
+
+
+# ── 流量「数值 + 单位」与月费的归一（构建期，四网共用）──────────────────────
+# ★ 目的：让**行数据**里的 `du` 只可能是 ``GB`` / ``MB`` / ``TB`` / ``''``（空＝无流量），
+#   `f` 只可能是数字串或空。这样「流量」筛选、「每元流量」排序、CSV 导出三处口径
+#   必然一致 —— 判据只此一份，页面只读不算（与 cat / chx / cty 同一条原则）。
+# ★ 为什么必须做：上游写法不统一，不归一会产生两类**静默**后果：
+#     ① 真缩写认不出：联通写 ``M`` / ``T``（``100M`` 就是 100MB）⇒ 归一前 gb() 返回
+#        None ⇒ 该条在「流量」列显示「—」、在「每元流量」排序里**凭空消失**，
+#        看着像「上游没填流量」。实测 4 条（100/200/500M + 1T）。
+#     ② 占位符与脏值混进单位列：``0`` / ``0GB`` / ``不涉及`` / ``无`` / ``M/B`` ⇒
+#        体检就没法用「单位白名单」兜住取值域，上游新增一个单位也没人发现。
+# 🔴 归一只在**单位认不出**或**数值为 0** 时动手，绝不碰正常数据：
+#    ``d='0' du='GB'``（四网合计 9556 条）是上游表达「本套餐不含流量」的标准写法，
+#    gb() 算得 0.0、页面显示「—」、体检本来就过 —— 归一它属于无事生非。
+UNIT_ALIAS = {"M": "MB", "MB": "MB", "M/B": "MB",     # 联通写 M；M/B 是脏值
+              "G": "GB", "GB": "GB", "GB起": "GB",     # 「GB起」＝至少 GB 档
+              "T": "TB", "TB": "TB"}
+FEE_NONE = frozenset(("无", "不涉及", "没有", "否", "-", "－", "/", "—"))
+
+
+def du_norm(data, unit):
+    """``(data, dataUnit)`` → ``(数值, 单位)``；单位只可能是 ``GB`` / ``MB`` / ``TB`` / ``''``。
+
+    返回 ``('', '')`` 表示「本套餐不含流量」—— 此时 ``gb()`` 返回 None，页面显示「—」。
+    """
+    u = str(unit or "").strip().upper()
+    d = str(data if data is not None else "").strip()
+    if not d:
+        return "", ""
+    canon = UNIT_ALIAS.get(u)
+    if canon:
+        return d, canon
+    # 单位认不出（占位符 / 脏值 / 空）：只有**数值确实是 0** 时才当「无流量」收起。
+    # 数值非 0 又认不出单位 ⇒ 原样留着，让体检的「单位白名单」把它报出来
+    #（上游新增单位必须人工过目，这里不能默默吞掉）。
+    try:
+        if float(d) == 0:
+            return "", ""
+    except ValueError:
+        pass
+    return d, u
+
+
+def fee_norm(v):
+    """月费字段归一：上游把「本套餐不收月费」写成 ``无`` / ``不涉及`` ⇒ 归一成空。
+
+    ★ 页面 ``num()`` 对 ``无`` 与空都返回 null（``parseFloat('无')`` 是 NaN），
+      所以这里**不改变任何显示与排序**，只是让行数据的取值域干净、
+      体检能用「数字串或空」这一条把住。
+    """
+    s = str(v if v is not None else "").strip()
+    return "" if s in FEE_NONE else s
 
 
 def state_of(code, e, g, base_day):
@@ -874,14 +1006,27 @@ def rows_of(o, diff=None, code=""):
             if code and not sc:
                 dropped += 1
                 continue
+            # ★ 地市：**上游字段没有时**，允许从文案里认（仅移动 / 电信，见 CITY_TEXT）。
+            #   这一段原先写在页面的 cityTags() 里，2026-09-24 搬到构建期 ——
+            #   与 cat / chx / sc / st 同一条原则：归一在构建期做完写进行数据，
+            #   页面只读不算。搬过来的实打实收益是**判据只剩一份**：
+            #   原先页面与 audit_data 各有一份文本规则，靠 check_sync 比对字符串，
+            #   而那段注释自己就写着「页面判据一升级，这里不跟着改，对账就从对得上
+            #   滑成永远差一截；又因为平时没人跑，看上去只是噪音」。
+            if not cty and code in CITY_TEXT:
+                cty = text_cities(e)
 
             def s(k, n=400):
                 v = e.get(k)
                 return "" if v in (None, "None") else str(v).replace("\n", " ")[:n]
             chn = s("channel", 120)
+            # ★ 流量「数值 + 单位」先归一（见 du_norm）：上游写法四网各不相同，
+            #   不归一就会出现「100M 认不出单位 ⇒ 流量筛选把它漏掉」这类静默错。
+            #   `g` 由**归一后**的 (d, du) 算，三者口径必然一致。
+            d_n, du_n = du_norm(e.get("data"), e.get("dataUnit"))
             rec = {"n": s("name", 120), "t": s("tariffName", 80),
-                   "f": s("fees", 20), "d": s("data", 20), "du": s("dataUnit", 10),
-                   "c": s("call", 20), "g": gb(e.get("data"), e.get("dataUnit")),
+                   "f": fee_norm(s("fees", 20)), "d": d_n, "du": du_n,
+                   "c": s("call", 20), "g": gb(d_n, du_n),
                    "ap": s("applicablePeople", 220), "ch": chn,
                    "o": s("onlineDay", 12), "e": s("offineDay", 12),
                    "ty": ty, "a1": attr, "r": s("reportNo", 30),
@@ -899,9 +1044,13 @@ def rows_of(o, diff=None, code=""):
             ow = OW_CN.get(s("type1", 4))
             if ow:
                 rec["ow"] = ow
-            # ★ 地市码只在**本网真有**时才写（联通/广电恒空）—— 空列表不落盘，
-            #   免得页面拿到一堆 `cty: []` 误以为「这些条目属于第 0 个地市」。
-            #   有值 = 该资费限这几个市；无此键 = 全省通用。
+            # ★ 地市只在**真有**时才写 —— 空列表不落盘，免得页面拿到一堆 `cty: []`
+            #   误以为「这些条目属于第 0 个地市」。
+            #   有值 = 该资费限这几个市（**中文名**，取值域 = CITY_ORDER ∪ CITY_EXTRA）；
+            #   无此键 = 全省通用。
+            #   ★ 页面据此决定**要不要出地市这一层**（本网一条 cty 都没有 ⇒ 不出），
+            #     不再依赖任何「本网不分城市」的声明 —— 那个声明错过一次，代价是
+            #     整个维度被藏起来而无人察觉（见 WHERE_OF / net_payload 的注释）。
             if cty:
                 rec["cty"] = cty
             if code and state_of(code, e, g, base_day):
@@ -931,7 +1080,8 @@ def rows_of(o, diff=None, code=""):
 #   原先是 build_html 与 render_only 各写一遍替换列表 —— 2026-09-22 加 __CAT_ORDER__
 #   时就只改了 build_html，render_only 那侧静默漏掉。合并到一处，从结构上消除这种漏。
 PLACEHOLDERS = ("__NETS__", "__N__", "__DATE__", "__CAT_ORDER__",
-                "__OW_ORDER__", "__HIST__", "__NOTICE__")
+                "__OW_ORDER__", "__CITY_ORDER__", "__CITY_EXTRA__",
+                "__HIST__", "__NOTICE__")
 
 
 def js_json(obj):
@@ -1008,8 +1158,7 @@ def build_html(sources, notice="", diffs=None, archive=True):
                 "%s×%d" % (k, v) for k, v in sorted(unmapped.items()))
                 + " —— 请在 TYPE_CAT 里补映射（CI 会因此硬失败）")
         payloads[code] = {"rows": rows, "src": SRC_OF.get(code, ""),
-                          "base": data_day(o, time.strftime("%Y-%m-%d")),
-                          "allProvince": bool(o.get("allProvince"))}
+                          "base": data_day(o, time.strftime("%Y-%m-%d"))}
         total += len(rows)
     if not payloads:
         log("!! 没有任何一网的数据，放弃重建页面")
@@ -1034,6 +1183,12 @@ def build_html(sources, notice="", diffs=None, archive=True):
         "__CAT_ORDER__": js_json(list(CAT_ORDER)),
         # 归属档位顺序（同 CAT_ORDER 的理由：顺序只此一份，页面不另写常量）。
         "__OW_ORDER__": js_json(list(OW_ORDER)),
+        # 地市清单（下拉的「地市」组 + 「专属区域」组，也是地市分布图的顺序）。
+        # 页面**不再自带**这份清单 —— 一份副本的下场见 audit_data.check_sync：
+        # 页面那份是 4 位地市码表，而联通的地市码是 3 位，两套编码并存时
+        # 「这个 cty 该查哪张表」这个问题根本没人能答对。
+        "__CITY_ORDER__": js_json(list(CITY_ORDER)),
+        "__CITY_EXTRA__": js_json(list(CITY_EXTRA)),
         # 变更历史（页面时间线）。走紧凑序列化 —— 它一年年涨，白空格也是体积。
         "__HIST__": js_json(load_history().get("items") or []),
         "__NOTICE__": notice or "本次巡检未检测到变化"})
@@ -1126,6 +1281,8 @@ def render_only():
             "__NETS__": payload, "__N__": str(all_n), "__DATE__": date,
             "__CAT_ORDER__": js_json(list(CAT_ORDER)),
             "__OW_ORDER__": js_json(list(OW_ORDER)),
+            "__CITY_ORDER__": js_json(list(CITY_ORDER)),
+            "__CITY_EXTRA__": js_json(list(CITY_EXTRA)),
             "__HIST__": js_json(load_history().get("items") or []),
             "__NOTICE__": notice})
     except RuntimeError as e:

@@ -1,15 +1,23 @@
 # -*- coding: utf-8 -*-
 """四网「上游限制」实时探针 —— 回答「联通/广电为什么没有地市级数据」。
 
-`probe_city_matrix.py` 证明的是**可观察结果**（快照里联通/广电 0 条带地市码）；
+`probe_city_matrix.py` 证明的是**可观察结果**（快照里各网有多少条带地市归属）；
 本探针用**实时接口**证明**成因**，避免结论只能靠「当时观察到」口说无凭。
+
+🔴🔴 2026-09-24 更正：本探针原来给出的「联通没有地市级数据」是**错的**。
+   错在 B 段的判据本身 —— 它只看 `indexData` 的**两级骨架**，而真正随城市变化的是
+   **三级目录 id**（住在另一个接口 `threeLevelName` 里）⇒ 两级骨架天生看不见差异。
+   两级「一致」被当成了「地市无影响」，于是主链路只采邢台一城，**静默漏采 130 条**。
+   现在 B 段并列保留旧判据（留证）与现行判据（`city_scope()` 的权威结论）。
+   完整复盘：`docs/联通河北资费-地市维度纠错-20260924.md`。
 
 ═══ 联通：为什么不能按地市查 ═══════════════════════════════════════
   A) 前端 JS 里另有一族 /queryTariff/*（countryTariffQuery / TariffMenuDataThreeHomePage /
      tariffDetailInfo…），河北侧**不被路由** —— 同刻老接口 0.1s 正常，这族逐条 8s 超时。
      ⇒ 不是我们没找到参数，是这套根本没挂上来。
-  B) 12 地市 indexData 的「(一级,二级) 骨架」签名**去重后只有 1 种** ⇒ 换 cityId 骨架不变，
-     与适配器注释里「cityId 能传但不影响数据」互相印证。
+  B) 分两层看（见上「更正」）：
+     B1 旧判据（两级骨架，**已证伪，留证**）：12 城签名去重后只有 1 种。
+     B2 现行判据（三级目录，22 组合 × 12 城）：**12 个组合随城市变化**，并集净增 130。
 
 ═══ 广电：为什么不能按地市查 ═══════════════════════════════════════
   A) qryAreaList 的 33 个区域**全是省级/直辖市粒度**（HB00 河北 / HB01 湖北 / HLJ0 黑龙江 /
@@ -17,6 +25,7 @@
   B) 传地市级编码（HB0001 / HB1305 / HB130500）回 **BASE102 区域编码无效**。
   C) 分类树里 ZQ（政企）节点 childTariffTypes 长度 **0**；且 type1 参数被服务端**完全忽略**
      （GZ / ZQ / 1 / 2 返回同样条数）⇒ 政企分类树是空壳。
+  （广电这条**至今成立** —— 它是四网里唯一真没有地市粒度的，条目级 cty 恒 0。）
 
 用法：
     python probes/probe_upstream_limits.py            # 两网都跑
@@ -119,40 +128,53 @@ def probe_unicom():
                 routed += 1
             break   # 该体已明确结论，换下一种
 
-    print("\n[B] 12 地市 indexData「(一级,二级) 骨架」签名对比")
-    CITIES = [("石家庄", "188"), ("唐山", "181"), ("秦皇岛", "182"), ("邯郸", "186"),
-              ("邢台", "185"), ("保定", "187"), ("张家口", "184"), ("承德", "189"),
-              ("沧州", "180"), ("廊坊", "183"), ("衡水", "720"), ("雄安", "782")]
+    print("\n[B1] 两级骨架对比（★旧判据，**已证伪** —— 留证，看它为什么看不见差异）")
+    # 🔴 用采集器的城市表，不另抄一份（抄一份就多一份会漂的副本）。
+    cities = list(U.CITY_CODES)
     sig = {}
-    for nm, code in CITIES:
+    for nm, code in cities:
         j, note = raw_post(U.BASE + "/queryTariffNew/indexData",
                            dict(U.BLANK, provinceId=U.PROV, cityId=code,
                                 behaviorId=U.behavior_id()),
                            "application/x-www-form-urlencoded", U.HEADERS, timeout=10)
         if j is None:
-            print("   %-5s %-4s 未通 %s" % (nm, code, note))
+            print("   %-6s %-4s 未通 %s" % (nm, code, note))
             continue
         lv = (j.get("data") or {}).get("levelList") or []
         s = "|".join("%s:%s" % (x.get("firstLevel"),
                                 ",".join(str(y.get("secondLevel")) for y in (x.get("secondLevels") or [])))
                      for x in lv)
         sig[nm] = s
-        print("   %-5s %-4s code=%-6s 一级=%d 二级=%d"
+        print("   %-6s %-4s code=%-6s 一级=%d 二级=%d"
               % (nm, code, j.get("code"), len(lv),
                  sum(len(x.get("secondLevels") or []) for x in lv)))
-    vals = set(sig.values())
-    uniq = len(vals)
-    print("\n   → 12 城签名去重后 %d 种 %s"
-          % (uniq, "（全部一致 ⇒ 换 cityId 骨架不变，地市级维度对数据无影响）"
-             if uniq == 1 else "⚠️ 出现了差异 —— 上游语义可能已变，请人工复核"))
+    uniq2 = len(set(sig.values()))
+    print("\n   → 两级骨架去重后 %d 种" % uniq2)
+    print("     🔴 这一层**天生看不见城市差异**：真正随城市变化的是**三级目录 id**，"
+          "住在另一个接口 threeLevelName 里。")
+    print("        2026-09-22 正是据此得出「换 cityId 不影响数据」⇒ 主链路只采邢台一城，"
+          "**静默漏采 130 条**。")
+
+    print("\n[B2] 三级目录对比（现行判据 —— 直接调采集器的权威 city_scope()，不另写一套）")
+    sc = U.city_scope(verbose=True)
+    print("   → %d 组合 × %d 城市：单城(%s)=%d → 并集=%d 净增=%d"
+          % (sc["combos"], sc["cities"], U.CITY, sc["single_city_menu"],
+             sc["union_menu"], sc["gain"]))
+    print("     存在城市差异的组合 %d 个%s"
+          % (len(sc["diff_combos"]),
+             ("：" + "、".join(sc["diff_combos"])) if sc["diff_combos"] else ""))
+    print("     ⇒ 必须取 **12 城并集**；且「一致」只有在覆盖全 22 组合 × 全 12 城后才算数。")
 
     print("\n结论（联通）：")
     print("   · 旁路 /queryTariff/* 本网未路由（本次 %d 条未通 / %d 条有响应），"
           "而老接口同刻正常 ⇒ 不是参数没找对，是这套没挂上来。" % (unrouted, routed))
-    print("   · 12 城骨架签名 %d 种 ⇒ 地市级对数据无影响。" % uniq)
-    print("   · 明细 24 个字段里**零地域字段**（见 probe_city_matrix.py）。")
-    print("   ⇒ 联通在本网**无法**提供条目级地市维度（上游未提供，非解析遗漏）。")
-    return uniq
+    print("   · 两级骨架 %d 种（看不出差异）；三级目录 22×12 判据下 **%d 个组合有差异**、"
+          "净增 %d 个三级目录。" % (uniq2, len(sc["diff_combos"]), sc["gain"]))
+    print("   · 明细 24 个字段里确实**零地域字段** —— 但城市归属来自"
+          "**三级目录出现在哪些城市**（采集侧逐条记录），不等于「没有地市维度」。")
+    print("   ⇒ 联通**有**条目级地市维度（由采集侧 12 城并集提供）；"
+          "旧结论「上游未提供」是把「两级骨架一致」错当成「无差异」。")
+    return sc["gain"]
 
 
 # ───────────────────────────── 广电 ─────────────────────────────

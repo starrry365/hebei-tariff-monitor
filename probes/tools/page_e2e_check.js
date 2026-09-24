@@ -7,8 +7,11 @@
  *
  * 断言四网各自的关键 UI 行为：
  *   · 地域筛选 #sc 的档位与置灰（只有一档地域的网，另一档必须置灰）
- *   · 地市筛选 #ct 的**显隐**（上游没有地市级数据的网必须隐藏，而不是置灰）
- *   · 地市筛选**真的能筛**（选一个真实地市 ⇒ 结果收窄且 > 0）
+ *   · 地市筛选 #ct 的**显隐**（本网一条地市归属都没有的必须隐藏，而不是置灰）
+ *     —— 判据是**数据**（有没有 d.cty），不是任何「本网不分城市」的声明：联通那网
+ *        声明过 allProvince 而它与事实相反，地市维度因此被整层藏掉，无人察觉。
+ *   · 地市筛选**真的能筛**（选一个地市 ⇒ 结果收窄且 > 0；
+ *     样本取**当前页签下真有条目**的那个，避免「本网该地市整批已下架」造成的假失败）
  *   · 幽灵塞值：隐藏维度手工塞值必须**不生效**（否则等于拿不存在的维度筛）
  *   · 已下架页签的可用性与条数
  *   · 类型**两级**：#cat 大类的顺序与条数（必须与数据逐条对齐）、
@@ -77,7 +80,6 @@
 
     var n = net() || {};
     o.netname = n.nm || "";
-    o.allProvince = !!n.allProvince;
     o.sub = txt($("#sub")).slice(0, 170);
 
     var sc = $("#sc");
@@ -91,6 +93,14 @@
     o.ctVisible = getComputedStyle(ct).display !== "none";
     o.ctOptionCount = ct.options.length;
     o.ctValues = opts("#ct").map(function (x) { return x.value; });
+    o.ctChoosable = opts("#ct").filter(function (x) {
+      return !x.disabled && x.value && x.value !== "_none";
+    }).map(function (x) { return x.value; });
+    /* 选项文本带条数（「石家庄（19）」）—— 顺带把「有值但条数写 0」这种自相矛盾捞出来：
+       它说明建选项时用的口径与置灰时用的口径不是同一个。 */
+    o.ctZeroText = opts("#ct").filter(function (x) {
+      return !x.disabled && /（0）$/.test(String(x.textContent || ""));
+    }).map(function (x) { return x.value; });
 
     var rs = rowsOf(NET);
     o.rows = rs.length;
@@ -113,16 +123,30 @@
     }
 
     // 地市筛选真实生效性（仅 ctVisible 时）
-    // 🔴 必须挑一个**非空**的地市值：选项 0 是「全部城市」('')、选项 1 是 _none，
-    //    拿它们测等于没测（都是「不筛」的语义）。
+    // 🔴 必须挑一个**非空、且没被置灰**的地市值：
+    //    · 选项 0 是「全部城市」('')、选项 1 是 _none —— 拿它们测等于没测（都是「不筛」）；
+    //    · 置灰的档在 apply() 里有保险丝（当没筛）⇒ 拿它测会得到「未收窄」的假失败，
+    //      而那不是筛选坏了，是本网真的没有这个地市（实测踩过：差点误判成地市筛选失效）。
+    // 🔴🔴 但「可点」还不够 —— 样本必须**在当前页签下真有条目**（本页签默认是「在售」）。
+    //    联通整批地市全是已下架（石家庄 19 / 邢台 9 / 承德 7 在「在售」下恒为 0），
+    //    而它们的下拉档按**全量**建、不算置灰 ⇒ 拿第一个可点档当样本会得到
+    //    「地市 石家庄 筛出 0 条」的**假失败**，看着像地市筛选坏了（2026-09-24 实测踩到）。
+    //    ⇒ 逐个试，取第一个筛出 > 0 的；一个都没有才判失败（那才是真筛不动）。
     if (o.ctVisible && o.ctValues.length) {
-      var real = o.ctValues.filter(function (v) { return v && v !== "_none"; });
+      var real = o.ctChoosable;
       if (real.length) {
-        var first = real[0];
-        $("#ct").value = first;
-        try { clearChips(); } catch (e) {}
-        try { apply(); } catch (e) {}
-        o.cityFilterSample = { city: first, rows: view.length, narrowed: view.length < o.rows };
+        var picked = null, tried = [];
+        for (var ci = 0; ci < real.length; ci++) {
+          $("#ct").value = real[ci];
+          try { clearChips(); } catch (e) {}
+          try { apply(); } catch (e) {}
+          tried.push({ city: real[ci], rows: view.length });
+          if (view.length > 0) { picked = tried[tried.length - 1]; break; }
+        }
+        o.cityFilterTried = tried;
+        o.cityFilterSample = picked
+          ? { city: picked.city, rows: picked.rows, narrowed: picked.rows < o.rows }
+          : { error: "所有可选地市在本页签下都筛出 0 条（试了 " + tried.length + " 个）" };
       } else {
         o.cityFilterSample = { error: "没有可用的非空地市值" };
       }
@@ -222,10 +246,16 @@
     return o;
   }
 
+  /* 每网的期望。★ `city` 的判据是「本网数据里有没有条目级地市归属」，与页面同源。
+     🔴 unicom 从 false 改 true（2026-09-24）：此前它被归到「没有地市维度」是**错的** ——
+       那是「采集侧只采了邢台一城」造成的假阴性，而页面又信了数据源的 allProvince 声明，
+       于是整个维度被藏起来。现在联通按 12 城并集采集、逐条带回城市归属。
+       注意这条期望对**旧快照**会误报（老快照里没有城市字段，页面正确地隐藏了下拉）——
+       所以本地跑之前要保证页面是用 12 城并集数据重建的。 */
   var EXPECT = {
     move:    { city: true,  stopped: false },
     telecom: { city: true,  stopped: false },
-    unicom:  { city: false, stopped: true  },
+    unicom:  { city: true,  stopped: true  },
     cbn:     { city: false, stopped: true  }
   };
 
@@ -236,15 +266,19 @@
     if (!o.scOptions.length) { bad.push("无地域档位"); }
     else if (!o.scChoosable.length) { bad.push("地域两档都不可选"); }
 
-    // 期望：有地市级 ⇒ #ct 显示 + 能筛；无 ⇒ 隐藏 + 塞值无效
+    // 期望：有地市归属 ⇒ #ct 显示 + 能筛；无 ⇒ 隐藏 + 塞值无效
     if (exp.city && !o.ctVisible) { bad.push("期望有地市筛选，实际隐藏"); }
     if (!exp.city && o.ctVisible) { bad.push("期望隐藏地市筛选，实际显示"); }
     if (!exp.city && o.ghostUnaffected === false) { bad.push("幽灵地市值生效了(严重)"); }
     if (exp.city) {
       var s = o.cityFilterSample || {};
-      if (!s.city) { bad.push("地市筛选未取到非空样本"); }
+      if (!s.city) { bad.push("地市筛选未取到非空样本（可点的地市档全是 0 条？）"); }
       else if (!(s.rows > 0)) { bad.push("地市 " + s.city + " 筛出 0 条"); }
       else if (s.narrowed === false) { bad.push("地市 " + s.city + " 未收窄结果（筛选失效？）"); }
+      // 选项上写着「（N）」而有值的没被置灰的项，N 必须 > 0 —— 否则建选项与置灰两处口径不一致
+      if ((o.ctZeroText || []).length) {
+        bad.push("地市选项写着 0 条却没置灰：" + o.ctZeroText.join("/"));
+      }
     }
 
     // 下架页签

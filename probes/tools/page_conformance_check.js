@@ -26,13 +26,18 @@
 
   /* ★ 每个用例前必须把全部维度清干净：页面在多次 eval 之间**保留状态**，
      不清就会出现「同一份脚本连跑两次结果不同」—— 自动化检查最忌讳这个。
-     STA 一律置「在售」：oracle 侧是对**全量 rows** 求值的，而移动那网 rows 全是在售
-     （已下架页签恒 0 条），两边口径才对齐。 */
+     STA 一律置**「全部」**（`""`）：oracle 侧是对**全量 rows** 求值的，
+     两边口径必须一致。
+     🔴 这里早先写的是 `STA = "0"`（在售），当时恰好等价 —— 因为移动 / 电信那两网
+        「已下架」恒 0 条（在售 ≡ 全部），差异被数据掩盖了。2026-09-24 接入联通后
+        暴露：它有 3177 条下架，于是 oracle 期望 7903（全量全省通用）而页面量到
+        4820（在售），**26 个用例集体对不上**，看上去像筛选坏了。
+        ⇒ 页面 `apply()` 里 `if(STA!==""&&...)` 才过滤状态 —— `""` 即「全部」。 */
   function reset() {
     if (typeof NET !== "undefined" && NET !== TARGET && typeof switchNet === "function") {
       switchNet(TARGET);
     }
-    if (typeof STA !== "undefined") { STA = "0"; }
+    if (typeof STA !== "undefined") { STA = ""; }
     if (typeof syncTabs === "function") { syncTabs(); }
     var kw = el("kw"); if (kw) { kw.value = ""; }
     for (var i = 0; i < DIMS.length; i++) { var e = el(DIMS[i]); if (e) { e.value = ""; } }

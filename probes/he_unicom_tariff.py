@@ -72,18 +72,23 @@ ATTRS = ("1", "2")    # 1=全国/跨省，2=本省
 # ★★ 河北 12 个地市（cityList 实测全量，2026-09-24）
 #    🔴🔴 旧结论「联通资费与 cityId 无关、只采一城」**已证伪**（2026-09-24）：
 #        `threeLevelName` 返回的三级目录 id 集合**逐城不同** —— 22 个 (一级×二级) 组合里
-#        8 个存在城市差异；12 个地市**每个都有别的城市没有的专属条目**
+#        12 个存在城市差异；12 个地市**每个都有别的城市没有的专属条目**
 #        （雄安：「雄安工地0元50G流量包」「雄安拆迁专用40元赠费包」；
-#          沧州 41 条「华油专属」；保定「保定理工学院5G随行专网」…）。
+#          沧州 41 个专属三级目录「华油专属」；保定「保定理工学院5G随行专网」…）。
 #        全量对账：单城(邢台)=8991 个三级目录 → 12 城并集=9121，净增 130。
 #        ⇒ 必须**取 12 城并集**，否则静默漏条（不报错、只是少）。
 #    ✅ 好消息：`operateData` 是**按 id 解析**的，cityId 不设门槛（用邢台 cityId 能取到
 #       雄安专属条目）⇒ 明细只需按并集 id 拉**一遍**，不必按城市重复拉 12 遍。
 #    ⚠️ 旧 `city_drift()` 为什么没发现：它只抽 (1-1001 套餐/移网) 与 (2-2004 加装包/权益包)
 #       两个组合 —— 这两个**恰好全省一致**。抽样点选在无差异维度上 = 假阴性。
+#    ⚠️ 元组第一项是**我们自己给这个城市起的显示名**，会原样写进条目（`_cityNames`）
+#       并最终出现在页面下拉里 ⇒ 必须与 `tariff_monitor.CITY_ORDER / CITY_EXTRA`
+#       逐字一致。所以这里写「雄安新区」而不是上游 cityList 里的「雄安」——
+#       页面（以及移动那网的文案兜底）用的都是「雄安新区」这个名。
+#       对不上的取值在页面上**选不到**（下拉里没有那一项），筛不出东西却不报错。
 CITY_CODES = (("石家庄", "188"), ("唐山", "181"), ("秦皇岛", "182"), ("邯郸", "186"),
               ("邢台", "185"), ("保定", "187"), ("张家口", "184"), ("承德", "189"),
-              ("沧州", "180"), ("廊坊", "183"), ("衡水", "720"), ("雄安", "782"))
+              ("沧州", "180"), ("廊坊", "183"), ("衡水", "720"), ("雄安新区", "782"))
 
 HEADERS = {
     "Content-Type": "application/x-www-form-urlencoded",
@@ -256,15 +261,25 @@ def collect(city=CITY, workers=4, include_stopped=False, check_drift=True, verbo
     """全量采集：遍历 (attr × 一级 × 二级) 拿三级 id，再分批拉明细。
 
     ★★ 三级菜单必须取 **12 城并集**（2026-09-24 修正）。
-       旧版「只采邢台一城」是错的：实测 22 个 (一级×二级) 组合里 8 个随城市变化，
+       旧版「只采邢台一城」是错的：实测 22 个 (一级×二级) 组合里 12 个随城市变化，
        12 个地市**每个都有专属条目**，单城漏 130 个三级目录（雄安、沧州、保定…）。
        为什么以前没发现：旧 `city_drift()` 只抽了两个**恰好全省一致**的组合 ——
        抽样点选在无差异维度上，是**假阴性**。判据已换成 `city_scope()`（全组合 × 全地市）。
 
     ★ 明细**不必**按城市重复拉：`operateData` 按 id 解析，cityId 不设门槛
       （已实测：用邢台 cityId 能取到雄安专属条目）。所以内部把同一组合的 id
-      按「出现在哪些城市」分组，每组只拉一次 —— 既拿全了，又能给每条打上
-      `_cities`（该资费出现在哪些地市），供页面标注「仅 XX 市」。
+      按「出现在哪些城市」分组，每组只拉一次 —— 既拿全了，又能给每条打上城市归属。
+
+    ★★ 出口的**地市字段形态**（页面只读这个，不再自己算）：
+        · `_cityNames` = 中文名列表 —— 该资费的目录**没有覆盖全部城市**，
+          只出现在这几个城市的资费目录里（实测 139/8042 条，如沧州「华油专属」、
+          雄安「雄安工地0元50G流量包」）；
+        · `_allCity`   = 1 —— 覆盖了本次采集的**全部**城市目录 ⇒ 语义是「全省通用」，
+          刻意**不落**城市列表：落 12 个城市名既占体积（7903 条 × 12），
+          又会让页面把它读成「限这 12 个市」，与「不限市」正好差反。
+        · 中间过程用的是**城市码**（`_cities`，3 位联通码），出口前统一换成中文名 ——
+          联通的地市码是 3 位、移动/电信是 4 位，两套码表并存时页面拿到一个值
+          得先问「这是哪张表」，而值本身长得也像。统一成中文名后只有一套命名空间。
     """
     t0 = time.time()
     cities = cities or list(CITY_CODES)
@@ -358,23 +373,35 @@ def collect(city=CITY, workers=4, include_stopped=False, check_drift=True, verbo
         uniq.append(e)
     log("去重：%d → %d 条（重复 %d）" % (len(entries), len(uniq), len(entries) - len(uniq)))
 
-    # 地市覆盖面小结（这条日志就是「有没有漏城市专属资费」的日常判据）
-    all_codes = set(c for _nm, c in cities)
-    n_all = sum(1 for e in uniq if len(e.get("_cities") or []) >= len(all_codes))
-    n_city = sum(1 for e in uniq if 0 < len(e.get("_cities") or []) < len(all_codes))
-    n_none = sum(1 for e in uniq if not e.get("_cities"))
-    log("地市覆盖：全省 %d 条 · 城市专属 %d 条 · 无城市标记 %d 条"
-        % (n_all, n_city, n_none))
-    dist = {}
+    # ── 地市字段归一：城市码 → 中文名；覆盖全部城市的条目不落城市列表 ──
+    # 见 collect() 文档「出口的地市字段形态」。这一步放在采集侧（而不是让
+    # tariff_monitor 去查联通码表）的理由：码 ↔ 名的映射表**就在本文件的
+    # CITY_CODES 里**，搬一份到构建侧就等于两张表要同步，而它们迟早会漂。
+    nm_of = dict((c, nm) for nm, c in cities)
+    n_city_all = len(cities)
     for e in uniq:
         cs = e.get("_cities") or []
-        if 0 < len(cs) < len(all_codes):
-            for c in cs:
-                dist[c] = dist.get(c, 0) + 1
+        if len(cs) >= n_city_all:
+            e.pop("_cities", None)
+            e["_allCity"] = 1          # 全省通用（不是因为「码没标」，是**真的都覆盖了**）
+        else:
+            e["_cityNames"] = [nm_of[c] for c in cs if c in nm_of]
+            e.pop("_cities", None)
+
+    # 地市覆盖面小结（这条日志就是「有没有漏城市专属资费」的日常判据）
+    n_all = sum(1 for e in uniq if e.get("_allCity"))
+    n_city = sum(1 for e in uniq if e.get("_cityNames"))
+    n_none = len(uniq) - n_all - n_city
+    log("地市覆盖：全省目录(%d 城都有) %d 条 · 城市专属 %d 条 · 无城市标记 %d 条"
+        % (n_city_all, n_all, n_city, n_none))
+    dist = {}
+    for e in uniq:
+        for c in e.get("_cityNames") or []:
+            dist[c] = dist.get(c, 0) + 1
     if dist:
-        nm_of = dict((c, nm) for nm, c in cities)
         log("   城市专属条目分布：%s"
-            % "、".join("%s %d" % (nm_of.get(c, c), n) for c, n in sorted(dist.items())))
+            % "、".join("%s %d" % (c, n)
+                        for c, n in sorted(dist.items(), key=lambda z: (-z[1], z[0]))))
 
     with _LOCK:
         _STAT["ok"] = len(uniq)

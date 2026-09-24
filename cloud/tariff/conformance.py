@@ -20,15 +20,16 @@
       还会把用例文件暴露给访问者。
 
 ⚠️ 覆盖范围（**不是四网全量**，别被文件名误导）：
-   · **有条目级地市的网**（移动 / 电信）→ 本脚本可对账，含地市维度的用例。
-   · **数据源自己声明 allProvince 的网**（联通 / 广电）→ 上游没有地市级数据，
-     `cityTags()` 一律返回「全省通用」，硬套移动那套 city_tags() oracle 会产出
-     「邢台 N 条」这种与页面（全部条数）正面矛盾的期望值 —— 一个必然失败、
-     且指错方向的用例。故这两网**不生成**城市用例（其余各维同构，已用
-     `probes/tools/page_walk_check.js` 的遍历逐项实测过）。
-   ⚠️ 2026-09-23 修正：这段话原先只列了「联通/广电」，**漏了电信** ——
-      电信接入时明确带条目级地市码（886 条里 31 条有码，页面 16 档地市可用），
-      它**属于**可对账的那一类。旧文案会让人以为四网都不可对账、于是连电信也没验。
+   · **有条目级地市归属的网**（移动 / 电信 / 联通）→ 本脚本可对账，含地市维度的用例。
+   · **广电**：上游只有「全国 / 河北省」两档、条目里没有地市 ⇒ `city_tags()` 恒空，
+     硬套会给它生成「邢台 N 条」这种与页面正面矛盾的期望值（页面全部按「全省通用」算）。
+     故**不为它**生成城市用例（其余各维同构，已用 `probes/tools/page_walk_check.js`
+     的遍历逐项实测过）。
+   ⚠️ 2026-09-24 修正：联通**已加入**可对账名单。此前它被归到「没有地市维度」那一类，
+      依据是数据源自报的 allProvince —— 而那个声明是错的（实测 22 个栏目组合里 12 个
+      随城市变化、12 个地市各有专属条目）。判据改成「数据里有没有 d.cty」之后，
+      联通有条件可对账，而且**正需要**对账：它的地市归属来自采集侧的 12 城目录归属，
+      是全链路里唯一一条「不是直接读上游字段」的判据。
 
 只断言「结构性」不变量（用例可生成、基准日期可解析），具体条数随上游数据每天变。
 """
@@ -38,6 +39,9 @@ from datetime import date
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
 import audit_data as A
+# 地市清单只有一份权威（构建脚本），这里不另抄 —— 抄一份就多一处会漂的地方，
+# 而漂的表现是「oracle 生成了一条页面上根本不存在的用例」，对账恒失败且指错方向。
+import tariff_monitor as T
 
 # 以 `-` 开头的参数不是路径（比如手滑敲了 `--help`）—— 照单全收会凭空生成一个
 # 名为 `--help` 的文件：它会出现在 git status 里，而很难联想到是这条命令干的。
@@ -50,13 +54,17 @@ if "--net" in sys.argv:
     _i = sys.argv.index("--net")
     if _i + 1 < len(sys.argv):
         _NET = sys.argv[_i + 1]
-NETS_OK = ("move", "telecom")
+NETS_OK = ("move", "telecom", "unicom")
 if _NET not in NETS_OK:
-    sys.exit("--net 只支持 %s（其它网的数据源声明 allProvince，没有地市维度可对账）"
+    sys.exit("--net 只支持 %s（广电上游没有地市维度，拿它跑地市用例必然对不上）"
              % "/".join(NETS_OK))
 
 # ---------- 与模板逐字对应的判据 ----------
-SEARCH_FIELDS = ("n", "t", "ap", "ch", "r", "ty", "x", "bw", "ex", "vp")
+# ⚠️ 必须与 template.html 的 apply() 里那份**逐字段一致**。少了 cat / chx 两项，
+#    「宽带」「加装包」这类词就会「页面搜得到、oracle 说搜不到」—— 一个方向永远对不上、
+#    而且看起来像页面错了的偏差（2026-09-24 发现：这两项是后来加进页面搜索的，
+#    当时没同步到这里；因为 conformance 平时没人跑，偏差一直没人发现）。
+SEARCH_FIELDS = ("n", "t", "ap", "ch", "r", "ty", "cat", "chx", "x", "bw", "ex", "vp")
 BW_SPEED = re.compile(r"提速|光网|组网|FTTR")
 
 
@@ -157,7 +165,7 @@ def main():
         if tg:
             for c in tg:
                 ccount[c] = ccount.get(c, 0) + 1
-    cities_all = A.CITY_LS + list(A.CT_ALIAS)
+    cities_all = list(T.CITY_ORDER) + list(T.CITY_EXTRA)
     cities = [c for c in cities_all if ccount.get(c)]
     skipped = [c for c in cities_all if not ccount.get(c)]
     if skipped:
