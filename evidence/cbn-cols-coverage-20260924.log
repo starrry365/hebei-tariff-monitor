@@ -1,0 +1,46 @@
+广电 栏目(分类树)×区域 全覆盖核验 —— 2026-09-24
+探针: _probe_cbn_t1.py / _probe_cbn_cols.py（调用 probes/he_cbn_tariff.py）
+Thu Sep 24 10:37:43     2026
+
+==============================================================================
+① type1 取值：GZ / ZQ / 空 / 不传 —— 是否返回不同数据集
+  --- 地区 ZZZZ
+      type1=GZ       条数=204   与GZ相比 多=0 少=0
+      type1=ZQ       条数=204   与GZ相比 多=0 少=0
+      type1=(不传)     条数=0     与GZ相比 多=0 少=204
+      type1=GZQY     条数=204   与GZ相比 多=0 少=0
+  --- 地区 HB00
+      type1=GZ       条数=131   与GZ相比 多=0 少=0
+      type1=ZQ       条数=131   与GZ相比 多=0 少=0
+      type1=(不传)     条数=0     与GZ相比 多=0 少=131
+      type1=GZQY     条数=131   与GZ相比 多=0 少=0
+
+==============================================================================
+② 两个地区各栏目条数（含下架）
+  --- ZZZZ 共 204 条
+      GZ_JZB_LLB           29
+      GZ_JZB_YYB           12
+      GZ_TC_4G             4
+      GZ_TC_5G             58
+      GZ_TSQTTC_5G         6
+      GZ_YXHD_CX           94
+      GZ_YXHD_HY           1
+  --- HB00 共 131 条
+      GZ_TC_4G             1
+      GZ_TC_5G             108
+      GZ_TC_KD             11
+      GZ_TSQTTC_5G         5
+      GZ_YXHD_CX           4
+      GZ_YXHD_HY           2
+
+==============================================================================
+③ 分类树声明的全部 type2 vs 两地区实际有的（找漏采）
+   分类树叶节点: ['GZ_TC', 'GZ_TC_4G', 'GZ_TC_5G', 'GZ_TC_KD', 'GZ_TC_GH', 'GZ_JZB', 'GZ_JZB_YYB', 'GZ_JZB_LLB', 'GZ_YXHD', 'GZ_YXHD_HY', 'GZ_YXHD_CX', 'GZ_TSQTTC', 'GZ_TSQTTC_4G', 'GZ_TSQTTC_5G', 'GZ_TSQTTC_KD', 'GZ_TSQTTC_GH']
+   实际有数据的: ['GZ_JZB_LLB', 'GZ_JZB_YYB', 'GZ_TC_4G', 'GZ_TC_5G', 'GZ_TC_KD', 'GZ_TSQTTC_5G', 'GZ_YXHD_CX', 'GZ_YXHD_HY']
+   ⚠️ 声明但无数据: ['GZ_JZB', 'GZ_TC', 'GZ_TC_GH', 'GZ_TSQTTC', 'GZ_TSQTTC_4G', 'GZ_TSQTTC_GH', 'GZ_TSQTTC_KD', 'GZ_YXHD']
+
+==============================================================================
+④ 传 type3 是否改变结果（判是否还有第四层入口）
+   type3=GZ_TC_5G_5G    条数=0     与基线比 多=0
+   type3=1              条数=0     与基线比 多=0
+   type3=(不传)           条数=131   与基线比 多=0

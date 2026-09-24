@@ -1,0 +1,47 @@
+移动 板块×栏目×个人/政企 全覆盖核验 —— 2026-09-24
+探针: 临时探针 _probe_mobile_scn.py（调用 cloud/tariff/tariff_monitor 的 call/fetch_group）
+Thu Sep 24 10:37:38     2026
+
+② 基线组合里「有系列但零条目」的栏目（= 上游有壳无内容）
+   attr=2 t1=1 t2=1(套餐        ) 系列=100  明细=100  
+   attr=2 t1=1 t2=2(加装包       ) 系列=100  明细=113  
+   attr=2 t1=1 t2=3(营销活动      ) 系列=100  明细=100  
+   attr=2 t1=1 t2=4(港澳台/国际资费  ) 系列=3    明细=3    
+   attr=2 t1=1 t2=5(标准资费      ) 系列=85   明细=85   
+   attr=2 t1=2 t2=1(套餐        ) 系列=4    明细=4    
+   attr=2 t1=2 t2=2(加装包       ) 系列=11   明细=11   
+   attr=2 t1=2 t2=3(营销活动      ) 系列=7    明细=7    
+   attr=3 t1=1 t2=1(套餐        ) 系列=0    明细=0      ← 空壳
+   attr=3 t1=1 t2=2(加装包       ) 系列=0    明细=0      ← 空壳
+   attr=3 t1=1 t2=3(营销活动      ) 系列=0    明细=0      ← 空壳
+   attr=3 t1=1 t2=5(标准资费      ) 系列=0    明细=0      ← 空壳
+   attr=3 t1=2 t2=3(营销活动      ) 系列=0    明细=0      ← 空壳
+   attr=1 t1=1 t2=2(加装包       ) 系列=100  明细=1314 
+   attr=1 t1=1 t2=1(套餐        ) 系列=17   明细=75   
+   attr=1 t1=1 t2=3(营销活动      ) 系列=4    明细=8    
+   attr=1 t1=1 t2=4(港澳台/国际资费  ) 系列=34   明细=1318 
+   attr=1 t1=2 t2=2(加装包       ) 系列=2    明细=2    
+
+=== getType2List(isPublic=1) 组合全集（18 个）===
+   全部组合：
+     tariffAttr=2 type1=1 type2=1 | name=None | keys=['tariffAttr', 'type2', 'type1']
+     tariffAttr=2 type1=1 type2=2 | name=None | keys=['tariffAttr', 'type2', 'type1']
+     tariffAttr=2 type1=1 type2=3 | name=None | keys=['tariffAttr', 'type2', 'type1']
+     tariffAttr=2 type1=1 type2=4 | name=None | keys=['tariffAttr', 'type2', 'type1']
+     tariffAttr=2 type1=1 type2=5 | name=None | keys=['tariffAttr', 'type2', 'type1']
+     tariffAttr=2 type1=2 type2=1 | name=None | keys=['tariffAttr', 'type2', 'type1']
+     tariffAttr=2 type1=2 type2=2 | name=None | keys=['tariffAttr', 'type2', 'type1']
+     tariffAttr=2 type1=2 type2=3 | name=None | keys=['tariffAttr', 'type2', 'type1']
+     tariffAttr=3 type1=1 type2=1 | name=None | keys=['tariffAttr', 'type2', 'type1']
+     tariffAttr=3 type1=1 type2=2 | name=None | keys=['tariffAttr', 'type2', 'type1']
+     tariffAttr=3 type1=1 type2=3 | name=None | keys=['tariffAttr', 'type2', 'type1']
+     tariffAttr=3 type1=1 type2=5 | name=None | keys=['tariffAttr', 'type2', 'type1']
+     tariffAttr=3 type1=2 type2=3 | name=None | keys=['tariffAttr', 'type2', 'type1']
+     tariffAttr=1 type1=1 type2=2 | name=None | keys=['tariffAttr', 'type2', 'type1']
+     tariffAttr=1 type1=1 type2=1 | name=None | keys=['tariffAttr', 'type2', 'type1']
+     tariffAttr=1 type1=1 type2=3 | name=None | keys=['tariffAttr', 'type2', 'type1']
+     tariffAttr=1 type1=1 type2=4 | name=None | keys=['tariffAttr', 'type2', 'type1']
+     tariffAttr=1 type1=2 type2=2 | name=None | keys=['tariffAttr', 'type2', 'type1']
+
+
+=== isPublic=0 多出的组合能否取到明细（结论：全部 0 条，上游无数据）===

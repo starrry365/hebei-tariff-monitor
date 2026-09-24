@@ -15,10 +15,21 @@
   extraFees→extraFees validPeriod→validPeriod                  broadBand→brandwidth
   一级分类号→type2（1..5 与移动 ZFLX **同名同义**，故页面「类型」列两网一致）
 
-★ 只采**一个城市**：实测河北联通资费与 cityId 无关（石家庄/邢台/唐山 的三级菜单与明细
-  逐条相同）。探针里有 ``city_drift()`` 每次抽查这个前提，一旦上游改成按城市分数据会报警。
-★ 默认**排除「停售套餐」**（一级分类 99）：实测那类 3879 条里 3874 条 endDate 已过期，
-  属历史资费；移动那套用 isPublic=1 本身也不含停售，排除它两网口径才一致。
+★ 采**12 个地市的并集**（2026-09-24 修正，此前写的是「只采一城」）。
+  🔴🔴 旧结论「河北联通资费与 cityId 无关」**已证伪** —— 那是**抽样假阴性**：
+  旧 ``city_drift()`` 只抽了 (套餐/移网) 与 (加装包/权益包) 两个组合，而这两个
+  **恰好全省一致**。全量实测：22 个 (一级×二级) 组合里 **8 个随城市变化**，
+  12 个地市**每个都有专属条目**（雄安「雄安工地0元50G流量包」、沧州 41 条
+  「华油专属」、保定「保定理工学院5G随行专网」…）；单城(邢台)三级目录 8991 个
+  → 12 城并集 9121 个，**单城静默漏 130 个**（不报错、只是少）。
+  现在由 ``city_scope()`` 做全组合 × 全地市的判据（旧的 ``city_drift()`` 已转调它）。
+  明细不必按城市重复拉：``operateData`` 按 id 解析、cityId 不设门槛，
+  条目上带 ``cities`` 记录该资费出现在哪些地市。
+★ 默认**收全「停售套餐」**（一级分类 99，实测 3092 条，endDate 全部已过期）——
+  需求是「各运营商下架的资费也要收集全」，由 ``fetch_all(include_stopped=True)`` 控制
+  （默认 True，见下方 ``fetch_all`` 文档），停售那批进页面的「已下架」页签，
+  不与在售混在一起。⚠️ 探针 ``he_unicom_tariff.collect()`` 的默认值仍是 False，
+  两者语义相反，别按探针默认值推断主链路行为。
 """
 import os
 import sys
@@ -77,15 +88,20 @@ def fetch_all(workers=6, city=None, include_stopped=True):
     if not raw:
         return None
     ent = raw.get("entries") or []
+    cities = raw.get("cities") or []
     return {"province": raw.get("province"), "provinceName": raw.get("provinceName"),
             "fetchedAt": raw.get("fetchedAt"), "endpoint": raw.get("endpoint"),
             "src": SRC, "cityId": raw.get("cityId"), "cityName": raw.get("cityName"),
+            "cities": cities,
             "includeStopped": include_stopped,
-            # ★ 声明「本网数据不分城市」—— 页面据此把该网全部条目按「全省通用」处理。
-            #   实测河北联通换 cityId 查到的三级菜单与明细**逐条相同**，cityId 只影响
-            #   「能不能办」，不影响「有什么」。不声明的话，页面会拿名称文本去猜地市，
-            #   结果是「选任何地市都 0 条」—— 一个看起来像 bug、其实是拿不存在的
-            #   维度去筛的错。声明了就不会有人再去猜。
+            # ★ 声明「采集口径已覆盖全省」—— 页面据此把该网条目按「全省」处理，不再按地市筛。
+            #   🔴🔴 理由已更正（2026-09-24）：**不是因为上游没有城市维度** ——
+            #   实测 22 个 (一级×二级) 组合里 8 个随 cityId 变化，12 个地市**每个都有
+            #   专属条目**（雄安「雄安工地0元50G流量包」、沧州 41 条「华油专属」…），
+            #   单城(邢台) 三级目录 8991 个 → 12 城并集 9121 个，**单城会静默漏 130 个**。
+            #   现在的 `_cities` 字段记录了每条资费出现在哪些地市（供页面标注「仅 XX 市」）。
+            #   仍声明 allProvince=True 的原因：数据已是并集，再按地市筛只会得到子集，
+            #   反而漏条；页面若要展示地市归属，请读条目上的 `cities` 而不是按名猜。
             "allProvince": True,
             "groups": regroup(ent), "entries": ent}
 

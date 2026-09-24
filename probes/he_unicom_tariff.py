@@ -69,6 +69,22 @@ CITY = "185"          # 邢台（抓包时用户所在城市）
 BATCH = 20            # operateData 一次拼几个三级 id（越大请求越少，注意 URL 长度）
 ATTRS = ("1", "2")    # 1=全国/跨省，2=本省
 
+# ★★ 河北 12 个地市（cityList 实测全量，2026-09-24）
+#    🔴🔴 旧结论「联通资费与 cityId 无关、只采一城」**已证伪**（2026-09-24）：
+#        `threeLevelName` 返回的三级目录 id 集合**逐城不同** —— 22 个 (一级×二级) 组合里
+#        8 个存在城市差异；12 个地市**每个都有别的城市没有的专属条目**
+#        （雄安：「雄安工地0元50G流量包」「雄安拆迁专用40元赠费包」；
+#          沧州 41 条「华油专属」；保定「保定理工学院5G随行专网」…）。
+#        全量对账：单城(邢台)=8991 个三级目录 → 12 城并集=9121，净增 130。
+#        ⇒ 必须**取 12 城并集**，否则静默漏条（不报错、只是少）。
+#    ✅ 好消息：`operateData` 是**按 id 解析**的，cityId 不设门槛（用邢台 cityId 能取到
+#       雄安专属条目）⇒ 明细只需按并集 id 拉**一遍**，不必按城市重复拉 12 遍。
+#    ⚠️ 旧 `city_drift()` 为什么没发现：它只抽 (1-1001 套餐/移网) 与 (2-2004 加装包/权益包)
+#       两个组合 —— 这两个**恰好全省一致**。抽样点选在无差异维度上 = 假阴性。
+CITY_CODES = (("石家庄", "188"), ("唐山", "181"), ("秦皇岛", "182"), ("邯郸", "186"),
+              ("邢台", "185"), ("保定", "187"), ("张家口", "184"), ("承德", "189"),
+              ("沧州", "180"), ("廊坊", "183"), ("衡水", "720"), ("雄安", "782"))
+
 HEADERS = {
     "Content-Type": "application/x-www-form-urlencoded",
     "Accept": "application/json, text/plain, */*",
@@ -235,19 +251,26 @@ def get_detail(ids, city=CITY, page=1):
     return d.get("detailList") or [], r
 
 
-def collect(city=CITY, workers=4, include_stopped=False, check_drift=True, verbose=True):
+def collect(city=CITY, workers=4, include_stopped=False, check_drift=True, verbose=True,
+            cities=None):
     """全量采集：遍历 (attr × 一级 × 二级) 拿三级 id，再分批拉明细。
 
-    ★ 只采**一个城市**即可：实测「全国」与「本省」两个目录的三级菜单与明细内容
-      在石家庄/邢台/唐山三城**逐条相同**（77/77、161/161、801/801，明细报告号内容
-      也完全一致）⇒ cityId 只影响「能不能办」，不影响「有什么」。12 城各采一遍
-      会得到 12 份完全相同的副本。city_drift() 会对这点做抽查，一旦上游改成
-      按城市分数据，那里会报警。
+    ★★ 三级菜单必须取 **12 城并集**（2026-09-24 修正）。
+       旧版「只采邢台一城」是错的：实测 22 个 (一级×二级) 组合里 8 个随城市变化，
+       12 个地市**每个都有专属条目**，单城漏 130 个三级目录（雄安、沧州、保定…）。
+       为什么以前没发现：旧 `city_drift()` 只抽了两个**恰好全省一致**的组合 ——
+       抽样点选在无差异维度上，是**假阴性**。判据已换成 `city_scope()`（全组合 × 全地市）。
+
+    ★ 明细**不必**按城市重复拉：`operateData` 按 id 解析，cityId 不设门槛
+      （已实测：用邢台 cityId 能取到雄安专属条目）。所以内部把同一组合的 id
+      按「出现在哪些城市」分组，每组只拉一次 —— 既拿全了，又能给每条打上
+      `_cities`（该资费出现在哪些地市），供页面标注「仅 XX 市」。
     """
     t0 = time.time()
+    cities = cities or list(CITY_CODES)
     if check_drift:
-        log("抽查 cityId 无关性（「只采一城」的前提）：")
-        city_drift()
+        log("判据：三级目录是否随 cityId 变化（全组合 × %d 地市）：" % len(cities))
+        city_scope(verbose=True)
     levels, meta = get_menu(city)
     if not levels:
         log("分类骨架获取失败: %s" % str(meta)[:180])
@@ -261,45 +284,66 @@ def collect(city=CITY, workers=4, include_stopped=False, check_drift=True, verbo
             for a in ATTRS:
                 pairs.append((a, lv.get("firstLevel"), sub.get("secondLevel"),
                               lv.get("firstLevelName"), sub.get("secondLevelName")))
-    log("一级 %d 个（跳过 %s）· (attr×一级×二级) 组合 %d 个 · 并发 %d"
-        % (len(levels), "/".join(skipped) or "无", len(pairs), workers))
+    log("一级 %d 个（跳过 %s）· (attr×一级×二级) 组合 %d 个 · 并发 %d · 地市 %d 个"
+        % (len(levels), "/".join(skipped) or "无", len(pairs), workers, len(cities)))
 
-    # 1) 并发取三级菜单
+    # 1) 并发取三级菜单 —— 逐城取并集（这是本次修正的核心）
     def one(p):
         a, f, s, fn, sn = p
-        lst = get_level3(a, f, s, city)
+        merged, id_cities = {}, {}
+        for nm, code in cities:
+            for x in get_level3(a, f, s, code):
+                i = x.get("id")
+                if not i:
+                    continue
+                merged.setdefault(i, {"id": i, "name": x.get("name")})
+                id_cities.setdefault(i, set()).add(code)
         return {"attr": a, "firstLevel": f, "secondLevel": s,
-                "firstLevelName": fn, "secondLevelName": sn, "level3": lst}
+                "firstLevelName": fn, "secondLevelName": sn,
+                "level3": list(merged.values()),
+                "id_cities": dict((k, sorted(v)) for k, v in id_cities.items())}
 
     with ThreadPoolExecutor(max_workers=workers) as ex:
         groups = list(ex.map(one, pairs))
     hit = [g for g in groups if g["level3"]]
     n3 = sum(len(g["level3"]) for g in hit)
-    log("有三级目录的组合 %d 个，三级菜单共 %d 个" % (len(hit), n3))
+    log("有三级目录的组合 %d 个，三级菜单（12 城并集）共 %d 个" % (len(hit), n3))
     log("（空目录 %d 个，属正常；code=0001）" % (len(groups) - len(hit)))
 
-    # 2) 每个组合内部按 BATCH 分批拉明细
+    # 2) 同一组合内，按「出现在哪些城市」分组，每组按 BATCH 分批拉明细（不按城市重复拉）
     jobs = []
     for gi, g in enumerate(hit):
-        ids = [x.get("id") for x in g["level3"] if x.get("id")]
-        for i in range(0, len(ids), BATCH):
-            jobs.append((gi, ids[i:i + BATCH]))
-    log("明细请求 %d 次（每批 %d 个 id）" % (len(jobs), BATCH))
+        by_city = {}
+        for x in g["level3"]:
+            key = tuple(g["id_cities"].get(x["id"]) or [])
+            by_city.setdefault(key, []).append(x["id"])
+        for key, ids in by_city.items():
+            for i in range(0, len(ids), BATCH):
+                jobs.append((gi, ids[i:i + BATCH], list(key)))
+    log("明细请求 %d 次（每批 ≤%d 个 id；已按城市归属分组）" % (len(jobs), BATCH))
 
     entries = []
+    rep_cities = {}                          # reportNo -> set(城市码)：该资费出现在哪些地市
     def job(j):
-        gi, ids = j
+        gi, ids, cl = j
         det, _ = get_detail(ids, city)
-        return gi, det
+        return gi, det, cl
 
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        for gi, det in ex.map(job, jobs):
+        for gi, det, cl in ex.map(job, jobs):
             for e in det:
                 e["_attr"] = hit[gi]["attr"]
                 e["_firstLevel"] = hit[gi]["firstLevel"]
                 e["_secondLevel"] = hit[gi]["secondLevel"]
                 e["_firstLevelName"] = hit[gi]["firstLevelName"]
                 e["_secondLevelName"] = hit[gi]["secondLevelName"]
+                e["_cities"] = cl
+                # ★ 同一 reportNo 可能从多个三级目录命中（各批城市集不同）——
+                #   它出现在哪些城市应是**并集**，不能取「第一次见到的那个」：
+                #   否则一条全省资费若先被某个城市的批次捞到，就会被误标成「仅 XX 市」。
+                rn = str(e.get("reportNo") or "").strip()
+                if rn:
+                    rep_cities.setdefault(rn, set()).update(cl)
                 entries.append(normalize(e))
 
     # 按 reportNo 去重：同一资费会在多个三级目录下重复出现（实测邢台 8978 → 7899）
@@ -309,16 +353,40 @@ def collect(city=CITY, workers=4, include_stopped=False, check_drift=True, verbo
         if k in seen:
             continue
         seen.add(k)
+        if k in rep_cities:                  # 用并集覆盖（见上：不能取首次命中的那个）
+            e["_cities"] = sorted(rep_cities[k])
         uniq.append(e)
     log("去重：%d → %d 条（重复 %d）" % (len(entries), len(uniq), len(entries) - len(uniq)))
+
+    # 地市覆盖面小结（这条日志就是「有没有漏城市专属资费」的日常判据）
+    all_codes = set(c for _nm, c in cities)
+    n_all = sum(1 for e in uniq if len(e.get("_cities") or []) >= len(all_codes))
+    n_city = sum(1 for e in uniq if 0 < len(e.get("_cities") or []) < len(all_codes))
+    n_none = sum(1 for e in uniq if not e.get("_cities"))
+    log("地市覆盖：全省 %d 条 · 城市专属 %d 条 · 无城市标记 %d 条"
+        % (n_all, n_city, n_none))
+    dist = {}
+    for e in uniq:
+        cs = e.get("_cities") or []
+        if 0 < len(cs) < len(all_codes):
+            for c in cs:
+                dist[c] = dist.get(c, 0) + 1
+    if dist:
+        nm_of = dict((c, nm) for nm, c in cities)
+        log("   城市专属条目分布：%s"
+            % "、".join("%s %d" % (nm_of.get(c, c), n) for c, n in sorted(dist.items())))
 
     with _LOCK:
         _STAT["ok"] = len(uniq)
     log("采集完成：%d 条明细 / %.0fs · 请求 %d（空目录 %d · 失败 %d）"
         % (len(uniq), time.time() - t0, _STAT["req"], _STAT["empty"], _STAT["err"]))
-    return {"province": PROV, "provinceName": "河北", "cityId": city,
+    return {"province": PROV, "provinceName": "河北",
+            "cityId": city,                    # 取明细时用的 cityId（不设门槛，仅占位）
             "cityName": dict((c.get("cityCode"), c.get("cityName"))
                              for c in get_cities()).get(city, ""),
+            # ★ 实际覆盖的地市（三级菜单按这些城市取并集）
+            "cities": [{"cityCode": c, "cityName": nm} for nm, c in cities],
+            "cityScope": "union",
             "fetchedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
             "endpoint": BASE + "/queryTariffNew/operateData/<ids>",
             "skippedStopped": not include_stopped,
@@ -331,32 +399,103 @@ def log(msg):
 
 
 def city_drift(combos=None, cities=None):
-    """抽查「数据与 cityId 无关」这个前提是否还成立。
+    """🔴🔴 已被 `city_scope()` 取代 —— 保留此名只为兼容旧调用点，内部转调。
 
-    本探针只采一个城市的前提就是它。上游一旦改成按城市分数据，
-    「只采一城」会**静默漏掉其余城市**——不会报错，只是数据不全。
-    所以这里每次采集前抽查 2 个组合 × 3 个城市，不一致就在日志里点名。
+    历史教训（务必别重犯）：本函数旧版只抽 ``[("1","1","1001"), ("2","2","2004")]``
+    两个组合 × 3 个城市，而这两个组合**恰好全省一致**，于是给出「cityId 无关」的
+    **假阴性**结论，直接导致主链路「只采邢台一城」漏掉 130 个三级目录。
+    抽样点选在无差异维度上 = 测了等于没测。新判据见 `city_scope()`。
     """
-    combos = combos or [("1", "1", "1001"), ("2", "2", "2004")]
-    cities = cities or [("石家庄", "188"), ("邢台", "185"), ("唐山", "181")]
-    out = []
-    for attr, f, s in combos:
-        sigs = {}
+    return city_scope(combos=combos, cities=cities)
+
+
+def city_scope(combos=None, cities=None, verbose=True, workers=8):
+    """判据：三级目录 id 集合是否随 cityId 变化（决定「要不要取 12 城并集」）。
+
+    与旧 city_drift 的区别：
+      ① 不再是 2 个组合，而是**全部 22 个 (一级×二级) 组合**（从 indexData 现取）
+      ② 不再是 3 个城市，而是**全部 12 个地市**
+      ③ 除了「是否一致」，还输出**并集净增**与**各城专属条目名** —— 这三样才是
+         能让人一眼看懂「漏了什么」的证据；只说「不一致」等于没说
+      ④ 并发跑（默认 8）—— 528 个请求串行要十几分钟，那种探针没人会真的跑
+
+    返回 dict，可直接进日志/报告。
+    """
+    combos = combos or []
+    cities = cities or list(CITY_CODES)
+    if not combos:
+        levels, _ = get_menu(CITY)
+        combos = []
+        for lv in levels:
+            for sub in lv.get("secondLevels") or []:
+                combos.append((str(lv.get("firstLevel")), str(sub.get("secondLevel")),
+                               lv.get("firstLevelName"), sub.get("secondLevelName")))
+
+    def cell(p):
+        (fl, sl), (nm, code) = p
+        m = {}
+        for a in ATTRS:                   # attr 语义未明，两个都取以减少遗漏
+            for x in get_level3(a, fl, sl, code):
+                if x.get("id"):
+                    m[x["id"]] = x.get("name")
+        return (fl, sl), code, m
+
+    tasks = [((fl, sl), c) for (fl, sl, _f, _s) in combos for c in cities]
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        cells = list(ex.map(cell, tasks))
+    per = {}
+    for (fl, sl), code, m in cells:
+        per.setdefault((fl, sl), {})[code] = m
+
+    base = CITY
+    single, union = set(), set()
+    exclusive = {}                            # code -> [(name, combo)]
+    diff_combos = []
+    for (fl, sl, fln, sln) in combos:
+        d = per[(fl, sl)]
+        u = set()
+        for c in d:
+            u |= set(d[c])
+        s0 = set(d.get(base, {}))
+        single |= s0
+        union |= u
+        if any(set(d[c]) != set(d[list(d)[0]]) for c in d):
+            diff_combos.append("%s/%s" % (fln, sln))
         for nm, code in cities:
-            sigs[nm] = [x.get("id") for x in get_level3(attr, f, s, code)]
-        ref = list(sigs)[0]
-        same = all(set(sigs[n]) == set(sigs[ref]) for n in sigs)
-        out.append({"combo": "attr=%s first=%s second=%s" % (attr, f, s),
-                    "counts": dict((n, len(sigs[n])) for n in sigs), "same": same})
-        log("   [drift] %s → %s  %s" % (
-            out[-1]["combo"], out[-1]["counts"],
-            "三城一致" if same else "⚠️ 不一致！cityId 已影响数据，单城采集会漏"))
+            mine = set(d.get(code, {}))
+            others = set()
+            for nm2, c2 in cities:
+                if c2 != code:
+                    others |= set(d.get(c2, {}))
+            only = mine - others
+            if only:
+                exclusive.setdefault(code, []).extend(
+                    (d[code].get(i), "%s/%s" % (fln, sln)) for i in only)
+
+    out = {"combos": len(combos), "cities": len(cities),
+           "single_city_menu": len(single), "union_menu": len(union),
+           "gain": len(union) - len(single),
+           "diff_combos": diff_combos, "exclusive": exclusive}
+    if verbose:
+        log("   [city_scope] %d 组合 × %d 城市 · 单城(%s)=%d → 并集=%d  净增=%d"
+            % (len(combos), len(cities), base, len(single), len(union), out["gain"]))
+        if diff_combos:
+            log("   [city_scope] 存在城市差异的组合 %d 个：%s"
+                % (len(diff_combos), "、".join(diff_combos)))
+        for nm, code in cities:
+            items = exclusive.get(code) or []
+            if items:
+                log("   [city_scope] %s 专属 %d 条 · 例：%s"
+                    % (nm, len(items), str(items[0][0])[:40]))
+        if not diff_combos:
+            log("   [city_scope] ⚠️ 全部一致 —— 但仍须留意：抽样组合必须覆盖 3/99 等易变档，"
+                "否则又是假阴性")
     return out
 
 
 def main():
     ap = argparse.ArgumentParser(add_help=True)
-    ap.add_argument("cmd", choices=["cities", "menu", "tree", "dump", "one", "drift"])
+    ap.add_argument("cmd", choices=["cities", "menu", "tree", "dump", "one", "drift", "scope"])
     ap.add_argument("arg", nargs="?", default="")
     ap.add_argument("--city", default=CITY)
     ap.add_argument("--workers", type=int, default=4)
@@ -364,10 +503,18 @@ def main():
                     help="连「停售套餐」一起采（默认排除，那类 99.87%% 已过期）")
     a = ap.parse_args()
 
+    if a.cmd == "scope":
+        print("== 三级目录地市覆盖面审计（全组合 × 全地市）==")
+        r = city_scope()
+        print(json.dumps({k: (v if k != "exclusive" else {c: len(v[c]) for c in v})
+                          for k, v in r.items()}, ensure_ascii=False, indent=1)[:2500])
+        sys.exit(0 if r["diff_combos"] else 2)
+
     if a.cmd == "drift":
-        print("== cityId 无关性抽查（本探针「只采一城」的前提）==")
-        res = city_drift()
-        sys.exit(0 if all(r["same"] for r in res) else 2)
+        print("== ⚠️ drift 已废弃：旧版只抽 2 个「恰好一致」的组合，是假阴性。")
+        print("   请改用 scope（全 22 组合 × 全 12 地市）。以下转调 scope：==")
+        r = city_scope()
+        sys.exit(0 if not r["diff_combos"] else 2)
 
     if a.cmd == "cities":
         cs = get_cities()

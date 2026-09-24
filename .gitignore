@@ -30,6 +30,10 @@ cloud/tariff/state.json.tmp
 *.bak-*
 *.log
 *.log.stalled
+# ★ 例外：evidence/ 下的取证日志是**有意入库**的证据（不是本地噪音日志）。
+#   与上面 *.log 的用意正好相反 —— 这些是「某个结论凭什么成立」的原始凭证，
+#   删掉就没法复核，必须跟代码一起走。JSON 版证据本来就入（无 .log 后缀）。
+!evidence/*.log
 # 筛选口径对账的中间产物（run_conformance.py：cases.json / runner.js / result.json）
 .conformance/
 chrome-prof/
