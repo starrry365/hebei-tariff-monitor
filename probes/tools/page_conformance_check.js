@@ -49,7 +49,9 @@
     try {
       reset();
       var kw = el("kw"); if (kw) { kw.value = q.kw || ""; }
-      var map = { ty: q.ty, ct: q.ct, pf: q.pf, on: q.on, off: q.off, bw: q.bw };
+      /* cat 必须在这里：oracle 侧的两条「套餐」用例走的是大类（四网统一口径），
+         缺了它赋值会静默留空 ⇒ 用例退化成「只按 pf/ct… 筛」，对账恒偏。 */
+      var map = { cat: q.cat, ty: q.ty, ct: q.ct, pf: q.pf, on: q.on, off: q.off, bw: q.bw };
       for (var k in map) {
         if (map[k] !== undefined && map[k] !== "") {
           var e = el(k);

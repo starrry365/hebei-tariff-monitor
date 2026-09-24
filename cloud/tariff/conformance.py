@@ -96,6 +96,12 @@ def bw_speed(d):
 
 def build_oracle(rows, base):
     def match(d, c):
+        # 大类（四网统一口径）与细分（上游原始分类）是**两级**，都要能对账：
+        # 联通 2026-09-24 重做筛选后，「停售套餐」不再整体归成 cat=套餐，
+        # 而是按二级栏目还原成真实分类 ⇒ 细分域里已经没有「套餐」这个取值。
+        # 跨网通用的用例因此改用 cat（恒有四网统一的那几档），ty 用例只走本网实际取值。
+        if c["cat"] and d.get("cat") != c["cat"]:
+            return False
         if c["ty"] and d.get("ty") != c["ty"]:
             return False
         if c["ct"]:
@@ -193,7 +199,8 @@ def main():
         print("⏭️  跳过页面上会被置灰的地市档（本网 0 条）: %s" % "、".join(skipped))
 
     def C(**kw):
-        c = dict(kw=kw.get("kw", ""), ty=kw.get("ty", ""), ct=kw.get("ct", ""),
+        c = dict(kw=kw.get("kw", ""), cat=kw.get("cat", ""), ty=kw.get("ty", ""),
+                 ct=kw.get("ct", ""),
                  pf=kw.get("pf", ""), on=kw.get("on", ""), off=kw.get("off", ""),
                  bw=kw.get("bw", ""))
         return c
@@ -236,14 +243,17 @@ def main():
     # 3) 三重及以上
     add("三:ct=石家庄+pf=0,10+bw=line", C(ct="石家庄", pf="0,10", bw="line"))
     add("三:ct=_none+on=30+bw=line", C(ct="_none", on="30", bw="line"))
-    add("三:ty=套餐+pf=0,30+kw=校园", C(ty="套餐", pf="0,30", kw="校园"))
+    # ★ 这两条用 cat（四网统一口径）而不是 ty（上游原始分类）：
+    #   联通的细分域在口径修正后已无「套餐」这一档，写 ty=套餐 会让用例在页面上
+    #   「无此取值」而被跳过 —— 跳过 ≠ 通过，对账会静默少覆盖两条。
+    add("三:cat=套餐+pf=0,30+kw=校园", C(cat="套餐", pf="0,30", kw="校园"))
     add("三:ct=邯郸+off=90+kw=宽带", C(ct="邯郸", off="90", kw="宽带"))
     add("四:ct=唐山+pf=0,60+on=365+kw=流量",
         C(ct="唐山", pf="0,60", on="365", kw="流量"))
     add("四:ct=_none+bw=speed+pf=0,30+on=180",
         C(ct="_none", bw="speed", pf="0,30", on="180"))
-    add("五:ty=套餐+ct=保定+pf=0,60+on=365+bw=line",
-        C(ty="套餐", ct="保定", pf="0,60", on="365", bw="line"))
+    add("五:cat=套餐+ct=保定+pf=0,60+on=365+bw=line",
+        C(cat="套餐", ct="保定", pf="0,60", on="365", bw="line"))
     # 反向：必然为 0 的组合
     add("零:ct=衡水+bw=speed+kw=zzz", C(ct="衡水", bw="speed", kw="zzz"))
     add("零:oof off=30+on=7+kw=宽带", C(off="30", on="7", kw="宽带"))

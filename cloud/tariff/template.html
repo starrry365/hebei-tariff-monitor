@@ -182,11 +182,26 @@ button{font-family:inherit}
 /* 筛选维度网格：**每个控件带标签**。以前是一排没有标签的下拉，
    用户只能靠默认项的文字（「全部月费」「不限流量」）反推这一格是什么 ——
    13 个挤在一行，改完值之后就再也认不出哪格是哪格了。 */
-.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(122px,1fr));gap:9px 10px;margin-top:11px}
-/* 「全部地域（河北 + 全国）」这类长默认项放一格里会被截成「全部地域（河…」，
-   给需要两格的维度一个 .w2（grid-column:span 2）。 */
-.f.w2{grid-column:span 2}
-.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+/* ── 筛选区：按语义分区 ────────────────────────────────────────────────
+   以前是**一个 15 格的网格**，四类完全不同的东西混在一起：
+   范围（板块/地域/地市）、分类（类型/细分）、资费（月费/流量/通话/宽带）、
+   办理（渠道/归属）、时效（上架/下线/变更），外加两个根本不是筛选条件的
+   「排序/方向」。找一格得从头数 —— 而 15 格里没有一格写着自己属于哪一类。
+   现在按语义切成若干 .fsec，每段左边一个竖排组标签；段之间可同行、可换行
+   （外层 flex-wrap），所以分区**不必然增加高度**：宽屏上仍是两行。 */
+.ffilt{display:flex;flex-wrap:wrap;gap:9px 10px;margin-top:11px;align-items:stretch}
+/* 每个分区是一个浅玻璃小面板：组标签在左（竖排感由「细字重 + 右侧细线」给），
+   控件在右底对齐。面板化的好处：分区边界一眼可见 —— 比裸 flex 里
+   「几个下拉 + 一个悬空的字」清楚得多，而且不增加多少高度。 */
+.fsec{display:flex;flex-wrap:wrap;gap:9px 8px;align-items:flex-end;min-width:0;
+  padding:8px 11px 9px;border:1px solid var(--bd2);border-radius:11px;background:var(--glass)}
+.fsec>.glab{flex:0 0 auto;align-self:center;font-size:11px;font-weight:800;letter-spacing:.14em;
+  color:var(--tx3);white-space:nowrap;padding:0 7px 0 0;margin-right:2px;
+  border-right:2px solid var(--op2);line-height:1.5}
+/* 控件宽度：给个基准 + 允许收缩（窄屏自动换行），不再随窗口被拉成超宽的一格。
+   .w2 仍是「默认项文字长、放一格会截断」的那一个（地域）。 */
+.f{flex:0 1 128px;min-width:110px;display:flex;flex-direction:column;gap:4px}
+.f.w2{flex:0 1 250px;min-width:190px}
 .f>.fl{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--tx3);padding-left:3px}
 .f select,.f input,.f button{width:100%;max-width:none}
 .f select{text-overflow:ellipsis}
@@ -359,7 +374,13 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   .wrap{padding:8px 10px 32px}
   .ap{max-width:150px}
   input#kw{min-width:110px}
-  .fgrid{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
+  /* 窄屏：控件收窄；组标签改成**整行占满**（否则它会被挤到控件右侧、读不出
+     是哪一组的开头）。 */
+  .ffilt{gap:7px 10px}
+  .fsec{gap:7px 6px;padding:7px 9px 8px}
+  .f{flex:0 1 100px;min-width:92px}
+  .f.w2{flex:0 1 200px;min-width:160px}
+  .fsec>.glab{flex:1 0 100%;padding:1px 0 0;margin-right:0;border-right:0}
   .brow{grid-template-columns:minmax(78px,104px) 1fr 52px;font-size:12px}
   .stat .sn{font-size:22px}
   th,td{padding:8px 7px}
@@ -427,100 +448,125 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       <button id="csv" title="把当前筛选结果导出为 CSV（全部结果、不只是本页；Excel 可直接打开）">导出 CSV</button>
       <button id="offline" title="把当前页面另存为一份可离线打开的单文件 HTML">保存本页</button>
     </div>
-    <!-- 维度网格：每个控件带标签。以前是一排无标签的下拉，
-         改完值就认不出哪格是哪格了。 -->
-    <div class="fgrid">
-      <label class="f w2"><span class="fl">地域</span>
-        <select id="sc" title="地域范围：河北省（含各地市专属与全省通用）/ 全国">
-          <option value="">全部地域（河北 + 全国）</option>
-          <option value="hb">仅河北省</option>
-          <option value="cn">仅全国</option>
-        </select></label>
-      <label class="f"><span class="fl">归属</span>
-        <select id="ow" title="归属：个人资费 / 政企资费（上游 type1 字段；仅移动提供，其余三网上游没有这个字段）">
-          <option value="">全部归属</option>
-        </select></label>
-      <label class="f"><span class="fl">类型</span>
-        <select id="cat" title="类型大类（四网统一口径：套餐 / 加装包 / 营销活动 / 标准资费 / 宽带 / 港澳台-国际）">
-          <option value="">全部大类</option>
-        </select></label>
-      <label class="f"><span class="fl">细分</span>
-        <select id="ty" title="类型细分（上游原始分类，如 流量包 / 语音包 / 促销；选了大类后不属于它的会置灰）">
-          <option value="">全部细分</option>
-        </select></label>
-      <label class="f"><span class="fl">地市</span>
-        <select id="ct">
-          <option value="">全部城市</option>
-          <option value="_none">仅全省通用（不限地市）</option>
-        </select></label>
-      <label class="f"><span class="fl">月费</span>
-        <select id="pf" title="按标准月费（元）筛选">
-          <option value="">全部月费</option>
-          <option value="0,0">仅 0 元</option>
-          <option value="0,10">≤ 10 元</option>
-          <option value="0,30">≤ 30 元</option>
-          <option value="0,60">≤ 60 元</option>
-          <option value="60,100">60 ~ 100 元</option>
-          <option value="100,99999">≥ 100 元</option>
-        </select></label>
-      <label class="f"><span class="fl">流量</span>
-        <select id="gf" title="按流量筛选（已按 dataUnit 归一到 GB）。「无流量」含两种：流量填 0 的，和压根没填流量字段的">
-          <option value="">不限流量</option>
-          <option value="none">无流量</option>
-          <option value="0,5">≤ 5 GB</option>
-          <option value="5,30">5 ~ 30 GB</option>
-          <option value="30,100">30 ~ 100 GB</option>
-          <option value="100,99999">≥ 100 GB</option>
-        </select></label>
-      <label class="f"><span class="fl">通话</span>
-        <select id="cf" title="按国内通话时长（分钟）筛选，与「月费」上的通话是同一口径">
-          <option value="">不限通话</option>
-          <option value="none">无通话</option>
-          <option value="0,100">≤ 100 分</option>
-          <option value="100,500">100 ~ 500 分</option>
-          <option value="500,99999">≥ 500 分</option>
-        </select></label>
-      <label class="f"><span class="fl">宽带</span>
-        <select id="bw" title="宽带：前两档是「有没有这条宽带线路」，后三档按下行速率卡">
-          <option value="">不限宽带</option>
-          <option value="line">含宽带（有宽带线路）</option>
-          <option value="speed">宽带提速 / 光网组网</option>
-          <option value="m200">宽带 ≥ 200M</option>
-          <option value="m500">宽带 ≥ 500M</option>
-          <option value="m1000">宽带 ≥ 1000M</option>
-        </select></label>
-      <label class="f"><span class="fl">渠道</span>
-        <select id="chx" title="办理渠道：上游原文已归一到三档。线上＝APP/网站/热线/短信，线下＝营业厅/门店/校园/代理">
-          <option value="">不限渠道</option>
-          <option value="线上">线上</option>
-          <option value="线下">线下</option>
-          <option value="线上+线下">线上+线下</option>
-          <option value="其他">其他 / 未注明</option>
-        </select></label>
-      <label class="f"><span class="fl">上架时间</span>
-        <select id="on">
-          <option value="">全部上架时间</option>
-          <option value="7">7 天内上架</option>
-          <option value="30">30 天内上架</option>
-          <option value="90">90 天内上架</option>
-          <option value="180">半年内上架</option>
-          <option value="365">一年内上架</option>
-          <option value="none">无上架日期</option>
-        </select></label>
-      <label class="f"><span class="fl">下线时间</span>
-        <select id="off">
-          <option value="">全部下线时间</option>
-          <option value="30">30 天内下线</option>
-          <option value="60">60 天内下线</option>
-          <option value="90">90 天内下线</option>
-        </select></label>
-      <label class="f"><span class="fl">变更</span>
-        <select id="chg">
-          <option value="">全部资费</option>
-          <option value="1">本次变更</option>
-        </select></label>
-      <label class="f"><span class="fl">排序</span><select id="sort"></select></label>
-      <label class="f"><span class="fl">方向</span><button id="dir" title="切换升序 / 降序">↓</button></label>
+    <!-- ── 筛选维度：按语义分区 ──────────────────────────────────────────
+         六个区段各管一件事，段左侧一个组标签：范围 / 分类 / 资费 / 办理 /
+         时效 / 排列。以前 15 格混在同一个网格里，找一格得从头数 ——
+         而其中还有两格（排序 / 方向）**根本不是筛选条件**，混在里面会让人
+         以为它们也参与过滤（不参与，它们只改变结果的先后）。
+         排列放在最后而不是塞回工具条：工具条一加高，常驻层就跟着吃掉更多
+         首屏 —— 而那正是刚修好的那类「吸顶层挡内容」问题的近亲。
+         ★ 每个控件的 id 一个都没改 —— 深链（#cat=…）、CSV、判据、探针
+           全都按 id 取值，改 id 等于把那一整条链静默打断。 -->
+    <div class="ffilt">
+      <div class="fsec"><span class="glab">范围</span>
+        <label class="f" id="wsb"><span class="fl">板块</span>
+          <select id="sb" title="板块（上游 tariffAttr）：1＝全国/跨省目录（全国资费），2＝本省目录（本省资费）。本网该字段只有一个取值的，这一格不出现">
+            <option value="">全部板块</option>
+            <option value="全国资费">全国资费</option>
+            <option value="本省资费">本省资费</option>
+          </select></label>
+        <label class="f w2"><span class="fl">地域</span>
+          <select id="sc" title="地域范围：河北省（含各地市专属与全省通用）/ 全国">
+            <option value="">全部地域（河北 + 全国）</option>
+            <option value="hb">仅河北省</option>
+            <option value="cn">仅全国</option>
+          </select></label>
+        <label class="f" id="wct"><span class="fl">地市</span>
+          <select id="ct">
+            <option value="">全部城市</option>
+            <option value="_none">仅全省通用（不限地市）</option>
+          </select></label>
+      </div>
+      <div class="fsec"><span class="glab">分类</span>
+        <label class="f"><span class="fl">类型</span>
+          <select id="cat" title="类型大类（四网统一口径：套餐 / 加装包 / 营销活动 / 标准资费 / 宽带 / 港澳台-国际）。联通的「停售套餐」已按二级栏目还原成真实分类，「停售」由「已下架」页签表达">
+            <option value="">全部大类</option>
+          </select></label>
+        <label class="f"><span class="fl">细分</span>
+          <select id="ty" title="类型细分：联通＝上游二级栏目（移网 / 融合 / 权益包 / 流量包 / 促销 / 合约…）；其余三网上游没有二级栏目，退回一级分类。选了类型后不属于它的会置灰">
+            <option value="">全部细分</option>
+          </select></label>
+      </div>
+      <div class="fsec"><span class="glab">资费</span>
+        <label class="f"><span class="fl">月费</span>
+          <select id="pf" title="按标准月费（元）筛选">
+            <option value="">全部月费</option>
+            <option value="0,0">仅 0 元</option>
+            <option value="0,10">≤ 10 元</option>
+            <option value="0,30">≤ 30 元</option>
+            <option value="0,60">≤ 60 元</option>
+            <option value="60,100">60 ~ 100 元</option>
+            <option value="100,99999">≥ 100 元</option>
+          </select></label>
+        <label class="f"><span class="fl">流量</span>
+          <select id="gf" title="按流量筛选（已按 dataUnit 归一到 GB）。「无流量」含两种：流量填 0 的，和压根没填流量字段的">
+            <option value="">不限流量</option>
+            <option value="none">无流量</option>
+            <option value="0,5">≤ 5 GB</option>
+            <option value="5,30">5 ~ 30 GB</option>
+            <option value="30,100">30 ~ 100 GB</option>
+            <option value="100,99999">≥ 100 GB</option>
+          </select></label>
+        <label class="f"><span class="fl">通话</span>
+          <select id="cf" title="按国内通话时长（分钟）筛选，与「月费」上的通话是同一口径">
+            <option value="">不限通话</option>
+            <option value="none">无通话</option>
+            <option value="0,100">≤ 100 分</option>
+            <option value="100,500">100 ~ 500 分</option>
+            <option value="500,99999">≥ 500 分</option>
+          </select></label>
+        <label class="f"><span class="fl">宽带</span>
+          <select id="bw" title="宽带：前两档是「有没有这条宽带线路」，后三档按下行速率卡">
+            <option value="">不限宽带</option>
+            <option value="line">含宽带（有宽带线路）</option>
+            <option value="speed">宽带提速 / 光网组网</option>
+            <option value="m200">宽带 ≥ 200M</option>
+            <option value="m500">宽带 ≥ 500M</option>
+            <option value="m1000">宽带 ≥ 1000M</option>
+          </select></label>
+      </div>
+      <div class="fsec"><span class="glab">办理</span>
+        <label class="f"><span class="fl">渠道</span>
+          <select id="chx" title="办理渠道：上游原文已归一到三档。线上＝APP/网站/热线/短信，线下＝营业厅/门店/校园/代理">
+            <option value="">不限渠道</option>
+            <option value="线上">线上</option>
+            <option value="线下">线下</option>
+            <option value="线上+线下">线上+线下</option>
+            <option value="其他">其他 / 未注明</option>
+          </select></label>
+        <label class="f" id="wow"><span class="fl">归属</span>
+          <select id="ow" title="归属：个人资费 / 政企资费（上游 type1 字段；仅移动提供，其余三网上游没有这个字段）">
+            <option value="">全部归属</option>
+          </select></label>
+      </div>
+      <div class="fsec"><span class="glab">时效</span>
+        <label class="f"><span class="fl">上架时间</span>
+          <select id="on">
+            <option value="">全部上架时间</option>
+            <option value="7">7 天内上架</option>
+            <option value="30">30 天内上架</option>
+            <option value="90">90 天内上架</option>
+            <option value="180">半年内上架</option>
+            <option value="365">一年内上架</option>
+            <option value="none">无上架日期</option>
+          </select></label>
+        <label class="f"><span class="fl">下线时间</span>
+          <select id="off">
+            <option value="">全部下线时间</option>
+            <option value="30">30 天内下线</option>
+            <option value="60">60 天内下线</option>
+            <option value="90">90 天内下线</option>
+          </select></label>
+        <label class="f"><span class="fl">变更</span>
+          <select id="chg">
+            <option value="">全部资费</option>
+            <option value="1">本次变更</option>
+          </select></label>
+      </div>
+      <div class="fsec"><span class="glab">排列</span>
+        <label class="f"><span class="fl">排序</span><select id="sort"></select></label>
+        <label class="f"><span class="fl">方向</span><button id="dir" title="切换升序 / 降序">↓</button></label>
+      </div>
     </div>
     <div class="chips" id="chips">
       <button data-p="all">全部</button>
@@ -711,7 +757,7 @@ const HIST=__HIST__;
    清空筛选 / 切网复位 / 深链读写本来都要遍历同一批控件，而原先是**每处各写一遍字面量**
    （5 处），加一个维度就得记得改 5 个地方。漏一处的后果是「切网后这个维度没被清掉」：
    上个网选中的条件继续生效，页面却毫无提示 —— 与「幽灵筛选值」是同一类静默错。 */
-const DIMS=["sc","ow","cat","ty","ct","pf","gf","cf","bw","chx","on","off","chg"];
+const DIMS=["sb","sc","ow","cat","ty","ct","pf","gf","cf","bw","chx","on","off","chg"];
 function clearDims(){DIMS.forEach(k=>{const e=document.getElementById(k);if(e)e.value=""})}
 const NET_LS=["move","unicom","telecom","cbn"];      // 顺序即导航条顺序
 const rowsOf=n=>((NETS[n]||{}).rows)||[];
@@ -947,7 +993,7 @@ function sortView(){
 }
 
 /* 维度的显示前缀。空串＝这个维度的选项文本本身就能读懂（如「本次变更」）。 */
-const DIM_PRE={sc:"地域：",ow:"归属：",cat:"类型：",ty:"细分：",ct:"城市：",pf:"月费：",
+const DIM_PRE={sb:"板块：",sc:"地域：",ow:"归属：",cat:"类型：",ty:"细分：",ct:"城市：",pf:"月费：",
                gf:"流量：",cf:"通话：",bw:"宽带：",chx:"渠道：",on:"上架：",off:"下线：",chg:""};
 /* 读某个维度控件当前选中项的**可读文本**。
    选项文本带条数（如「加装包（2135）」）—— 那是给下拉里挑的时候看的，
@@ -963,18 +1009,86 @@ function optText(k){
    页面会安静地给出 0 条 —— 看着像「没有数据」，其实是不存在的组合。
    （与 renderDims 里「本网没有的维度就不给入口」是同一条原则。）
    当前选中的细分若被置灰，就地清掉：否则控件显示的和实际筛的不是一回事。 */
-function syncTyOptions(){
-  const c=$("#cat").value,ty=$("#ty");
-  let bad=false;
-  [...ty.options].forEach(o=>{
-    if(!o.value){o.disabled=false;return}
-    const ok=!c||o.dataset.cat===c;
-    o.disabled=!ok;
-    if(!ok&&o.value===ty.value)bad=true;
-  });
-  if(bad)ty.value="";
+/* —— 当前筛选条件：一次读成对象 ——
+   判据（match）与「每个档位几条」（syncDims）**共用这一份**。
+   以前是 apply() 里一串 const + 就地闭包，要给档位显示条数就只能**照抄一遍**
+   这套条件 ⇒ 同一口径两份副本，改一处忘另一处 = 「选项写着 8 条、点进去 5 条」。
+   ★ dimOff：本网**不存在**（隐藏）或**已置灰**的维度一律当没筛 ——
+     UI 上点不到，但脚本 / 深链 / 地址栏仍可能把它设进来（实测可行）。
+     与 readHash「认不出来就当没传」同一原则：**无效筛选 = 不筛**。 */
+/* 某一维在本网是否存在（= 控件没被藏起来）。
+   ★ 同时看控件本身与它的外层标签（sb 那格是 <label id="wsb"> 包着 select）：
+     只藏一层的话，另一层的判据会把隐藏的维度当真 ⇒ 拿一个本网没有的取值去筛。 */
+function dimVisible(k){
+  const e=document.getElementById(k),w=document.getElementById("w"+k);
+  if(!e)return false;
+  return e.style.display!=="none"&&!(w&&w.style.display==="none");
+}
+function condOf(){
+  const dm={};
+  ["sb","ow","ct"].forEach(k=>{dm[k]=!dimVisible(k)});
+  const ct=$("#ct"),ctOpt=ct&&ct.selectedOptions?ct.selectedOptions[0]:null;
+  /* 已下架页签下地市维度整体失效（理由见 apply() 里那段注释）。 */
+  dm.ct=dm.ct||!!(ctOpt&&ctOpt.disabled)||STA==="1";
+  const g=k=>{const e=document.getElementById(k);return e?e.value:""};
+  return {kw:$("#kw").value.trim().toLowerCase(),
+          sb:g("sb"),sc:g("sc"),ow:g("ow"),cat:g("cat"),ty:g("ty"),ct:g("ct"),
+          pf:g("pf"),gf:g("gf"),cf:g("cf"),bw:g("bw"),chx:g("chx"),
+          on:g("on"),offv:g("off"),chg:g("chg"),sta:STA,dimOff:dm};
 }
 
+/* —— 板块 → 类型 → 细分：三级联动 + 档位条数 ——
+   ★ 必须在 apply() 开头跑（**不能只挂 onchange**）：程序化设值不触发 onchange，
+     深链 #cat=… / 脚本复位 / 切网清值都走那条路 —— 只挂 onchange 时联动会
+     **静默失效**（能选出「套餐 ＋ 加装包细分」这种不存在的组合，页面安静给 0 条）。
+     这一版在这上面栽过两次（大类→细分一次、地市一次），故统一收口到 apply() 的必经之处。
+   ★ 条数由 match() 算，且对**自己所在的那一层**不做限制（facet 计数）：
+     问的是「把这一格换成 X 会有几条」，不是「已选 X 时还剩几条」。
+   ★ 只扫一遍 rows（而不是「每个选项扫一遍」）：
+     30 个选项 × 8000 行 = 24 万次判据调用，每敲一个搜索键都要付一遍。 */
+function syncDims(){
+  const rs=rowsOf(NET);
+  if(!rs.length)return;
+  const base=condOf(),sb=$("#sb"),cat=$("#cat"),ty=$("#ty");
+  const sv=sb?sb.value:"",cv=cat?cat.value:"",tv=ty?ty.value:"";
+  /* 只把「分类」这三层摘掉，其余维度（搜索 / 地域 / 月费 / 时效…）照常生效。 */
+  const core=Object.assign({},base,{sb:"",cat:"",ty:""});
+  const sbN={},catN={},tyN={};
+  rs.forEach(d=>{
+    if(!match(d,core))return;
+    const okS=!sv||d.sect===sv,okC=!cv||d.cat===cv,okT=!tv||d.ty===tv;
+    if(okS&&okT&&d.cat)catN[d.cat]=(catN[d.cat]||0)+1;
+    if(okS&&okC&&d.ty)tyN[d.ty]=(tyN[d.ty]||0)+1;
+    if(okC&&okT&&d.sect)sbN[d.sect]=(sbN[d.sect]||0)+1;
+  });
+  /* 条数写进选项文本；0 条的档置灰（点进去必然空，不如直接挡住）。
+     optText() 会把「（N）」削掉，所以筛选标签 / CSV 头不会带上数字。 */
+  const fill=(sel,mp,fb)=>{
+    if(!sel)return;
+    [...sel.options].forEach(o=>{
+      if(!o.value){o.disabled=false;o.textContent=fb;return}
+      const n=mp[o.value]||0;
+      o.textContent=n?(o.value+"（"+n+"）"):o.value;
+      o.disabled=!n;
+    });
+    /* 🔴 这里**不清值** —— 见下面的说明。 */
+  };
+  if(dimVisible("sb"))fill(sb,sbN,"全部板块");
+  fill(cat,catN,"全部大类");
+  fill(ty,tyN,"全部细分");
+  /* ★ 全页**唯一一处**「联动清值」：细分项不属于当前所选大类时。
+     判据是**从属关系**（细分挂在大类下，data-cat 由 renderNet 写好），
+     而不是「这个组合恰好 0 条」。
+     🔴 后者绝不能清 —— 那会把用户已选的条件**悄悄摘掉**，于是
+       「先选加装包、再选含宽带」本来该是 0 条，页面却给出 85 条（宽带的全部），
+       筛选标签上的「细分：加装包」也同时消失 —— 一个静默改答案的行为。
+       （2026-09-24 一致性对账抓到：期望 0、实际 85，四网共 20+ 例。）
+       组合为空就该诚实显示 0 条：用户看得见两个条件都在，自己会取舍。 */
+  if(ty){
+    const sel=ty.selectedOptions[0];
+    if(sel&&sel.value&&cv&&sel.dataset.cat&&sel.dataset.cat!==cv)ty.value="";
+  }
+}
 /* —— 当前生效筛选：渲染成可点掉的标签 ——
    以前这里是一行纯文本（「筛选：状态：在售 · 地域：仅河北省 · …」），
    想改掉其中一个条件，得先在这一长串里认出它、再回头去 12 个下拉里找到那一个。
@@ -1079,58 +1193,18 @@ function render(){
   });
 }
 
-function apply(){
-  /* 基线随网走：放在 apply() 开头而不是只放在 switchNet() 里，是为了让
-     「直接带 hash 进来」「hashchange」这些旁路也一定先重算过 ——
-     少调一次的后果是**静默**按错网的基线算天数，比报错难发现得多。 */
-  setBase();
-  /* 大类 → 细分的联动也放在这里，理由与 setBase() 完全一样：
-     **程序化设值不会触发 onchange**（深链 #cat=…、脚本、恢复状态都属此类），
-     只有 apply() 是所有路径的必经之处。实测踩过：只在 #cat 的 onchange 里调，
-     脚本设完 cat 后「加装包」等细分项照样可点 ⇒ 能选出「套餐 ＋ 加装包」
-     这种不存在的组合，页面安静地给出 0 条。
-     ★ 必须在下面读 ty 的值**之前**跑 —— 它可能把已被置灰的那个细分清掉。 */
-  syncTyOptions();
-  /* 警告条在这里统一求值（而不是挂在 renderNet() 上）：renderNet 只在「换了网」
-     时才跑，任何「base 坏了但没换网」的路径都会留下一份与数据不符的旧状态。
-     放在未接入短路**之前**，还顺带保证切到未接入的网时警告条一定会被收起。 */
-  renderBaseWarn();
-  /* 未接入的网没有任何数据可筛，直接短路 —— 否则会给出一堆 0 条的
-     「正常」统计，看着像筛选把数据全滤掉了。 */
-  if(!online(NET)){view=[];renderEmptyState();syncHash();return}
-  renderEmptyState();
-  const kw=$("#kw").value.trim().toLowerCase(),scv=$("#sc").value,owv=$("#ow").value,
-        cat=$("#cat").value,
-        ty=$("#ty").value,ct=$("#ct").value,pf=$("#pf").value,gf=$("#gf").value,
-        cf=$("#cf").value,bw=$("#bw").value,chx=$("#chx").value,
-        on=$("#on").value,off=$("#off").value,chg=$("#chg").value;
-  /* ★ 当前「城市」这个维度在本网是否**不存在**（见 renderDims，联通/广电直接隐藏）：
-     取一次就够，filter 要跑几千遍，在里面 querySelector 纯属白烧。 */
-  const ctDimOff=$("#ct").style.display==="none";
-  /* 保险丝：当前取值若是「本网已置灰的档」（如判据升级后恒为 0 条的「雄安新区」），
-     当没筛。与 owDimOff 同一条原则 —— UI 上点不到置灰项，但脚本 / 深链 /
-     地址栏仍可能把它设进来，那时按它筛会给出「雄安 0 条」这种看着正常、
-     实则拿一个不存在的取值筛出来的假答案。**无效筛选 = 不筛**。 */
-  const ctOpt=$("#ct").selectedOptions[0];
-  const ctDisabled=!!(ctOpt&&ctOpt.disabled);
-  /* ★★ 「已下架」页签下，地市维度**整体失效** —— 已下架条目没有地市归属
-     （上游「停售目录」是各城各自的遗留清单，同一条资费被哪些城市收录是任意的，
-     构建期因此刻意不给它们写 cty，见 tariff_monitor.rows_of 那段注释）。
-     不处理的话，用户在这一页选「邢台」会得到 0 条 —— 一个看着正常、实则是
-     「拿一个对该批数据不存在的维度去筛」的假答案（会被读成「邢台没有下架资费」）。
-     口径与其它保险丝一致：**无效筛选 = 不筛**；同时把控件禁用掉，
-     免得用户对着一个点了没反应的控件猜原因（禁用态由下面的 syncCtAvail 统一维护）。 */
-  const ctStop=STA==="1";
-  /* 顺便把已选的地市值**清掉** —— 这个维度在这一页签下不生效（见上），留着它会让
-     筛选标签写着「城市：邢台」而结果却是全部，控件 / 标签 / 结果三者对不上，
-     正是这一版要消灭的那类自相矛盾（与 readHash 的「认不出来就当没传」同一原则：
-     无效的取值不该留在地址栏与标签里，链接自愈）。
-     代价是切回「在售」要重选一次地市 —— 比给一个假的状态划算。 */
-  if(ctStop){const e=$("#ct");if(e&&e.value)e.value=""}
-  syncCtAvail(ctDimOff,ctStop);
-  /* 归属维度在本网是否不存在（联通/电信/广电上游无 type1 ⇒ 见 renderDims 隐藏）。 */
-  const owDimOff=$("#ow").style.display==="none";
-  view=rowsOf(NET).filter(d=>{
+/* —— 唯一的一条筛选判据 ——
+   apply() 用它筛结果，syncDims() 用它算「每个档位几条」。
+   ★ 只有一份：任何「改了筛选却没改条数」的自相矛盾都不可能出现。
+   ★ 三条保险丝（地市 / 归属 / 板块）都走 dimOff：本网没有这一维 ⇒ 不筛，
+     而不是拿一个不存在的取值去筛出「0 条」这种看着正常的假答案。 */
+function match(d,c){
+  const kw=c.kw,scv=c.sc,owv=c.ow,sbv=c.sb,cat=c.cat,
+        ty=c.ty,ct=c.ct,pf=c.pf,gf=c.gf,
+        cf=c.cf,bw=c.bw,chx=c.chx,
+        on=c.on,off=c.offv,chg=c.chg;
+  const ctDimOff=c.dimOff.ct,owDimOff=c.dimOff.ow,sbDimOff=c.dimOff.sb;
+
     /* 「在售 / 已下架」页签先判 —— 它是这一页的**前提**，不是并列条件。
        d.st 为 1 表示已下架（由采集侧按各网判据写好，见 tariff_monitor.state_of）；
        缺失一律当在售。两页物理分开，在售页的排序与「本次变更」因此不含下架条目。 */
@@ -1146,20 +1220,24 @@ function apply(){
     if(chg&&!(d.ca||d.ck))return false;
     /* 类型两级：大类（四网统一口径）与细分（上游原始分类）。
        两者是「且」关系，但**不会互相打架** —— 选了大类之后，不属于它的细分项
-       在 UI 上已经被置灰（见 syncTyOptions），用户根本选不出
+       在 UI 上已经被置灰（见 syncDims），用户根本选不出
        「大类＝加装包 ＋ 细分＝5G套餐」这种必然为空的自相矛盾组合。 */
     /* 归属（个人 / 政企）：只有移动的条目带 d.ow。
        owDimOff 是保险丝，与地市同一条原则 —— UI 上点不到隐藏项，但脚本 /
        深链仍可能把它设进来（实测可行），那时按它筛会给出「政企 0 条」这类
        看着正常、实则拿不存在的维度筛出来的假答案。无效筛选 = 不筛。 */
     if(owv&&!owDimOff&&d.ow!==owv)return false;
+    /* 板块（上游 tariffAttr）：全国资费＝全国/跨省目录，本省资费＝河北本省目录。
+       构建期只在本网该字段真有两档时才落盘 d.sect（见 ATTR_CN）；
+       sbDimOff 是保险丝 —— 本网没有这一维时按它筛会给出「0 条」的假答案。 */
+    if(sbv&&!sbDimOff&&d.sect!==sbv)return false;
     if(cat&&d.cat!==cat)return false;
     if(ty&&d.ty!==ty)return false;
     /* 保险丝：当前取值若是「本网已置灰的维度」，当没筛。
        UI 上点不到置灰项，但脚本 / 程序化赋值仍可能把它设进来（实测可行）——
        那时按它筛会输出「邢台 0 条」这类看着正常、实则拿不存在的维度筛出来的
        假答案。口径与 readHash 的「认不出来就当没传」一致：**无效筛选 = 不筛**。 */
-    if(ct&&!ctDimOff&&!ctDisabled&&!ctStop){
+    if(ct&&!ctDimOff){
       const tg=cityTags(d);
       /* 「仅全省通用」= 构建期标了 pw 的那批（不限地市）。 */
       if(ct==="_none"){if(!d.pw)return false}
@@ -1234,7 +1312,45 @@ function apply(){
       if(!s.includes(kw))return false;
     }
     return true;
-  });
+  return true;
+}
+
+function apply(){
+  /* 基线随网走：放在 apply() 开头而不是只放在 switchNet() 里，是为了让
+     「直接带 hash 进来」「hashchange」这些旁路也一定先重算过 ——
+     少调一次的后果是**静默**按错网的基线算天数，比报错难发现得多。 */
+  setBase();
+  /* 大类 → 细分的联动也放在这里，理由与 setBase() 完全一样：
+     **程序化设值不会触发 onchange**（深链 #cat=…、脚本、恢复状态都属此类），
+     只有 apply() 是所有路径的必经之处。实测踩过：只在 #cat 的 onchange 里调，
+     脚本设完 cat 后「加装包」等细分项照样可点 ⇒ 能选出「套餐 ＋ 加装包」
+     这种不存在的组合，页面安静地给出 0 条。
+     ★ 必须在下面读 ty 的值**之前**跑 —— 它可能把已被置灰的那个细分清掉。 */
+  syncDims();
+  /* 警告条在这里统一求值（而不是挂在 renderNet() 上）：renderNet 只在「换了网」
+     时才跑，任何「base 坏了但没换网」的路径都会留下一份与数据不符的旧状态。
+     放在未接入短路**之前**，还顺带保证切到未接入的网时警告条一定会被收起。 */
+  renderBaseWarn();
+  /* 未接入的网没有任何数据可筛，直接短路 —— 否则会给出一堆 0 条的
+     「正常」统计，看着像筛选把数据全滤掉了。 */
+  if(!online(NET)){view=[];renderEmptyState();syncHash();return}
+  renderEmptyState();
+  /* 条件一次读成对象（见 condOf 上的注释）：判据与「档位条数」共用同一份 ——
+     apply() 里不再把各维度解成局部变量，省掉「改了筛选没改条数」的可能。
+     ★ 必须在「已下架 ⇒ 清掉地市值」**之后**读 —— 否则读进来的是一个不该生效的值。 */
+  /* ★★ 「已下架」页签下，地市维度**整体失效** —— 已下架条目没有地市归属
+     （上游「停售目录」是各城各自的遗留清单，同一条资费被哪些城市收录是任意的，
+     构建期因此刻意不给它们写 cty，见 tariff_monitor.rows_of 那段注释）。
+     不处理的话，用户在这一页选「邢台」会得到 0 条 —— 一个看着正常、实则是
+     「拿一个对该批数据不存在的维度去筛」的假答案（会被读成「邢台没有下架资费」）。
+     口径与其它保险丝一致：**无效筛选 = 不筛**（已写进 c.dimOff.ct，由 match 统一判）。
+     顺便把已选的地市值**清掉** —— 留着它会让筛选标签写着「城市：邢台」而结果
+     却是全部，控件 / 标签 / 结果三者对不上。代价是切回「在售」要重选一次，
+     比给一个假的状态划算。禁用态由 syncCtAvail 统一维护（唯一写处）。 */
+  if(STA==="1"){const e=$("#ct");if(e&&e.value)e.value=""}
+  syncCtAvail($("#ct").style.display==="none",STA==="1");
+  const c=condOf();
+  view=rowsOf(NET).filter(d=>match(d,c));
   sortView();
   pg=0;render();markHead();syncHash();
 }
@@ -1320,7 +1436,7 @@ function readHash(){
     /* ★ 大类必须先于细分处理（DIMS 里 cat 就排在 ty 前面），且设完立刻同步置灰：
        否则链接里带 #cat=加装包&ty=5G套餐 会被照单全收 —— 那是个不存在的组合，
        页面会安静地给出 0 条。 */
-    if(k==="cat")syncTyOptions();
+    if(k==="cat")syncDims();
   });
   /* 页签（st）不是 select，单独校验：只认 ""/0/1，其余当没传。
      同「枚举参数先核对」的道理 —— 认不出来就退回默认，而不是把一个
@@ -1410,9 +1526,11 @@ function renderNet(){
      · 大类按 CAT_ORDER 的**固定顺序**生成（不是按条数或拼音）：顺序稳定，
        逐日看的时候才知道「今天冒出来的是哪一类」。
      · 本网没有的大类不给入口 —— 与地市维度「本网没有就不出这一层」同一条原则。
-     · 细分项把所属大类记在 data-cat 上，供 syncTyOptions() 做联动置灰。
+     · 细分项把所属大类记在 data-cat 上，供 syncDims() 做联动置灰。
        顺便把**条数**写进选项文本：用户问的就是「有哪些套餐、加装包」，
        先看到规模再决定要不要展开；筛选标签里会把「（数字）」削掉（见 optText）。 */
+  /* 这里的条数是**本网全量**（不随筛选变），只用于「本网有没有这一档」；
+     随筛选联动的条数由 syncDims() 用 match() 重写（同一判据，不会打架）。 */
   const cCnt={},tCnt={},tCat={};
   rs.forEach(d=>{
     cCnt[d.cat]=(cCnt[d.cat]||0)+1;
@@ -1437,7 +1555,7 @@ function renderNet(){
   /* 建完就同步一次：切网时大类被清空，细分的置灰状态必须跟着复原，
      否则会留着上个网的置灰格局（那时 ty 已被 clearDims 清空，看不出异样，
      但要等用户重新选一次大类才发现有些项点不了）。 */
-  syncTyOptions();
+  syncDims();
   /* 「本次变更」条数随网、随日变化 —— 标签带上条数才看得出有没有东西可看。
      本网当天无变更时把快捷 chip 收起来；选单保留：万一地址栏带着 chg=1 进来，
      状态仍然可见、语义仍一致（会筛出 0 条），而不是被悄悄抹掉。 */
@@ -1565,7 +1683,11 @@ function renderDims(){
       CITY_ORDER.concat(CITY_EXTRA).forEach(c=>{cc[c]=(cc[c]||0)+noneN});
     }
     buildCtOptions(cc);
+    /* 整格一起收（含「地市」标签）—— 只藏 select 会剩一个悬空的字。
+       ★ select 本身也要置 none：readHash / condOf / clearDims 以「控件是否隐藏」
+         判「这一维存不存在」，只藏外层标签它们会把隐藏的维度当真。 */
     ct.style.display=hasCty?"":"none";
+    const wct=$("#wct");if(wct)wct.style.display=hasCty?"":"none";
     /* 禁用态与提示文案交给 syncCtAvail（**唯一写处**，apply() 每轮也会调它）——
        这里只把「本网有没有这个维度」这条事实落进 DOM。 */
     syncCtAvail(!hasCty,STA==="1");
@@ -1602,6 +1724,31 @@ function renderDims(){
     if(cs&&cs.disabled)sc.value="";
     sc.title="地域范围：河北省（含各地市专属与全省通用）/ 全国（本网没有的那一档会置灰）";
   }
+  /* —— 板块（#sb：全国资费 / 本省资费）——
+     判据 = 本网真有**两档以上**才给入口（构建期按同一判据决定是否落盘 d.sect，
+     见 tariff_monitor.ATTR_CN）：只有一个取值时这一格没有任何信息量，
+     留着只会让人以为「还有一半没显示」。 */
+  const sbSel=$("#sb"),wsb=$("#wsb");
+  if(sbSel){
+    const secs={};rs.forEach(d=>{if(d.sect)secs[d.sect]=1});
+    const hasSb=Object.keys(secs).length>=2;
+    /* 整格（含标签）一起收 —— 只藏 select 会剩一个孤零零的「板块」字样。
+       ★ select **本身也要置 display:none**：readHash / condOf / clearDims 都以
+         「控件是否隐藏」判「这一维在本网存不存在」，只藏外层标签的话它们会把
+         隐藏的板块维度当真，去筛一个本网没有的取值 ⇒ 静默 0 条。 */
+    sbSel.style.display=hasSb?"":"none";
+    if(wsb)wsb.style.display=hasSb?"":"none";
+    if(!hasSb)sbSel.value="";      // 切网时把别网带过来的值清掉，否则筛选恒空
+    sbSel.title=hasSb
+      ?"板块（上游 tariffAttr）：全国资费＝全国/跨省目录，本省资费＝河北本省目录（0 条的档置灰）"
+      :"本网上游只有一个板块（无 tariffAttr 区分），该维度不提供";
+    [...sbSel.options].forEach(o=>{
+      if(!o.value){o.disabled=false;return}
+      o.disabled=!rs.some(d=>d.sect===o.value);
+    });
+    const bs=sbSel.selectedOptions[0];
+    if(bs&&bs.disabled)sbSel.value="";
+  }
   /* —— 归属（个人 / 政企）：本网**实际有数据**才给入口 ——
      判据用数据而不是硬编码「只有移动有」：上游哪天给别的网补了这个字段，
      这里自动放开，不必回来改代码。联通/电信/广电实测条目里连 type1 键都没有。 */
@@ -1609,6 +1756,7 @@ function renderDims(){
   if(owSel){
     const hasOw=rs.some(d=>d.ow);
     owSel.style.display=hasOw?"":"none";
+    const wow=$("#wow");if(wow)wow.style.display=hasOw?"":"none";   // 连「归属」标签一起收
     if(!hasOw)owSel.value="";   // 切网时把别网带过来的归属值清掉，否则筛选恒空
     owSel.title=hasOw?"归属：个人资费 / 政企资费（上游 type1 字段）"
       :"本网上游没有「归属」字段（条目里无 type1），该维度不提供";
@@ -1662,7 +1810,7 @@ function renderEmptyState(){
 
 function clearChips(){document.querySelectorAll("#chips button").forEach(b=>b.classList.remove("on"))}
 function resetAll(){
-  $("#kw").value="";clearDims();syncTyOptions();
+  $("#kw").value="";clearDims();syncDims();
   sortK="on";sortD=-1;$("#sort").value=sortK;
   clearChips();apply();
 }
@@ -2012,7 +2160,7 @@ markHead();
 
 $("#kw").oninput=apply;
 DIMS.forEach(k=>{
-  /* 这里**不再**单独处理大类联动：统一由 apply() 开头那一次 syncTyOptions() 负责。
+  /* 这里**不再**单独处理大类联动：统一由 apply() 开头那一次 syncDims() 负责。
      两处都写会让人以为「只有走 onchange 才联动」，而深链那条路恰恰就是这么漏掉的。 */
   $("#"+k).onchange=()=>{clearChips();apply()};
 });
@@ -2056,7 +2204,7 @@ $("#stat").addEventListener("click",e=>{
   else if(k==="st"){STA="";syncTabs()}
   else{
     const el=$("#"+k);if(el)el.value="";
-    if(k==="cat")syncTyOptions();     // 大类被摘掉 ⇒ 细分的置灰要复原
+    if(k==="cat")syncDims();     // 大类被摘掉 ⇒ 细分的置灰要复原
   }
   clearChips();apply();
 });
@@ -2086,8 +2234,8 @@ $("#chips").addEventListener("click",e=>{
   const b=e.target.closest("button[data-p]");if(!b)return;
   const p=b.dataset.p;
   /* 快捷项之间是**互斥**的（点了「含宽带」就该把「0 元」摘掉），所以先清空全部维度。
-     清完得 syncTyOptions()：大类被清掉后，细分的置灰格局也要跟着复原。 */
-  $("#kw").value="";clearDims();syncTyOptions();
+     清完得 syncDims()：大类被清掉后，细分的置灰格局也要跟着复原。 */
+  $("#kw").value="";clearDims();syncDims();
   const map={new7:["on","7"],new30:["on","30"],new90:["on","90"],exp60:["off","60"],
              free:["pf","0,0"],bw:["bw","line"],g100:["gf","100,99999"],chg:["chg","1"]};
   if(map[p])$("#"+map[p][0]).value=map[p][1];

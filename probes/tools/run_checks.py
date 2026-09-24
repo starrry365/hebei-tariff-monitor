@@ -145,6 +145,17 @@ def main():
         [sys.executable, os.path.join(REPO, "probes", "probe_unicom_axes.py")],
         quiet_tail=16)
 
+    # ── 2f. 筛选维度口径（★ 2026-09-24 新增）────────────────────────
+    #   上面几条问的是**采集**（该采的是不是都去采了）；这一条问的是**构建**
+    #   （采回来的有没有被正确归类到筛选维度上）。它失效时接口全 200、采集零失败，
+    #   唯一症状是「页面上某一类永远筛不出来」。
+    #   三条：联通「停售套餐」按二级栏目还原 / ty 取值域 ⊆ 上游栏目 /
+    #         sect 只在本网真有两档时落盘。
+    print("\n[2f] 筛选维度口径（停售还原 / 细分域 / 板块显隐）")
+    run("probe_filter_dims.py",
+        [sys.executable, os.path.join(REPO, "probes", "probe_filter_dims.py")],
+        quiet_tail=18)
+
     if NO_BROWSER:
         return finish()
 
