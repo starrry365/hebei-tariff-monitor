@@ -32,6 +32,20 @@ python rebuild_offline.py --fresh cbn    # 只重采广电
 （它曾长期无人消费，等于没有对账）。`--net` 支持**有条目级地市归属**的三网
 （move / telecom / unicom）；广电上游只有「全国 / 河北省」两档，没有地市维度可对账。
 
+## 一条命令跑全套
+
+```bash
+python rebuild_offline.py                 # 先刷新页面产物（archive=False，不碰入库 gz）
+python probes/tools/run_checks.py         # 上表全套：四网体检 + 地域口径 + 遍历 + e2e + 三网对账
+python probes/tools/run_checks.py --no-browser   # 只跑不需要浏览器的（秒级）
+python probes/tools/run_checks.py --net unicom   # 体检 / 对账只跑联通
+```
+
+`run_checks.py` 存在的理由：上表那些检查**大多不在 CI 里**（浏览器类要真 Chrome + 虚拟显示），
+于是有一个很现实的失效模式 —— **检查写了但没人跑**。它把「起 CDP Chrome → nav → 遍历两次
+比对字节 → e2e → 三网对账」压成一条命令。🔴 它**不会**替你重建页面：拿旧页面跑出一片绿
+比不跑更糟，所以第一行必须自己跑。
+
 ## 证据生成器（结论需要复核时用）
 
 | 探针 | 回答什么 | 打真接口 |
