@@ -1,0 +1,31 @@
+{
+ "move": {
+  "entries": 5297,
+  "form": {
+   "无地市码": 4816,
+   "单码": 387,
+   "2~9 码": 33,
+   "★全码（=全省写法）": 59,
+   "10~11 码": 2
+  },
+  "codes_with_wrong_name": [
+   "3121"
+  ],
+  "full_code_entries": 59,
+  "xiongan_mislabeled": 7
+ },
+ "telecom": {
+  "entries": 897,
+  "form": {
+   "无地市码": 866,
+   "10~11 码": 19,
+   "2~9 码": 11,
+   "单码": 1
+  },
+  "codes_with_wrong_name": [
+   "3150"
+  ],
+  "full_code_entries": 0,
+  "xiongan_mislabeled": 0
+ }
+}

@@ -36,10 +36,14 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SNAP = os.path.join(ROOT, "cloud", "tariff", "snapshots")
 
-# 河北 12 地市（联通行政代码前 4 位；3121 = 省直辖县级市 定州/辛集）
-CITY = {"3100": "邯郸", "3110": "石家庄", "3120": "保定", "3121": "省直辖(定州/辛集)",
-        "3130": "张家口", "3140": "承德", "3150": "唐山", "3160": "廊坊",
-        "3170": "沧州", "3180": "衡水", "3190": "邢台", "3350": "秦皇岛"}
+# 河北 12 个 4 位地市码。
+# 🔴 不再自带一份副本 —— 副本与 `tariff_monitor.HB_CITY` **各错各的**过：
+#    这里曾写 `"3121": "省直辖(定州/辛集)"`，与主表同错（3121 实测是**雄安新区**，
+#    见 tariff_monitor.HB_CITY 的注释与 probes/probe_city_code_semantics.py）。
+#    两张会漂的表迟早对不上，改成直接引用唯一来源。
+sys.path.insert(0, os.path.join(ROOT, "cloud", "tariff"))
+import tariff_monitor as _T          # noqa: E402
+CITY = dict(_T.HB_CITY)
 
 # 网 → 快照文件名模板（移动 = hebei_，其余各一张）
 NET_FILE = [("移动", "hebei_tariff_%s.json.gz"),

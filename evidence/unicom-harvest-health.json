@@ -1,0 +1,10 @@
+{
+ "codes": {
+  "0000": 372,
+  "0001": 156
+ },
+ "bad_cells": 0,
+ "empty_cells": 156,
+ "sampled_unstable": 0,
+ "total_cells": 528
+}

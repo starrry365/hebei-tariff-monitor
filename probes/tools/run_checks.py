@@ -110,6 +110,20 @@ def main():
         [sys.executable, os.path.join(REPO, "probes", "check_area_scope.py"),
          "--json", os.path.join(TMP, "area.json")])
 
+    # ── 2b. 采集维度语义（★ 2026-09-24 新增，抓的是「该采的是不是都去采了」）──
+    #   前两步问的都是「已采到的那批对不对」；这两条问的是**维度本身有没有漏**。
+    #   两者失效方式完全不同：前者算错能对出来，后者是整栏/整档**从未被请求过**，
+    #   接口全 200、日志无异常，唯一症状是「少了」。本轮真错（3121 码名 +
+    #   全省的第二种写法）就是这一层，且**前两步全都照不出来**。
+    print("\n[2b] 采集维度语义（地市码名 ↔ 条目文案 · 全省的第二种写法）")
+    run("probe_city_code_semantics.py",
+        [sys.executable, os.path.join(REPO, "probes", "probe_city_code_semantics.py")],
+        quiet_tail=20)
+    print("\n[2c] 采集维度穷尽性（★ 打真接口：上游目录/地市集合/板块取值）")
+    run("probe_coverage_axes.py --net unicom",
+        [sys.executable, os.path.join(REPO, "probes", "probe_coverage_axes.py"),
+         "--net", "unicom"], quiet_tail=20)
+
     if NO_BROWSER:
         return finish()
 

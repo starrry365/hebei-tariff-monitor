@@ -27,6 +27,16 @@ python rebuild_offline.py --fresh cbn    # 只重采广电
 | `probes/tools/page_walk_check.js` | 交互全路径遍历（页签 / 下拉 / 主题 / 翻页 / 排序），**未捕获异常必须为 0** | 是 |
 | `probes/tools/page_e2e_check.js` | UI 行为断言（置灰档、地市显隐、幽灵塞值、类型联动、chips 可摘） | 是 |
 | `probes/check_area_scope.py` | 「只保留河北 + 全国」是否成立：上游地域取值分布 + 被丢弃条目 | 否 |
+| `probes/probe_city_code_semantics.py` | **地市码名 ↔ 条目文案**是否一致（码名错挂）+ 上游「全省的第二种写法」是否被识别 | 否 |
+| `probes/probe_coverage_axes.py --net unicom\|move` | **采集维度是否穷尽**：上游目录 / 地市集合 / 板块取值 / 目录未声明的组合是否真没数据 | 是（打真接口） |
+
+🔴 **前两条与前面所有检查问的不是同一件事**（2026-09-24 立）：
+前者问「**已经采到的那批**对不对」，后者问「**该采的是不是都去采了**」。
+失效方式完全不同 —— 前者算错能对出来；后者是整栏/整档**从未被请求过**，
+接口全 200、日志无异常，唯一的症状是「少了」，而少的那部分从不出现。
+当天两个真错（`3121` 码名错挂成「省直辖（定州/辛集）」实际是雄安新区、
+上游用「12 个地市码全列」表达全省却没被识别）**全在这一层**，
+而当时其它所有检查步都照不出来。
 
 🔴 **`conformance.py` 只生成用例，自己不会验** —— 必须由 `run_conformance.py` 驱动浏览器跑完才算数
 （它曾长期无人消费，等于没有对账）。`--net` 支持**有条目级地市归属**的三网
@@ -54,6 +64,8 @@ python probes/tools/run_checks.py --net unicom   # 体检 / 对账只跑联通
 | `probes/probe_upstream_limits.py` | 联通 / 广电**为什么**（不）能按地市取数 | 是 |
 | `probes/probe_unicom_city_scope.py` | 联通地市差异的**四层判据**（同城重复 / 跨省区分 / 差异语义 / 全组合覆盖） | 是 |
 | `probes/probe_city_only.py` | 某个地市**独有**的三级目录有哪些、落在哪个分类（回答「为什么按这个市筛只出来 N 条」） | 是 |
+| `probes/probe_unicom_harvest_health.py` | 联通「逐城取并集」这一步有没有**把请求失败当成空目录**（会静默污染「不限地市」判定） | 是 |
+| `probes/probe_city_code_semantics.py` | 4 位地市**码的语义**（码名对不对）+ 「全省」的两种写法（**阴性对照**：把 `3121` 改回旧名应当报错退出） | 否 |
 
 🔴 这三支探针的结论**曾经错过一次**：`probe_upstream_limits.py` 当年只比 `indexData` 的
 **两级骨架**，而真正随城市变的是**三级目录 id** ⇒ 得出「联通地市无影响」，主链路据此

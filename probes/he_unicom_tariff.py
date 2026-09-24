@@ -107,7 +107,11 @@ BLANK = {"duanlianjieabc": "", "channelCode": "", "serviceType": "", "saleChanne
          "ticketChannel": ""}
 
 _LOCK = threading.Lock()
-_STAT = {"req": 0, "ok": 0, "empty": 0, "err": 0}
+_STAT = {"req": 0, "ok": 0, "empty": 0, "err": 0, "failed": 0}
+# 🔴 请求**失败**（非 0000/0001）的格子。`collect()` 末尾据此决定要不要拒绝整批数据 ——
+#    因为「不限地市 / 城市专属」的判定 = 三级目录覆盖了几个城市，任何一格未知都会
+#    让本该「不限地市」的资费被改判成「N 城专属」，而这件事在页面上完全看不出来。
+_FAILS = []
 
 # 联通明细字段 → 移动那套的字段名（页面/变更检测都用移动那套，便于复用）
 FIELD_MAP = {
@@ -230,28 +234,53 @@ def get_menu(city=CITY):
 
 
 def get_level3(attr, first, second, city=CITY):
-    """某个 (attr, 一级, 二级) 下的三级菜单 id 列表。空目录返回 []。"""
+    """某个 (attr, 一级, 二级) 下的三级菜单 id 列表。
+
+    ★★ 返回值有**三种**情况，必须能区分（2026-09-24 修）：
+        list  → 正常（可能是空列表，即 code=0001 的「当前目录下暂无资费信息」）
+        None  → **未知**：请求失败（超时 / 限流 / 非 0000/0001 的错误码）
+    🔴 以前 `[]` 一肩挑了两件事，于是「网络抖动」与「这个城市确实没这个目录」
+       在数据里长得一模一样。而联通的「不限地市 / 城市专属」判定 =
+       **该三级目录在几个城市出现过**（见 collect）：一个失败格 ⇒ 某条资费少算一个城市
+       ⇒ 本该「不限地市」的被改判成「N 城专属」⇒ 用户在其他 11 个城市按地市筛时
+       **看不到它**。方向固定、后果静默，与「漏 130 个三级目录」是同一类错。
+       ⇒ 现在失败一律返回 None，由调用方决定重试 / 报错，绝不冒充空目录。
+    """
     r = post("/queryTariffNew/threeLevelName",
              {"tariffAttributes": attr, "firstLevel": first, "secondLevel": second,
               "provinceId": PROV, "cityId": city})
-    if r.get("code") == "0001":
+    code = r.get("code") if isinstance(r, dict) else None
+    if code == "0001":                     # 正常空目录（上游明说「暂无资费信息」）
         with _LOCK:
             _STAT["empty"] += 1
         return []
-    if r.get("code") != "0000":
-        return []
+    if code != "0000":                     # ⚠️ 未知 —— 不是空目录
+        with _LOCK:
+            _STAT["failed"] += 1
+            _FAILS.append(("threeLevelName", attr, first, second, city,
+                           str(code), str(r.get("msg"))[:70]))
+        return None
     return (r.get("data") or {}).get("dataList") or []
 
 
 def get_detail(ids, city=CITY, page=1):
-    """operateData：ids 是三级 id 列表，会被拼成 <id1>_<id2>_... 放进 URL 路径。"""
+    """operateData：ids 是三级 id 列表，会被拼成 <id1>_<id2>_... 放进 URL 路径。
+
+    ★ 失败同样返回 ``None``（而不是空列表）—— 理由与 ``get_level3`` 一致：
+      「这批 id 没有明细」与「这次请求没成功」绝不能混为一谈，后者会**静默漏明细**。
+    """
     if not ids:
         return [], None
     seg = "_".join(ids)
     r = post("/queryTariffNew/operateData/" + seg,
              {"page": page, "size": len(ids), "provinceId": PROV, "cityId": city})
-    if r.get("code") != "0000":
-        return [], r
+    code = r.get("code") if isinstance(r, dict) else None
+    if code != "0000":
+        with _LOCK:
+            _STAT["failed"] += 1
+            _FAILS.append(("operateData", " ".join(ids[:3]) + ("…" if len(ids) > 3 else ""),
+                           city, str(code), str(r.get("msg"))[:70]))
+        return None, r
     d = r.get("data") or {}
     return d.get("detailList") or [], r
 
@@ -305,9 +334,18 @@ def collect(city=CITY, workers=4, include_stopped=False, check_drift=True, verbo
     # 1) 并发取三级菜单 —— 逐城取并集（这是本次修正的核心）
     def one(p):
         a, f, s, fn, sn = p
-        merged, id_cities = {}, {}
+        merged, id_cities, unknown = {}, {}, []
         for nm, code in cities:
-            for x in get_level3(a, f, s, code):
+            lst = get_level3(a, f, s, code)
+            if lst is None:               # 第一轮失败 → 立刻重试一次（抖动很常见，代价极低）
+                time.sleep(0.8)
+                lst = get_level3(a, f, s, code)
+            if lst is None:
+                # ⚠️ 未知：既不能算「这个城有」，也不能算「这个城没有」——
+                #    算「没有」会让该组合下所有资费少一个城市 ⇒ 全省被误判成专属。
+                unknown.append(nm)
+                continue
+            for x in lst:
                 i = x.get("id")
                 if not i:
                     continue
@@ -315,7 +353,7 @@ def collect(city=CITY, workers=4, include_stopped=False, check_drift=True, verbo
                 id_cities.setdefault(i, set()).add(code)
         return {"attr": a, "firstLevel": f, "secondLevel": s,
                 "firstLevelName": fn, "secondLevelName": sn,
-                "level3": list(merged.values()),
+                "level3": list(merged.values()), "unknown": unknown,
                 "id_cities": dict((k, sorted(v)) for k, v in id_cities.items())}
 
     with ThreadPoolExecutor(max_workers=workers) as ex:
@@ -339,13 +377,21 @@ def collect(city=CITY, workers=4, include_stopped=False, check_drift=True, verbo
 
     entries = []
     rep_cities = {}                          # reportNo -> set(城市码)：该资费出现在哪些地市
+    bad_jobs = []                            # 明细批次重试后仍失败（会漏这批资费的明细）
     def job(j):
         gi, ids, cl = j
-        det, _ = get_detail(ids, city)
+        det, raw = get_detail(ids, city)
+        if det is None:                      # 失败 → 重试一次
+            time.sleep(0.8)
+            det, raw = get_detail(ids, city)
         return gi, det, cl
 
     with ThreadPoolExecutor(max_workers=workers) as ex:
         for gi, det, cl in ex.map(job, jobs):
+            if det is None:                  # ⚠️ 绝不当作「这批 id 没有明细」
+                bad_jobs.append((hit[gi]["firstLevelName"], hit[gi]["secondLevelName"],
+                                 len(cl), cl[:3]))
+                continue
             for e in det:
                 e["_attr"] = hit[gi]["attr"]
                 e["_firstLevel"] = hit[gi]["firstLevel"]
@@ -403,10 +449,28 @@ def collect(city=CITY, workers=4, include_stopped=False, check_drift=True, verbo
             % "、".join("%s %d" % (c, n)
                         for c, n in sorted(dist.items(), key=lambda z: (-z[1], z[0]))))
 
+    n_failed = _STAT["failed"]
     with _LOCK:
         _STAT["ok"] = len(uniq)
     log("采集完成：%d 条明细 / %.0fs · 请求 %d（空目录 %d · 失败 %d）"
         % (len(uniq), time.time() - t0, _STAT["req"], _STAT["empty"], _STAT["err"]))
+    # ★★ 出口闸门 —— 任何「未知」的格子都会污染「不限地市 / 城市专属」的判定：
+    #    判定 = 该三级目录在几个城市出现过，少一个城市就把「全省」改判成「专属」，
+    #    于是那批资费在其他城市按地市筛时**看不到**，而页面上毫无异常。
+    #    宁可**整批不采**，也不发布一份「看着完整、实际把全省资费藏进某个城市档」的数据：
+    #    CI 侧采集失败会退回上一轮快照渲染（页面上写明基线日期），代价可控；
+    #    而错配的地市归属没有任何自愈机制。
+    unk = [(g["attr"], g["firstLevelName"], g["secondLevelName"], "、".join(g["unknown"]))
+           for g in groups if g.get("unknown")]
+    if unk or bad_jobs:
+        for u in unk[:10]:
+            log("   ❌ 栏目取数未知：attr=%s %s/%s ← 城市 %s" % u)
+        for b in bad_jobs[:10]:
+            log("   ❌ 明细批次失败：%s/%s（%d 个城市：%s）" % b)
+        raise RuntimeError(
+            "联通采集不完整：%d 个栏目有城市取数未知、%d 个明细批次失败（共 %d 次请求失败）"
+            " —— 「不限地市」判定会被污染，拒绝发布这批数据（详见上方 ❌ 行）"
+            % (len(unk), len(bad_jobs), n_failed))
     return {"province": PROV, "provinceName": "河北",
             "cityId": city,                    # 取明细时用的 cityId（不设门槛，仅占位）
             "cityName": dict((c.get("cityCode"), c.get("cityName"))
@@ -458,11 +522,16 @@ def city_scope(combos=None, cities=None, verbose=True, workers=8):
                 combos.append((str(lv.get("firstLevel")), str(sub.get("secondLevel")),
                                lv.get("firstLevelName"), sub.get("secondLevelName")))
 
+    scope_fails = []
     def cell(p):
         (fl, sl), (nm, code) = p
         m = {}
         for a in ATTRS:                   # attr 语义未明，两个都取以减少遗漏
-            for x in get_level3(a, fl, sl, code):
+            lst = get_level3(a, fl, sl, code)
+            if lst is None:               # ⚠️ 未知（**不是**空目录）—— 记下来，别当成「没有」
+                scope_fails.append((fl, sl, nm, code, a))
+                continue
+            for x in lst:
                 if x.get("id"):
                     m[x["id"]] = x.get("name")
         return (fl, sl), code, m
@@ -517,6 +586,12 @@ def city_scope(combos=None, cities=None, verbose=True, workers=8):
         if not diff_combos:
             log("   [city_scope] ⚠️ 全部一致 —— 但仍须留意：抽样组合必须覆盖 3/99 等易变档，"
                 "否则又是假阴性")
+        if scope_fails:
+            log("   [city_scope] 🔴 **%d 个格子请求失败**（已按「未知」跳过，未当成空目录）：%s"
+                % (len(scope_fails),
+                   "；".join("%s/%s@%s(a=%s)" % (f, s, nm, a)
+                             for f, s, nm, _c, a in scope_fails[:6])))
+            log("        ⚠️ 结论不可信 —— 失败的格子会让「并集净增」被低估，请重跑。")
     return out
 
 
@@ -567,9 +642,10 @@ def main():
             for s in (lv.get("secondLevels") or []):
                 for attr in ATTRS:
                     lst = get_level3(attr, lv.get("firstLevel"), s.get("secondLevel"), a.city)
-                    print("attr=%s %s/%s → 三级 %d 个"
-                          % (attr, lv.get("firstLevelName"), s.get("secondLevelName"), len(lst)))
-                    for x in lst[:6]:
+                    print("attr=%s %s/%s → 三级 %s"
+                          % (attr, lv.get("firstLevelName"), s.get("secondLevelName"),
+                             "%d 个" % len(lst) if lst is not None else "?（请求失败）"))
+                    for x in (lst or [])[:6]:
                         print("      %s  %s" % (x.get("id"), x.get("name")))
         return
 
