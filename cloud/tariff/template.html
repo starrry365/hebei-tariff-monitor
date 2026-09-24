@@ -20,7 +20,7 @@
   /* 面：实色（吸顶/表头用） */
   --card:#ffffff; --card2:#f1f7fc; --card3:#e6eff8;
   /* 玻璃：只给「不压滚动内容」的装饰面板用 */
-  --glass:rgba(255,255,255,.74); --glass2:rgba(255,255,255,.88); --glass3:rgba(255,255,255,.96);
+  --glass:rgba(255,255,255,.66); --glass2:rgba(255,255,255,.82); --glass3:rgba(255,255,255,.94);
   --bd:rgba(255,255,255,.92); --bd2:rgba(0,20,50,.13);
   --tx:#08202f; --tx2:#33566f; --tx3:#5b748c;
   --ok:#059669; --okbg:rgba(5,150,105,.10); --warn:#b45309; --warnbg:rgba(180,83,9,.10);
@@ -29,7 +29,7 @@
   --sh:0 10px 28px rgba(0,40,80,.09); --sh2:0 20px 48px rgba(0,40,80,.16);
   --r:14px; --r2:10px; --blur:16px;
   --zebra:rgba(0,40,80,.022); --hover:rgba(0,133,208,.06);
-  --blobmix:multiply; --blobop:.26;
+  --blobmix:multiply; --blobop:.34; --glowop:.6; --glowmix:multiply;
 }
 [data-net="unicom"]{ --op1:#e2231a; --op2:#ff7a45; --op3:#ffb199; --op1d:#c4160c; --ac2:rgba(226,35,26,.10); }
 [data-net="telecom"]{ --op1:#0057b8; --op2:#00a0e9; --op3:#4ad3c8; --op1d:#004494; --ac2:rgba(0,87,184,.10); }
@@ -38,7 +38,7 @@
 [data-theme="dark"]{
   --bg1:#061021; --bg2:#0a1c31; --bg3:#0e2540;
   --card:#0d2138; --card2:#132c48; --card3:#1a3757;
-  --glass:rgba(255,255,255,.08); --glass2:rgba(255,255,255,.12); --glass3:rgba(255,255,255,.16);
+  --glass:rgba(255,255,255,.075); --glass2:rgba(255,255,255,.11); --glass3:rgba(255,255,255,.15);
   --bd:rgba(255,255,255,.13); --bd2:rgba(255,255,255,.20);
   --tx:#f7fbff; --tx2:#cfdcec; --tx3:#9fb2c9;
   --ok:#34d399; --okbg:rgba(52,211,153,.14); --warn:#fbbf24; --warnbg:rgba(251,191,36,.14);
@@ -46,7 +46,7 @@
   --ac:var(--op2); --ac2:rgba(76,201,240,.14);
   --sh:0 12px 32px rgba(0,0,0,.42); --sh2:0 24px 56px rgba(0,0,0,.5);
   --zebra:rgba(255,255,255,.026); --hover:rgba(255,255,255,.06);
-  --blobmix:screen; --blobop:.36;
+  --blobmix:screen; --blobop:.46; --glowop:.68; --glowmix:screen;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -60,11 +60,22 @@ body{min-height:100vh;background:var(--bg1);color:var(--tx);
   background:radial-gradient(1200px 780px at 16% -14%,var(--bg2),transparent 62%),
              radial-gradient(1000px 680px at 94% 6%,var(--bg3),transparent 60%),
              linear-gradient(180deg,var(--bg1),var(--bg2));transition:background .4s}
-.blob{position:absolute;border-radius:50%;filter:blur(72px);opacity:var(--blobop);
+.blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:var(--blobop);
   mix-blend-mode:var(--blobmix);transition:background .5s}
-.b1{width:420px;height:420px;background:var(--op1);top:-140px;left:-100px;animation:fl1 22s ease-in-out infinite}
-.b2{width:340px;height:340px;background:var(--op2);top:22%;right:-130px;animation:fl2 27s ease-in-out infinite}
-.b3{width:380px;height:380px;background:var(--op3);bottom:-160px;left:14%;animation:fl3 31s ease-in-out infinite}
+/* 极光色晕（2026-09-24 补）：`.blob` 是「圆形光斑」，只管四角；
+   这一层是**铺满整页的色温** —— 面板哪怕半透明，背后若只是一张白纸，
+   看着也还是没有极光。用 color-mix 把**当前网络的主题色**揉成低饱和晕，
+   所以四网切换时它跟着变（红/橙/蓝/红）。color-mix 不被支持时整条声明作废，
+   只退化成「少一层色温」，不影响任何布局。 */
+.aurora::after{content:'';position:absolute;inset:0;opacity:var(--glowop);
+  mix-blend-mode:var(--glowmix);pointer-events:none;
+  background:radial-gradient(50% 44% at 6% -2%,color-mix(in srgb,var(--op2) 74%,transparent),transparent 70%),
+             radial-gradient(48% 46% at 98% 2%,color-mix(in srgb,var(--op3) 68%,transparent),transparent 72%),
+             radial-gradient(56% 50% at 70% 104%,color-mix(in srgb,var(--op1) 52%,transparent),transparent 74%),
+             radial-gradient(40% 40% at 46% 46%,color-mix(in srgb,var(--op2) 34%,transparent),transparent 76%)}
+.b1{width:500px;height:500px;background:var(--op1);top:-160px;left:-120px;animation:fl1 22s ease-in-out infinite}
+.b2{width:420px;height:420px;background:var(--op2);top:22%;right:-150px;animation:fl2 27s ease-in-out infinite}
+.b3{width:460px;height:460px;background:var(--op3);bottom:-180px;left:12%;animation:fl3 31s ease-in-out infinite}
 @keyframes fl1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(64px,54px) scale(1.12)}}
 @keyframes fl2{0%,100%{transform:translate(0,0) scale(1.05)}50%{transform:translate(-70px,44px) scale(.93)}}
 @keyframes fl3{0%,100%{transform:translate(0,0) scale(.97)}50%{transform:translate(56px,-62px) scale(1.1)}}
@@ -91,7 +102,7 @@ body{min-height:100vh;background:var(--bg1);color:var(--tx);
   text-overflow:ellipsis;max-width:56vw}
 .nav-mid{flex:1 1 auto;display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;flex-wrap:wrap}
 .nav-cnt{font-size:11.5px;color:var(--tx3);white-space:nowrap;padding:3px 10px;border-radius:999px;
-  background:var(--card2);border:1px solid var(--bd2)}
+  background:var(--glass2);border:1px solid var(--bd2)}
 .nav-cnt b{color:var(--tx);font-weight:800;font-size:12.5px}
 .upd{font-size:11.5px;color:var(--tx3);display:flex;align-items:center;gap:5px;white-space:nowrap}
 .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);animation:pulse 2.2s infinite}
@@ -159,12 +170,12 @@ body[data-view="list"] .bar{display:block}
 .brow1{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 .brow1 #kw{flex:1 1 260px;min-width:150px}
 input,select{padding:7px 10px;border:1px solid var(--bd2);border-radius:9px;font-size:13px;
-  background:var(--card);color:var(--tx);font-family:inherit}
+  background:var(--glass3);color:var(--tx);font-family:inherit}
 input:focus,select:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2)}
 button{font-family:inherit}
 #dir{width:100%;min-width:44px;font-size:15px;font-weight:700;border:1px solid var(--bd2);
-  background:var(--card);border-radius:9px;cursor:pointer;color:var(--ac);padding:7px 0}
-#reset,#csv,#offline{padding:8px 13px;border:1px solid var(--bd2);background:var(--card);
+  background:var(--glass3);border-radius:9px;cursor:pointer;color:var(--ac);padding:7px 0}
+#reset,#csv,#offline{padding:8px 13px;border:1px solid var(--bd2);background:var(--glass3);
   border-radius:9px;cursor:pointer;font-size:13px;color:var(--tx2);transition:.16s;white-space:nowrap}
 #reset:hover,#csv:hover,#offline:hover{border-color:var(--ac);color:var(--ac)}
 
@@ -179,7 +190,7 @@ button{font-family:inherit}
 .f>.fl{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--tx3);padding-left:3px}
 .f select,.f input,.f button{width:100%;max-width:none}
 .f select{text-overflow:ellipsis}
-#tabs{display:inline-flex;border:1px solid var(--bd2);border-radius:10px;overflow:hidden;background:var(--card2)}
+#tabs{display:inline-flex;border:1px solid var(--bd2);border-radius:10px;overflow:hidden;background:var(--glass3)}
 #tabs button{border:0;background:transparent;padding:8px 14px;font-size:13px;cursor:pointer;
   color:var(--tx2);font-weight:650}
 #tabs button+button{border-left:1px solid var(--bd2)}
@@ -188,7 +199,7 @@ button{font-family:inherit}
 #tabs button:disabled.on{background:var(--tx3);color:#fff}
 /* 快捷 chip */
 .chips{display:flex;flex-wrap:wrap;gap:6px;padding-top:11px}
-.chips button{padding:5px 12px;border:1px solid var(--bd2);background:var(--card2);border-radius:999px;
+.chips button{padding:5px 12px;border:1px solid var(--bd2);background:var(--glass3);border-radius:999px;
   font-size:12.5px;cursor:pointer;color:var(--tx2);transition:.14s}
 .chips button:hover{border-color:var(--ac);color:var(--ac)}
 .chips button.on{background:linear-gradient(135deg,var(--op1),var(--op2));border-color:transparent;color:#fff}
@@ -208,7 +219,7 @@ button{font-family:inherit}
    hidden 会让表格成为滚动容器，th 的「最近滚动容器」变成表格本身（而表格不滚），
    position:sticky 于是彻底失效（实测 th.top 随页面 1:1 下移）。 */
 table{width:100%;border-collapse:separate;border-spacing:0;
-  background:var(--card);border:1px solid var(--bd2);border-radius:var(--r);overflow:clip;
+  background:var(--glass);border:1px solid var(--bd2);border-radius:var(--r);overflow:clip;
   font-size:13px;box-shadow:var(--sh)}
 /* 🔴 th 背景必须**实色**：它压在滚动的行上面，半透明会透出下面的字。 */
 th{position:sticky;top:var(--stackh,276px);z-index:5;background:var(--card2);
@@ -251,15 +262,15 @@ tr.row:hover td{background:var(--hover);cursor:pointer}
 tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 .det{display:none}
 .det.on{display:table-row}
-.det>td{padding:0;background:var(--card2)}
+.det>td{padding:0;background:var(--glass2)}
 .det div{padding:12px 16px;line-height:1.85;border-bottom:1px solid var(--bd2)}
 .det b{color:var(--tx2);font-weight:600;display:inline-block;min-width:96px}
 .detact{margin-top:9px}
-.cpbtn{padding:5px 12px;border:1px solid var(--bd2);background:var(--card);border-radius:9px;
+.cpbtn{padding:5px 12px;border:1px solid var(--bd2);background:var(--glass3);border-radius:9px;
   font-size:12px;cursor:pointer;color:var(--tx2);font-family:inherit}
 .cpbtn:hover{border-color:var(--ac);color:var(--ac)}
 .pager{display:flex;gap:8px;align-items:center;justify-content:center;padding:20px 0}
-.pager button{padding:7px 15px;border:1px solid var(--bd2);background:var(--card);border-radius:10px;
+.pager button{padding:7px 15px;border:1px solid var(--bd2);background:var(--glass2);border-radius:10px;
   cursor:pointer;font-size:13px;color:var(--tx)}
 .pager button:hover:not(:disabled){border-color:var(--ac);color:var(--ac)}
 .pager button:disabled{opacity:.4;cursor:default}
@@ -273,7 +284,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 
 /* ── 总览 ───────────────────────────────────────────────────────── */
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:12px}
-.stat{padding:16px 18px;border-radius:var(--r);background:var(--card);border:1px solid var(--bd2);
+.stat{padding:16px 18px;border-radius:var(--r);background:var(--glass);border:1px solid var(--bd2);
   box-shadow:var(--sh);position:relative;overflow:hidden}
 .stat::after{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
   background:linear-gradient(180deg,var(--op1),var(--op2))}
@@ -305,30 +316,30 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   background:linear-gradient(180deg,var(--op1),var(--op2),transparent);border-radius:2px;opacity:.5}
 .tnode{position:relative;padding:11px 0 11px 3px}
 .tnode::before{content:'';position:absolute;left:-20px;top:17px;width:10px;height:10px;
-  border-radius:50%;background:var(--op1);box-shadow:0 0 0 3px var(--card);transition:background .4s}
+  border-radius:50%;background:var(--op1);box-shadow:0 0 0 3px var(--bg1);transition:background .4s}
 .tnode.zero::before{background:var(--tx3);opacity:.45}
 .thd{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:12.5px;cursor:pointer}
 .thd .ts{font-weight:700;color:var(--tx)}
 .thd .tm{color:var(--tx3);font-variant-numeric:tabular-nums}
 .tbd{display:none;margin-top:9px}
 .tnode.open .tbd{display:block}
-.tnet{margin:7px 0;padding:10px 13px;border-radius:10px;background:var(--card2);border:1px solid var(--bd2)}
+.tnet{margin:7px 0;padding:10px 13px;border-radius:10px;background:var(--glass2);border:1px solid var(--bd2)}
 .tnet .nh{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:12.5px;font-weight:700}
 .tnet .nn{color:var(--tx2);font-weight:400}
 .tcaps{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
 .tcap{padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;
-  background:var(--card3);border:1px solid var(--bd2);color:var(--tx2)}
+  background:var(--glass3);border:1px solid var(--bd2);color:var(--tx2)}
 .tcap.a{background:var(--okbg);color:var(--ok);border-color:transparent}
 .tcap.r{background:var(--badbg);color:var(--bad);border-color:transparent}
 .tcap.c{background:var(--warnbg);color:var(--warn);border-color:transparent}
-.tgl{padding:5px 12px;border:1px solid var(--bd2);background:var(--card);border-radius:999px;
+.tgl{padding:5px 12px;border:1px solid var(--bd2);background:var(--glass3);border-radius:999px;
   font-size:12px;cursor:pointer;color:var(--tx2);font-family:inherit}
 .tgl:hover{border-color:var(--ac);color:var(--ac)}
 
 /* ── 数据说明 ───────────────────────────────────────────────────── */
 .ab p{margin:10px 0;font-size:13px;line-height:1.92;color:var(--tx2)}
 .ab p b{color:var(--tx)}
-.ab code{background:var(--card2);padding:1px 6px;border-radius:5px;font-size:12px;
+.ab code{background:var(--glass2);padding:1px 6px;border-radius:5px;font-size:12px;
   border:1px solid var(--bd2)}
 .ab h3{margin:18px 0 7px;font-size:13.5px;color:var(--tx)}
 .ab ul{margin:7px 0;padding-left:20px}
