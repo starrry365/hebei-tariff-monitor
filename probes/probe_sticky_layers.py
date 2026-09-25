@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""判据：模板里**每条 `position:sticky` 的规则都必须自带实色背景**。
+"""判据：模板里**每条 `position:sticky` 的规则都必须自带实色背景**；
+且吸顶层不能过高，避免"页签＋筛选栏整盒吸顶"压没可见内容区。
 
 【为什么需要这条】
   2026-09-24 用户截图顶部那条乱码：
       「0 元 —  数据总览  全国 通话尊享服…  资费明细  个人 —  变化历史  20 数据说明」
   根因**不是**数据错，而是吸顶的「视图页签条」忘了给背景（`.bar` 有 `glass`，
   `#vtab` 没有）⇒ 滚动时表格行从它下面透上来，与页签文字叠在一起。
+
+  2026-09-25 用户报「筛选界面不能滚动」：根因是 #deck 把「页签＋**整个筛选栏**
+  （约 597px）」整盒吸顶，在常见笔记本视口里吸顶后只剩约 70px 可见内容，
+  滚动时用户感觉"卡死"。修复后只有 `#vtab`（约 46px）吸顶，筛选栏随列表滚走。
 
   ★ 这一条**既有检查全都照不出来**：
     · `rect.top` 正常（透明元素的几何完全正确）；
@@ -22,8 +27,8 @@
         半透明 + blur 仍然会让滚动内容透出来（只是糊一点），不是合格的吸顶面。
   B. 至少要有 1 条吸顶规则（**判据不能空转**：正则写错、选择器改名导致一条都没匹配到，
      必须报错而不是"通过"）。
-  C. 页面里存在唯一的吸顶根 `#deck`（视图页签 ＋ 筛选工具条同盒）——
-     防止有人再把它拆成几层各自 sticky（那是这次事故的结构成因）。
+  C. 页面里**只有 #vtab 吸顶**，`#bar`（筛选栏）与 `#deck`（筛选栏卡片容器）
+     **不能**声明 `position:sticky` —— 防止"整盒吸顶"回归、再次压没可见内容区。
 
 用法：python probes/probe_sticky_layers.py [--template cloud/tariff/template.html]
 退出码：0 通过 / 2 失败
@@ -109,9 +114,19 @@ def main():
     if not sticky:
         problems.append("**一条 position:sticky 规则都没匹配到** —— 判据空转了（选择器改名？"
                         "正则坏了？）。吸顶层必须存在，不能把「没找到」当「通过」。")
-    if 'id="deck"' not in src:
-        problems.append('模板里没有唯一的吸顶根 #deck —— 视图页签与筛选工具条被拆成了几层各自 '
-                        'position:sticky，这正是 2026-09-24 那次事故的结构成因。')
+    has_vtab_sticky = any('id="vtab"' in s or '#vtab' in s for s, _ in sticky)
+    has_deck_sticky = any('id="deck"' in s or '.deck' in s for s, _ in sticky)
+    has_bar_sticky = any('id="bar"' in s or '.bar' in s for s, _ in sticky)
+
+    if 'id="vtab"' not in src:
+        problems.append('模板里没有视图页签 #vtab —— 吸顶层缺失。')
+    if not has_vtab_sticky:
+        problems.append('#vtab 没有声明 position:sticky —— 页签不吸顶，滚动后用户无法切换视图。')
+    if has_deck_sticky:
+        problems.append('#deck 仍声明 position:sticky —— 会导致"页签＋筛选栏整盒吸顶"，'
+                        '压没可见内容区（2026-09-25 已修复，禁止回退）。')
+    if has_bar_sticky:
+        problems.append('#bar 仍声明 position:sticky —— 筛选栏不应吸顶，应随列表滚走。')
     if "--card:" not in src:
         problems.append(":root 里没有定义 --card（吸顶层的实色面）—— 判据的合格写法失去依据。")
 
@@ -121,8 +136,8 @@ def main():
             print("  ❌ %s" % p)
         print("\n结论：失败（%d 个问题）" % len(problems))
         return 2
-    print("  ✅ 通过：%d 条吸顶规则全部自带实色背景，且存在唯一吸顶根 #deck" % len(ok))
-    print("     判据含义：吸顶层不透明 ⇒ 滚动内容不会从它下面透出来（不会叠成乱码）。")
+    print("  ✅ 通过：%d 条吸顶规则全部自带实色背景，且只有 #vtab 吸顶（#deck/#bar 不吸顶）" % len(ok))
+    print("     判据含义：吸顶层不透明且不压屏 ⇒ 滚动内容不会透上来，也不会只剩几十像素可见区。")
     return 0
 
 

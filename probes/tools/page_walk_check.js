@@ -273,17 +273,20 @@
   m.reset = "?";
   safe("reset", function () { $s("#reset").click(); m.reset = String(live()); });
 
-  /* ══ F. 常驻层几何自检：滚动之后筛选控件是否还**可见、可点** ══
+  /* ══ F. 常驻层几何自检：滚动之后页签是否仍**可见、可点** ══
      ★ 这一类故障点按钮的遍历**测不到**：控件都在、事件也绑上了，
        只是被别的层压在底下（或粘性被 overflow 破坏）。2026-09-23 用户报的
        「筛选框不对」就是它 —— .nav / #vtab / .bar 三层都写 sticky;top:0，
        滚动后页签和 13 个下拉全被顶栏盖住，只剩筛选栏底部那行芯片露出。
+     ★ 2026-09-25 用户报「筛选界面不能滚动」：旧版 #deck 把「页签＋整个筛选栏
+       （约 597px）」整盒吸顶，压没可见内容区；修复后**只有 #vtab 吸顶**（约 46px），
+       #bar 筛选栏随列表滚走。所以滚动后 #sc/#kw 不再常驻视口，只要求吸顶页签可点。
      ★ 判据（滚动 600px 后）：
          vt.top == 0                      页签钉在视口顶
-         bar.top == vt.h                  筛选栏紧贴页签下沿（不留缝、不重叠）
-         th.top  == vt.h + bar.h          表头紧贴筛选栏下沿
-         命中测试三个点分别落在 #sc / #kw / .tab 上 —— 这是「点得到」的直接证据，
-         只看 rect 是不够的（被盖住时 rect 完全正常，elementFromPoint 才会暴露）。 */
+         vtabH < 80                       吸顶层不能过高，否则又压没内容
+         bar.position != sticky           筛选栏不应吸顶
+         th.top  == vt.h                  表头钉在页签下沿
+         命中测试落在 .tab 上             页签必须点得到 */
   safe("geom", function () {
     if (NETKEYS.length) switchNet(NETKEYS[0]);
     setView("list");
@@ -313,8 +316,8 @@
            返回最上层元素，与透明度无关）、事件绑定正常、异常数 0、连跑一致。
            唯一能表达它的量就是**背景色的 alpha**。
        ★ 判据：每个「吸顶根」（自身 position:sticky 且没有 sticky 祖先）的背景
-         必须接近不透明。内层吸顶元素可以借祖先的面 —— 现在的 #vtab 就不画背景，
-         面由外层的 #deck 提供，这正是「合成一个盒子」想要的效果。
+         必须接近不透明。现在的 #vtab 已移出 #deck、独立吸顶，所以 #vtab 自己带
+         --card 实色背景，不能再借 #deck 的面。
          半透明 + backdrop-filter 不算合格：blur 只是把下面的字糊掉，还在。
        ★ 反空转：一条吸顶根都没扫到就判失败（否则选择器改名/正则坏了会静默通过）。 */
     var stickyRoots = [], stickyBad = [];
@@ -336,18 +339,18 @@
     }
     m.sticky = { roots: stickyRoots, bad: stickyBad, n: stickyRoots.length };
 
+    var barSticky = !!bar && getComputedStyle(bar).position === "sticky";
     m.geom = {
       vtabTop: vt && vt.top, vtabH: vt && vt.h,
       barTop: bar && bar.top, barH: bar && bar.h,
       thTop: th && th.top,
-      hitSc: hSc && hSc.id, hitKw: hKw && hKw.id,
       hitTab: hTab && (hTab.cls + "|" + hTab.tag),
-      /* 四项都必须 true；任一为 false 就是「滚动后筛选不可用/读不清」 */
-      vtabOk: !!vt && vt.top === 0,
-      barOk: !!vt && !!bar && Math.abs(bar.top - vt.h) <= 1,
-      thOk: !!th && !!bar && Math.abs(th.top - (vt.h + bar.h)) <= 2,
-      hitOk: !!hSc && hSc.id === "sc" && !!hKw && hKw.id === "kw"
-             && !!hTab && /(^|\s)tab(\s|$)/.test(hTab.cls),
+      /* 2026-09-25 起只有 #vtab 吸顶；#bar 随列表滚走，不再常驻视口。
+         几何判据：页签吸顶且不超高、筛选栏不吸顶、表头钉在页签下沿、页签可点。 */
+      vtabOk: !!vt && vt.top === 0 && vt.h < 80,
+      barOk: !!bar && !barSticky,
+      thOk: !!th && Math.abs(th.top - vt.h) <= 2,
+      hitOk: !!hTab && /(^|\s)tab(\s|$)/.test(hTab.cls),
       opaqueOk: stickyRoots.length > 0 && stickyBad.length === 0
     };
     scrollTo(0, 0);

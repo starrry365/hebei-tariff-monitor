@@ -134,25 +134,31 @@ body{min-height:100vh;background:var(--bg1);color:var(--tx);
 .notice.warn{background:var(--badbg);color:var(--bad)}
 .notice a{color:inherit;font-weight:600;text-decoration:underline;text-underline-offset:2px}
 
-/* ══ #deck：全页**唯一**的吸顶层 ══════════════════════════════════════
-   🔴 为什么合成一个盒子，而不是让 #vtab 和 #bar 各自 sticky：
-      各自 sticky 时「吸顶层有背景」「三层 top 递增」两条都是**需要人去记住的约定**，
-      漏一条就出事（漏背景 ⇒ 表体透上来叠成乱码；top 算错 ⇒ 被顶栏盖住）。
-      合成一个盒子后这两条成了结构性质，写不出来错。
+/* ══ #deck：视图页签的容器 / 背景卡片（**不再吸顶**）══════════════════════
+   🔴 2026-09-25 修复「筛选界面不能滚动」：
+      旧版把 #vtab（页签）＋ #bar（整个筛选栏，6 段约 550px）**整个**吸顶，
+      #deck 高度 ≈ 597px。在常见笔记本视口（高 ~670px）里，吸顶后只剩 ~70px 可见，
+      滚动时上面永远是筛选栏、下面一闪而过 ⇒ 用户感知「页面卡死、滚动没用」。
+      **根因不是不能滚，是吸顶常驻层太高、把可见区压没了**。
+   🔴 新结构：只有 #vtab 吸顶（≈46px），#bar（筛选栏）放进普通文档流、
+     随列表一起滚走（功能完全保留，只是滚动时上移消失）。
+     这样吸顶高度从 ~597px 降到 ~46px，可见内容区恢复整屏。
    🔴 背景必须是**实色**（--card）。半透明 + blur 仍会让滚动内容透出来。
-   🔴 这里**不能有** border-top / padding-top：验收判据要求滚动后
-      #vtab.getBoundingClientRect().top === 0，边框和内边距都会把它顶下去 1~N px。
-      分隔用 box-shadow 的 1px 扩边（画在盒子外，不吃内部坐标）。
-   🔴 圆角只给下面两角：吸顶时上沿要严丝合缝贴住视口顶。 */
-.deck{position:sticky;top:0;z-index:39;margin-bottom:12px;
-  background:var(--card);border-radius:0 0 var(--r) var(--r);
+   🔴 #vtab 自己也要实色背景：它吸顶后会脱离 #deck 卡片背景，
+     没有实色 ⇒ 表体从页签后面透上来叠字（与之前「穿透乱码」同一类故障）。
+   🔴 #vtab 不能有 border-top / padding-top：验收要求滚动后
+      #vtab.getBoundingClientRect().top === 0，边框/内边距会把它顶下去 1~N px。 */
+.deck{margin:12px 0 12px;
+  background:var(--card);border-radius:var(--r);
   box-shadow:0 0 0 1px var(--bd2), 0 12px 26px rgba(0,40,80,.10)}
-.deck::before{content:'';position:absolute;left:0;right:0;top:0;height:2px;pointer-events:none;
-  background:linear-gradient(90deg,var(--op1),var(--op2),transparent 92%)}
 
-/* 视图页签（总览 / 明细 / 历史 / 说明） */
-#vtab{display:flex;gap:5px;padding:9px 10px 7px;border-bottom:1px solid var(--bd2);
-  overflow-x:auto;scrollbar-width:none}
+/* 视图页签（总览 / 明细 / 历史 / 说明）—— 唯一吸顶元素，常驻整页 */
+#vtab{position:sticky;top:0;z-index:39;background:var(--card);
+  display:flex;gap:5px;padding:9px 10px 7px;border-bottom:1px solid var(--bd2);
+  overflow-x:auto;scrollbar-width:none;
+  box-shadow:0 10px 22px rgba(0,40,80,.12)}
+#vtab::before{content:'';position:absolute;left:0;right:0;top:0;height:2px;pointer-events:none;
+  background:linear-gradient(90deg,var(--op1),var(--op2),transparent 92%)}
 #vtab::-webkit-scrollbar{display:none}
 #vtab .tab{flex:1 0 auto;border:0;background:transparent;padding:9px 16px;border-radius:11px;
   font-size:13.5px;font-weight:650;color:var(--tx2);cursor:pointer;font-family:inherit;
@@ -422,24 +428,22 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 </header>
 
 <!-- ══════════════════════════════════════════════════════════════════════
-     #deck：整页**唯一**的吸顶层（视图页签 ＋ 筛选工具条同属一个盒子）
-     🔴 2026-09-24 事故：页签和工具条各自 sticky，而页签那条忘了给背景 ⇒
-        滚动后表体从页签下面透上来，与「数据总览 / 资费明细 / 变化历史 / 数据说明」
-        叠成一坨乱码（用户截图顶部那条「0 元 — 数据总览 全国 通话尊享服…」）。
-        根因不是「漏了一个 CSS 值」，而是**吸顶层被拆成了三层各自定位的元素** ——
-        任何一层忘了不透明、或 top 算错一点，就重现。
-        合成一个盒子后，「吸顶层必须有实色背景」「top 必须递增」不再是需要记住的
-        约定，而是结构性质：写不出这个错。
-     🔴 工具条 #bar 原先嵌在 #v-list 里（只有明细页才有筛选），现在它必须与 #vtab
-        同盒，显隐改由 body[data-view] 控制（见 .bar 的 CSS 与 setView()）。
+     #deck：视图页签 #vtab 的容器 / 背景卡片（**不再吸顶**，避免整盒吸顶太高）。
+     🔴 2026-09-25 修复「筛选界面不能滚动」：旧版 #deck（页签＋**整个筛选栏**）
+        整盒吸顶 ≈ 597px，小屏下吸顶后只剩 ~70px 可见 ⇒ 看起来卡死。
+        现改为**只有 #vtab 吸顶**（≈46px），#bar 筛选栏放进普通文档流随列表滚走，
+        功能完全保留。
+     🔴 #vtab 必须实色背景（--card）：它吸顶后脱离 #deck 卡片背景，没有实色就从后面透字。
+     🔴 工具条 #bar 仍与 #vtab 同盒（结构），显隐由 body[data-view] 控制；
+        只是 #bar 不吸顶（见 .deck / #vtab 的 CSS 与 fixBarh() 的 --stackh）。
      ══════════════════════════════════════════════════════════════════════ -->
-<div class="deck" id="deck">
-  <nav id="vtab">
+<nav id="vtab" class="vtab">
     <button class="tab on" data-v="ov">数据总览</button>
     <button class="tab" data-v="list">资费明细</button>
     <button class="tab" data-v="hist">变化历史</button>
     <button class="tab" data-v="about">数据说明</button>
   </nav>
+<div class="deck" id="deck">
   <div class="bar" id="bar">
     <div class="brow1">
       <div id="tabs">
@@ -2265,13 +2269,11 @@ function fixBarh(){
   const st=document.documentElement.style;
   st.setProperty("--vtabh",vh+"px");
   st.setProperty("--barh",barh+"px");
-  /* ★ 表头钉在**整个吸顶层**的下沿。以前是「页签高 + 工具条高」两数相加 ——
-     相加等于视觉下沿，前提是两层之间没有边框/间距，属于「隐含约定」。
-     现在直接量 #deck：#deck 是全页唯一的吸顶层，它的下沿就是表头该钉的位置。
-     （工具条隐藏时（非明细页）deck 高度自然等于页签高，不用特判。） */
-  const dk=document.getElementById("deck");
-  const sh=(dk&&dk.offsetParent!==null)?dk.offsetHeight:(vh+barh);
-  st.setProperty("--stackh",sh+"px");
+  /* ★ 表头钉在**唯一吸顶层 #vtab**的下沿。2026-09-25 起 #bar（筛选栏）不再吸顶、
+     随列表滚走，所以表头吸顶位置 = 页签高度，不再量 #deck 整盒（否则会多出
+     一截空白：vtab 只吸顶 46px，deck 其余已滚走，表头却钉在 597px 处）。
+     （非明细页工具条隐藏，deck 高度本就等于页签高，结果一致。） */
+  st.setProperty("--stackh",vh+"px");
 }
 window.addEventListener("resize",fixBarh);
 /* 同页跳到另一个 hash（手改地址栏 / 点同页链接）不会重新加载，
