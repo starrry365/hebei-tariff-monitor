@@ -77,6 +77,10 @@ jobs:
       - name: 安装依赖
         run: |
           python -m pip install --quiet --disable-pip-version-check pycryptodome websocket-client
+          # ruff：只用来查「未定义名 / 先用后赋值」这一族（F821/F822/F823），见下面的闸门。
+          # ★ 版本**必须钉死** —— 松着写会在某天 ruff 发新版改了规则后突然变红，
+          #   而红的原因跟我们的代码无关；那种红最后必然被绕过，闸门等于没有。
+          python -m pip install --quiet --disable-pip-version-check ruff==0.16.9
           # xvfb：电信采集要一块「屏幕」才能起有头 Chrome（headless 会被 WAF 识别）
           sudo apt-get update -qq
           sudo apt-get install -y -qq xvfb >/dev/null
@@ -153,11 +157,24 @@ jobs:
       - name: 体检数据判据（判据注入 / 日期 / 宽带 / 搜索 / 地市归属）
         run: |
           set -e
-          # ★ 2026-09-26 前置：**护栏判据自测** + 推送通道配置检查。
+          # ★ 2026-09-26 立：**静态名检查**闸门。起因是一次真实事故 ——
+          #   other_nets() 漏初始化一个局部变量，CI 第 8 步 NameError 中断**整轮**巡检、
+          #   后面 12 步全部 skip，而本机所有自测都是绿的：那些自测清一色是函数级的，
+          #   **没有一个走到 other_nets 这个集成缝**（它需要真联网，所以被默认跳过）。
+          #   `py_compile` 只查语法，查不出这类错；这一步专治它。
+          #   ⚠️ 刻意只选 F821/F822/F823（未定义名 / 先用后赋值）而**不是全部 F**：
+          #      那一族会让**整轮中断**，其余（未用变量、无用 f-string）只是噪音 ——
+          #      会变红的闸门必须每一条都值得人停下去看，否则它会被绕过。
+          python -m ruff check --select F821,F822,F823 --isolated --no-cache cloud/tariff/
+          # ★ 集成缝自测：把 net_round / snap_net_ready / load_latest 换成桩，
+          #   专测**函数之间的接线**（other_nets 的四个分支、返回契约、note 覆盖）。
+          python cloud/tariff/selftest_pipeline.py
+          # ★ 护栏判据自测 + 推送通道配置检查。
           #   护栏（假下架/假新增/身份漂移/回弹/降级状态机）本身就是代码，
           #   改错了**不会报错**，只会静默地少报或多报变化 —— 那是最难发现的一类错误
           #   （页面照常更新、数字看着正常、日志一行异常都没有）。
-          #   自测是纯逻辑、不联网、毫秒级，所以放在最前面当作闸门：判据坏了就不许继续。
+          #   自测是纯逻辑、不联网、毫秒级，所以和上面两步一起当作**前置闸门**：
+          #   判据坏了就不许继续往下跑采集。
           python cloud/tariff/change_guard.py
           # 推送只做「配没配」的检查，不发消息；一个通道都没配也**不算失败**
           python cloud/tariff/notify.py --check

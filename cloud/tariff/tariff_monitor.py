@@ -1934,7 +1934,12 @@ _NOTE_CN = {"degraded": "数据量异常，已冻结上一版（等下一轮复�
             "schema": "字段结构变更，仅重建基线、不通知",
             "baseline": "首版基线建立",
             "resync": "连续偏低后重同步基线",
-            "collect-error": "本轮采集失败，沿用上一版快照"}
+            "collect-error": "本轮采集失败，沿用上一版快照",
+            # 🔴 2026-09-26 补：漏了这一项时，下面的 .get(note, note) 兜底会
+            #    把英文码 `snapshot-fallback` 原样印到中文界面上 —— 静默的英文泄漏。
+            #    凡是系统**能产出**的 note，这里必须都有对照（有自测盯着，见
+            #    selftest_pipeline.py 的「_NOTE_CN 覆盖全部 note 取值」）。
+            "snapshot-fallback": "本轮未采到，沿用仓库快照渲染"}
 
 
 def net_round(code, today, fallback=None):
@@ -2098,7 +2103,12 @@ def other_nets(today):
       两条路都从这里进，**不能只改 main()**：进页面有两条路（首版基线分支 &
       常规分支）都调本函数，只补一处，另一处就会静默少一网。
     """
-    sources, diffs, tails = {}, {}, []
+    # 🔴 2026-09-26 修：这一行原本漏了 summaries，而函数体里三处 append 它 ——
+    #    Python 按**全局名**去查，直接 NameError。它在 CI 上炸了第 8 步（整轮巡检中断、
+    #    后面 12 步全 skip），而**本机所有自测都是绿的**：因为那些自测单独调 net_round /
+    #    diff_round，**没有一个走到 other_nets 这个集成缝**。
+    #    教训：函数级测试全过 ≠ 集成路径通。已加静态检查闸门（见 CI 的 ruff F821/F823）。
+    sources, diffs, tails, summaries = {}, {}, [], []
     sh_of = {c: sh for c, sh, _ in NETS_META}
     for code in NET_LIVE:
         if code == "move":

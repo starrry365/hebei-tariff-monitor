@@ -22,6 +22,8 @@ python rebuild_offline.py --fresh cbn    # 只重采广电
 
 | 脚本 | 查什么 | 需要浏览器 |
 |---|---|---|
+| `ruff check --select F821,F822,F823 cloud/tariff/` | **静态名检查**：未定义名 / 先用后赋值 —— `py_compile` **查不出**、一跑到就中断整轮的那类错 | 否 |
+| `selftest_pipeline.py` | **集成缝自测**：网络换成桩，专测函数之间的接线（`other_nets` 四个分支 / 返回契约 / note 覆盖） | 否 |
 | `change_guard.py` | **变更护栏判据自测**（假下架 / 假新增 / 身份漂移 / 停售桶例外 / 回弹 / 降级状态机 / 结构签名），纯逻辑不联网，毫秒级 | 否 |
 | `notify.py --check` | 推送通道**配没配**（只看凭据，不发消息；一个都没配也不失败） | 否 |
 | `notify.py --selfcheck` | 推送**该不该发**这条判据（零变化不许推 / 异常态必须推 / 标题 / 转义） | 否 |
@@ -36,6 +38,19 @@ python rebuild_offline.py --fresh cbn    # 只重采广电
 | `probes/probe_sticky_layers.py` | **吸顶层是否不透明**：每条 `position:sticky` 的规则必须自带实色背景（`--card*`），存在唯一吸顶根 `#deck` | 否 |
 | `probes/probe_unicom_axes.py` | **联通栏目覆盖**：44 个 (板块 × 一级 × 二级) 组合 × 12 城逐格打真接口，上游有三级目录而快照 0 条 ⇒ 整栏漏采 | 是（打真接口） |
 | `probes/probe_filter_dims.py` | **筛选维度口径**（问的是**构建**不是采集）：①联通「停售套餐」按二级栏目还原（停售行里 `cat!=套餐` 须占多数）②`ty` 取值域 ⊆ 上游栏目 ③`sect` 只在本网 `tariffAttr` 真有两档时落盘 | 否 |
+
+🔴 **函数级自测全绿 ≠ 集成路径通**（2026-09-26 立，代价是 CI 整轮中断）：
+`other_nets()` 漏初始化一个局部变量，CI 第 8 步（主流程）直接 `NameError`、
+**后面 12 步全部 skip**；而推送前本机「全套自测」是绿的 ——
+因为那些自测清一色只调 `net_round` / `diff_round` / `write_page` / `build_html`，
+**没有一个走到 `other_nets` 这个集成缝**（它要真联网，于是被默认跳过）。
+⇒ 同时立两条规矩：
+① 集成缝必须有**用桩替换网络**的自测（`selftest_pipeline.py`，含阴性对照）；
+② 「一跑到就**整轮中断**」的那类错交给**静态检查**兜底（`ruff F821/F823`）——
+`py_compile` 只查语法，`NameError` 它一个字都不会报。
+⚠️ 附带规律：「码 → 中文」的对照表（`_NOTE_CN`）必须被判据盯着 ——
+缺项时 `.get(note, note)` 会把英文码**原样印到中文界面上**，静默的英文泄漏
+（本次实测缺的正是 `snapshot-fallback`）。
 
 🔴 **`probe_filter_dims.py` 与上面几条问的不是同一件事**（2026-09-24 立）：
 `probe_coverage_axes` / `probe_unicom_axes` 问**采集**（该采的是不是都去采了），
