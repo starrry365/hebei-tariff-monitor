@@ -409,13 +409,198 @@ def _uc_where(e):
     return "hb", _uniq([n for n in (e.get("_cityNames") or []) if n in CITY_ALL])
 
 
-WHERE_OF = {
-    "move": _mv_where,
-    "telecom": _ct_where,
-    "unicom": _uc_where,
-    # 广电在上游只有「全国 / 河北省」两档地区，条目里没有地市字段 ⇒ cities 恒空。
-    "cbn": lambda e: (("cn" if "全国" in str(e.get("_areaNames") or "") else "hb"), []),
-}
+def _cbn_where(e):
+    """广电条目地域 → ``(sc, cities)``。
+
+    广电在上游只有「全国 / 河北省」两档地区 —— 条目里**没有地市字段**，所以 cities
+    恒空：四网里唯一不出地市维度的一家（页面按「有没有 cty」判，自动不出这一层）。
+    （原来这是个匿名 lambda，提成具名函数是为了让四网注册表能挂上它、并被对拍。）
+    """
+    return (("cn" if "全国" in str(e.get("_areaNames") or "") else "hb"), [])
+
+
+# ════════════════════════════════════════════════════════════════════════
+# 四网注册表 —— 每一网的「全部知识」收在一个对象里
+# ════════════════════════════════════════════════════════════════════════
+# ★ 为什么要有这一层（2026-09-26 模块化）：
+#
+#   重构前，**同一网**的属性散在 8 张平行表 + 3 处 ``if code ==`` 分叉里：
+#     NETS_META（页签显示名）/ SRC_OF（来源）/ NET_LIVE（采不采）/ NET_SNAP（兜底名单）/
+#     SNAP_PREFIX（快照前缀）/ NET_RUN（适配器 + 报告前缀）/ NET_STOPPED（支持停售）/
+#     NET_NOCACHE（不进本地缓存），外加 WHERE_OF（地域判据）、state_of 里的
+#     ``if code == "unicom"``、snap_net_ready 里的 ``if code != "telecom"``。
+#
+#   接一条新网要**同时改 8~10 处**，而漏一处的症状各不相同、**都不报错**：
+#     · 漏 NET_SNAP     ⇒ 该网采不到时页面直接少一网（不报错，只是少）
+#     · 漏 SNAP_PREFIX  ⇒ 它的快照与别网混进同一个 load_prev 排序，
+#                         拿别网的数据当自己的基准（数字全错，且看不出原因）
+#     · 漏 NET_RUN      ⇒ 该网永远不会被采集（页面显示 0 条，看着像上游没数据）
+#   本层把「一网的属性」收进一个类 ⇒ **加一条新网 = 加一个类 + 注册一行**。
+#
+# ★ 本层**不搬采集代码**：移动的直连采集（fetch_group / fetch_all / call）留在本文件，
+#   另三网的归一化层仍是 X_monitor.py —— 它们各被 rebuild_offline.py 与 probes/ 下的
+#   探针直接 ``__import__`` 引用，合并进来只会把那些调用点一起打断。
+#   本层管的是**注册与派发**（谁、怎么采、采不到怎么办、地域与下架怎么判）。
+#
+# ★ 8 张老表**全部保留**（在文件下方原位，改成由注册表派生）—— 外部有 4 个脚本在读它们：
+#   rebuild_offline.py 解包 ``NET_RUN`` 三元组、probes/check_area_scope.py 与
+#   probe_scope_state.py 读 ``SNAP_PREFIX``/``where_of``、selftest_pipeline.py 读 ``NET_SNAP``。
+#   删掉任何一个都是**静默断链**：那些脚本不会报错，只会少采 / 采错。
+#   tools/check_nets_refactor.py 负责逐项对拍派生视图与重构前的原值。
+class NetSource:
+    """一网的「全部知识」—— 采集方式、显示名、快照前缀、兜底策略、地域与下架判据。
+
+    字段刻意写成**类属性**而不是构造函数参数：这张表是新人理解本仓库的入口，
+    必须能一眼静态读完。实例只承载行为（fetch / where / stopped_of / ready）。
+    """
+    code = ""              # 机器名（快照文件名、diff 键、快照前缀都用它）
+    sh = ""                # 页面短名（页签、顶部提示语）
+    cn = ""                # 报告与推送里的全名
+    vendor = ""            # 供应商全名（页签 title）
+    tag = ""               # 变更报告文件名前缀；空 = 直接 ``{日期}.md``（移动）
+    snap_prefix = ""       # 本网独立快照前缀 —— 各网必须各存各的：
+                           # load_prev 按**文件名排序**取「最近一份」，混用前缀会让
+                           # A 网拿去 B 网的快照当基准（2026-09-22 的坑：数字全错）
+    src = ""               # 页面顶部「来源」行
+    mod = ""               # 适配器模块名；空 = 采集实现就在本文件（移动）
+    stopped = False        # 适配器 fetch_all 是否接受 include_stopped
+    nocache = False        # 「纯本地转换」网（不发请求、读采集产物）⇒ 不进本地缓存
+    fallback = "prev"      # 采不到时兜底用哪份快照："prev" 严格早于今天 / "latest" 最新一份
+    live = True            # 是否进每日巡检
+
+    def fetch(self):
+        """采集并归一化成 ``{groups|entries}`` 同构结构。
+
+        ★ 默认走**适配器模块**（``mod``）；采集实现就在本文件的网（移动）覆写本方法。
+        ★ 异常不在这里兜 —— 由调用方 net_round 统一接住，因为它还要决定
+          「退回哪一份快照」（见那边的 ``fallback`` 分支）。
+        """
+        m = __import__(self.mod)
+        return m.fetch_all(include_stopped=True) if self.stopped else m.fetch_all()
+
+    def where(self, e):
+        """条目地域 → ``(sc, cities)``。默认全省（宁可多留，不可静默丢）。"""
+        return "hb", []
+
+    def stopped_of(self, e, g, base_day):
+        """该条目是否「已下架」。默认 False = 本网没有下架信号。"""
+        return False
+
+    def ready(self, today):
+        """本轮采集产物是否就绪。默认 True —— 直连的网没有「产物」这一步。"""
+        return True
+
+
+class MoveNet(NetSource):
+    """移动：nrapigate 直连，**采集实现就在本文件**（``fetch_group`` / ``fetch_all``）。
+
+    ★ 四网里唯一「没有适配器模块」的一家：它的字段布局是本仓库的原生口径，
+      另三网的 X_monitor.py 都是**往这套字段上对齐**（见各自的 FIELD_MAP）。
+    ★ 拿不到下架数据：``isPublic='0'`` 的分类能列出来，但明细接口恒返回 0 条
+      ⇒ ``stopped_of`` 恒 False —— 不是「懒得判」，是本网真的没有这个信号。
+    """
+    code, sh, cn, vendor = "move", "移动", "河北移动", "中国移动"
+    snap_prefix = "hebei_tariff_"
+    src = "中国移动 APP「资费专区」（nrapigate / nrtariff）"
+    where = staticmethod(_mv_where)
+
+    def fetch(self):
+        return fetch_all()               # 本文件内置那套直连采集
+
+
+class UnicomNet(NetSource):
+    """联通：一级分类 ``99``「停售套餐」= 已下架（不靠日期判，见 stopped_of）。"""
+    code, sh, cn, vendor = "unicom", "联通", "河北联通", "中国联通"
+    tag = "unicom"
+    snap_prefix = "unicom_tariff_"
+    src = "中国联通 APP「资费专区」（mxx.client.10010.com / queryTariffNew）"
+    mod = "unicom_monitor"
+    stopped = True
+    where = staticmethod(_uc_where)
+
+    def stopped_of(self, e, g, base_day):
+        # 🔴 只能用「被归到 99 类」这个信号，**不能看 endDate**：
+        #    实测那批 endDate 一条都没过期（初版注释写的「99.87% 已过期」已不成立）——
+        #    它被归到 99 类这件事本身就是唯一下架证据。
+        return str(g.get("type2")) == "99" or str(e.get("_firstLevel")) == "99"
+
+
+class TelecomNet(NetSource):
+    """电信：四网里唯一的**机会性采集** —— 需要真实浏览器，采不到就退回快照。
+
+    ★ ``fallback = "latest"``（不是默认的 "prev"）：本轮没采到时该用**最新那份**快照
+      （可能就是今天早些时候采的），而不是「严格早于今天」的那份 ——
+      否则明明仓库里有今天的数据，页面却退回昨天。
+    ★ ``nocache``：适配器是**纯本地转换**（读 ``.ct_raw.json``，不发请求），
+      缓存它没有收益、只有风险：采集产物更新了而缓存还是旧的，本地重建看不出这一点
+      （2026-09-23 实测踩到：``.telecom_cache.json`` 停在 09-22，重跑采集也不会被用上）。
+    """
+    code, sh, cn, vendor = "telecom", "电信", "河北电信", "中国电信"
+    tag = "ct"
+    snap_prefix = "ct_tariff_"
+    src = "中国电信「资费专区」H5（www.189.cn / tariffSection，真实浏览器采集）"
+    mod = "ct_monitor"
+    nocache = True
+    fallback = "latest"
+    where = staticmethod(_ct_where)
+
+    def stopped_of(self, e, g, base_day):
+        # 本网**没有**独立状态位，只能看下线日是否早于基线日。
+        # 8 位日期按字符串比较即是按时间比较；格式不对一律当在售（宁可漏判不可误判）。
+        d = str(e.get("offineDay") or "").strip()
+        return bool(re.fullmatch(r"\d{8}", d)) and d < str(base_day or "").replace("-", "")
+
+    def ready(self, today):
+        """本轮是否真拿到了浏览器采集产物 —— 决定走采集还是走快照。
+
+        ★ 判据是**采集产物里记录的日期**，不是「文件在不在」：``.ct_raw.json`` 不入库，
+          但本机那份可能是上周采的，光看存在就走采集，会拿一份陈旧数据当今日快照入库
+          （还会连带生成一份「电信无变化」的假报告）。用 mtime 更糟 ——
+          CI 每次都是全新 checkout，mtime 恒为「现在」，等于恒真。
+        """
+        try:
+            ct = __import__("ct_monitor")
+        except Exception as e:
+            log(f"!! 电信适配器不可用（{type(e).__name__}: {e}），本轮改用快照渲染")
+            return False
+        d = ct.raw_day()
+        if d == today:
+            return True
+        log(f"-- 电信本轮没有新采到的原始数据"
+            f"（.ct_raw.json 记录的采集日 {d or '（无文件）'} ≠ 今天 {today}），改用快照渲染")
+        return False
+
+
+class CbnNet(NetSource):
+    """广电：服务端状态位 ``stateFlag``（``1`` 在售 / ``0`` 下架）；地域只有全国/河北两档。"""
+    code, sh, cn, vendor = "cbn", "广电", "中国广电", "中国广电"
+    tag = "cbn"
+    snap_prefix = "cbn_tariff_"
+    src = "中国广电「资费公示」H5（m.10099.com.cn / queryTariffAllByCond）"
+    mod = "cbn_monitor"
+    stopped = True
+    where = staticmethod(_cbn_where)
+
+    def stopped_of(self, e, g, base_day):
+        return str(e.get("stateFlag") or "1") != "1"
+
+
+# 注册表本体：顺序 = 接入顺序（move 最先，也是唯一「采集实现就在本文件」的网）。
+NETS = {s.code: s for s in (MoveNet(), UnicomNet(), TelecomNet(), CbnNet())}
+
+# ★ 三个顺序元组刻意分开 —— 它们的历史来源不同，**不要为了整齐合并成一个**：
+#   _PAGE_ORDER 决定页面页签与「来源」的顺序（NETS_META / SRC_OF 用）；
+#   _RUN_ORDER  决定每日巡检的采集顺序与顶部提示语的拼接顺序（NET_LIVE / SNAP_PREFIX 用）；
+#   _WHERE_ORDER 是 WHERE_OF 这个 dict 自己的键顺序（先写的移动与电信，后补联通）。
+#   三者在 telecom/cbn 上互不相同，全是历史遗留。
+#   顺序对查表**没有**影响，但它是可观察的（谁遍历这个 dict，输出顺序就跟着变），
+#   而 check_nets_refactor.py 会逐项比 —— **照原样钉住，不留「这个差异无害」的例外**：
+#   一旦允许一个例外，下一个就没人核了。（首轮对拍确实在这里报了一次红。）
+_PAGE_ORDER = ("move", "unicom", "telecom", "cbn")
+_RUN_ORDER = ("move", "unicom", "cbn", "telecom")
+_WHERE_ORDER = ("move", "telecom", "unicom", "cbn")
+
+WHERE_OF = {c: NETS[c].where for c in _WHERE_ORDER}
 
 
 def where_of(code, e):
@@ -1157,24 +1342,18 @@ def data_day(o, fallback=""):
 
 # —— 四网骨架 ——
 # code: (简称, 全称)。顺序即页面导航条顺序。
-# 骨架阶段只有「移动」接了真实数据；其余三家的 rows / src / base 留空，
-# 接入时把对应那家的字段填上即可，**页面侧无需改动**。
-NETS_META = (
-    ("move",    "移动", "中国移动"),
-    ("unicom",  "联通", "中国联通"),
-    ("telecom", "电信", "中国电信"),
-    ("cbn",     "广电", "中国广电"),
-)
-SRC_OF = {
-    "move":    "中国移动 APP「资费专区」（nrapigate / nrtariff）",
-    "unicom":  "中国联通 APP「资费专区」（mxx.client.10010.com / queryTariffNew）",
-    "telecom": "中国电信「资费专区」H5（www.189.cn / tariffSection，真实浏览器采集）",
-    "cbn":     "中国广电「资费公示」H5（m.10099.com.cn / queryTariffAllByCond）",
-}
+# ★★ 以下 8 个名字**全部保留**，但已改成由「四网注册表」派生 —— 不再是第二份真相。
+#    外部有 4 个脚本在读它们（rebuild_offline.py 解包 NET_RUN 三元组、
+#    probes/check_area_scope.py 与 probe_scope_state.py 读 SNAP_PREFIX、
+#    selftest_pipeline.py 读 NET_SNAP），删掉任何一个都是**静默断链**。
+#    要改「某网是什么」请去改上面的 NetSource 子类，**别在这里加一行** ——
+#    那正是本次模块化要消灭的东西（同一网的属性散在多处，漏一处不报错）。
+NETS_META = tuple((c, NETS[c].sh, NETS[c].vendor) for c in _PAGE_ORDER)
+SRC_OF = {c: NETS[c].src for c in _PAGE_ORDER}
 # 每日巡检里**由脚本直连就能采到**的那几家（有 src / base / rows 的）。
 # 电信也在里面 —— 但它和另两家不同：它需要真实浏览器，是**机会性采集**
 # （采到就正常入库；采不到自动退回下面的 NET_SNAP 快照渲染，绝不拖垮其它网）。
-NET_LIVE = ("move", "unicom", "cbn", "telecom")
+NET_LIVE = tuple(c for c in _RUN_ORDER if NETS[c].live)
 # 「采不到时的渲染兜底」名单 —— 目前只有电信。
 #
 # 2026-09-22 修正：此前这里写的是「电信在云端采不到，只能快照直渲」，
@@ -1186,31 +1365,25 @@ NET_LIVE = ("move", "unicom", "cbn", "telecom")
 # 或本机没有 .ct_raw.json）就用仓库里最新那份快照渲染。这样即使哪天瑞数改规则
 # 或 runner 镜像没了 Chrome，页面也**不会少一网**，只是数据停在上一版 ——
 # 而且基线日期取自快照自身，陈旧是**看得见**的，不会假装今天更新过。
-NET_SNAP = ("telecom",)
+NET_SNAP = tuple(c for c in _RUN_ORDER if NETS[c].fallback == "latest")
 # 每网一份独立快照，文件名前缀区分 —— 共用一套快照会让两网互相覆盖
 # （load_prev 按文件名排序取「最近一份」，混在一起就会拿联通昨天的当移动今天的基准）。
-SNAP_PREFIX = {"move": "hebei_tariff_", "unicom": "unicom_tariff_",
-               "cbn": "cbn_tariff_", "telecom": "ct_tariff_"}
+SNAP_PREFIX = {c: NETS[c].snap_prefix for c in _RUN_ORDER}
 # 「移动之外」各网的轮次配置：code → (适配器模块名, 报告/摘要里的中文名, 报告文件名前缀)。
 # 三处必须**成对**出现（模块、显示名、报告文件名），散在 main() 里各写一遍迟早漏一处。
-NET_RUN = {
-    "unicom": ("unicom_monitor", "河北联通", "unicom"),
-    "cbn":    ("cbn_monitor",    "中国广电", "cbn"),
-    # 电信适配器只做「原始产物 → 中间格式」的纯转换，不发请求；
-    # 真正的采集在 tariff-daily.yml 里由 ci_grab.sh（Xvfb + 真实 Chrome）先跑完。
-    "telecom": ("ct_monitor",    "河北电信", "ct"),
-}
+NET_RUN = {c: (NETS[c].mod, NETS[c].cn, NETS[c].tag)
+           for c in _RUN_ORDER if NETS[c].mod}
 # 支持「连下架资费一起采」的网 —— 适配器 fetch_all 接受 include_stopped。
 # 需求：「各运营商下架的资费也要收集全」。移动**不在**此列：实测它的 isPublic=0
 # 虽能列出分类，但明细接口恒返回 0 条，本网拿不到下架数据（见 state_of 注释）。
-NET_STOPPED = {"unicom", "cbn"}
+NET_STOPPED = {c for c in _RUN_ORDER if NETS[c].stopped}
 # ★「适配器是**纯本地转换**」的网 —— 它的 fetch_all() 不发网络请求，
 #   读的是浏览器采集产物（电信读 .ct_raw.json）。这类网**不该进本地缓存**：
 #   缓存只带来一种风险 —— 采集产物更新了而缓存还是旧的，
 #   本地重建出来的页面看不出这一点，且没有任何提示（2026-09-23 实测踩到：
 #   .telecom_cache.json 停在 09-22，重跑采集也不会被用上）。
 #   直读适配器是毫秒级往返，缓存它没有任何收益。
-NET_NOCACHE = {"telecom"}
+NET_NOCACHE = {c for c in _RUN_ORDER if NETS[c].nocache}
 # 页面顶部那行「来源」在各网切换时要跟着变，所以它不能是静态文本（模板里改成由 JS 渲染）
 UP_N = 0        # 由 build_html 回填：四网总条数（供 __N__ 占位符）
 
@@ -1355,15 +1528,11 @@ def state_of(code, e, g, base_day):
       · 电信：该网**没有**独立状态位，只能看下线日是否早于基线日
       · 移动：``isPublic='0'`` 的分类能列出来，但明细接口恒返回 0 条 ⇒ **本网拿不到**
     """
-    if code == "unicom":
-        return str(g.get("type2")) == "99" or str(e.get("_firstLevel")) == "99"
-    if code == "cbn":
-        return str(e.get("stateFlag") or "1") != "1"
-    if code == "telecom":
-        d = str(e.get("offineDay") or "").strip()
-        # 8 位日期按字符串比较即是按时间比较；格式不对一律当在售（宁可漏判不可误判）
-        return bool(re.fullmatch(r"\d{8}", d)) and d < str(base_day or "").replace("-", "")
-    return False
+    # 三网各自的下架信号已收进各自的 NetSource 子类（原来这里是三处 ``if code ==``
+    # 分叉 —— 加一网就得在此再插一段，而漏插的症状是「该网的下架条目被当成在售」：
+    # 页面不报错，只是多出一批本该收起来的数据）。
+    ns = NETS.get(code)
+    return ns.stopped_of(e, g, base_day) if ns else False
 
 
 def rows_of(o, diff=None, code=""):
@@ -1962,13 +2131,13 @@ def net_round(code, today, fallback=None):
       （可能就是今天早些时候采的），而不是「严格早于今天」的那份；
       否则明明仓库里有今天的数据，页面却退回昨天。
     """
-    mod_name, cn, tag = NET_RUN[code]
-    prefix = SNAP_PREFIX[code]
+    # 一网的「适配器 / 显示名 / 快照前缀 / 采不采停售 / 怎么采」现在都从注册表一次取齐
+    # （原来要同时查 NET_RUN + SNAP_PREFIX + NET_STOPPED 三张表）。
+    ns = NETS[code]
+    cn, tag, prefix = ns.cn, ns.tag, ns.snap_prefix
     load = fallback or load_prev
     try:
-        mod = __import__(mod_name)
-        data = (mod.fetch_all(include_stopped=True) if code in NET_STOPPED
-                else mod.fetch_all())
+        data = ns.fetch()
     except (Exception, SystemExit) as e:
         # SystemExit 也要接：ct_monitor.fetch_all() 在缺少 .ct_raw.json 时
         # 刻意用 SystemExit 抛出一段给**人看**的采集指引（本机直接跑时体验好）。
@@ -2068,19 +2237,11 @@ def snap_net_ready(code, today):
       （还会连带生成一份「电信无变化」的假报告）。用 mtime 更糟 ——
       CI 每次都是全新 checkout，mtime 恒为「现在」，等于恒真。
     """
-    if code != "telecom":
-        return True
-    try:
-        ct = __import__("ct_monitor")
-    except Exception as e:
-        log(f"!! 电信适配器不可用（{type(e).__name__}: {e}），本轮改用快照渲染")
-        return False
-    d = ct.raw_day()
-    if d == today:
-        return True
-    log(f"-- 电信本轮没有新采到的原始数据"
-        f"（.ct_raw.json 记录的采集日 {d or '（无文件）'} ≠ 今天 {today}），改用快照渲染")
-    return False
+    # 判据实现已收进 TelecomNet.ready()（连那段「为什么不能看文件在不在 / 不能看 mtime」
+    # 的说明一起搬过去了）。这里**刻意保留成模块级函数**而不是让调用方直接调
+    # NETS[code].ready()：selftest_pipeline.py 要打桩它，改成属性调用会让打桩点失效，
+    # 于是自测「静默地测不到东西」—— 比报错更糟。
+    return NETS[code].ready(today)
 
 
 def other_nets(today):

@@ -19,8 +19,14 @@
 换成桩，只验证**函数之间的接线** —— 返回值个数、字段齐不齐、各分支有没有被走到。
 纯 stdlib、毫秒级，可以放进 CI 当闸门。
 
+覆盖：
+  · ``other_nets`` 四个分支（全采到 / 兜底 / 采集失败 / 混跑）与返回契约
+  · ``_NOTE_CN`` 覆盖全部 note 取值（漏一项 ⇒ 英文码印到中文界面上）
+  · 四网注册表自洽（tag / snap_prefix 不撞车、NET_RUN 与注册表一致、未知网不炸）
+
 用法:
     python cloud/tariff/selftest_pipeline.py      # 退出码 0 = 通过
+    # 另：改了四网元信息（NetSource 子类）后，用 check_nets_refactor.py 做逐项对拍
 """
 import os
 import sys
@@ -34,6 +40,16 @@ FAILS = []
 def ck(name, got, want):
     if got != want:
         FAILS.append(f"{name}: 得到 {got!r}，期望 {want!r}")
+
+
+def _dups(seq):
+    """挑出重复出现的元素（每个只报一次）—— 查 tag / snap_prefix 撞车用。"""
+    seen, out = set(), []
+    for x in seq:
+        if x in seen and x not in out:
+            out.append(x)
+        seen.add(x)
+    return out
 
 
 def _sm(code, cn, note=None):
@@ -114,6 +130,35 @@ def main():
                               _sm("unicom", "联通", "baseline"),
                               _sm("cbn", "广电")])
         ck("_verify_notes 挑出 degraded、放过 baseline 与空", len(vn), 1)
+
+        # ── 四网注册表自洽（2026-09-26 模块化后加）─────────────────────
+        # ★ 这里只查**内部自洽**，不查具体值（值由 check_nets_refactor.py 现场对拍）。
+        #   区别很重要：「加一网」不该让 CI 变红（那是正常演进），
+        #   而「加一网时漏填一个字段」必须变红 —— 会让闸门一直红的东西会被绕过。
+        nets = list(T.NETS.values())
+        ck("注册表覆盖 NETS_META 的每一网",
+           sorted(T.NETS), sorted(c for c, _, _ in T.NETS_META))
+        ck("每网的 code/sh/cn/vendor/src/snap_prefix 都非空",
+           [n.code for n in nets
+            if not all((n.code, n.sh, n.cn, n.vendor, n.src, n.snap_prefix))], [])
+        ck("tag 两两不重复（重复 ⇒ 两网写同一份变更报告，后写的盖掉先写的）",
+           _dups([n.tag for n in nets]), [])
+        ck("snap_prefix 两两不重复（重复 ⇒ 两网快照混排，拿别网数据当自己的基准）",
+           _dups([n.snap_prefix for n in nets]), [])
+        ck("只有「采集实现就在本文件」的网可以没有适配器模块",
+           [n.code for n in nets if not n.mod], ["move"])
+        ck("NET_RUN 恰好 = 有适配器模块的网",
+           sorted(T.NET_RUN), sorted(n.code for n in nets if n.mod))
+        ck("NET_RUN 的值与注册表一致",
+           [c for c in T.NET_RUN
+            if T.NET_RUN[c] != (T.NETS[c].mod, T.NETS[c].cn, T.NETS[c].tag)], [])
+        ck("NET_SNAP / NET_STOPPED / NET_NOCACHE 都是注册表的子集",
+           [c for c in list(T.NET_SNAP) + sorted(T.NET_STOPPED) + sorted(T.NET_NOCACHE)
+            if c not in T.NETS], [])
+        ck("未知网的地域判据不炸且留数据（宁可多留，不可静默丢）",
+           T.where_of("没有这个网", {}), ("hb", []))
+        ck("未知网的下架判据不炸且判在售",
+           T.state_of("没有这个网", {}, {}, "2026-09-26"), False)
     finally:
         T.net_round, T.snap_net_ready, T.load_latest = orig     # 不污染同进程后续用例
 
