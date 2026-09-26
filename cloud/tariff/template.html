@@ -355,6 +355,11 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 .tcap.a{background:var(--okbg);color:var(--ok);border-color:transparent}
 .tcap.r{background:var(--badbg);color:var(--bad);border-color:transparent}
 .tcap.c{background:var(--warnbg);color:var(--warn);border-color:transparent}
+/* .w = 护栏/异常提示（数据被抑制、或本轮数据不可信）。
+   ★ 刻意**不复用** .c（字段变更）那抹黄：两者含义差得远 ——
+     「有几个字段变了」是正常信息，「本轮数据没敢记」是要人看一眼的告警。
+     借用同一个颜色会让告警混在正常信息里被一眼扫过去。 */
+.tcap.w{background:var(--glass3);color:var(--bad);border:1px dashed var(--bad)}
 .tgl{padding:5px 12px;border:1px solid var(--bd2);background:var(--glass3);border-radius:999px;
   font-size:12px;cursor:pointer;color:var(--tx2);font-family:inherit}
 .tgl:hover{border-color:var(--ac);color:var(--ac)}
@@ -2083,6 +2088,14 @@ function renderOverview(){
 function renderHistory(){
   const box=$("#histBox"),note=$("#histNote");
   const items=(HIST||[]).slice().sort((a,b)=>String(b.ts||"").localeCompare(String(a.ts||"")));
+  /* 抑制原因（history.json 的 note）—— 中文对照表。
+     ★ 为什么必须显示：a=r=c=0 有两种完全不同的含义 ——
+       「上游确实没变」和「本轮数据异常/基线回弹，我们没敢记变化」。
+       只显示「本次无变化」会把后者伪装成前者，而后者是**需要人看一眼**的。
+       表在这里而不是在构建脚本里注入：它只是文案，改动不需要动数据。 */
+  const NOTE_CN={"degraded":"数据异常·已冻结上一版","rebound":"基线回弹·不计变化",
+    "schema":"字段结构变更·仅重建基线","baseline":"首版基线","resync":"重同步基线",
+    "collect-error":"采集失败·沿用上一版","snapshot-fallback":"沿用快照"};
   if(!items.length){
     box.innerHTML='<div class="empty">还没有可展示的变更记录 —— 自本次部署起开始累积，'
       +'下一次巡检有变化时就会出现。</div>';
@@ -2100,17 +2113,28 @@ function renderHistory(){
     let A=0,R=0,C=0;
     ns.forEach(x=>{A+=x.a||0;R+=x.r||0;C+=x.c||0});
     const zero=!(A||R||C);
+    /* 当天只要有一网带 note，节点头上就挂一个「有抑制」标 ——
+       否则整天的汇总数字看着像「什么都没发生」。 */
+    const notas=[...new Set(ns.map(x=>x.note).filter(Boolean))];
     return '<div class="tnode'+(zero?" zero":"")+'">'
       +'<div class="thd"><span class="ts">'+esc(d)+'</span>'
       +'<span class="tcap a">新增 '+A+'</span>'
       +'<span class="tcap r">下架 '+R+'</span>'
       +'<span class="tcap c">字段变更 '+C+'</span>'
+      +(notas.length?'<span class="tcap w" title="'+esc(notas.map(n=>NOTE_CN[n]||n).join("；"))+'">⚠ 有抑制 '+notas.length+'</span>':"")
       +'<span class="tm">'+ns.length+' 个网</span></div>'
       +'<div class="tbd">'+ns.map(x=>{
           const caps=[];
+          if(x.note)caps.push('<span class="tcap w" title="本轮未记入任何变化">⚠ '+esc(NOTE_CN[x.note]||x.note)+'</span>');
           if(x.a)caps.push('<span class="tcap a">新增 '+x.a+'</span>');
           if(x.r)caps.push('<span class="tcap r">下架 '+x.r+'</span>');
           if(x.c)caps.push('<span class="tcap c">字段变更 '+x.c+'</span>');
+          /* 护栏数字：这三个**不计入**上面的新增/下架，但不显示就等于把
+             「为什么数字比想象的小」这件事藏起来（真变化被吃掉时无人能察觉）。 */
+          if(x.gl)caps.push('<span class="tcap" title="同一条资费换了栏目/板块，不算新增也不算下线">漂移合并 '+x.gl+'</span>');
+          if(x.gm)caps.push('<span class="tcap" title="在售目录 ↔ 停售目录之间迁移，只按一个方向计一次">在售↔停售 '+x.gm+'</span>');
+          if(x.gf)caps.push('<span class="tcap" title="下线日期尚未到期，判为漏采而非下架">假下架抑制 '+x.gf+'</span>');
+          if(x.gs)caps.push('<span class="tcap" title="上线日早于上一轮基线，属漏采补录">补录 '+x.gs+'</span>');
           if(!caps.length)caps.push('<span class="tcap">本次无变化</span>');
           const smp=(x.smp||[]).map(s=>{
             const mark=s.k==="a"?"＋":s.k==="r"?"－":"⇄";

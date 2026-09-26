@@ -25,6 +25,17 @@ cloud/tariff/docs/.nojekyll
 # 状态文件由 CI 每次运行覆盖
 cloud/tariff/state.json.tmp
 
+# ── 原子写的半成品（change_guard.atomic_write_*）──────────────────
+# 先写 <目标>.tmp 再 os.replace；.new 是页面写入前的待校验副本身。
+# 🔴 它们**绝不能入库**：这是「写了一半」的残片，入库就等于把一个坏基线
+#    当成好基线提交给下一轮巡检。正常运行时它们存在的时间只有几毫秒。
+cloud/tariff/*.tmp
+cloud/tariff/*.new
+cloud/tariff/snapshots/*.tmp
+cloud/tariff/changes/*.tmp
+cloud/tariff/page/*.tmp
+cloud/tariff/docs/*.new
+
 # ── 备份与日志 ────────────────────────────────────────────────
 *.bak
 *.bak-*

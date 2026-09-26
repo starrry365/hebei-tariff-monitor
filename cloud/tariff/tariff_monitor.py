@@ -23,6 +23,7 @@
 """
 import datetime
 import gzip
+import io
 import json
 import os
 import re
@@ -45,6 +46,22 @@ except Exception as _e:  # noqa: E402
     mz_crypto = None
     _MZ_ERR = _e
 
+# ── 护栏与推送：都用 try 单独包，缺一个不影响另一个，也不影响抓取 ────────────
+# ★ 为什么允许「导入失败还继续跑」：这两个模块都不是采集链路的必需件 ——
+#   护栏是给数字上保险、推送是通知。为了它们让整轮巡检起不来，是本末倒置。
+#   但**必须把它吼出来**：静默降级成「没有护栏」比没有护栏更糟（见变更报告里
+#   那句「本题不允许静默降级」的同源原则）。
+try:
+    import change_guard as G  # noqa: E402
+    _G_ERR = None
+except Exception as _e:  # noqa: E402
+    G, _G_ERR = None, _e
+try:
+    import notify as NOTIFY  # noqa: E402
+    _N_ERR = None
+except Exception as _e:  # noqa: E402
+    NOTIFY, _N_ERR = None, _e
+
 SNAP = os.path.join(BASE, "snapshots")
 CHG = os.path.join(BASE, "changes")
 DOCS = os.path.join(BASE, "docs")
@@ -54,7 +71,13 @@ STATE_FILE = os.path.join(BASE, "state.json")
 PAGE_DIR = os.path.join(BASE, "page")
 PAGE_GZ = os.path.join(PAGE_DIR, "index.html.gz")
 KEEP_SNAPSHOTS = 60          # 只保留最近 60 份快照（gzip 后约 0.53MB/份，工作区稳定在 ~32MB）
-DEGRADE_RATIO = 0.6          # 数据量跌破上次 60% 判为异常
+# 数据量骤降阈值与「连续多少轮才认账」都由 change_guard 统一定义 ——
+# 这里只做一次转发，避免两个模块各写一份阈值（改一处漏一处的下场见 net_round 注释）。
+DEGRADE_RATIO = getattr(G, "DEGRADE_RATIO", 0.6) if G else 0.6
+DEGRADE_ACCEPT_ROUNDS = getattr(G, "DEGRADE_ACCEPT_ROUNDS", 3) if G else 3
+# 降级计数必须**跨轮次持久化**（否则"连续 3 轮"退化成"每轮都算第一轮"）。
+# 它入库，CI 每轮提交 —— 与 history.json 同理。
+DEGRADE_STATE = os.path.join(BASE, "degrade_state.json")
 
 ROOT = "https://h.app.coc.10086.cn/website/nrapigate/"
 REF = ("https://h.app.coc.10086.cn/cmcc-app/uni-pages/tariffZonePers.html"
@@ -674,17 +697,27 @@ def hist_append(rec):
     # 🔴 newline="\n" 必须显式给：Windows 下默认会把 \n 翻译成 \r\n，
     #    于是每次 CI（Linux，写 LF）与本地（Windows，写 CRLF）交替提交时，
     #    整个文件的每一行都显示为「已修改」，真正的变更淹没在行尾噪音里。
-    with open(HIST_FILE, "w", encoding="utf-8", newline="\n") as f:
-        json.dump(h, f, ensure_ascii=False, indent=1)
+    # 🔴 走原子写：这个文件一旦写坏，页面时间线与 CI 的 history 断言会一起红，
+    #    而它是**产物不是接口** —— 宁可保持上一版完整内容。
+    if G:
+        G.write_json(HIST_FILE, h)
+    else:
+        with open(HIST_FILE, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(h, f, ensure_ascii=False, indent=1)
     return h
 
 
 def write_report(old_o, new_o, added, removed, changed,
-                 net="河北移动", fname=None):
+                 net="河北移动", fname=None, guard=None):
     """写变更报告。
 
     ``net`` / ``fname`` 是接第二网时加的：联通那网要写自己的标题，
     报告也不能和移动挤同一个 ``changes/<日期>.md``（会互相覆盖）。
+
+    ``guard`` ＝ ``change_guard.audit_diff()`` 的结果（可为 None）。
+    ★ 传进来的 ``added`` / ``removed`` / ``changed`` 已经**是护栏核验后**的集合；
+      ``guard`` 只用来补一段「被摘掉了什么、为什么」—— 那段不能省：
+      一个数字变小了而报告里不说明为什么变小，下一个看报告的人只会怀疑数据错了。
     """
     d = new_o.get("fetchedAt", "")[:10]
     idx, oidx = index_rows(new_o), index_rows(old_o)
@@ -693,6 +726,63 @@ def write_report(old_o, new_o, added, removed, changed,
          f"- 上次抓取：{old_o.get('fetchedAt', '（无）')}",
          f"- 条目数：{len(oidx)} → **{len(idx)}**",
          f"- 新增 **{len(added)}** · 下线 **{len(removed)}** · 字段变更 **{len(changed)}**", ""]
+
+    # ── 护栏段落：把「被抑制的假变化」摊开 ─────────────────────────────
+    # 这一段的定位是**审计凭证**：报告头部的三个数字是「可信变化」，
+    # 而这里回答「那剩下的去哪了」。没有它，护栏本身就成了一个黑箱 ——
+    # 而黑箱化的护栏比没有护栏更危险（真变化被吃掉时无人能察觉）。
+    if guard:
+        gsec = []
+        rel = guard.get("relocated") or []
+        if rel:
+            gsec += [f"### 身份漂移 {len(rel)} 条（不计入新增/下线）", "",
+                     "同一条资费换了栏目/板块 —— 身份键里含栏目名，不加这一步会被记成"
+                     "「下线一条 + 新增一条」。", ""]
+            for a, b in rel[:20]:
+                gsec.append(f"- **{oidx.get(a, {}).get('_name') or idx.get(b, {}).get('_name') or a}**"
+                            f"　`{a}` → `{b}`")
+            if len(rel) > 20:
+                gsec.append(f"- …（其余 {len(rel) - 20} 条见快照）")
+            gsec.append("")
+        sm = guard.get("state_moved") or []
+        if sm:
+            downs = [(a, b) for a, b, d in sm if d == "to_stopped"]
+            ups = [(a, b) for a, b, d in sm if d == "from_stopped"]
+            gsec += [f"### 状态桶迁移 {len(sm)} 条（**已计入**上面的下线/新增，不重复记）", ""]
+            if downs:
+                gsec.append(f"- 转入停售目录 **{len(downs)}** 条 → 计为下架")
+            if ups:
+                gsec.append(f"- 从停售目录转回在售 **{len(ups)}** 条 → 计为新增")
+            gsec += ["", "> 上游把资费在「在售目录」与「停售目录（一级分类 99）」之间挪动。"
+                         "同一条被挪动时旧键下线、新键上线，**只能算一次** —— "
+                         "否则就是那个「新增 120 / 下线 123」的老毛病。", ""]
+            gsec.append("> ⚠️ 这一类**不按下线日期复核**：联通停售桶的 endDate 实测几乎都未到期"
+                        "（本轮 110 条里有 4 条写着 2029-12-31），桶归属才是它的下架证据。")
+            gsec.append("")
+        fr = guard.get("fake_removed") or []
+        if fr:
+            gsec += [f"### 假下架 {len(fr)} 条（下线日期尚未到期，判为漏采）", ""]
+            for k in fr[:20]:
+                r = oidx.get(k, {})
+                gsec.append(f"- **{r.get('_name') or r.get('_tname')}**"
+                            f"　下线日 `{r.get('offineDay') or '—'}`")
+            gsec += ["", "> 上游按随机子集返回时，「本轮没采到」与「业务下架」长得一模一样；"
+                         "下线日期是唯一能区分二者的字段。", ""]
+        rs = guard.get("restored") or []
+        if rs:
+            gsec += [f"### 补录 {len(rs)} 条（上线日早于上一轮基线，不是新上架）", ""]
+            for k in rs[:20]:
+                r = idx.get(k, {})
+                gsec.append(f"- **{r.get('_name') or r.get('_tname')}**"
+                            f"　上线日 `{r.get('onlineDay') or '—'}`")
+            gsec += ["", "> 上一轮限流/降级漏采 ⇒ 本轮补回。**不计新增、不进推送**。", ""]
+        for n in (guard.get("notes") or []):
+            L.append(f"> 🛡 {n}")
+        if guard.get("notes"):
+            L.append("")
+        if gsec:
+            L += ["## 🛡 护栏核验（以下**不计入**上面的三个数字）", ""] + gsec
+
     if added:
         L += [f"## 新增资费（{len(added)}）", ""]
         for k in added[:120]:
@@ -726,8 +816,11 @@ def write_report(old_o, new_o, added, removed, changed,
         L += ["本次未检测到任何变化。", ""]
     txt = "\n".join(L)
     p = os.path.join(CHG, fname or f"{d}.md")
-    with open(p, "w", encoding="utf-8") as f:
-        f.write(txt)
+    if G:
+        G.atomic_write_text(p, txt, newline="\n")
+    else:
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(txt)
     # ★ 顺手把这一网的变更摘要追加进 history.json（页面时间线用）。
     #   放在 write_report 里、而不是各调用点：移动走 main()、其余三网走 net_round()，
     #   两处**都**经过这里；写在调用点就得分两遍，漏一处 = 时间线里少一网且不报错。
@@ -744,10 +837,251 @@ def write_report(old_o, new_o, added, removed, changed,
         r = idx[k]
         _smp.append({"n": (r.get("_name") or r.get("_tname") or "")[:60],
                      "ty": r.get("_ty") or "", "k": "c", "f": list(dd.keys())[:3]})
-    hist_append({"ts": str(new_o.get("fetchedAt") or "")[:19], "d": d,
-                 "code": _code_of_net(net), "net": net, "n": len(idx),
-                 "a": len(added), "r": len(removed), "c": len(changed), "smp": _smp})
+    rec = {"ts": str(new_o.get("fetchedAt") or "")[:19], "d": d,
+           "code": _code_of_net(net), "net": net, "n": len(idx),
+           "a": len(added), "r": len(removed), "c": len(changed), "smp": _smp}
+    if guard:
+        # 护栏数字也记进时间线：只有「本轮 a=0/r=0」而没有任何解释时，
+        # 页面上的「本次无变化」会被读成「上游确实没变」——
+        # 而它有可能其实是「数据异常已冻结」或「判定为基线回弹」。
+        for k, n in (("restored", "gs"), ("fake_removed", "gf"),
+                     ("relocated", "gl"), ("state_moved", "gm")):
+            if guard.get(k):
+                rec[n] = len(guard[k])
+        if guard.get("rebound"):
+            rec["note"] = "rebound"
+    hist_append(rec)
     return p, txt
+
+
+def write_page(html_body, tag=""):
+    """把页面**先写成 ``.new``，校验通过再原子替换** ``docs/index.html``。
+
+    🔴 为什么不能直接盖：这个文件是部署产物，坏掉的表现是**全站白屏**
+       （`const NETS=` 那一段语法错了，整页 JS 全废，而标签看着都在）。
+       而「写到一半被 kill」「模板改坏」这两件事都不报错、只是留下一个坏文件 ——
+       上一步刚刚算好、下一轮才能重来的数据就这么没了。
+       先写 ``.new`` 再验，等于给这一步加了一道闸门：
+       闸门不过就**保留上一版可用的页面**，明明白白报错，而不是把线上打黑。
+
+    返回 (是否成功, 说明)。
+    """
+    tmp = HTML_DST + ".new"
+    if G:
+        G.atomic_write_text(tmp, html_body, newline="\n")
+    else:
+        with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+            f.write(html_body)
+    s = open(tmp, encoding="utf-8").read()
+    # 占位符不许残留：漏替换会让 `const HIST=__HIST__` **直接变成语法错误**，
+    # 整页功能全废而标签都在 —— CI 里那条同类断言也是照这个写的。
+    left = [p for p in PLACEHOLDERS if p in s]
+    if left:
+        log(f"!! 页面校验不通过（占位符未替换 {left}），保留上一版 {os.path.basename(HTML_DST)}")
+        os.remove(tmp)
+        return False, f"占位符未替换: {left}"
+    if "const NETS=" not in s:
+        log("!! 页面校验不通过（找不到 const NETS= 数据容器），保留上一版页面")
+        os.remove(tmp)
+        return False, "缺少 const NETS="
+    if len(s) < 100000:
+        # 四网页面实测 2.5 MB 量级；小到十万字节说明构建中途出了事。
+        log(f"!! 页面校验不通过（只有 {len(s)} 字节，明显不完整），保留上一版页面")
+        os.remove(tmp)
+        return False, f"体积过小 {len(s)}"
+    os.replace(tmp, HTML_DST)
+    log(f"页面已写入 {os.path.relpath(HTML_DST, BASE)}（{len(s)/1024:.0f} KB{tag}）")
+    return True, "ok"
+
+
+def _load_prev2(prefix="hebei_tariff_"):
+    """取**上上一轮**的快照（严格早于「上一轮」那份），仅用于基线回弹判定。
+
+    没有就返回 ``(None, None)`` —— 回弹判据会自动退到「计数级」兜底，
+    而不是拿一份空快照去比对（空快照会让「本轮整批下线」看起来像回弹，
+    把一批真实的删除吃掉）。
+    """
+    fs = snap_paths(prefix)
+    if len(fs) < 2:
+        return None, None
+    p = fs[-2]
+    try:
+        with gzip.open(p, "rt", encoding="utf-8") as f:
+            return json.load(f), p
+    except Exception as e:
+        log(f"-- 上上轮快照不可读（{os.path.basename(p)}）：{type(e).__name__}: {e}")
+        return None, None
+
+
+def last_hist(code, day=""):
+    """取 history.json 里该网最近的**一条更早的**记录（用于回弹的计数级判据）。
+
+    🔴 必须显式排除 ``d == day``：当天重跑（手动 dispatch / CI 重试）时，
+       当天那条记录用的基线和本轮完全相同，拿它当「上一轮」会得出
+       a=0/r=0 之类的假证据。同一天里第一次跑时，它本来也不存在。
+    """
+    items = load_history().get("items") or []
+    for x in reversed(items):
+        if x.get("code") == code and str(x.get("d") or "") != str(day or ""):
+            return x
+    return None
+
+
+def diff_round(code, cn, tag, data, old_o, prev_p, today, fname=None):
+    """一轮数据的完整处理：**结构体检 → diff → 护栏核验 → 写报告 → 记 history**。
+
+    移动走 ``main()``、其余三网走 ``net_round()`` —— 但这两条路必须共用本函数。
+    各写一份的代价：改一处漏一处时，症状是「某网静默地不再核验假变化」，
+    而日志里一切正常、页面照常更新，没人会发现。
+
+    返回 summary dict（供推送、页面提示、CI 汇总使用）：
+      ``n`` ``added`` ``removed`` ``changed`` 计数
+      ``restored`` ``fake_removed`` ``relocated`` 被护栏摘掉的条数
+      ``samples`` 供推送用的样例 · ``report`` 报告路径 · ``note`` 抑制原因
+      ``guard`` 原始护栏结果（供报告用）
+    """
+    prefix = SNAP_PREFIX[code]
+    base_day = (old_o or {}).get("fetchedAt", "")[:10]
+    idx_old, idx_new = index_rows(old_o), index_rows(data)
+    out = {"code": code, "net": cn, "n": len(idx_new), "added": 0, "removed": 0,
+           "changed": 0, "restored": 0, "fake_removed": 0, "relocated": 0,
+           "state_moved": 0, "samples": [], "report": "", "note": "", "guard": None,
+           "_added_keys": [], "_removed_keys": [], "_changed_keys": []}
+
+    if not G:
+        # 护栏不可用时**照旧出报告**，但把这件事吼出来 ——
+        # 静默降级成「没有核验」比没有核验更糟。
+        log(f"!! 护栏模块不可用（{_G_ERR}），本轮不做假变化核验")
+    else:
+        sig_old = G.schema_sig(old_o, KEY_FIELDS)
+        sig_new = G.schema_sig(data, KEY_FIELDS)
+        if G.REBUILD_ON_SCHEMA and sig_old != sig_new:
+            # ④ 结构变更 ⇒ 只重建基线，不通知。
+            #   为什么必须这样：我们改采集字段（或上游开始普遍填一个新字段）时，
+            #   每条资费都会「多出一个字段有值」⇒ 一次改动炸出上千条「字段变更」，
+            #   而它们**没有一条**是业务变化。重建基线是唯一诚实的选择。
+            log(f"!! {cn} 字段结构变更：{len(sig_old)} 个字段 → {len(sig_new)} 个字段"
+                f"（新增 {sorted(set(sig_new) - set(sig_old))}，"
+                f"消失 {sorted(set(sig_old) - set(sig_new))}）—— 只重建基线，不通知")
+            out["note"] = "schema"
+            if G:
+                G.atomic_write_text(
+                    os.path.join(CHG, fname or
+                                 f"{tag}-{today[:4]}-{today[4:6]}-{today[6:]}.md"),
+                    f"# {cn}资费基线重建 · {data.get('fetchedAt', '')[:10]}\n\n"
+                    f"- 本轮检测到**字段结构变更**，只重建基线、不出变更报告、不推送\n"
+                    f"- 旧字段：{'、'.join(sig_old) or '（无）'}\n"
+                    f"- 新字段：{'、'.join(sig_new) or '（无）'}\n"
+                    f"- 条目数：{len(idx_old)} → **{len(idx_new)}**\n"
+                    f"- 原因：结构一改，每条资费都会「多/少一个字段有值」，"
+                    f"逐条报「字段变更」等于一次刷屏上千条，且无一是业务变化。\n",
+                    newline="\n")
+            hist_append({"ts": str(data.get("fetchedAt") or "")[:19],
+                         "d": str(data.get("fetchedAt") or "")[:10],
+                         "code": code, "net": cn, "n": len(idx_new),
+                         "a": 0, "r": 0, "c": 0, "note": "schema", "smp": []})
+            return out
+
+    a, r, c = diff_rows(idx_old, idx_new)
+    guard = None
+    if G:
+        old2, _ = _load_prev2(prefix)
+        guard = G.audit_diff(
+            a, r, c, idx_old, idx_new,
+            today=today,
+            base_day=base_day,
+            old2_rows=(index_rows(old2) if old2 else None),
+            prev_rec=last_hist(code, str(data.get("fetchedAt") or "")[:10]),
+            log=log)
+        a, r, c = guard["added"], guard["removed"], guard["changed"]
+        out.update({"restored": len(guard["restored"]),
+                    "fake_removed": len(guard["fake_removed"]),
+                    "relocated": len(guard["relocated"]),
+                    "state_moved": len(guard["state_moved"])})
+        if guard["rebound"]:
+            # ③ 基线回弹：本轮不计变化、不推送，**但报告照写**（留审计痕迹）。
+            log(f"!! {cn} 判定为基线回弹（{'；'.join(guard['suspected'])}），"
+                f"本轮不计变化、不推送")
+            out["note"] = "rebound"
+            a, r, c = [], [], []
+
+    rp, _ = write_report(old_o, data, a, r, c, net=cn,
+                         fname=fname or f"{tag}-{today[:4]}-{today[4:6]}-{today[6:]}.md",
+                         guard=guard)
+    out.update({"added": len(a), "removed": len(r), "changed": len(c),
+                "report": rp, "guard": guard,
+                # 键集合要给调用方（页面标注 ca/ck 用），但不下放给推送 ——
+                # 推送只该拿到「几条 + 几个样例」，不是全量键。
+                "_added_keys": list(a), "_removed_keys": list(r),
+                "_changed_keys": [k for k, _ in c],
+                "samples": _samples(a, r, c, idx_new, idx_old)})
+    return out
+
+
+def _samples(added, removed, changed, idx_new, idx_old, max_n=8):
+    """推送用的样例条目（只挑几条，通知不是报告）。"""
+    out = []
+    for k in list(added)[:max_n]:
+        r = idx_new.get(k) or {}
+        out.append({"n": (r.get("_name") or r.get("_tname") or "")[:40],
+                    "ty": r.get("_ty") or "", "k": "a"})
+    for k in list(removed)[:4]:
+        r = idx_old.get(k) or {}
+        out.append({"n": (r.get("_name") or r.get("_tname") or "")[:40],
+                    "ty": r.get("_ty") or "", "k": "r"})
+    for k, _ in list(changed)[:4]:
+        r = idx_new.get(k) or {}
+        out.append({"n": (r.get("_name") or r.get("_tname") or "")[:40],
+                    "ty": r.get("_ty") or "", "k": "c"})
+    return out
+
+
+def _degrade(code, cn, n, n_old):
+    """⑤ 降级状态机的一层薄封装：读状态 → 判定 → 落盘。返回 (动作, 轮次说明)。"""
+    if not G:
+        # 护栏不可用：退回「单轮阈值」的老行为，但把这件事说清楚
+        return ("hold" if (n_old > 0 and n < n_old * DEGRADE_RATIO) else "ok"), ""
+    st = G.read_json(DEGRADE_STATE, {}) or {}
+    act, st = G.degrade_step(st, code, n, n_old,
+                             stamp=time.strftime("%Y-%m-%d %H:%M:%S"))
+    G.write_json(DEGRADE_STATE, st)
+    rec = st.get(code) or {}
+    if act == "hold":
+        return act, (f"第 {rec.get('rounds')}/{DEGRADE_ACCEPT_ROUNDS} 轮"
+                     f"（连续 {DEGRADE_ACCEPT_ROUNDS} 轮才接受新数据）")
+    if act == "accept":
+        return act, f"连续 {DEGRADE_ACCEPT_ROUNDS} 轮偏低，认定源站现状如此，接受并重建基线"
+    return act, ""
+
+
+def _hold(code, cn, tag, data, old_o, prev_p, today, why, note="degraded", fname=None):
+    """降级「冻结旧数据」的收尾：写一份说明报告 + 记一条带 note 的 history。
+
+    🔴 为什么不能**静默**保留旧数据：页面看着正常、数据其实是旧的 ——
+       这正是「一直冻结旧数据」最危险的地方。所以：
+         · 页面照旧渲染上一版（数据不断供）；
+         · changes/<日期>.md 里写明「本轮没采到，沿用上一版」；
+         · history 里记 ``note``，页面时间线上那一条会显示成「数据异常已冻结」，
+           而不是伪装成「本次无变化」。
+    """
+    day = f"{today[:4]}-{today[4:6]}-{today[6:]}"
+    rp = os.path.join(CHG, fname or f"{tag}-{day}.md")
+    n_old = sum(len(g["entries"]) for g in (old_o or {}).get("groups") or [])
+    txt = (f"# {cn}资费巡检 · {day}\n\n"
+           f"- ⚠️ 本轮**未采用**新数据：{why}\n"
+           f"- 本轮采到：{data.get('fetchedAt') if data else '（采集失败）'}\n"
+           f"- 页面与报告沿用上一版快照（{n_old} 条）\n"
+           f"- 原因：数据量/结构异常时直接换基线，会把「本轮没采到」记成"
+           f"「一大批资费下架」—— 实测同类项目一次假下架 1613 条（96% 的下线日期仍在未来）。\n")
+    if G:
+        G.atomic_write_text(rp, txt, newline="\n")
+    else:
+        with open(rp, "w", encoding="utf-8") as f:
+            f.write(txt)
+    hist_append({"ts": str((data or {}).get("fetchedAt") or "")[:19], "d": day,
+                 "code": code, "net": cn, "n": n_old, "a": 0, "r": 0, "c": 0,
+                 "note": note, "smp": []})
+    return rp, txt
 
 
 def archive_page():
@@ -783,8 +1117,15 @@ def archive_page():
     os.makedirs(PAGE_DIR, exist_ok=True)
     raw = cur.encode("utf-8")
     # mtime=0 同样内容 => 同样字节（与快照一致）
-    with gzip.GzipFile(PAGE_GZ, "wb", compresslevel=9, mtime=0) as f:
+    buf = io.BytesIO()
+    with gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=9, mtime=0) as f:
         f.write(raw)
+    # ★ 原子写：归档是「本机不跑抓取就能看」的唯一来源，写坏等于这一版页面丢了。
+    if G:
+        G.atomic_write_bytes(PAGE_GZ, buf.getvalue())
+    else:
+        with open(PAGE_GZ, "wb") as f:
+            f.write(buf.getvalue())
     log(f"页面已归档 {os.path.relpath(PAGE_GZ, BASE)}"
         f"（{os.path.getsize(PAGE_GZ) / 1024:.0f} KB，原始 {len(raw) / 1048576:.2f} MB）")
     return PAGE_GZ
@@ -1332,8 +1673,12 @@ def build_html(sources, notice="", diffs=None, archive=True):
         # 变更历史（页面时间线）。走紧凑序列化 —— 它一年年涨，白空格也是体积。
         "__HIST__": js_json(load_history().get("items") or []),
         "__NOTICE__": notice or "本次巡检未检测到变化"})
-    with open(HTML_DST, "w", encoding="utf-8") as f:
-        f.write(out)
+    # ★ 先写 .new 校验、再原子替换：这个文件坏掉＝全站白屏，而「写到一半」
+    #   与「模板改坏」都不报错。校验不过就保留上一版可用页面（见 write_page）。
+    ok, why = write_page(out)
+    if not ok:
+        log(f"!! 页面未替换（{why}）—— 上一版页面继续可用，请检查模板/占位符")
+        return 0
     # gz 才是用户实际要下载的字节数：原始 2.5 MB 的页面 gz 后只有 245 KB，
     # 只看原始大小会高估一个数量级。多网接入后这个数字会翻几倍，所以要盯着。
     gz = len(gzip.compress(out.encode("utf-8"), 6))
@@ -1428,8 +1773,10 @@ def render_only():
     except RuntimeError as e:
         log(f"!! {e}，中止（否则会留下未替换的标记把页面搞坏）")
         return 3
-    with open(HTML_DST, "w", encoding="utf-8") as f:
-        f.write(out)
+    ok, why = write_page(out)
+    if not ok:
+        log(f"!! 页面未替换（{why}）—— 上一版页面继续可用")
+        return 3
     log(f"已按当前模板重渲染：共 {all_n} 条（移动 {len(rows)}）· 基线 {date or '?'} · "
         f"{os.path.getsize(HTML_DST)/1024:.0f} KB")
     archive_page()
@@ -1465,8 +1812,16 @@ def save_snapshot(data, day, prefix="hebei_tariff_"):
     p = os.path.join(SNAP, f"{prefix}{day}.json.gz")
     raw = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     # mtime=0 保证同样内容产生同样字节，避免无意义的二进制 diff
-    with gzip.GzipFile(p, "wb", compresslevel=9, mtime=0) as f:
+    buf = io.BytesIO()
+    with gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=9, mtime=0) as f:
         f.write(raw)
+    # ★ 原子写（.tmp → os.replace）：CI 有 timeout-minutes，进程随时可能被 kill。
+    #   直接写目标文件被打断会留下**半个 gz**，下一轮解压失败或 diff 出一整批假变化。
+    if G:
+        G.atomic_write_bytes(p, buf.getvalue())
+    else:
+        with open(p, "wb") as f:
+            f.write(buf.getvalue())
     log(f"快照已存 {os.path.basename(p)}（{os.path.getsize(p)/1024:.0f} KB，"
         f"原始 {len(raw)/1024/1024:.1f} MB）")
     return p
@@ -1524,41 +1879,77 @@ def load_latest(today, prefix="hebei_tariff_"):
 
 
 def emit_summary(new_o, added, removed, changed, report_path, has_prev,
-                 net="河北移动"):
+                 net="河北移动", summary=None):
+    """把摘要写进 GITHUB_STEP_SUMMARY（Actions 页面上直接可读）。
+
+    ``added`` / ``removed`` / ``changed`` 允许直接给**计数**（护栏路径下拿不到
+    键列表，只有数字），也可以用列表 —— 列表时按其长度与内容展开样例。
+    ``summary``：``diff_round()`` 的结果，给了就顺带把护栏数字与抑制原因写出来。
+    """
     sp = os.environ.get("GITHUB_STEP_SUMMARY")
     if not sp:
         return
     idx = index_rows(new_o)
+
+    def _n(x):
+        return x if isinstance(x, int) else len(x or [])
+
+    # 计数优先取 summary（护栏路径下拿到的就是数字）；
+    # 样例只从**真键**里挑 —— 🔴 调用方为省事传过 `list(range(n))` 这种占位列表，
+    # 若直接拿它当键去索引 idx 会 KeyError（占位元素是 int），而那会**在写摘要这一步
+    # 把整轮巡检打断**：数据已经采完、报告也写了，却因为一行展示逻辑崩掉。
+    na = int(summary["added"]) if summary and "added" in summary else _n(added)
+    nr = int(summary["removed"]) if summary and "removed" in summary else _n(removed)
+    nc = int(summary["changed"]) if summary and "changed" in summary else _n(changed)
+    keys = [k for k in (added or []) if k in idx] if isinstance(added, (list, tuple)) else []
     L = [f"## {net}资费巡检 {new_o.get('fetchedAt')}", "",
          f"- 条目总数：**{len(idx)}**"]
     if not has_prev:
         L.append("- 本次为**首版基线**，后续运行才开始检测差异")
+    elif summary and summary.get("note"):
+        L.append(f"- ⚠️ 本轮**未记入任何变化**：{_NOTE_CN.get(summary['note'], summary['note'])}")
     else:
-        L.append(f"- 新增 **{len(added)}** · 下线 **{len(removed)}** · 字段变更 **{len(changed)}**")
-        if not (added or removed or changed):
+        L.append(f"- 新增 **{na}** · 下线 **{nr}** · 字段变更 **{nc}**")
+        if not (na or nr or nc):
             L.append("- ✅ 未检测到变化")
-        for k in added[:15]:
+        if summary:
+            g = [f"补录 {summary.get('restored', 0)}",
+                 f"假下架抑制 {summary.get('fake_removed', 0)}",
+                 f"身份漂移合并 {summary.get('relocated', 0)}",
+                 f"在售↔停售迁移 {summary.get('state_moved', 0)}"]
+            if any(summary.get(k) for k in ("restored", "fake_removed",
+                                            "relocated", "state_moved")):
+                L.append("- 🛡 护栏：" + " · ".join(g))
+        for k in keys[:15]:
             L.append(f"  - 🆕 **{idx[k]['_name'] or idx[k]['_tname']}** 〔{idx[k]['_ty']}〕{brief(idx[k])}")
-        if len(added) > 15:
-            L.append(f"  - …另有 {len(added) - 15} 条新增")
+        if na > len(keys[:15]):
+            L.append(f"  - …另有 {na - len(keys[:15])} 条新增")
     L.append(f"\n完整报告：`{os.path.relpath(report_path, BASE)}`")
     with open(sp, "a", encoding="utf-8") as f:
         f.write("\n".join(L) + "\n")
 
 
-def net_round(code, today, fallback=None):
-    """跑一遍「非移动」的某一网：采集 → 骤降自检 → 快照 → 变更检测 → 报告。
+_NOTE_CN = {"degraded": "数据量异常，已冻结上一版（等下一轮复采）",
+            "rebound": "检测到基线回弹，本轮不计入变化",
+            "schema": "字段结构变更，仅重建基线、不通知",
+            "baseline": "首版基线建立",
+            "resync": "连续偏低后重同步基线",
+            "collect-error": "本轮采集失败，沿用上一版快照"}
 
-    与移动共用同一套机制（同 index_rows / diff_rows / write_report），
+
+def net_round(code, today, fallback=None):
+    """跑一遍「非移动」的某一网：采集 → 降级自检 → 快照 → 变更检测 → 报告。
+
+    与移动共用同一套机制（同 diff_round / index_rows / write_report），
     只有快照前缀与报告文件名不同 —— 各网必须各存各的，
     否则 load_prev 按文件名排序取「最近一份」时会把这一网的当成那一网的基准。
 
     ★ 任何一网失败**不致命**：抓不到就沿用上一版快照继续渲染，绝不因此让移动那网
-      （或别的网）也出不了页面。返回 (数据, diff 或 None)。
+      （或别的网）也出不了页面。返回 (数据, diff 或 None, summary 或 None)。
 
     ★ 收敛成一个函数而不是「联通一份、广电一份」：三网的流程逐字相同，
       只有模块名/显示名/文件名三处不同（都在 NET_RUN 里）。复制一份就等于
-      把「骤降保护」「沿用上次快照」「基线不覆盖」这些约束各写两遍 ——
+      把「降级保护」「沿用上次快照」「基线不覆盖」这些约束各写两遍 ——
       改一处漏一处时，症状是某网静默地不再保护数据。
 
     ``fallback``：采集失败 / 数据异常时用哪个「上一版」顶上，默认 ``load_prev``。
@@ -1579,34 +1970,89 @@ def net_round(code, today, fallback=None):
         # 只接 Exception 的话，一次「本轮没采到电信」会直接把整个巡检打断，
         # 连移动/联通/广电的页面都出不来 —— 正是这里最不该发生的事。
         log(f"!! {cn}采集异常，本轮沿用上次：{type(e).__name__}: {e}")
-        return load(today, prefix)[0], None
-    old_o, _ = load_prev(today, prefix)
+        d, _ = load(today, prefix)
+        return d, None, _summary_skip(code, cn, d, "collect-error")
+    old_o, prev_p = load_prev(today, prefix)
     if not data:
         log(f"!! {cn}采集失败，本轮沿用上次快照")
-        return old_o, None
+        return old_o, None, _summary_skip(code, cn, old_o, "collect-error")
+
     n = len(data.get("entries") or [])
     n_old = len((old_o or {}).get("entries") or [])
-    if n == 0 or (old_o is not None and n < n_old * DEGRADE_RATIO):
-        log(f"!! {cn}数据量异常 {n_old} -> {n}，本轮不写快照、沿用上次")
-        return old_o, None
+    if n == 0:
+        log(f"!! {cn}抓到 0 条，本轮不写快照、沿用上次")
+        rp, _ = _hold(code, cn, tag, data, old_o, prev_p, today,
+                      "本轮抓到 0 条（采集整体失败）")
+        return old_o, None, _summary_skip(code, cn, old_o, "degraded", report=rp)
+    # ⑤ 降级状态机：单轮偏低先冻结，连续 N 轮才接受新数据
+    act, why = _degrade(code, cn, n, n_old)
+    if act == "hold":
+        log(f"!! {cn}数据量异常 {n_old} -> {n}（<{DEGRADE_RATIO:.0%}），{why}，"
+            f"本轮不写快照、沿用上次")
+        rp, _ = _hold(code, cn, tag, data, old_o, prev_p, today,
+                      f"本轮 {n} 条 < 上一版 {n_old} 条的 {DEGRADE_RATIO:.0%}，{why}")
+        return old_o, None, _summary_skip(code, cn, old_o, "degraded", report=rp)
+    if act == "accept":
+        log(f"!! {cn}{why}（{n_old} -> {n}）—— 本轮按**重建基线**处理，不报变更")
+    elif why:
+        log(f"-- {cn}数据量已恢复正常（{n} 条）")
+
     save_snapshot(data, today, prefix)
     prune_snapshots(prefix)
     day = f"{today[:4]}-{today[4:6]}-{today[6:]}"
     rp = os.path.join(CHG, f"{tag}-{day}.md")
-    if old_o is None:
-        log(f"{cn}无历史快照，本次为首版基线（{n} 条）")
-        if not os.path.exists(rp):
+
+    if old_o is None or act == "accept":
+        # 首版基线，或降级认账后的重同步：**只重建基线，不出变更报告**
+        log(f"{cn}{'无历史快照' if old_o is None else '重同步'}，本次为首版基线（{n} 条）")
+        if G:
+            G.atomic_write_text(
+                rp, f"# {cn}资费基线 · {data['fetchedAt']}\n\n"
+                    f"- {'首版基线快照' if old_o is None else '数据量连续偏低后重同步'}"
+                    f"，共 **{n}** 条\n- 来源：{SRC_OF[code]}\n", newline="\n")
+        elif not os.path.exists(rp):
             with open(rp, "w", encoding="utf-8") as f:
                 f.write(f"# {cn}资费基线 · {data['fetchedAt']}\n\n"
-                        f"- 首版基线快照，共 **{n}** 条\n"
-                        f"- 来源：{SRC_OF[code]}\n")
+                        f"- 首版基线快照，共 **{n}** 条\n- 来源：{SRC_OF[code]}\n")
+        hist_append({"ts": str(data.get("fetchedAt") or "")[:19], "d": day,
+                     "code": code, "net": cn, "n": n, "a": 0, "r": 0, "c": 0,
+                     "note": "baseline" if old_o is None else "resync", "smp": []})
+        _clear_degrade(code)
         emit_summary(data, [], [], [], rp, False, net=cn)
-        return data, None
-    a, r, c = diff_rows(index_rows(old_o), index_rows(data))
-    log(f"{cn}对比：新增 {len(a)} 下线 {len(r)} 变更 {len(c)}")
-    rp, _ = write_report(old_o, data, a, r, c, net=cn, fname=f"{tag}-{day}.md")
-    emit_summary(data, a, r, c, rp, True, net=cn)
-    return data, {"added": set(a), "changed": {k for k, _ in c}}
+        return data, None, {"code": code, "net": cn, "n": n, "added": 0, "removed": 0,
+                            "changed": 0, "restored": 0, "fake_removed": 0,
+                            "relocated": 0, "samples": [], "report": rp,
+                            "note": "baseline" if old_o is None else "resync", "guard": None}
+
+    sm = diff_round(code, cn, tag, data, old_o, prev_p, today, fname=f"{tag}-{day}.md")
+    log(f"{cn}对比：新增 {sm['added']} 下线 {sm['removed']} 变更 {sm['changed']}"
+        + (f" · 护栏：补录 {sm['restored']} / 假下架 {sm['fake_removed']} / "
+           f"漂移 {sm['relocated']}" if (sm["restored"] or sm["fake_removed"]
+                                         or sm["relocated"]) else ""))
+    emit_summary(data, sm["_added_keys"], sm["_removed_keys"], sm["_changed_keys"],
+                 sm["report"], True, net=cn, summary=sm)
+    if sm["note"]:
+        return data, None, sm
+    return data, {"added": set(sm["_added_keys"]), "changed": set(sm["_changed_keys"])}, sm
+
+
+def _clear_degrade(code):
+    """某网重建基线后把它的降级计数清零（否则「上一轮的偏低」会一直挂账）。"""
+    if not G:
+        return
+    st = G.read_json(DEGRADE_STATE, {}) or {}
+    if code in st:
+        st[code] = {"rounds": 0, "cleared": time.strftime("%Y-%m-%d %H:%M:%S")}
+        G.write_json(DEGRADE_STATE, st)
+
+
+def _summary_skip(code, cn, data, note, report=""):
+    """本轮没有变更可报（采集失败 / 降级冻结）时的 summary 壳。"""
+    return {"code": code, "net": cn,
+            "n": len((data or {}).get("entries") or []),
+            "added": 0, "removed": 0, "changed": 0, "restored": 0,
+            "fake_removed": 0, "relocated": 0, "state_moved": 0, "samples": [],
+            "report": report, "note": note, "guard": None}
 
 
 def snap_net_ready(code, today):
@@ -1635,10 +2081,13 @@ def snap_net_ready(code, today):
 def other_nets(today):
     """把「移动之外」的每一网都跑一遍。
 
-    返回 ``(sources, diffs, tails)``：
+    返回 ``(sources, diffs, tails, summaries)``：
       ``sources`` = {网code: 数据源对象}（失败的那网是上一版快照，可能没有）
       ``diffs``   = {网code: {"added": set, "changed": set} 或 None}
       ``tails``   = [" · 联通新增 1 / 变更 0", " · 广电无变化"] 供页面顶部提示拼接
+      ``summaries`` = [diff_round 的 summary] —— 推送只在 main() 末尾汇总发一次，
+                      所以各网的核验结果必须**带出来**（在网内部发就等于一网一条，
+                      用户会在第一天把这个通道静音）。
 
     ★ 新增一网时**只需要动 NET_RUN**：main() 里不再逐个写 uni/cbn 变量。
       原来 main() 里两处（首版基线分支、常规分支）各写一遍联通的调用与提示拼接，
@@ -1661,15 +2110,25 @@ def other_nets(today):
         if code in NET_SNAP and not snap_net_ready(code, today):
             continue
         fb = load_latest if code in NET_SNAP else None
-        data, dd = net_round(code, today, fallback=fb)
+        data, dd, sm = net_round(code, today, fallback=fb)
         sources[code] = data
         diffs[code] = dd
+        if sm:
+            summaries.append(sm)
         cn = sh_of.get(code, code)
         if dd:
             if dd["added"] or dd["changed"]:
                 tails.append(f' · {cn}新增 {len(dd["added"])} / 变更 {len(dd["changed"])}')
             else:
                 tails.append(f" · {cn}无变化")
+        elif sm and sm.get("note"):
+            # 采集失败 / 降级冻结 / 回弹 / 结构变更 —— 这几种都**没有变更可报**，
+            # 但绝不能显示成「无变化」：那是「看到了，没变」，
+            # 而这些是「没看到」或「看到了但不敢信」，两者对读者的含义完全不同。
+            tails.append(f" · {cn}{_NOTE_CN.get(sm['note'], sm['note'])}")
+            if sm.get("note") == "degraded":
+                print(f"::warning title={cn}本轮数据量异常::本轮 {sm['n']} 条，"
+                      f"已冻结上一版数据、未记入变更", flush=True)
 
     # ── 快照兜底的网（电信本轮没采到时）────────────────────────────────
     # 提示语里必须带上**快照日期**：这一网在本轮里没有发生任何采集，
@@ -1687,16 +2146,23 @@ def other_nets(today):
         d8 = os.path.basename(p)[len(SNAP_PREFIX[code]):-len(".json.gz")]
         d10 = f"{d8[:4]}-{d8[4:6]}-{d8[6:]}" if re.fullmatch(r"\d{8}", d8) else d8
         tails.append(f" · {cn}沿用 {d10} 快照")
+        summaries.append({"code": code, "net": cn, "n": len(o.get("entries") or []),
+                          "added": 0, "removed": 0, "changed": 0, "restored": 0,
+                          "fake_removed": 0, "relocated": 0, "state_moved": 0,
+                          "samples": [], "report": "", "note": "snapshot-fallback",
+                          "guard": None})
         log(f"{cn}由快照渲染：{os.path.basename(p)}（{len(o.get('entries') or [])} 条）")
-    return sources, diffs, tails
+    return sources, diffs, tails, summaries
 
 
 def main():
     argv = sys.argv[1:]
     no_html = "--no-html" in argv
+    no_notify = "--no-notify" in argv
     if "--render-only" in argv:
         return render_only()
     today = time.strftime("%Y%m%d")
+    day10 = f"{today[:4]}-{today[4:6]}-{today[6:]}"
 
     data = fetch_all()
     if data is None:
@@ -1707,68 +2173,173 @@ def main():
     old_o, prev_p = load_prev(today)
     n_old = sum(len(g["entries"]) for g in (old_o or {}).get("groups") or [])
 
-    if old_o is not None and n < n_old * DEGRADE_RATIO:
-        log(f"!! 数据量骤降 {n_old} -> {n}（<{DEGRADE_RATIO:.0%}），判为抓取异常，"
-            f"本次不写快照、不出报告")
-        return 2
     if n == 0:
         log("!! 抓到 0 条，判为异常")
         return 2
+    # ⑤ 降级状态机（与其余三网共用同一条判据与同一份计数）
+    act, why = _degrade("move", "河北移动", n, n_old)
+    if act == "hold":
+        log(f"!! 数据量骤降 {n_old} -> {n}（<{DEGRADE_RATIO:.0%}），{why}，"
+            f"本轮不写快照、不出报告，页面沿用上一版")
+        _hold("move", "河北移动", "", data, old_o, prev_p, today,
+              f"本轮 {n} 条 < 上一版 {n_old} 条的 {DEGRADE_RATIO:.0%}，{why}",
+              fname=f"{day10}.md")
+        # ⚠️ 这里**不再** return 2（老行为）。
+        #   老代码在这一步直接失败退出 ⇒ 后面所有步骤（其余三网采集 / 页面重建 /
+        #   部署）全部 skipped，页面**停在上一版且不留任何说明**。
+        #   现在的行为是：页面照旧出（数据来自上一版快照），提示语里写明
+        #   「本轮数据量异常，已冻结上一版」，并把 ::warning 打到 Actions 上。
+        #   想恢复「硬失败」的老行为：环境变量 DEGRADE_STRICT=1。
+        if os.getenv("DEGRADE_STRICT", "").strip() == "1":
+            return 2
+    elif act == "accept":
+        log(f"!! {why}（{n_old} -> {n}）—— 本轮按**重建基线**处理，不报变更")
+    elif why:
+        log(f"-- 数据量已恢复正常（{n} 条）")
 
-    save_snapshot(data, today)
-    prune_snapshots()
+    frozen = (act == "hold")
+    if not frozen:
+        save_snapshot(data, today)
+        prune_snapshots()
 
-    if old_o is None:
-        log(f"无历史快照，本次为首版基线（{n} 条）")
-        rp = os.path.join(CHG, f"{today[:4]}-{today[4:6]}-{today[6:]}.md")
-        # 双保险：基线文字不覆盖已存在的当天报告。
-        # load_prev() 已经保证「当天有快照就不会走到这里」，但万一快照被删/损坏，
-        # 也不能把一份真实的变更报告换成一句「首版基线」。
-        if os.path.exists(rp):
-            log(f"当天报告已存在，保留不覆盖：{os.path.relpath(rp, BASE)}")
+    if old_o is None or act == "accept" or frozen:
+        if frozen:
+            move_sm = _summary_skip("move", "河北移动", old_o, "degraded")
+            move_sm["report"] = os.path.join(CHG, f"{day10}.md")
+            rp = move_sm["report"]
+            notice = (f"⚠️ 本轮数据量异常（{n} 条 < 上一版 {n_old} 条），"
+                      f"已冻结上一版数据、未记入变更")
+            has_prev = True
         else:
-            with open(rp, "w", encoding="utf-8") as f:
-                f.write(f"# 河北移动资费基线 · {data['fetchedAt']}\n\n"
-                        f"- 首版基线快照，共 **{n}** 条\n"
-                        f"- 来源：中国移动 APP「资费专区」（nrapigate / nrtariff）\n")
-        emit_summary(data, [], [], [], rp, False)
-        if not no_html:
-            extra, xdiff, _ = other_nets(today)
-            build_html(dict({"move": data}, **extra),
-                       f"首版基线建立（{n} 条），自次日起开始检测资费上下线变更",
-                       xdiff)
-        return 0
-
-    a, r, c = diff_rows(index_rows(old_o), index_rows(data))
-    log(f"对比 {os.path.basename(prev_p or '')}：新增 {len(a)} 下线 {len(r)} 变更 {len(c)}")
-    rp, txt = write_report(old_o, data, a, r, c)
-    with open(STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump({"ts": data["fetchedAt"], "n": n, "prev_n": n_old,
-                   "added": len(a), "removed": len(r), "changed": len(c),
-                   "report": os.path.relpath(rp, BASE), "prev": os.path.basename(prev_p or "")},
-                  f, ensure_ascii=False, indent=1)
-    emit_summary(data, a, r, c, rp, True)
-    # 页面每次都重建（本地那份必须是当天最新），但归档只在内容真变了时才写。
-    # 「页面显示的时间停住」曾是个坑：所以页面显示的是「数据基线日期」而非抓取时刻，
-    # 停住＝数据确实没变，语义正确。想知道巡检有没有在跑，看 state.json（view_page 会读）。
-    if not no_html:
+            log(f"无历史快照，本次为首版基线（{n} 条）"
+                if old_o is None else "数据量连续偏低后重同步，重建基线")
+            rp = os.path.join(CHG, f"{day10}.md")
+            move_sm = {"code": "move", "net": "河北移动",
+                       "n": n if old_o is None else n_old, "added": 0, "removed": 0,
+                       "changed": 0, "restored": 0, "fake_removed": 0, "relocated": 0,
+                       "state_moved": 0, "samples": [], "report": rp,
+                       "note": "baseline" if old_o is None else "resync", "guard": None}
+            # 双保险：基线文字不覆盖已存在的当天报告。
+            # load_prev() 已经保证「当天有快照就不会走到这里」，但万一快照被删/损坏，
+            # 也不能把一份真实的变更报告换成一句「首版基线」。
+            if os.path.exists(rp) and old_o is None:
+                log(f"当天报告已存在，保留不覆盖：{os.path.relpath(rp, BASE)}")
+            else:
+                txt = (f"# 河北移动资费基线 · {data['fetchedAt']}\n\n"
+                       f"- {'首版基线快照' if old_o is None else '数据量连续偏低后重同步'}"
+                       f"，共 **{n}** 条\n"
+                       f"- 来源：中国移动 APP「资费专区」（nrapigate / nrtariff）\n")
+                if G:
+                    G.atomic_write_text(rp, txt, newline="\n")
+                else:
+                    with open(rp, "w", encoding="utf-8") as f:
+                        f.write(txt)
+            if old_o is None:
+                hist_append({"ts": str(data.get("fetchedAt") or "")[:19], "d": day10,
+                             "code": "move", "net": "河北移动",
+                             "n": n, "a": 0, "r": 0, "c": 0, "note": "baseline",
+                             "smp": []})
+            notice = (f"首版基线建立（{n} 条），自次日起开始检测资费上下线变更"
+                      if old_o is None else f"数据量连续偏低后重同步基线（{n} 条）")
+            has_prev = False
+        _clear_degrade("move")
+        emit_summary(data, [], [], [], rp, has_prev, summary=move_sm)
+        move_diffs = None
+    else:
+        move_sm = diff_round("move", "河北移动", "", data, old_o, prev_p, today,
+                             fname=f"{day10}.md")
+        rp = move_sm["report"]
+        log(f"对比 {os.path.basename(prev_p or '')}：新增 {move_sm['added']} "
+            f"下线 {move_sm['removed']} 变更 {move_sm['changed']}"
+            + (f" · 护栏：补录 {move_sm['restored']} / 假下架 {move_sm['fake_removed']} "
+               f"/ 漂移 {move_sm['relocated']}"
+               if (move_sm["restored"] or move_sm["fake_removed"]
+                   or move_sm["relocated"]) else ""))
+        _clear_degrade("move")
+        if G:
+            G.write_json(STATE_FILE, {"ts": data["fetchedAt"], "n": n, "prev_n": n_old,
+                                      "added": move_sm["added"],
+                                      "removed": move_sm["removed"],
+                                      "changed": move_sm["changed"],
+                                      "restored": move_sm["restored"],
+                                      "fake_removed": move_sm["fake_removed"],
+                                      "relocated": move_sm["relocated"],
+                                      "note": move_sm["note"],
+                                      "report": os.path.relpath(rp, BASE),
+                                      "prev": os.path.basename(prev_p or "")})
+        else:
+            with open(STATE_FILE, "w", encoding="utf-8") as f:
+                json.dump({"ts": data["fetchedAt"], "n": n, "prev_n": n_old,
+                           "added": move_sm["added"], "removed": move_sm["removed"],
+                           "changed": move_sm["changed"],
+                           "report": os.path.relpath(rp, BASE),
+                           "prev": os.path.basename(prev_p or "")},
+                          f, ensure_ascii=False, indent=1)
+        emit_summary(data, move_sm.get("_added_keys") or [],
+                     move_sm.get("_removed_keys") or [],
+                     move_sm.get("_changed_keys") or [],
+                     rp, True, summary=move_sm)
+        # move_sm 里的键集合是给页面标注用的（ca/ck）；护栏若判回弹则为空
+        move_diffs = None if move_sm["note"] else {
+            "added": set(move_sm["_added_keys"]),
+            "changed": set(move_sm["_changed_keys"])}
+        # 页面顶部提示：三个数字 + 「查看变更明细」直达链接。
         # 「变更了多少条」是一句话能说完的，「哪几条、变了什么」说不完 ——
-        # 明细细在 changes/<日期>.md 里，所以摘要后面挂一条直达链接，
-        # 别让用户自己翻仓库找当天那份。
+        # 明细细在 changes/<日期>.md 里，别让用户自己翻仓库找当天那份。
         rel = repo_rel(rp)
         tail = (f' · <a href="https://github.com/{REPO}/blob/main/{rel}"'
                 f' target="_blank" rel="noopener">查看变更明细 →</a>')
-        notice = ((f"本次巡检：新增 {len(a)} 条 · 下线 {len(r)} 条 · 字段变更 {len(c)} 条"
-                   + tail)
-                  if (a or r or c) else ("本次巡检未检测到任何变化" + tail))
-        # changed 是 [(键, {字段: (旧, 新)})]，取键时要展开，直接 set(c) 会得到一堆元组。
-        extra, xdiff, tails = other_nets(today)
+        notice = ((f"本次巡检：新增 {move_sm['added']} 条 · 下线 {move_sm['removed']} 条"
+                   f" · 字段变更 {move_sm['changed']} 条" + tail)
+                  if (move_sm["added"] or move_sm["removed"] or move_sm["changed"])
+                  else ("本次巡检未检测到任何变化" + tail))
+        if move_sm["relocated"] or move_sm["fake_removed"] or move_sm["restored"]:
+            notice += (f" · 🛡 护栏另摘除 {move_sm['relocated'] + move_sm['fake_removed']}"
+                       f" 条假变化、识别 {move_sm['restored']} 条补录")
+
+    # ── 其余三网 + 页面 ────────────────────────────────────────────────
+    # 页面每次都重建（本地那份必须是当天最新），但归档只在内容真变了时才写。
+    # 「页面显示的时间停住」曾是个坑：所以页面显示的是「数据基线日期」而非抓取时刻，
+    # 停住＝数据确实没变，语义正确。想知道巡检有没有在跑，看 state.json（view_page 会读）。
+    summaries = [move_sm]
+    if not no_html:
+        extra, xdiff, tails, xsum = other_nets(today)
+        summaries += xsum
         notice += "".join(tails)
-        diffs = {"move": {"added": set(a), "changed": {k for k, _ in c}}}
+        diffs = {"move": move_diffs} if move_diffs else {}
         diffs.update(xdiff)
+        # 「结构变更 ⇒ 重建基线不通知」的收尾：结构变了但页面照常重建
+        # （页面读的是数据，不是 diff），只是不把它当成一次「变化」推出去。
         build_html(dict({"move": data}, **extra), notice, diffs)
+    else:
+        # --no-html 也要跑其余三网：不然「另三网的快照与报告」会缺失，
+        # 而 --no-html 的语义只是「不重建页面」，不是「只跑移动」。
+        _, _, _, xsum = other_nets(today)
+        summaries += xsum
+
     log(f"变更报告 {os.path.relpath(rp, BASE)}")
+
+    # ── 推送：一次巡检只发一条 ────────────────────────────────────────
+    # 放在最末尾：前面所有步骤都不该因为推送而改变结果（推送失败也不影响巡检）。
+    if not no_notify and NOTIFY:
+        try:
+            NOTIFY.notify_change(day10, summaries,
+                                 extra_notes=[n for n in _verify_notes(summaries)],
+                                 repo=REPO)
+        except Exception as e:
+            log(f"!! 推送异常（不影响巡检结果）：{type(e).__name__}: {e}")
+    elif _N_ERR:
+        log(f"-- 推送模块不可用：{_N_ERR}")
     return 0
+
+
+def _verify_notes(summaries):
+    """给推送正文补几句「为什么数字是这样」的说明。"""
+    out = []
+    for s in summaries or []:
+        if s.get("note") and s["note"] not in ("baseline", "snapshot-fallback"):
+            out.append(f"{s['net']}：{_NOTE_CN.get(s['note'], s['note'])}")
+    return out
 
 
 if __name__ == "__main__":

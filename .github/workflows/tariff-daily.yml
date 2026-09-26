@@ -50,6 +50,21 @@ jobs:
       # 网关密钥不写进代码，由 Actions Secret 注入（缺了会直接抛错，不会静默回退）
       NRAPIGATE_KEY: ${{ secrets.NRAPIGATE_KEY }}
       NRAPIGATE_IV: ${{ secrets.NRAPIGATE_IV }}
+      # ── 推送（邮件 + PushPlus）────────────────────────────────────────
+      # 全部走 Secrets，代码里一个都不出现。**一个都没配就自动跳过推送**，
+      # 本地 fork / 未配置环境不会因此失败（见 cloud/tariff/notify.py 的 enabled()）。
+      # 想临时静音：把 NOTIFY 设成 "0"（或在仓库变量里改），不用动代码。
+      NOTIFY: ${{ vars.NOTIFY || '1' }}
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+      PUSHPLUS_TOPIC: ${{ secrets.PUSHPLUS_TOPIC }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      SMTP_SSL: ${{ vars.SMTP_SSL || '1' }}
+      MAIL_TO: ${{ secrets.MAIL_TO }}
+      MAIL_FROM: ${{ secrets.MAIL_FROM }}
+      MAIL_FROM_NAME: ${{ vars.MAIL_FROM_NAME || '河北资费巡检' }}
     steps:
       - name: 检出仓库
         uses: actions/checkout@v4
@@ -138,6 +153,18 @@ jobs:
       - name: 体检数据判据（判据注入 / 日期 / 宽带 / 搜索 / 地市归属）
         run: |
           set -e
+          # ★ 2026-09-26 前置：**护栏判据自测** + 推送通道配置检查。
+          #   护栏（假下架/假新增/身份漂移/回弹/降级状态机）本身就是代码，
+          #   改错了**不会报错**，只会静默地少报或多报变化 —— 那是最难发现的一类错误
+          #   （页面照常更新、数字看着正常、日志一行异常都没有）。
+          #   自测是纯逻辑、不联网、毫秒级，所以放在最前面当作闸门：判据坏了就不许继续。
+          python cloud/tariff/change_guard.py
+          # 推送只做「配没配」的检查，不发消息；一个通道都没配也**不算失败**
+          python cloud/tariff/notify.py --check
+          # ★ 推送**该不该发**这条判据同样要自测（零变化不许推、异常态必须推）。
+          #   写错的方向是「天天推无变化」→ 用户静音通知 → 真变化也看不见，
+          #   而这件事在日志里完全看不出来（推送调用返回的都是成功）。
+          python cloud/tariff/notify.py --selfcheck
           # 体检**有条目级地市归属**的三网（move / telecom / unicom）——
           # 广电上游只有「全国 / 河北省」两档，跑城市类判据只会得到一堆 0，没有意义。
           # ⚠️ audit_data 只断言「结构性」不变量（不含条数），正常情况下应当零失败；
@@ -466,6 +493,38 @@ jobs:
         with:
           path: cloud/tariff/docs
 
+      - name: 产物完整性闸门（缺产物就**不许提交**）
+        run: |
+          set -e
+          # 🔴 这一步是 2026-09-26 新加的，防的是这一类事故：
+          #    旧写法 `git add -A cloud/tariff/snapshots ... page` 里 `-A` 会**连删除一起暂存**。
+          #    一旦上一环出错（快照没落盘 / 页面归档没写成），提交下去的就不是
+          #    「本轮数据」而是「snapshots 目录少了一批文件」——
+          #   而 git 提交成功、Actions 全绿，没有任何一处报错。
+          #    参考的同类项目原话：`rm -rf` 之后 `cp ... || true` 失败，
+          #    会把「data 目录消失」当正常变更提交，直接删掉线上数据。
+          #    ⇒ 提交前先把「该在的东西在不在」断言一遍。
+          set -e
+          n_snap=$(ls -1 cloud/tariff/snapshots/*.json.gz 2>/dev/null | wc -l)
+          test "$n_snap" -ge 4 || { echo "::error::快照只剩 $n_snap 份（四网至少各 1 份）——拒绝提交，先查抓取"; exit 1; }
+          test -s cloud/tariff/page/index.html.gz || { echo "::error::页面归档 page/index.html.gz 缺失或为空——拒绝提交"; exit 1; }
+          test -s cloud/tariff/history.json || { echo "::error::history.json 缺失或为空——拒绝提交"; exit 1; }
+          test -s cloud/tariff/docs/index.html || { echo "::error::docs/index.html 缺失——拒绝提交"; exit 1; }
+          # 每网都要有当天（或最近）的影子，防止「某网静默消失」
+          for p in hebei_tariff_ unicom_tariff_ ct_tariff_ cbn_tariff_; do
+            ls -1 cloud/tariff/snapshots/${p}*.json.gz >/dev/null 2>&1 \
+              || { echo "::error::$p 一份快照都没有"; exit 1; }
+          done
+          # 原子写的残片绝不能被提交（.gitignore 已挡，这里再断言一次：
+          # 万一哪天 gitignore 被改动，坏基线就会跟着入库）
+          left=$(ls -1 cloud/tariff/**/*.tmp cloud/tariff/*.tmp cloud/tariff/**/*.new 2>/dev/null | wc -l)
+          if [ "$left" != "0" ]; then
+            echo "::warning::发现 $left 个原子写残片（*.tmp/*.new），清理后再提交"
+            ls -1 cloud/tariff/**/*.tmp cloud/tariff/*.tmp cloud/tariff/**/*.new 2>/dev/null | head
+            rm -f cloud/tariff/**/*.tmp cloud/tariff/*.tmp cloud/tariff/**/*.new
+          fi
+          echo "快照 $n_snap 份 · 归档 $(du -h cloud/tariff/page/index.html.gz | cut -f1) · 闸门通过"
+
       - name: 提交数据与归档
         run: |
           set -e
@@ -478,6 +537,15 @@ jobs:
           #    时间线永远只有仓库里那一份、长不起来。页面用的却是当轮内存里的版本，
           #    所以「页面看着有今天、仓库里没有」，下次构建又退回去。
           if [ -f cloud/tariff/history.json ]; then git add cloud/tariff/history.json; fi
+          # ★ 降级计数（连续 N 轮偏低才接受新数据）必须**跨轮次持久化** ——
+          #   不提交它，「连续 3 轮」就退化成「每轮都算第一轮」，护栏等于没装。
+          if [ -f cloud/tariff/degrade_state.json ]; then git add cloud/tariff/degrade_state.json; fi
+          # ★ 推送去重指纹：CI 每轮都是全新 checkout，只在内存里去重等于没去重，
+          #   而 workflow_dispatch 反复重跑是常态（同一次变化会被推好几条）。
+          if [ -f cloud/tariff/.notify_state.json ]; then git add cloud/tariff/.notify_state.json; fi
+          # 提交前再自查一遍：`-A` 会把删除也暂存，这里把「有没有被删掉的产物」摊开
+          git diff --staged --name-status --diff-filter=D -- cloud/tariff/snapshots cloud/tariff/page \
+            | head || true
           if git diff --staged --quiet; then
             echo "无变化，跳过提交"
           else
