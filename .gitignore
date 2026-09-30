@@ -4,6 +4,10 @@ __pycache__/
 venv/
 .venv/
 
+# 🔴 绝不入库：本地 .env 可能写着 PushPlus token / SMTP 授权码
+#    （本仓库是**公开**仓库，一旦提交就等于直接公开密钥）
+.env
+
 # ── 🔴 绝不入库：密钥 / 凭证 ──────────────────────────────────
 # nrapigate 网关密钥本地副本（CI 走 Actions Secret: NRAPIGATE_KEY / NRAPIGATE_IV）
 # 本仓库是**公开**仓库，这一行是硬红线，不要注释掉。
