@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""变更推送 —— 两个通道：**邮件（SMTP）** 与 **PushPlus（微信）**。
+"""变更推送 —— 五个通道：**钉钉** / **飞书** / **企业微信** / **邮件（SMTP）** / **PushPlus（微信）**。
 
 设计要点（每一条都是踩过或差点踩到的）：
 
@@ -28,8 +28,17 @@
 
     邮件：SMTP_HOST SMTP_PORT(465) SMTP_USER SMTP_PASS MAIL_TO MAIL_FROM MAIL_FROM_NAME
     微信：PUSHPLUS_TOKEN（必填） PUSHPLUS_TOPIC（群组编码，可选）
+    钉钉：DINGTALK_WEBHOOK  DINGTALK_SECRET（可选，机器人开了「加签」才需要）
+    飞书：FEISHU_WEBHOOK    FEISHU_SECRET（可选，同上）
+    企微：WECOM_WEBHOOK
 
-    开关：SELF_NOTIFY(默认 1，设 0 = 本脚本不推) / NOTIFY(默认 1，设 0 = 全关)
+    🔴 加签算法两家**不一样**，抄错就永远 310000 / sign not match：
+       钉钉  HMAC-SHA256(key=secret, msg=timestamp+"\n"+secret) → base64 → urlencode
+       飞书  HMAC-SHA256(key="",     msg=timestamp+"\n"+secret) → base64
+       为什么不同：钉钉把 secret 同时当 key 和消息的一部分；飞书只把 secret 拼进消息，
+       key 留空。凭直觉互相套用是最常见的坑。
+
+    开关：SELF_NOTIFY(默认 1，设 0 = 本脚本不推) / NOTIFY(默认 1，设 0 = 全关）
           NOTIFY_ALWAYS(默认 0，设 1 = 无变化也每天报个平安)
           ⚠️ 「无变化」**不含异常态**：任一网掉了降级 / 结构变更 / 采集失败，
              一律照推 —— 那正是**需要人看一眼**的时刻，静默掉它等于把事故藏起来。
@@ -38,7 +47,9 @@
     python notify.py --test          # 只发一条自检消息，验证配置
     python notify.py --check         # 只看有哪些通道可用，不发
 """
+import base64
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -46,6 +57,8 @@ import smtplib
 import ssl
 import sys
 import time
+import urllib.error
+import urllib.parse
 import urllib.request
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
@@ -139,6 +152,37 @@ def _trunc(s, n):
     return s if len(s) <= n else s[:n] + "\n\n…（已截断，完整内容见仓库 changes/ 或页面）"
 
 
+def _trunc_bytes(s, limit):
+    """按**字节**截断 —— 钉钉 / 企微的正文上限是按字节算的（4096 字节）。
+
+    🔴 按字符截会超限：一个汉字占 3 字节，900 个字就 2700 字节了。
+       截完必须回退到完整的 UTF-8 字符边界，否则末尾留半个汉字 = 乱码。
+    """
+    s = str(s or "")
+    b = s.encode("utf-8")
+    if len(b) <= limit:
+        return s
+    suffix = "\n\n…（内容过长已截断，完整数据见仓库 changes/ 或页面）"
+    budget = max(0, limit - len(suffix.encode("utf-8")))
+    cut = b[:budget]
+    for _ in range(4):          # UTF-8 单字符最长 4 字节，最多回退 3 次
+        try:
+            return cut.decode("utf-8") + suffix
+        except UnicodeDecodeError:
+            cut = cut[:-1]
+    return cut.decode("utf-8", "ignore") + suffix
+
+
+def _post(url, payload, timeout=30):
+    """POST JSON 并解析响应。走直连 opener（同 tariff_monitor 的代理原则）。"""
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(
+        url, data=body,
+        headers={"Content-Type": "application/json;charset=utf-8"})
+    with _OPENER.open(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8", "replace") or "{}")
+
+
 # ════════════════════════════════════════════════════════════════════════
 #  通道
 # ════════════════════════════════════════════════════════════════════════
@@ -165,6 +209,116 @@ def send_pushplus(title, md):
         if str(j.get("code")) == "900":
             msg += "（推送频率超限，注意「一次变化只推一条」）"
         return True, False, msg
+    except Exception as e:
+        return True, False, f"{type(e).__name__}: {e}"
+
+
+def _dingtalk_sign(secret, ts=None):
+    """钉钉加签：HMAC-SHA256(key=secret, msg=timestamp+"\\n"+secret) → base64 → urlencode。
+
+    ⚠️ 与飞书**不同**（飞书的 key 是空串）—— 见模块文档。
+    ``ts`` 可注入，供自测做确定性断言。
+    """
+    ts = str(ts if ts is not None else round(time.time() * 1000))   # 钉钉要毫秒
+    sign = urllib.parse.quote_plus(base64.b64encode(
+        hmac.new(secret.encode("utf-8"),
+                 ("%s\n%s" % (ts, secret)).encode("utf-8"),
+                 hashlib.sha256).digest()))
+    return ts, sign
+
+
+def send_dingtalk(title, md):
+    """钉钉群机器人（markdown）。返回 (是否可用, 是否成功, 说明)。"""
+    webhook = _env("DINGTALK_WEBHOOK")
+    if not webhook:
+        return False, False, "未配置 DINGTALK_WEBHOOK"
+    url = webhook
+    secret = _env("DINGTALK_SECRET")
+    if secret:                                    # 没开「加签」就不带 timestamp/sign
+        ts, sign = _dingtalk_sign(secret)
+        url = "%s&timestamp=%s&sign=%s" % (url, ts, sign)
+    payload = {"msgtype": "markdown",
+               "markdown": {"title": title[:64],       # 钉钉标题上限 64 字符
+                            "text": _trunc_bytes(md, 18000)}}
+    try:
+        res = _post(url, payload)
+        if res.get("errcode") == 0:
+            return True, True, "ok"
+        return True, False, "errcode=%s %s" % (res.get("errcode"), res.get("errmsg"))
+    except urllib.error.HTTPError as e:
+        return True, False, "HTTP %s %s" % (e.code, e.read().decode("utf-8", "ignore")[:150])
+    except Exception as e:
+        return True, False, f"{type(e).__name__}: {e}"
+
+
+def _feishu_sign(secret, ts=None):
+    """飞书加签：HMAC-SHA256(key="", msg=timestamp+"\\n"+secret) → base64。
+
+    ⚠️ key 是**空串**（钉钉那边 key 才是 secret）—— 抄错会一直 sign not match。
+    ``ts`` 可注入，供自测做确定性断言。
+    """
+    ts = str(ts if ts is not None else int(time.time()))            # 飞书要秒
+    sign = base64.b64encode(hmac.new(
+        ("%s\n%s" % (ts, secret)).encode("utf-8"),
+        b"", hashlib.sha256).digest()).decode("utf-8")
+    return ts, sign
+
+
+def send_feishu(title, md):
+    """飞书自定义机器人（interactive 卡片）。返回 (是否可用, 是否成功, 说明)。"""
+    webhook = _env("FEISHU_WEBHOOK")
+    if not webhook:
+        return False, False, "未配置 FEISHU_WEBHOOK"
+    payload = {
+        "msg_type": "interactive",
+        "card": {
+            "config": {"wide_screen_mode": True},
+            "header": {"title": {"tag": "plain_text", "content": title[:64]},
+                       "template": "blue"},
+            "elements": [{"tag": "div",
+                          "text": {"tag": "lark_md",
+                                   "content": _trunc_bytes(md, 18000)}}],
+        },
+    }
+    secret = _env("FEISHU_SECRET")
+    if secret:
+        ts, sign = _feishu_sign(secret)
+        payload["timestamp"] = ts
+        payload["sign"] = sign
+    try:
+        res = _post(webhook, payload)
+        # 飞书新老协议：新的是 code/msg，老的是 StatusCode/StatusMessage
+        code = res.get("code", res.get("StatusCode"))
+        if code == 0:
+            return True, True, "ok"
+        return True, False, "code=%s %s" % (code, res.get("msg") or res.get("StatusMessage"))
+    except urllib.error.HTTPError as e:
+        return True, False, "HTTP %s %s" % (e.code, e.read().decode("utf-8", "ignore")[:150])
+    except Exception as e:
+        return True, False, f"{type(e).__name__}: {e}"
+
+
+def send_wecom(title, md):
+    """企业微信群机器人（markdown）。返回 (是否可用, 是否成功, 说明)。
+
+    🔴 企微 markdown content 上限 **4096 字节**，超了整个请求被拒（不是截断显示）。
+       超限时降级成纯文本再按字节截 —— markdown 标记本身也吃字节。
+    """
+    webhook = _env("WECOM_WEBHOOK")
+    if not webhook:
+        return False, False, "未配置 WECOM_WEBHOOK"
+    LIMIT = 3800                                  # 4096 留余量
+    content = md
+    if len(content.encode("utf-8")) > LIMIT:
+        content = _trunc_bytes(_md_to_text(md), LIMIT)
+    try:
+        res = _post(webhook, {"msgtype": "markdown",
+                              "markdown": {"content": content}})
+        if res.get("errcode") == 0:
+            return True, True, "ok"
+        return True, False, "errcode=%s %s" % (res.get("errcode"), res.get("errmsg"))
+    except urllib.error.HTTPError as e:
+        return True, False, "HTTP %s %s" % (e.code, e.read().decode("utf-8", "ignore")[:150])
     except Exception as e:
         return True, False, f"{type(e).__name__}: {e}"
 
@@ -209,19 +363,31 @@ def send_email(title, md):
 
 
 CHANNELS = (
+    ("钉钉", send_dingtalk),
+    ("飞书", send_feishu),
+    ("企业微信", send_wecom),
     ("PushPlus", send_pushplus),
     ("邮件", send_email),
 )
 
+#: 通道 → 「算它配置齐了」所必需的环境变量（全有才算可用）。
+#: available() 与 _is_on() 共用这一张表 —— 两处各写一份判断，加通道时必漏一处。
+_CHANNEL_ENV = {
+    "钉钉": ("DINGTALK_WEBHOOK",),
+    "飞书": ("FEISHU_WEBHOOK",),
+    "企业微信": ("WECOM_WEBHOOK",),
+    "PushPlus": ("PUSHPLUS_TOKEN",),
+    "邮件": ("SMTP_HOST", "MAIL_TO"),
+}
+
+
+def _is_on(name):
+    return all(bool(_env(k)) for k in _CHANNEL_ENV.get(name, ()))
+
 
 def available():
     """哪些通道「配置齐了」。用于 --check 与日志，不发消息。"""
-    out = []
-    if _env("PUSHPLUS_TOKEN"):
-        out.append("PushPlus")
-    if _env("SMTP_HOST") and _env("MAIL_TO"):
-        out.append("邮件")
-    return out
+    return [nm for nm, _ in CHANNELS if _is_on(nm)]
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -298,14 +464,6 @@ def send_all(title, md, dedup=True):
         # 全失败**不记指纹** —— 否则修好之后永远推不出去了（指纹已经被写死）
         warn("所有通道都失败了，不记指纹（下次仍会尝试）")
     return results
-
-
-def _is_on(name):
-    if name == "PushPlus":
-        return bool(_env("PUSHPLUS_TOKEN"))
-    if name == "邮件":
-        return bool(_env("SMTP_HOST") and _env("MAIL_TO"))
-    return False
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -455,12 +613,34 @@ def _selftest():
     ck("HTML 转义", "&lt;b&gt;" in _md_to_html("<b>粗</b>"), True)
     ck("纯文本去标记", _md_to_text("# 标题\n- **粗**\n").strip().startswith("标题"), True)
 
+    # ⑥ 加签：钉钉 / 飞书算法**不同** —— 抄错会永远 310000 / sign not match。
+    #    这里用固定 ts 做确定性断言，把两家的算法各自钉死。
+    dt_ts, dt_sign = _dingtalk_sign("SECabc", ts=1700000000000)
+    fs_ts, fs_sign = _feishu_sign("SECabc", ts=1700000000)
+    ck("钉钉·用毫秒", dt_ts, "1700000000000")
+    ck("飞书·用秒", fs_ts, "1700000000")
+    want_dt = base64.b64encode(hmac.new(
+        b"SECabc", b"1700000000000\nSECabc", hashlib.sha256).digest()).decode()
+    ck("钉钉算法(key=secret)", urllib.parse.unquote_plus(dt_sign), want_dt)
+    want_fs = base64.b64encode(hmac.new(
+        b"1700000000\nSECabc", b"", hashlib.sha256).digest()).decode()
+    ck("飞书算法(key=空串)", fs_sign, want_fs)
+    ck("两家签名互不相等",
+       urllib.parse.unquote_plus(dt_sign) != fs_sign, True)
+
+    # ⑦ 字节截断：中文 3 字节/字，按字符截必超限；截完不能留半个汉字
+    long_cn = "汉" * 3000
+    cut = _trunc_bytes(long_cn, 3800)
+    ck("字节截断·不超限", len(cut.encode("utf-8")) <= 3800, True)
+    ck("字节截断·无乱码", "\ufffd" not in cut, True)
+    ck("字节截断·短文本不动", _trunc_bytes("短", 3800), "短")
+
     if fails:
         print("推送自测失败 %d 项：" % len(fails))
         for x in fails:
             print("  ✗", x)
         return 1
-    print("推送自测通过（零变化闸门 / 异常态必推 / 安静态 / 标题 / 转义）")
+    print("推送自测通过（零变化闸门 / 异常态必推 / 安静态 / 标题 / 转义 / 加签 / 字节截断）")
     return 0
 
 
@@ -478,6 +658,9 @@ if __name__ == "__main__":
         ch = available()
         if not ch:
             print("没有任何通道配置了凭据。")
+            print("  钉钉：DINGTALK_WEBHOOK（机器人开了「加签」再加 DINGTALK_SECRET）")
+            print("  飞书：FEISHU_WEBHOOK（同上，再加 FEISHU_SECRET）")
+            print("  企微：WECOM_WEBHOOK")
             print("  邮件：SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / MAIL_TO")
             print("  PushPlus：PUSHPLUS_TOKEN（可加 PUSHPLUS_TOPIC）")
             sys.exit(1)

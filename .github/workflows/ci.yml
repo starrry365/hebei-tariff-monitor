@@ -1,0 +1,117 @@
+# -*- coding: utf-8 -*-
+name: CI
+
+# 每次 push / PR 都跑一遍「会不会把仓库弄坏」的最小闸门。
+#
+# 为什么和 tariff-daily.yml 分开：
+#   日常巡检是**产物闸门**（数据对不对），CI 是**代码闸门**（算法还对不对）。
+#   巡检里也跑自测，但它每天才一次、而且是「跑完才失败」——
+#   那时坏代码已经把快照 / 页面 / 提交全做完了。CI 把同一批自测提前到 push 时，
+#   坏代码在**碰数据之前**就被拦下。
+#
+# 全部只读：不写数据、不联网、不部署。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TZ: CST-8                  # 新鲜度判定依赖北京时间，缺了会差 8 小时
+      SELF_NOTIFY: "0"           # CI 里绝不真发推送
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 准备 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 语法检查（全量 Python 文件）
+        run: python -m compileall -q cloud probes tools tests
+
+      - name: 测试套件（既有 4 个自测）
+        run: python tests/run_all.py
+
+      - name: 本轮新增脚本冒烟
+        run: |
+          set -e
+          echo "── 新鲜度检查 ──"
+          python cloud/tariff/check_fresh.py
+          echo
+          echo "── 采样噪声护栏自测 ──"
+          python cloud/tariff/noise_guard.py --selfcheck
+          echo
+          echo "── 采样噪声只读体检 ──"
+          python cloud/tariff/noise_guard.py --check
+          echo
+          echo "── 变化汇总 ──"
+          python cloud/tariff/summary.py --days 1 > /dev/null && echo "summary OK"
+          echo
+          echo "── 补推 dry-run（不发送）──"
+          python cloud/tariff/push_once.py --dry > /dev/null && echo "push_once OK"
+          echo
+          echo "── 源码包（含凭据黑名单审计）──"
+          python cloud/tariff/make_source_zip.py
+
+      - name: 源码包内容审计（凭据 / 数据一个都不许在包里）
+        run: |
+          set -e
+          python - <<'PY'
+          import sys
+          import zipfile
+
+          ZIP = "cloud/tariff/docs/hebei-tariff-monitor-source.zip"
+          z = zipfile.ZipFile(ZIP)
+          names = z.namelist()
+          bad = []
+          for n in names:
+              low = n.lower()
+              base = low.rsplit("/", 1)[-1]
+              if base in {".env", ".nrapigate_key", ".fiddler_mcp_key"}:
+                  bad.append(n)
+              elif base.endswith(".ct_raw.json") or base.startswith("._cache"):
+                  bad.append(n)
+              elif "/snapshots/" in n:
+                  bad.append(n)
+          print("包内文件数：%d" % len(names))
+          if bad:
+              print("::error::源码包里出现了不该有的文件：")
+              for b in bad:
+                  print("   ✗", b)
+              sys.exit(1)
+          print("✅ 凭据/数据审计通过")
+          PY
+
+      - name: workflow YAML 校验
+        run: |
+          set -e
+          python -m pip install --quiet --disable-pip-version-check pyyaml
+          python - <<'PY'
+          import glob
+          import sys
+          import yaml
+
+          bad = 0
+          for f in sorted(glob.glob(".github/workflows/*.yml")):
+              try:
+                  d = yaml.safe_load(open(f, encoding="utf-8"))
+                  jobs = list((d or {}).get("jobs", {}).keys())
+                  print("OK   %-28s jobs=%s" % (f, jobs))
+              except Exception as e:
+                  bad += 1
+                  print("FAIL %-28s %s" % (f, e))
+          sys.exit(1 if bad else 0)
+          PY

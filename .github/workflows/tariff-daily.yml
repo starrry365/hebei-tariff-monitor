@@ -493,6 +493,16 @@ jobs:
           print('页面校验 OK：四网齐备（电信为直采或快照兜底，上方逐网标注）')
           "
 
+      - name: 重打源码包（随页面一起发布）
+        run: |
+          set -e
+          # 确定性打包（固定时间戳）：源码没改就不会产生无意义的 diff。
+          # 🔴 凭据（.env / .nrapigate_key / .fiddler_mcp_key）与数据快照
+          #    （snapshots/ · *_cache.json · .ct_raw.json）由脚本内的黑名单
+          #    ＋ 打包后的审计双重拦截；漏一个就直接报错退出。
+          #    本仓库是**公开**仓库，这一步是硬红线。
+          python cloud/tariff/make_source_zip.py
+
       # ── 部署到 GitHub Pages ────────────────────────────────────────────
       # 部署的是 CI 现场生成的 docs/index.html（未压缩那份，已 gitignore）。
       # 页面数据全部内联在 HTML 里（const NETS=...），所以 artifact 里只需这一个文件，
@@ -560,6 +570,13 @@ jobs:
           # ★ 推送去重指纹：CI 每轮都是全新 checkout，只在内存里去重等于没去重，
           #   而 workflow_dispatch 反复重跑是常态（同一次变化会被推好几条）。
           if [ -f cloud/tariff/.notify_state.json ]; then git add cloud/tariff/.notify_state.json; fi
+          # ★ 站点壳（manifest.json / sw.js / icons/ / 源码包）也要入库：
+          #   这些是**手写资产 + 随轮生成的产物**，不提交的话 runner 一销毁就没了，
+          #   线上页面会指向一堆 404（PWA 装不上、源码包点开 404）。
+          #   🔴 用 `git add`（递归加目录里的新文件）而不是 `git add -A`：
+          #      docs/index.html 是每轮现场生成的（已 gitignore），
+          #      这里不该也不需要把它暂存进来。
+          if [ -d cloud/tariff/docs ]; then git add cloud/tariff/docs; fi
           # 提交前再自查一遍：`-A` 会把删除也暂存，这里把「有没有被删掉的产物」摊开
           git diff --staged --name-status --diff-filter=D -- cloud/tariff/snapshots cloud/tariff/page \
             | head || true

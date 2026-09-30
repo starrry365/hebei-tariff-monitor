@@ -1,0 +1,133 @@
+# -*- coding: utf-8 -*-
+name: 数据新鲜度巡检
+
+# 专治「巡检**根本没跑**」——这是最安静的一种失效：
+#   · 页面绿着、站点还在、Actions 里连红色 ❌ 都没有（job 根本没启动就失败，
+#     甚至不产生 step 日志：例如账号计费 / 额度把 job 挡在启动之前）；
+#   · 只有数据在悄悄变老。
+#
+# 所以这里**不看 CI 状态，只看产物**：history.json 的时间戳 + 最新快照日期。
+# 一天两次（北京 11:00 / 23:00），都在 06:00 那轮巡检之后，过期就发告警。
+#
+# 只读：不写数据、不提交、不部署。过期只告警，绝不「自动补跑」——
+# 补跑会把没跑的原因（额度 / 计费 / 分支）掩盖掉，下一次还是没人知道。
+
+on:
+  schedule:
+    # GitHub cron 用 UTC。北京时间 11:00 / 23:00 = UTC 03:00 / 15:00
+    - cron: "0 3,15 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: fresh-check
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TZ: CST-8
+      # 巡检每日一轮（06:00），30 小时 = 留 6 小时给 GitHub 排队容错；
+      # 连着两轮没跑必然报警。
+      FRESH_MAX_HOURS: "30"
+      # ── 告警推送（与巡检共用同一批通道；一个都没配就静默跳过）──
+      DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
+      DINGTALK_SECRET:  ${{ secrets.DINGTALK_SECRET }}
+      FEISHU_WEBHOOK:   ${{ secrets.FEISHU_WEBHOOK }}
+      FEISHU_SECRET:    ${{ secrets.FEISHU_SECRET }}
+      WECOM_WEBHOOK:    ${{ secrets.WECOM_WEBHOOK }}
+      PUSHPLUS_TOKEN:   ${{ secrets.PUSHPLUS_TOKEN }}
+      PUSHPLUS_TOPIC:   ${{ secrets.PUSHPLUS_TOPIC }}
+      SMTP_HOST:        ${{ secrets.SMTP_HOST }}
+      SMTP_PORT:        ${{ secrets.SMTP_PORT }}
+      SMTP_USER:        ${{ secrets.SMTP_USER }}
+      SMTP_PASS:        ${{ secrets.SMTP_PASS }}
+      SMTP_SSL:         ${{ vars.SMTP_SSL || '1' }}
+      MAIL_TO:          ${{ secrets.MAIL_TO }}
+      MAIL_FROM:        ${{ secrets.MAIL_FROM }}
+      MAIL_FROM_NAME:   ${{ vars.MAIL_FROM_NAME || '资费监控' }}
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 准备 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 新鲜度检查
+        id: fresh
+        run: |
+          set +e
+          python cloud/tariff/check_fresh.py --json | tee fresh.json
+          RC=${PIPESTATUS[0]}
+          echo "rc=$RC" >> "$GITHUB_OUTPUT"
+          echo ""
+          python cloud/tariff/check_fresh.py || true
+          # 0=新鲜 1=过期 2=读不到数据；都写进 summary 供人一眼看见
+          {
+            echo "## 数据新鲜度巡检"
+            echo ""
+            echo "- 阈值：${FRESH_MAX_HOURS} 小时"
+            echo "- 结论退出码：\`$RC\`（0=新鲜 / 1=过期 / 2=读不到数据）"
+            echo ""
+            echo '```json'
+            cat fresh.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # 这一步本身不失败（它是巡检，不是闸门）；过期与否由下一步决定
+          exit 0
+
+      - name: 过期则推送告警
+        if: steps.fresh.outputs.rc != '0'
+        run: |
+          set +e
+          python - <<'PY'
+          import json
+          import os
+          import sys
+
+          sys.path.insert(0, "cloud/tariff")
+          import notify
+
+          rep = json.load(open("fresh.json", encoding="utf-8"))
+          rc = os.environ.get("RC", "")
+
+          L = ["# ⚠ 河北四网资费数据已过期", ""]
+          L.append("巡检可能**根本没在跑**（不是跑失败，是没启动）。")
+          L.append("")
+          L.append("| 数据源 | 最新时间 | 距今 |")
+          L.append("|---|---|---|")
+          for it in rep.get("items", []):
+              flag = "⚠" if it.get("age_hours", 0) > rep.get("max_hours", 30) else "✅"
+              L.append("| %s %s | %s | %s 小时 |"
+                       % (flag, it.get("why", ""), it.get("ts", "-"), it.get("age_hours")))
+          for m in rep.get("missing", []):
+              L.append("- ❌ 读不到：%s" % m)
+          L.append("")
+          L.append("**先查这三件事**：")
+          L.append("1. Actions → 「资费每日巡检 + 页面部署」最近一次运行："
+                   "是**没启动**（连 step 都没有 / 提示计费或额度），还是跑失败？")
+          L.append("2. 仓库 Settings → Billing：Actions 用量与支出限额"
+                   "（job 因计费被挡在启动之前时，页面不会有红色 ❌）。")
+          L.append("3. 仓库是否被禁用 / 分支是否还是 main / cron 是否被改过。")
+
+          title = "⚠ 资费数据已过期（%s 小时阈值）" % rep.get("max_hours", 30)
+          res = notify.send_all(title, "\n".join(L), dedup=True)
+          print("推送结果：", res or "（无通道配置，已跳过）")
+          PY
+          exit 0
+
+      - name: 过期时标红（让人在 Actions 列表里也能看见）
+        if: steps.fresh.outputs.rc == '1'
+        run: |
+          echo "::error::资费数据已过期 —— 巡检可能没在跑，请检查 Actions / Billing / cron"
+
+      - name: 读不到数据（比过期更严重）
+        if: steps.fresh.outputs.rc == '2'
+        run: |
+          echo "::error::连数据基线都读不到（history.json 与 snapshots/ 都不可用）"

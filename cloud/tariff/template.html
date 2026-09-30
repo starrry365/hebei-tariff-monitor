@@ -399,6 +399,16 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   th,td{padding:8px 7px}
 }
 </style>
+<!-- ══ PWA：图标 / manifest / 主题色 ══
+     全部用相对路径：本页部署在 Pages 根（cloud/tariff/docs）。
+     本地用 file:// 打开时这几行会 404，但不影响页面本身。
+     图标由 tools/make_icons.py 生成（纯 stdlib，颜色取自:root 的 --op1）。 -->
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0085d0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="河北资费">
 </head>
 <body>
 <div class="aurora"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
@@ -664,6 +674,19 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
     <p>数据为运营商<b>报备公示口径</b>；「目标客户」为原文条件，能否办理需以营业厅 / 客服为准。
     每日 <b>06:00（北京时间）</b>自动巡检，
     源码与变更记录见 <a href="https://github.com/starrry365/hebei-tariff-monitor" target="_blank" rel="noopener">GitHub 仓库</a>。</p>
+
+    <h3>本页功能</h3>
+    <ul>
+      <li><b>★ 收藏关注</b>：条目名称前的星标把这条资费收进本机收藏；筛选条上的
+        「☆ 只看收藏」只显示收藏项。收藏存在<b>浏览器本地</b>（localStorage），
+        不上传、不跨设备同步。</li>
+      <li><b>离线安装（PWA）</b>：在浏览器菜单里「添加到主屏幕 / 安装应用」可把本页
+        装成一个独立应用；断网时能打开上一次缓存的版本（页面本身仍是网络优先，
+        保证看到的不是昨天的价目表）。</li>
+      <li><b>源码包</b>：<a href="hebei-tariff-monitor-source.zip" download>下载源码快照</a>
+        —— 可直接跑的一份代码（<b>不含任何凭据与数据快照</b>，由
+        <code>cloud/tariff/make_source_zip.py</code> 确定性打包）。</li>
+    </ul>
 
     <h3>来源</h3>
     <ul id="abSrc"></ul>
@@ -1167,6 +1190,9 @@ function render(){
     const isNew=BASE_OK&&(ago(toDate(d.o))??9e9)>=0&&(ago(toDate(d.o))??9e9)<=30;
     const tr=document.createElement("tr");
     tr.className="row"+(isNew?" isnew":"")+(d.st?" stopped":"");
+    /* 收藏关注用的稳定键（网 + 名称）。增强脚本靠它记星标 ——
+       不从 DOM 反推名称：名称单元格里还混着分类 / 变更 / 下架标签，反推不可靠。 */
+    tr.dataset.k=NET+"|"+(d.n||d.t||"");
     tr.innerHTML='<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元":"—")+'</td>'
       +'<td>'+fmtGb(d.g)+perCell(d)+'</td>'
       +'<td>'+(d.c&&d.c!=="0"?esc(d.c)+" 分":"—")+'</td>'
@@ -2309,6 +2335,179 @@ apply();
 /* 首屏落在哪个页签：readHash() 里若带了 #v=… 已 self 设定过（setView 是幂等的，
    重设一遍只是保证「没有 hash 时」也走一次完整的显隐 + 尺寸重算）。 */
 setView(VIEW);
+</script>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     前端增强：收藏关注（★ 星标 + 只看收藏）+ PWA 注册
+     ──────────────────────────────────────────────────────────────────────
+     ★ 为什么独立成一段：上面的渲染 / 筛选逻辑**一行都不动**
+       （唯一让步是 render() 写了 tr.dataset.k，见那里的注释）。
+       这样以后重做筛选系统也不会把收藏功能弄丢。
+     ★ 收藏存 localStorage，键 = "网|名称"：纯本机偏好，不上传、不同步。
+     ★ 「只看收藏」只做 **DOM 层显隐**，不参与 match()/apply() ——
+       避免和页面自己的分页 + 筛选抢控制权（两边都改 view 必然打架）。
+     ══════════════════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+"use strict";
+var FAV_KEY = "hbtm_fav";          // 收藏表 { "网|名称": 1 }
+var ONLY_KEY = "hbtm_only_fav";    // 「只看收藏」开关
+
+function loadObj(k) {
+  try {
+    var v = JSON.parse(localStorage.getItem(k) || "{}");
+    return (v && typeof v === "object") ? v : {};
+  } catch (e) { return {}; }
+}
+function saveObj(k, o) { try { localStorage.setItem(k, JSON.stringify(o)); } catch (e) {} }
+
+var fav = loadObj(FAV_KEY);
+var onlyFav = false;
+try { onlyFav = localStorage.getItem(ONLY_KEY) === "1"; } catch (e) {}
+
+function tb() { return document.getElementById("tb"); }
+
+/* ── 星标：注入到名称单元格最前面 ── */
+function decorate() {
+  var body = tb();
+  if (!body) return;
+  var rows = body.querySelectorAll("tr.row");
+  for (var i = 0; i < rows.length; i++) {
+    var tr = rows[i];
+    if (tr.querySelector(".favbtn")) continue;
+    var cell = tr.querySelector("td.nm");
+    if (!cell) continue;
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "favbtn" + (fav[tr.dataset.k] ? " on" : "");
+    b.title = "收藏关注（只存本机，不上传）";
+    b.setAttribute("aria-label", "收藏");
+    b.textContent = fav[tr.dataset.k] ? "★" : "☆";
+    b.onclick = function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();                    // 别让上面的 tr.onclick 展开详情
+      var row = this.parentNode.parentNode;
+      var k = row.dataset.k || "";
+      if (fav[k]) { delete fav[k]; } else { fav[k] = 1; }
+      saveObj(FAV_KEY, fav);
+      this.textContent = fav[k] ? "★" : "☆";
+      this.className = "favbtn" + (fav[k] ? " on" : "");
+      refresh();
+    };
+    cell.insertBefore(b, cell.firstChild);
+  }
+  refresh();
+}
+
+/* ── 只看收藏：DOM 层显隐（返回当前可见条数） ── */
+function applyOnly() {
+  var body = tb();
+  if (!body) return 0;
+  var rows = body.querySelectorAll("tr.row");
+  var shown = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var tr = rows[i];
+    var det = tr.nextElementSibling;
+    var hit = !onlyFav || !!fav[tr.dataset.k || ""];
+    tr.style.display = hit ? "" : "none";
+    if (det && det.classList.contains("det")) det.style.display = hit ? "" : "none";
+    if (hit) shown++;
+  }
+  return shown;
+}
+
+function refresh() {
+  var shown = applyOnly();
+  var btn = document.getElementById("favOnly");
+  if (btn) {
+    var n = Object.keys(fav).length;
+    btn.textContent = (onlyFav ? "★ 只看收藏" : "☆ 只看收藏") + (n ? " (" + n + ")" : "");
+    if (onlyFav) { btn.classList.add("on"); } else { btn.classList.remove("on"); }
+  }
+  var note = document.getElementById("favNote");
+  if (note) {
+    note.style.display = onlyFav ? "" : "none";
+    if (onlyFav) {
+      note.textContent = "★ 仅显示收藏（本页 " + shown
+        + " 条）· 分页与筛选不受影响，翻页后仍然只显示收藏";
+    }
+  }
+}
+
+/* ── 注入按钮与提示条（幂等：重复调用不会插第二份） ── */
+function inject() {
+  var chips = document.getElementById("chips");
+  if (chips && !document.getElementById("favOnly")) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.id = "favOnly";
+    b.className = "favchip";
+    b.title = "只显示本机收藏的资费（收藏存在浏览器本地）";
+    b.onclick = function () {
+      onlyFav = !onlyFav;
+      try { localStorage.setItem(ONLY_KEY, onlyFav ? "1" : "0"); } catch (e) {}
+      refresh();
+    };
+    chips.appendChild(b);
+  }
+  if (chips && !document.getElementById("favNote")) {
+    var d = document.createElement("div");
+    d.id = "favNote";
+    d.className = "favnote";
+    d.style.display = "none";
+    if (chips.parentNode) chips.parentNode.insertBefore(d, chips.nextSibling);
+  }
+}
+
+/* ── 样式：颜色全走页面的 CSS 变量，深色/浅色自动跟随，不自己判 ── */
+function css() {
+  if (document.getElementById("favCss")) return;
+  var s = document.createElement("style");
+  s.id = "favCss";
+  s.textContent = [
+    ".favbtn{background:none;border:0;cursor:pointer;font-size:14px;line-height:1;",
+    "padding:0 4px 0 0;color:var(--tx3);vertical-align:baseline;font-family:inherit}",
+    ".favbtn:hover,.favbtn.on{color:var(--warn)}",
+    ".favchip{font:inherit;cursor:pointer;border:1px solid var(--bd2);background:var(--card);",
+    "color:var(--tx2);border-radius:999px;padding:3px 10px;margin-left:6px}",
+    ".favchip.on{border-color:var(--warn);color:var(--warn);background:var(--warnbg)}",
+    ".favnote{margin:6px 0 0;font-size:12px;color:var(--warn);background:var(--warnbg);",
+    "border-radius:var(--r2);padding:4px 10px}"
+  ].join("");
+  document.head.appendChild(s);
+}
+
+function boot() {
+  css();
+  inject();
+  decorate();
+  var body = tb();
+  if (body && window.MutationObserver) {
+    var timer = null;
+    /* render() 是逐行 append 的，会触发很多次 childList；
+       合并到下一轮事件循环，避免每行都全表扫一遍。 */
+    new MutationObserver(function () {
+      if (timer) return;
+      timer = setTimeout(function () { timer = null; decorate(); }, 0);
+    }).observe(body, { childList: true });
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", boot);
+} else {
+  boot();
+}
+
+/* ── PWA：注册 Service Worker。只在 http(s) 下注册（file:// 直接跳过） ── */
+if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js").catch(function () {
+      /* 静默失败：离线壳是加分项，不是页面能不能用的前提 */
+    });
+  });
+}
+})();
 </script>
 </body>
 </html>

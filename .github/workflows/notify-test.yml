@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 name: 推送通道自检
 
-# 只测试 PushPlus + SMTP 推送通道是否配置正确，不动数据、不抓取、不部署。
+# 只测试五个推送通道（钉钉 / 飞书 / 企业微信 / PushPlus / 邮件）是否配置正确，
+# 不动数据、不抓取、不部署。
 # 适用场景：
 #   - 第一次配置 Secrets 后跑一次，确认微信/邮件能收到
 #   - 换 token / SMTP 授权码后跑一次，验证生效
@@ -31,6 +32,16 @@ jobs:
     timeout-minutes: 3
     env:
       TZ: CST-8
+      # ── 钉钉 / 飞书 / 企业微信（群机器人 webhook）─────────────
+      # 加签是可选的：机器人安全设置里选了「加签」才需要配对应的 SECRET。
+      # 🔴 两家的加签算法**不一样**（抄错会一直 310000 / sign not match）：
+      #    钉钉 HMAC-SHA256(key=secret, msg=ts+"\n"+secret)
+      #    飞书 HMAC-SHA256(key="",     msg=ts+"\n"+secret)
+      DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
+      DINGTALK_SECRET:  ${{ secrets.DINGTALK_SECRET }}
+      FEISHU_WEBHOOK:   ${{ secrets.FEISHU_WEBHOOK }}
+      FEISHU_SECRET:    ${{ secrets.FEISHU_SECRET }}
+      WECOM_WEBHOOK:    ${{ secrets.WECOM_WEBHOOK }}
       # ── PushPlus ────────────────────────────────────────────
       PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
       PUSHPLUS_TOPIC:  ${{ secrets.PUSHPLUS_TOPIC }}
@@ -100,9 +111,13 @@ jobs:
         if: always()
         run: |
           # 检查是否有任何通道被配置
+          HAS_IM="no"
+          if [ -n "$DINGTALK_WEBHOOK" ] || [ -n "$FEISHU_WEBHOOK" ] || [ -n "$WECOM_WEBHOOK" ]; then
+            HAS_IM="yes"
+          fi
           HAS_PUSHPLUS=$([ -n "$PUSHPLUS_TOKEN" ] && echo "yes" || echo "no")
           HAS_SMTP=$([ -n "$SMTP_HOST" ] && [ -n "$MAIL_TO" ] && echo "yes" || echo "no")
-          if [ "$HAS_PUSHPLUS" = "no" ] && [ "$HAS_SMTP" = "no" ]; then
+          if [ "$HAS_IM" = "no" ] && [ "$HAS_PUSHPLUS" = "no" ] && [ "$HAS_SMTP" = "no" ]; then
             echo "::notice::未配置任何推送通道 —— 主任务会自动跳过推送，不会失败"
             echo ""
             echo "## 配置推送通道"
@@ -111,8 +126,15 @@ jobs:
             echo
             echo "| 通道 | 需要的 Secrets |"
             echo "|---|---|"
+            echo "| 钉钉群机器人 | DINGTALK_WEBHOOK（开了「加签」再加 DINGTALK_SECRET）|"
+            echo "| 飞书群机器人 | FEISHU_WEBHOOK（同上，再加 FEISHU_SECRET）|"
+            echo "| 企业微信群机器人 | WECOM_WEBHOOK |"
             echo "| 微信（PushPlus） | PUSHPLUS_TOKEN（必填）+ PUSHPLUS_TOPIC（可选，一对多）|"
             echo "| 邮件（SMTP）| SMTP_HOST + SMTP_PORT + SMTP_USER + SMTP_PASS + MAIL_TO + MAIL_FROM |"
+            echo
+            echo "⚠️ 钉钉与飞书的**加签算法不同**，别互相套用："
+            echo "钉钉的 key 是 secret，飞书的 key 是空串 —— 抄错会一直提示 sign not match。"
+            echo "（两个算法都已写进 cloud/tariff/notify.py 的自测，跑 --selfcheck 可自证。）"
             echo
             echo "推荐服务：QQ 邮箱 smtp.qq.com:465（SSL）/ 网易 smtp.163.com:465 / Gmail smtp.gmail.com:587（STARTTLS）"
             echo "⚠️ QQ / 163 / Gmail 都需要专门的「授权码」而不是登录密码，在邮箱后台开通 SMTP 服务时拿到。"

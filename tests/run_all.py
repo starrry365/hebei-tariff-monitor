@@ -60,6 +60,11 @@ TESTS = [
      [sys.executable, "cloud/tariff/selftest_pipeline.py"],
      "集成缝自测（other_nets 四分支 / 返回契约 / note 覆盖）",
      False),    # 会读现有快照文件
+
+    ("final-regressions",
+     [sys.executable, "tests/test_final_regressions.py"],
+     "新增能力回归（推送加签/截断 / 新鲜度 / 汇总 / 采样噪声 / 源码包黑名单）",
+     False),    # 含子进程冒烟，会读 history.json
 ]
 
 
