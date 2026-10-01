@@ -492,7 +492,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
     <div class="ffilt">
       <div class="fsec"><span class="glab">范围</span>
         <label class="f" id="wsb"><span class="fl">板块</span>
-          <select id="sb" title="板块（上游 tariffAttr）：1＝全国/跨省目录（全国资费），2＝本省目录（本省资费）。本网该字段只有一个取值的，这一格不出现">
+          <select id="sb" title="板块：1＝全国/跨省目录（全国资费），2＝本省目录（本省资费）。本网该维度只有一个取值的，这一格不出现">
             <option value="">全部板块</option>
             <option value="全国资费">全国资费</option>
             <option value="本省资费">本省资费</option>
@@ -515,7 +515,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
             <option value="">全部大类</option>
           </select></label>
         <label class="f"><span class="fl">细分</span>
-          <select id="ty" title="类型细分：联通＝上游二级栏目（移网 / 融合 / 权益包 / 流量包 / 促销 / 合约…）；其余三网上游没有二级栏目，退回一级分类。选了类型后不属于它的会置灰">
+          <select id="ty" title="类型细分：联通＝官方二级栏目（移网 / 融合 / 权益包 / 流量包 / 促销 / 合约…）；其余三网官方页面没有二级栏目，退回一级分类。选了类型后不属于它的会置灰">
             <option value="">全部细分</option>
           </select></label>
       </div>
@@ -559,7 +559,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       </div>
       <div class="fsec"><span class="glab">办理</span>
         <label class="f"><span class="fl">渠道</span>
-          <select id="chx" title="办理渠道：上游原文已归一到三档。线上＝APP/网站/热线/短信，线下＝营业厅/门店/校园/代理">
+          <select id="chx" title="办理渠道：已按官方原文归一到三档。线上＝APP/网站/热线/短信，线下＝营业厅/门店/校园/代理">
             <option value="">不限渠道</option>
             <option value="线上">线上</option>
             <option value="线下">线下</option>
@@ -567,7 +567,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
             <option value="其他">其他 / 未注明</option>
           </select></label>
         <label class="f" id="wow"><span class="fl">归属</span>
-          <select id="ow" title="归属：个人资费 / 政企资费（上游 type1 字段；仅移动提供，其余三网上游没有这个字段）">
+          <select id="ow" title="归属：个人资费 / 政企资费（官方标注；仅移动提供，其余三网官方页面没有这个分类）">
             <option value="">全部归属</option>
           </select></label>
       </div>
@@ -626,7 +626,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
     <div class="bars" id="ovSc"></div>
   </div>
   <div class="panel" id="ovOwPanel">
-    <div class="ph"><h2 class="pt">个人 / 政企构成</h2><span class="ps">上游 type1 字段（仅移动提供）</span></div>
+    <div class="ph"><h2 class="pt">个人 / 政企构成</h2><span class="ps">仅移动官方提供归属标注</span></div>
     <div class="bars" id="ovOw"></div>
   </div>
   <div class="panel" id="ovCityPanel">
@@ -652,8 +652,8 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   <th data-k="gb">流量<span class="ar"></span></th>
   <th data-k="call">通话<span class="ar"></span></th>
   <th data-k="name">名称<span class="ar"></span></th>
-  <th data-k="ty" title="类型大类（四网统一口径：套餐 / 加装包 / …）；点列头排序，上游原始分类见展开详情">类型<span class="ar"></span></th>
-  <th title="归属：个人资费 / 政企资费（上游 type1 字段；仅移动提供）">归属</th>
+  <th data-k="ty" title="类型大类（四网统一口径：套餐 / 加装包 / …）；点列头排序，官方原始分类见展开详情">类型<span class="ar"></span></th>
+  <th title="归属：个人资费 / 政企资费（官方标注；仅移动提供）">归属</th>
   <th data-k="bw">宽带<span class="ar"></span></th>
   <th>目标客户</th>
   <th data-k="on">上架<span class="ar"></span></th>
@@ -761,8 +761,8 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
     选具体地市时不会混进来；「已下架」页签下地市下拉整体禁用。</p>
 
     <h3>归属（个人 / 政企）</h3>
-    <p>取上游接口条目的 <code>type1</code> 字段（<code>1</code>=个人资费、<code>2</code>=政企资费）。
-    <b>四网里只有移动提供这个字段</b>，联通 / 电信 / 广电的条目里连 <code>type1</code> 键都不存在 ⇒ 这三网的「归属」下拉隐藏。
+    <p>按官方接口条目的归属字段归一（上游 type1：<code>1</code>=个人资费、<code>2</code>=政企资费）。
+    <b>四网里只有移动官方标注了归属</b>，联通 / 电信 / 广电的条目里连这个字段都不存在 ⇒ 这三网的「归属」下拉隐藏。
     这是<b>上游字段口径</b>，不是从「目标客户」文本里猜的 —— 后者会把「中国移动用户（不含港澳台）」这种
     没写明客户类型的大批量条目判成未知（实测占比 84%~99%），撑不起一个筛选维度。</p>
 
@@ -892,7 +892,7 @@ function scTag(d){
 function owTag(d){
   if(!d.ow)return"";
   return '<span class="bg bg-ow'+(d.ow==="政企"?" bg-ow-g":"")+'" title="归属：'
-    +esc(d.ow)+'（上游 type1 字段）">'+esc(d.ow)+'</span>';
+    +esc(d.ow)+'（官方标注）">'+esc(d.ow)+'</span>';
 }
 function stopTag(d){
   return d.st?' <span class="bg bg-stop" title="已下架（判据见「关于本页」页脚）">已下架</span>':"";
@@ -1253,7 +1253,7 @@ function render(){
       +'<td>'+fmtGb(d.g)+perCell(d)+'</td>'
       +'<td>'+(d.c&&d.c!=="0"?esc(d.c)+" 分":"—")+'</td>'
       +'<td class="nm">'+scTag(d)+esc(d.n||d.t)+chgTag(d)+stopTag(d)+'</td>'
-      +'<td><span class="tg" title="类型大类（四网统一口径）；上游原始分类见展开详情">'+esc(d.cat||"—")+'</span></td>'
+      +'<td><span class="tg" title="类型大类（四网统一口径）；官方原始分类见展开详情">'+esc(d.cat||"—")+'</span></td>'
       +'<td>'+owTag(d)+'</td>'
       +'<td>'+bwCell(d)+'</td>'
       +'<td class="ap">'+esc((d.ap||"—").slice(0,90))+'</td>'
@@ -1263,9 +1263,9 @@ function render(){
     dr.innerHTML='<td colspan="10"><div>'
       +((d.ca||d.ck)?'<b>本次巡检</b>'+esc((d.ca?"新增":"")+(d.ca&&d.ck?" · ":"")
           +(d.ck?"关键字段有变更（月费 / 流量 / 上下线 / 权益等）":""))+'<br>':"")
-      +(d.ow?'<b>归属</b>'+esc(d.ow)+'（上游 type1 字段）<br>':"")
+      +(d.ow?'<b>归属</b>'+esc(d.ow)+'（官方标注）<br>':"")
       +'<b>类型</b>'+esc(d.cat||"—")
-        +(d.ty&&d.ty!==d.cat?' <span class="mut">（上游分类：'+esc(d.ty)+'）</span>':"")+'<br>'
+        +(d.ty&&d.ty!==d.cat?' <span class="mut">（官方分类：'+esc(d.ty)+'）</span>':"")+'<br>'
       +'<b>套餐名</b>'+esc(d.t||"—")+'<br>'
       +'<b>目标客户</b>'+esc(d.ap||"—")+'<br>'
       +'<b>办理渠道</b>'+esc(d.ch||"—")+'<br>'
@@ -1731,13 +1731,13 @@ function buildCtOptions(counts){
      · dimOff：本网上游没有条目级地市 ⇒ 整层隐藏（构建期一条 cty 都没有）；
      · stop  ：「已下架」页签 ⇒ 已下架条目没有地市归属（见 apply() 里的注释）；
      · 都不成立 ⇒ 可用。 */
-const CT_TIP_ON="地市：按**上游声明的适用范围**判定 —— 移动/电信读条目地市字段"
+const CT_TIP_ON="地市：按**官方声明的适用范围**判定 —— 移动/电信读条目地市字段"
   +"（没有字段的少数条目才按文案兜底），联通读 12 城资费目录的归属。"
   +"选某个市 = 「不限地市」的那批 + 该市专属；只看不限地市的，选「仅全省通用」。";
-const CT_TIP_STOP="已下架条目不参与地市归属：上游「停售目录」是各城各自的遗留清单，"
+const CT_TIP_STOP="已下架条目不参与地市归属：官方「停售目录」是各城各自的遗留清单，"
   +"同一条资费被哪些城市收录并不固定 ⇒ 按地市筛出来的数字不是真的（这一档因此禁用）。"
   +"切回「在售」即可按地市筛。";
-const CT_TIP_OFF="本网上游没有条目级地市数据，该维度不提供";
+const CT_TIP_OFF="本网官方没有条目级地市数据，该维度不提供";
 function syncCtAvail(dimOff,stop){
   const ct=$("#ct");if(!ct)return;
   const off=!!(dimOff||stop);
@@ -1846,8 +1846,8 @@ function renderDims(){
     if(wsb)wsb.style.display=hasSb?"":"none";
     if(!hasSb)sbSel.value="";      // 切网时把别网带过来的值清掉，否则筛选恒空
     sbSel.title=hasSb
-      ?"板块（上游 tariffAttr）：全国资费＝全国/跨省目录，本省资费＝河北本省目录（0 条的档置灰）"
-      :"本网上游只有一个板块（无 tariffAttr 区分），该维度不提供";
+      ?"板块：全国资费＝全国/跨省目录，本省资费＝河北本省目录（0 条的档置灰）"
+      :"本网官方页面只有一个板块，该维度不提供";
     [...sbSel.options].forEach(o=>{
       if(!o.value){o.disabled=false;return}
       o.disabled=!rs.some(d=>d.sect===o.value);
@@ -1864,8 +1864,8 @@ function renderDims(){
     owSel.style.display=hasOw?"":"none";
     const wow=$("#wow");if(wow)wow.style.display=hasOw?"":"none";   // 连「归属」标签一起收
     if(!hasOw)owSel.value="";   // 切网时把别网带过来的归属值清掉，否则筛选恒空
-    owSel.title=hasOw?"归属：个人资费 / 政企资费（上游 type1 字段）"
-      :"本网上游没有「归属」字段（条目里无 type1），该维度不提供";
+    owSel.title=hasOw?"归属：个人资费 / 政企资费（官方标注）"
+      :"本网官方页面没有「归属」分类，该维度不提供";
   }
 }
 
@@ -2100,8 +2100,8 @@ function renderOverview(){
   const nCty=live.filter(d=>(d.cty||[]).length).length;
   if(nCty)
     k.push(["🏙️","地市专属",nCty,
-            "只适用某几个市（移动/电信取上游地市字段，联通取 12 城资费目录的归属）"]);
-  if(rs.some(d=>d.ow))k.push(["🏢","政企资费",gq,"上游 type1=2 的条目（仅移动提供该字段）"]);
+            "只适用某几个市（移动/电信按官方标注的地市归属，联通取 12 城资费目录的归属）"]);
+  if(rs.some(d=>d.ow))k.push(["🏢","政企资费",gq,"官方标注为「政企」的条目（仅移动提供归属分类）"]);
   k.push(["📴","已下架",rs.filter(d=>d.st).length,"本网判据下已停售/下线的条目"]);
   k.push(["🔄","本次变更",rs.filter(d=>d.ca||d.ck).length,"本次巡检新增或关键字段有变动的条目"]);
   $("#ovStats").innerHTML=k.map(x=>
@@ -2117,7 +2117,7 @@ function renderOverview(){
   const sc={};rs.forEach(d=>{const k2=SC_LB[d.sc]||"未知";sc[k2]=(sc[k2]||0)+1});
   $("#ovScNote").textContent=(live.some(d=>(d.cty||[]).length)
     ? "河北含各地市专属与全省通用；另见下方地市分布"
-    : "本网上游只有「河北 / 全国」两档地域（无地市级数据）");
+    : "本网官方只有「河北 / 全国」两档地域（无地市级数据）");
   ovBars($("#ovSc"),["河北","全国","未知"],sc);
 
   /* ── 个人 / 政企 ── */
