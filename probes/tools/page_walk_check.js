@@ -290,7 +290,13 @@
   safe("geom", function () {
     if (NETKEYS.length) switchNet(NETKEYS[0]);
     setView("list");
-    scrollTo(0, 600);
+    /* 🔴 不能写死 scrollTo(0,600)：判据是「表头钉在页签下沿」，而表头只在
+       滚过表格自身顶点后才会被 sticky 夹住。筛选栏高一点（或窗口矮一点）时
+       600px 还没滚到临界点，th 的自然位置还在视口中部 —— 几何全对也会被判
+       thOk:false。改为滚到「表格顶点 + 60px」，保证表头一定处于夹住态。 */
+    var _tbl = document.querySelector("table");
+    var _y = _tbl ? (_tbl.getBoundingClientRect().top + window.pageYOffset + 60) : 600;
+    scrollTo(0, Math.max(600, _y));
     function box(sel) {
       var e = document.querySelector(sel); if (!e) return null;
       var r = e.getBoundingClientRect();
@@ -339,7 +345,11 @@
     }
     m.sticky = { roots: stickyRoots, bad: stickyBad, n: stickyRoots.length };
 
-    var barSticky = !!bar && getComputedStyle(bar).position === "sticky";
+    /* 🔴 box() 返回的是几何对象 {top,h}，不能直接喂给 getComputedStyle（会抛
+       「parameter 1 is not of type 'Element'」把整个 geom 段掐断 —— 这个段里
+       后面的不透明自检全都不会执行）。单独取元素再判。 */
+    var barEl = document.querySelector("#bar");
+    var barSticky = !!barEl && getComputedStyle(barEl).position === "sticky";
     m.geom = {
       vtabTop: vt && vt.top, vtabH: vt && vt.h,
       barTop: bar && bar.top, barH: bar && bar.h,
