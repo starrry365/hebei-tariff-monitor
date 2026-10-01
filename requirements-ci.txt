@@ -1,0 +1,8 @@
+# CI / 每日巡检的 Python 依赖清单 —— 专供 actions/setup-python 的 pip 缓存。
+# 为什么单独一份：仓库没有统一的 requirements.txt（依赖本来就只有这几行、
+# 分散在各 workflow 的 pip install 里），而 setup-python 的 cache: pip
+# 需要一个依赖文件做缓存键。改了版本记得同步改 tariff-daily.yml / ci.yml 里的安装行。
+pycryptodome
+websocket-client
+ruff==0.16.9
+pyyaml

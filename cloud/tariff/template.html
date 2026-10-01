@@ -289,6 +289,11 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 .det div{padding:12px 16px;line-height:1.85;border-bottom:1px solid var(--bd2)}
 .det b{color:var(--tx2);font-weight:600;display:inline-block;min-width:96px}
 .detact{margin-top:9px}
+/* 「同价位更优」智能对比行 + 建议徽标（绿 = 更划算，与 --okbg 一个语义） */
+.ailine{margin-top:9px;display:flex;flex-wrap:wrap;gap:5px;align-items:center;line-height:1.85}
+.ailine b{color:var(--tx2);font-weight:600}
+.aichip{padding:2px 10px;border-radius:999px;background:var(--okbg);color:var(--ok);
+  font-size:12px;font-weight:600}
 .cpbtn{padding:5px 12px;border:1px solid var(--bd2);background:var(--glass3);border-radius:9px;
   font-size:12px;cursor:pointer;color:var(--tx2);font-family:inherit}
 .cpbtn:hover{border-color:var(--ac);color:var(--ac)}
@@ -363,6 +368,12 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 .tgl{padding:5px 12px;border:1px solid var(--bd2);background:var(--glass3);border-radius:999px;
   font-size:12px;cursor:pointer;color:var(--tx2);font-family:inherit}
 .tgl:hover{border-color:var(--ac);color:var(--ac)}
+
+/* ── 在架规模趋势（SVG 折线，纯前端由 HIST 现算）────────────────── */
+#trendBox svg{display:block;width:100%;height:auto}
+.trend-leg{display:flex;flex-wrap:wrap;gap:5px 16px;padding:8px 2px 0;font-size:12px;color:var(--tx2)}
+.trend-leg i{display:inline-block;width:16px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.trend-leg b{font-weight:650}
 
 /* ── 数据说明 ───────────────────────────────────────────────────── */
 .ab p{margin:10px 0;font-size:13px;line-height:1.92;color:var(--tx2)}
@@ -657,6 +668,10 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 
 <!-- ═══ 变化历史 ═══ -->
 <section class="view" id="v-hist">
+  <div class="panel" id="trendPanel">
+    <div class="ph"><h2 class="pt">在架规模趋势</h2><span class="ps" id="trendNote"></span></div>
+    <div id="trendBox"></div>
+  </div>
   <div class="panel">
     <div class="ph">
       <h2 class="pt">资费变更时间线</h2>
@@ -679,10 +694,16 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
     <ul>
       <li><b>★ 收藏关注</b>：条目名称前的星标把这条资费收进本机收藏；筛选条上的
         「☆ 只看收藏」只显示收藏项。收藏存在<b>浏览器本地</b>（localStorage），
-        不上传、不跨设备同步。</li>
+        不上传；可用筛选条上的<b>「收藏导出 / 收藏导入」</b>把收藏备份成 JSON
+        或搬到别的设备（导入按<b>合并</b>处理，不覆盖本机已有的）。</li>
+      <li><b>同价位更优</b>：展开任意一条资费的详情，会自动列出同网
+        ±10 元档内、流量更多且每元流量更高的在售资费（最多 3 条）——
+        省去手动翻几千条比价的过程。</li>
       <li><b>离线安装（PWA）</b>：在浏览器菜单里「添加到主屏幕 / 安装应用」可把本页
         装成一个独立应用；断网时能打开上一次缓存的版本（页面本身仍是网络优先，
         保证看到的不是昨天的价目表）。</li>
+      <li><b>在架规模趋势</b>：「变化历史」页顶部按网画出每天在架条数的折线 ——
+        哪一网在涨、哪一网在缩，不用逐天点开时间线就能看出。</li>
       <li><b>源码包</b>：<a href="hebei-tariff-monitor-source.zip" download>下载源码快照</a>
         —— 可直接跑的一份代码（<b>不含任何凭据与数据快照</b>，由
         <code>cloud/tariff/make_source_zip.py</code> 确定性打包）。</li>
@@ -1171,6 +1192,41 @@ function offCell(d){
   return'<div>'+fmtD(d.e)+'</div><div class="mut">'+lf+' 天后到期</div>';
 }
 
+/* —— 「同价位更优选择」（2026-10-01）——
+   用户盯着一 条 59 元 30GB 的套餐时，心里真正的问题是「这个价位有没有更好的」。
+   答案就在同网数据里，但手动翻页去比对几千条没人会做 —— 把这一步做成展开详情时
+   自动给出：±10 元档内、流量更多**且**每元流量更高（更划算）的在售资费 top3。
+   ★ 判据全用页面既有口径（perVal / num / fmtGb），不另立一套：
+     「更划算」= 每元流量严格更高；「更多」= 流量严格更大。两者同时满足才算更优，
+     只便宜不多给的不算（那可能是权益缩水）。
+   ★ 0 元档（每元流量 = ∞）天然是「更优」，保留 —— 它确实更划算。
+   ★ 确定性：只读行数据，同一份数据展开两次结果逐字节一致。 */
+function aiCompareHTML(d){
+  const f=num(d.f);
+  if(f==null||f<=0||!d.g)return"";          // 无月费 / 0 元 / 无流量的没有「同价位」可言
+  const rs=rowsOf(NET),lo=f-10,hi=f+10,my=perVal(d),hits=[];
+  for(let i=0;i<rs.length;i++){
+    const x=rs[i];
+    if(x.st)continue;                        // 只推在售
+    if(x===d||!x.g)continue;
+    const xf=num(x.f);
+    if(xf==null||xf<lo||xf>hi)continue;
+    if(x.g<=d.g)continue;                    // 流量必须更多
+    const xp=perVal(x);
+    if(xp==null||xp<=(my==null?-1:my))continue;   // 每元流量必须更高
+    hits.push([xp,x]);
+  }
+  if(!hits.length)return"";
+  hits.sort((a,b)=>b[0]-a[0]);
+  const fmt=v=>v===Infinity?"∞":(v>=10?String(Math.round(v)):v.toFixed(1));
+  return '<span class="mut">±10 元内、流量更多且更划算的：</span>'
+    +hits.slice(0,3).map(p=>{
+      const x=p[1];
+      return '<span class="aichip" title="月费 '+esc(String(x.f))+' 元 · 流量 '+esc(fmtGb(x.g))
+        +' · 每元 '+esc(fmt(p[0]))+'GB">'+esc((x.n||x.t||"—").slice(0,42))+'</span>';
+    }).join("");
+}
+
 function render(){
   const tb=$("#tb");tb.innerHTML="";
   const st=pg*PAGE,slice=view.slice(st,st+PAGE);
@@ -1220,9 +1276,22 @@ function render(){
       +'<b>超套资费</b>'+esc(d.ex||"—")+'<br>'
       +'<b>有效期</b>'+esc(d.vp||"—")+'<br>'
       +'<b>权益说明</b>'+esc(d.x||"—")
+      +'<div class="ailine" style="display:none"><b>同价位更优</b><span class="aicmp"></span></div>'
       +'<div class="detact"><button type="button" class="cpbtn">复制这条资费</button></div>'
       +'</div></td>';
-    tr.onclick=()=>dr.classList.toggle("on");
+    tr.onclick=()=>{
+      const open=dr.classList.toggle("on");
+      /* 「同价位更优」按需计算（首次展开才算一次）：全表 9000 行扫一遍，
+         80 行都预计算就是 72 万次比较/每次渲染 —— 而绝大多数详情根本没被展开过。 */
+      if(open&&!dr.dataset.ai){
+        const el=dr.querySelector(".aicmp"),line=dr.querySelector(".ailine");
+        if(el&&line){
+          const html=aiCompareHTML(d);
+          if(html){el.innerHTML=html;line.style.display=""}
+        }
+        dr.dataset.ai="1";
+      }
+    };
     /* 复制按钮在**另一个 tr**（详情行）里，点它不会冒泡到上面那个 tr，
        所以不需要 stopPropagation；但它是独立元素，得自己绑事件。 */
     dr.querySelector(".cpbtn").onclick=()=>copyText(rowText(d));
@@ -2111,7 +2180,74 @@ function renderOverview(){
    ★ 数据来自构建脚本注入的 HIST（history.json 的 items），不解析 changes/*.md：
      那是给人读的长文，正则一改版就全废 —— 产物不该当接口用。
    ══════════════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════════
+   在架规模趋势（SVG 折线）
+   ★ 数据同源：HIST（history.json items）里每条巡检记录自带 n（当轮条数）——
+     之前页面只把它藏在时间线的「N 条」小字里，趋势信息（哪一网在涨/在跌）
+     完全不可见。四条折线一画，「联通在架规模稳步上涨」「广电缩水」这类
+     需要人脑连点十几天才看得出的结论一眼可得。
+   ★ 纯前端现算、不新增构建期产物：HIST 已注入页面，本函数只读它 ——
+     数据没变时画出的 SVG 逐字节一致，不破坏「归档可逐字节比对」的铁律。
+   ★ 单点序列（某网只巡检过一天）画不成线，就画一个点 + 数值，不硬画。
+   ══════════════════════════════════════════════════════════════════════ */
+const TR_COLOR={move:"#0085d0",unicom:"#e2231a",telecom:"#0057b8",cbn:"#c8102e"};
+const TR_NAME=c=>(NETS[c]&&NETS[c].nm)||c;
+const TR_MAX=60;                       // 最多画最近 60 天：再长横轴就挤成噪声了
+function renderTrend(){
+  const box=$("#trendBox"),note=$("#trendNote"),panel=$("#trendPanel");
+  if(!box)return;
+  const items=(HIST||[]).filter(x=>x&&x.d&&x.n!=null);
+  if(items.length<2){panel.style.display="none";return}
+  panel.style.display="";
+  /* 日期横轴：取并集排序（四网巡检时点不同，某天可能只有两网有数）。 */
+  const days=[...new Set(items.map(x=>x.d))].sort();
+  const show=days.slice(-TR_MAX);
+  const dset={};show.forEach((d,i)=>{dset[d]=i});
+  const byNet={};
+  items.forEach(x=>{if(x.d in dset)(byNet[x.code]=byNet[x.code]||{})[x.d]=x.n});
+  const codes=Object.keys(byNet).filter(c=>Object.keys(byNet[c]).length);
+  if(!codes.length){panel.style.display="none";return}
+  const W=680,H=210,P=44;
+  let lo=Infinity,hi=-Infinity;
+  codes.forEach(c=>Object.keys(byNet[c]).forEach(d=>{
+    const v=byNet[c][d];if(v<lo)lo=v;if(v>hi)hi=v;
+  }));
+  if(lo===hi){lo=Math.max(0,lo-50);hi=hi+50}
+  const pad=(hi-lo)*0.08;lo=Math.max(0,lo-pad);hi+=pad;
+  const X=i=>show.length>1?P+i*(W-P-10)/(show.length-1):W/2;
+  const Y=v=>H-28-(v-lo)*(H-52)/(hi-lo);
+  const esc2=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+  let g='';
+  [0,.5,1].forEach(t=>{
+    const v=lo+(hi-lo)*t,y=Y(v).toFixed(1);
+    g+='<line x1="'+P+'" y1="'+y+'" x2="'+(W-10)+'" y2="'+y+'" stroke="var(--bd2)" stroke-width="1"/>'
+      +'<text x="'+(P-6)+'" y="'+(+y+4)+'" text-anchor="end" font-size="10" fill="var(--tx3)">'+Math.round(v)+'</text>';
+  });
+  const step=show.length>10?Math.ceil(show.length/8):1;
+  show.forEach((d,i)=>{
+    if(i%step&&i!==show.length-1)return;
+    g+='<text x="'+X(i).toFixed(1)+'" y="'+(H-10)+'" text-anchor="middle" font-size="10" fill="var(--tx3)">'+d.slice(5)+'</text>';
+  });
+  codes.forEach(c=>{
+    const ds=Object.keys(byNet[c]).sort(),col=TR_COLOR[c]||"var(--tx3)";
+    let path="",pts="";
+    ds.forEach(d=>{
+      const i=dset[d],x=X(i).toFixed(1),y=Y(byNet[c][d]).toFixed(1);
+      path+=(path?" L":"M")+x+" "+y;
+      pts+='<circle cx="'+x+'" cy="'+y+'" r="2.6" fill="'+col+'">'
+        +'<title>'+esc2(d+" "+TR_NAME(c)+"："+byNet[c][d]+" 条")+'</title></circle>';
+    });
+    g+='<path d="'+path+'" fill="none" stroke="'+col+'" stroke-width="2" stroke-linejoin="round" opacity=".9"/>'+pts;
+  });
+  box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="各网在架资费条数趋势">'+g+'</svg>'
+    +'<div class="trend-leg">'+codes.map(c=>
+      '<span><i style="background:'+(TR_COLOR[c]||"var(--tx3)")+'"></i><b>'+esc(TR_NAME(c))+'</b>（'+show.length+' 天）</span>').join("")
+    +'</div>';
+  note.textContent="每天每网巡检当轮的在架条数（history.json，只画最近 "+show.length+" 天）";
+}
+
 function renderHistory(){
+  renderTrend();
   const box=$("#histBox"),note=$("#histNote");
   const items=(HIST||[]).slice().sort((a,b)=>String(b.ts||"").localeCompare(String(a.ts||"")));
   /* 抑制原因（history.json 的 note）—— 中文对照表。
@@ -2215,7 +2351,15 @@ renderNav();renderNet();
 readHash();
 markHead();
 
-$("#kw").oninput=apply;
+/* 搜索框防抖（2026-10-01）：#kw 每敲一个字符都会触发一轮全量 filter + sort
+   （联通那网 8000+ 行，decorate-sort 也要 O(n) 取值一遍）。连打一串字时，
+   中间的每一键都是白算的 —— 用户只会看最后那一下。150ms 足以把「连打」
+   合并成一次，又不会让人感到迟钝。Esc 清空那条路径保持立即 apply
+   （清空是明确的一次性动作，没必要再等 150ms）。
+   ★ 只防抖 #kw：下拉/页签/快捷 chip 的 onchange 本来就是低频离散动作，
+     加防抖反而让「点了没反应」的错觉有机会出现。 */
+let _kwT=null;
+$("#kw").oninput=()=>{clearTimeout(_kwT);_kwT=setTimeout(apply,150)};
 DIMS.forEach(k=>{
   /* 这里**不再**单独处理大类联动：统一由 apply() 开头那一次 syncDims() 负责。
      两处都写会让人以为「只有走 onchange 才联动」，而深链那条路恰恰就是这么漏掉的。 */
@@ -2435,6 +2579,24 @@ function refresh() {
 }
 
 /* ── 注入按钮与提示条（幂等：重复调用不会插第二份） ── */
+/* ── 收藏导入 / 导出（2026-10-01）──────────────────────────────────
+   收藏存 localStorage 是「纯本机偏好」，但也因此换设备 / 清浏览器数据就全丢。
+   导出 = 一份 JSON 文件（键 = "网|名称"，与页内格式一致）；导入 = **合并**
+   （不是覆盖：两台设备各收了一半，合并才是用户要的）。文件名带数据基线日期，
+   与 CSV 导出同一命名惯例 —— 同一份数据导两次不堆重复文件。 */
+function updateStars() {
+  var body = tb();
+  if (!body) return;
+  var rows = body.querySelectorAll("tr.row");
+  for (var i = 0; i < rows.length; i++) {
+    var b = rows[i].querySelector(".favbtn");
+    if (!b) continue;
+    var on = !!fav[rows[i].dataset.k || ""];
+    b.textContent = on ? "★" : "☆";
+    b.className = "favbtn" + (on ? " on" : "");
+  }
+}
+
 function inject() {
   var chips = document.getElementById("chips");
   if (chips && !document.getElementById("favOnly")) {
@@ -2449,6 +2611,69 @@ function inject() {
       refresh();
     };
     chips.appendChild(b);
+  }
+  /* 收藏导出：全部收藏 → JSON 下载（download() / net() 复用主页面的全局函数） */
+  if (chips && !document.getElementById("favExp")) {
+    var ex = document.createElement("button");
+    ex.type = "button";
+    ex.id = "favExp";
+    ex.className = "favchip";
+    ex.title = "把本机收藏导出成 JSON 文件（换设备 / 备份用）";
+    ex.textContent = "收藏导出";
+    ex.onclick = function () {
+      var n = Object.keys(fav).length;
+      if (!n) { if (window.toast) toast("还没有任何收藏，先点条目名前的 ☆"); return; }
+      var base = "";
+      try { base = (window.net ? net().base : "") || ""; } catch (e) {}
+      download("河北资费收藏_" + base + ".json",
+               JSON.stringify({ v: 1, app: "hebei-tariff-monitor", favs: fav }, null, 1),
+               "application/json");
+    };
+    chips.appendChild(ex);
+  }
+  /* 收藏导入：读 JSON → 只认「含 | 的字符串键」→ **合并**进本机收藏 */
+  if (chips && !document.getElementById("favImp")) {
+    var im = document.createElement("button");
+    im.type = "button";
+    im.id = "favImp";
+    im.className = "favchip";
+    im.title = "从导出的 JSON 文件合并收藏（不覆盖本机已有的）";
+    im.textContent = "收藏导入";
+    var fi = document.createElement("input");
+    fi.type = "file";
+    fi.accept = ".json,application/json";
+    fi.style.display = "none";
+    im.onclick = function () { fi.click(); };
+    fi.onchange = function () {
+      var f = fi.files && fi.files[0];
+      if (!f) return;
+      var r = new FileReader();
+      r.onload = function () {
+        try {
+          var o = JSON.parse(r.result);
+          var src = (o && typeof o === "object") ? (o.favs || o) : null;
+          var total = 0, added = 0;
+          if (src && typeof src === "object") {
+            Object.keys(src).forEach(function (k) {
+              if (typeof k === "string" && k.indexOf("|") > 0) {
+                total++;
+                if (!fav[k]) { fav[k] = 1; added++; }
+              }
+            });
+          }
+          if (!total) { if (window.toast) toast("导入失败：文件里没有可识别的收藏"); return; }
+          saveObj(FAV_KEY, fav);
+          updateStars(); refresh();
+          if (window.toast) toast("导入 " + total + " 条收藏（本机新增 " + added + " 条）");
+        } catch (err) {
+          if (window.toast) toast("导入失败：不是有效的收藏导出文件");
+        }
+      };
+      r.readAsText(f);
+      fi.value = "";                      // 允许连续导入同一个文件
+    };
+    chips.appendChild(im);
+    chips.appendChild(fi);
   }
   if (chips && !document.getElementById("favNote")) {
     var d = document.createElement("div");
