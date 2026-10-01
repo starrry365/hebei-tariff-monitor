@@ -957,11 +957,13 @@ function bwMbps(d){
 function bwDetail(d){
   const i=bwInfo(d),raw=String(d.bw==null?"":d.bw).trim();
   const v=i?(i.src==="field"?"含宽带":"含宽带（字段未填，按名称判定）"):"不含宽带";
-  if(!i)return v+"（字段原文："+(raw||"空")+"）";
+  /* 🔴 raw 是运营商接口原文，必须 esc —— 这是全页唯一经手上游原文且进 innerHTML
+     的位置；漏转义就是构建期烤进静态页的存储型 XSS（2026-10-02 代码审查抓到）。 */
+  if(!i)return v+"（字段原文："+(esc(raw)||"空")+"）";
   const mb=bwMbps(d);
   const sp=bwSpeed(d)?' · <span class="bwtg" title="名称/权益里带「提速、光网、组网、FTTR」字样">提速/组网</span>':"";
   return v+(mb?' · <span class="bwtg">'+mb+'M</span>':"")+sp
-    +'（字段原文：'+(raw||"空")+"）";
+    +'（字段原文：'+(esc(raw)||"空")+"）";
 }
 function cityTags(d){return d.cty||[]}
 function bwCell(d){
@@ -1103,9 +1105,14 @@ function condOf(){
   /* 已下架页签下地市维度整体失效（理由见 apply() 里那段注释）。 */
   dm.ct=dm.ct||!!(ctOpt&&ctOpt.disabled)||STA==="1";
   const g=k=>{const e=document.getElementById(k);return e?e.value:""};
+  /* 区间值在这里一次性解析（["0,5" → [0,5]]），match() 里直接用数组 ——
+     否则每行每轮都重复 split/map。rg 值三种形态：null=不筛 / "none"=无该项 /
+     [lo,hi]=区间。 */
+  const rg=k=>{const v=g(k);if(!v)return null;if(v==="none")return"none";
+    const p=v.split(",").map(Number);return[p[0],p[1]]};
   return {kw:$("#kw").value.trim().toLowerCase(),
           sb:g("sb"),sc:g("sc"),ow:g("ow"),cat:g("cat"),ty:g("ty"),ct:g("ct"),
-          pf:g("pf"),gf:g("gf"),cf:g("cf"),bw:g("bw"),chx:g("chx"),
+          pf:rg("pf"),gf:rg("gf"),cf:rg("cf"),bw:g("bw"),chx:g("chx"),
           on:g("on"),offv:g("off"),chg:g("chg"),sta:STA,dimOff:dm};
 }
 
@@ -1527,8 +1534,8 @@ function match(d,c){
       else if(!(d.pw||tg.indexOf(ct)>=0))return false;
     }
     if(pf){
-      const p=pf.split(",").map(Number),f=num(d.f);
-      if(f==null||f<p[0]||f>p[1])return false;
+      const f=num(d.f);
+      if(f==null||f<pf[0]||f>pf[1])return false;
     }
     /* 流量区间。「无流量」＝ 流量填 0 **或** 压根没填流量字段 ——
        后者在移动那网占全部条目的 34.8%（1326 条）。若把它们挡在「无流量」之外，
@@ -1537,8 +1544,7 @@ function match(d,c){
       if(gf==="none"){
         if(!(d.g==null||d.g===0))return false;
       }else{
-        const p=gf.split(",").map(Number);
-        if(d.g==null||d.g<p[0]||d.g>p[1])return false;
+        if(d.g==null||d.g<gf[0]||d.g>gf[1])return false;
       }
     }
     if(cf){
@@ -1546,8 +1552,7 @@ function match(d,c){
       if(cf==="none"){
         if(!(cm==null||cm===0))return false;
       }else{
-        const p=cf.split(",").map(Number);
-        if(cm==null||cm<p[0]||cm>p[1])return false;
+        if(cm==null||cm<cf[0]||cm>cf[1])return false;
       }
     }
     /* 渠道：上游原文已由构建脚本归一到三档（+其他）写在 d.chx 上，这里直接比对。
@@ -1582,9 +1587,12 @@ function match(d,c){
          权益 / 宽带 / 超套 / 有效期。
          加 d.cat 是刻意的：搜「加装包」应当命中原分类写作「流量包」「语音包」的条目 ——
          大类是用户心里的词，细分是上游的词，搜索该按用户那套来。
-         特意不含月费与流量数值：它们已有专门的筛选与排序，混进来只会让搜「50」全是噪音。 */
-      const s=[d.n,d.t,d.ap,d.ch,d.r,d.ty,d.cat,d.chx,d.x,d.bw,d.ex,d.vp]
-                .join(" ").toLowerCase();
+         特意不含月费与流量数值：它们已有专门的筛选与排序，混进来只会让搜「50」全是噪音。
+         🔴 拼接串缓存进行对象（_kws）：行数据是构建期常量，这串每个字都不变；
+            不缓存的话 1.4 万行 × 每次输入重建一遍，纯属浪费（2026-10-02 审查项）。 */
+      let s=d._kws;
+      if(s==null){s=[d.n,d.t,d.ap,d.ch,d.r,d.ty,d.cat,d.chx,d.x,d.bw,d.ex,d.vp]
+                .join(" ").toLowerCase();d._kws=s}
       if(!s.includes(kw))return false;
     }
     return true;
@@ -2250,8 +2258,14 @@ function ovBars(el,order,obj,note){
   el.innerHTML=order.filter(k=>obj[k]).map(k=>ovBar(k,obj[k],max,nf(k))).join("")
     || '<div class="mut">本网无此类数据</div>';
 }
+/* 上次 renderOverview 的输入签名：同网且行数组同一引用 ⇒ 结果必然不变，
+   直接跳过 —— 否则每敲一个搜索键都要为它多付约 10 趟全表过滤（2026-10-02 审查项）。
+   行数据是构建期常量、运行期无任何写路径，引用比对足够可靠。 */
+let _ovNet=null,_ovRows=null;
 function renderOverview(){
   const rs=rowsOf(NET),has=online(NET);
+  if(_ovNet===NET&&_ovRows===rs)return;
+  _ovNet=NET;_ovRows=rs;
   if(!has){
     $("#ovStats").innerHTML='<div class="stat k"><div class="si">⏳</div>'
       +'<div class="sn">—</div><div class="sl">本网数据尚未接入</div></div>';

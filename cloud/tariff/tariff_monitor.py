@@ -676,7 +676,12 @@ def call(path, body, retry=2):
             req = urllib.request.Request(ROOT + path, data=data,
                                          headers=HEADERS, method="POST")
             with _OPENER.open(req, timeout=25) as r:
-                txt = r.read().decode("utf-8", "replace").strip()
+                # 读上限兜底：单页响应正常 < 几 MB，超过 64MB 必是异常（坏网关把
+                # 错误页/重定向流吐回来），别真往内存里塞（2026-10-02 审查项）。
+                raw = r.read(64 * 1024 * 1024 + 1)
+            if len(raw) > 64 * 1024 * 1024:
+                raise ValueError("单页响应超过 64MB 上限")
+            txt = raw.decode("utf-8", "replace").strip()
             j = json.loads(txt)
             if isinstance(j, dict) and set(j.keys()) == {"body"}:
                 j = json.loads(mz_crypto.decrypt(j["body"]))

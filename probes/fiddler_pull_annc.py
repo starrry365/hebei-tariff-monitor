@@ -43,6 +43,10 @@ def _load_key():
 KEY = _load_key()
 KW = sys.argv[1] if len(sys.argv) > 1 else "announcement"
 
+# 显式空 ProxyHandler：裸 urlopen 会读环境变量/注册表残留代理，把对本机 8868 的
+# 请求静默改道（与 cloud/tariff 各采集脚本同一原则，2026-10-02 审查项）。
+_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
 
 def rpc(session, method, params=None, mid=[0]):
     mid[0] += 1
@@ -52,7 +56,7 @@ def rpc(session, method, params=None, mid=[0]):
         "Content-Type": "application/json",
         "Accept": "application/json, text/event-stream",
         "Authorization": KEY, "Mcp-Session-Id": session})
-    with urllib.request.urlopen(req, timeout=120) as r:
+    with _OPENER.open(req, timeout=120) as r:
         raw = r.read().decode("utf-8", "replace")
     raw = parse_sse(raw)
     j = json.loads(raw)
@@ -115,7 +119,7 @@ def get_sid():
     req = urllib.request.Request(MCP, data=body, method="POST", headers={
         "Content-Type": "application/json",
         "Accept": "application/json, text/event-stream", "Authorization": KEY})
-    with urllib.request.urlopen(req, timeout=30) as r:
+    with _OPENER.open(req, timeout=30) as r:
         sid = r.headers.get("Mcp-Session-Id")
         r.read()
     # 新 session 可能踩 "Tool not found" bug：多试几次 get_status

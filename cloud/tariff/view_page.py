@@ -79,9 +79,11 @@ def detect_proxy():
 def github_token():
     """从本机 git 凭据管理器取 GitHub token（不落盘、不回显）。"""
     try:
-        r = subprocess.run(
-            "printf 'protocol=https\\nhost=github.com\\n\\n' | git credential fill",
-            shell=True, capture_output=True, text=True, timeout=30)
+        # 列表形式 + stdin，不走 shell（2026-10-02 审查项：原来 shell=True 虽无注入面，
+        # 但管道符拼接是坏习惯；这里还顺带免了一个 printf 子进程）。
+        r = subprocess.run(["git", "credential", "fill"],
+                           input="protocol=https\nhost=github.com\n\n",
+                           capture_output=True, text=True, timeout=30)
     except Exception as e:
         raise SystemExit("调用 git 取凭据失败：%s" % e)
     for line in r.stdout.splitlines():

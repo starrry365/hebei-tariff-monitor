@@ -110,14 +110,20 @@ def load_rows(net=None):
 
 
 def bw_info(x):
-    """复现 template.html 的 bwInfo()：返回 ('field', 速率) / ('name', '含宽带') / None"""
+    """复现 template.html 的 bwInfo()：返回 ('field', 速率) / ('name', '含宽带') / None
+
+    🔴 结构必须与页面**同序**：字段明示优先，名称线索只在字段空/否定时兜底。
+       2026-10-02 conformance 抓到本函数曾「名称含 NOTLINE 词 ⇒ 直接 None」，
+       把字段明明写了「含宽带」的条目也排除了（名称叫「…宽带电视…」而字段写
+       「300M」的融合套餐）——与页面「字段优先」语义反向漂移，37 个 bw 用例
+       恒失败（页面是对的，oracle 是复现，漂移改 oracle —— 同 city_tags 先例）。
+       字段值本身也不做 NOTLINE 过滤：页面信任字段，名称文本才要防「提到≠包含」。
+    """
     v = str(x.get("bw") or "").strip()
     n = x.get("n") or ""
-    if NOTLINE_RE.search(n):
-        return None
-    if v and not BADVAL_RE.match(v) and "不涉及" not in v and not NOTLINE_RE.search(v):
+    if v and not BADVAL_RE.match(v):
         return ("field", v)
-    if "宽带" in n:
+    if "宽带" in n and not NOTLINE_RE.search(n):
         return ("name", "含宽带")
     return None
 
@@ -195,7 +201,14 @@ def check_bw(rows):
             and not BADVAL_RE.match(str(x.get("bw")).strip())
             and not NOTLINE_RE.search(str(x.get("bw")))]
     # 判为含宽带、但名称里写着排除词的（= 规则漏判，必须为 0）
-    inconsistent = [x for x in rows if bw_info(x) and NOTLINE_RE.search(x.get("n") or "")]
+    # 2026-10-02：bw_info 对齐页面「字段明示优先」语义后，field 分支判含时名称
+    # 命中排除词是**合法**的（字段写「300M」就该采信，不管名称里有没有「电视」），
+    # 不再算矛盾 —— 旧判据在这批条目上恒报 20 条，是体检项自己没跟着语义升级。
+    # 只剩 name 分支可能矛盾，而 name 分支结构性排除了 NOTLINE ⇒ 本判据恒 0，
+    # 留着当回归网：谁把 name 分支的排除词检查删了，这里立刻响。
+    inconsistent = [x for x in rows
+                    if bw_info(x) and bw_info(x)[0] == "name"
+                    and NOTLINE_RE.search(x.get("n") or "")]
     return kept_field, kept_name, holders, false_pos, risk, inconsistent
 
 
