@@ -1,9 +1,9 @@
 {
- "ts": "2026-10-02 00:07:31",
- "n": 5282,
+ "ts": "2026-10-02 09:01:37",
+ "n": 5280,
  "prev_n": 5274,
  "added": 0,
- "removed": 0,
+ "removed": 2,
  "changed": 14,
  "restored": 8,
  "fake_removed": 0,
