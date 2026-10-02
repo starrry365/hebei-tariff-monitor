@@ -43,14 +43,17 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 # 派生视图必须与它们**逐项相等**（含类型：tuple 不能变 list、set 不能变 frozenset）。
 # 顺序也在内 —— NET_LIVE 与 NETS_META 在 telecom/cbn 上顺序相反，是历史遗留，
 # 改了会让页面提示语的拼接顺序变，所以刻意钉住。
+# ★ SRC_OF 的取值 2026-10-02 更新过一次：把接口主机名/路径从「来源」里摘出去
+#   （页面只留用户看得懂的展示名，技术溯源改走 SRC_TECH_OF）。本文件盯的是
+#   「派生视图的结构与顺序没漂」，不是「文案永远不变」——文案变更同步到期望值即可。
 EXPECT = {
     "NETS_META": [["move", "移动", "中国移动"], ["unicom", "联通", "中国联通"],
                   ["telecom", "电信", "中国电信"], ["cbn", "广电", "中国广电"]],
     "SRC_OF": {
-        "move":    "中国移动 APP「资费专区」（nrapigate / nrtariff）",
-        "unicom":  "中国联通 APP「资费专区」（mxx.client.10010.com / queryTariffNew）",
-        "telecom": "中国电信「资费专区」H5（www.189.cn / tariffSection，真实浏览器采集）",
-        "cbn":     "中国广电「资费公示」H5（m.10099.com.cn / queryTariffAllByCond）",
+        "move":    "中国移动 APP「资费专区」",
+        "unicom":  "中国联通 APP「资费专区」",
+        "telecom": "中国电信「资费专区」",
+        "cbn":     "中国广电「资费公示」",
     },
     "NET_LIVE": ["move", "unicom", "cbn", "telecom"],
     "NET_SNAP": ["telecom"],

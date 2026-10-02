@@ -409,16 +409,6 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 .trend-leg i{display:inline-block;width:16px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
 .trend-leg b{font-weight:650}
 
-/* ── 数据说明 ───────────────────────────────────────────────────── */
-.ab p{margin:10px 0;font-size:13px;line-height:1.92;color:var(--tx2)}
-.ab p b{color:var(--tx)}
-.ab code{background:var(--glass2);padding:1px 6px;border-radius:5px;font-size:12px;
-  border:1px solid var(--bd2)}
-.ab h3{margin:18px 0 7px;font-size:13.5px;color:var(--tx)}
-.ab ul{margin:7px 0;padding-left:20px}
-.ab li{margin:5px 0;font-size:13px;line-height:1.85;color:var(--tx2)}
-.ab a{color:var(--ac)}
-
 #toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,12px);z-index:99;
   background:#111c2b;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;
   box-shadow:var(--sh2);opacity:0;pointer-events:none;transition:opacity .18s,transform .18s}
@@ -498,7 +488,6 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   <button class="tab" data-v="ov">数据总览</button>
   <button class="tab on" data-v="list">资费明细</button>
   <button class="tab" data-v="hist">变化历史</button>
-  <button class="tab" data-v="about">数据说明</button>
 </nav>
 <div class="deck" id="deck">
   <div class="bar" id="bar">
@@ -541,11 +530,11 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       </div>
       <div class="fsec"><span class="glab">分类</span>
         <label class="f"><span class="fl">类型</span>
-          <select id="cat" title="类型大类（四网统一口径：套餐 / 加装包 / 营销活动 / 标准资费 / 宽带 / 港澳台-国际）。联通的「停售套餐」已按二级栏目还原成真实分类，「停售」由「已下架」页签表达">
+          <select id="cat" title="资费大类：套餐 / 加装包 / 营销活动 / 标准资费 / 宽带 / 港澳台-国际">
             <option value="">全部大类</option>
           </select></label>
         <label class="f"><span class="fl">细分</span>
-          <select id="ty" title="类型细分：联通＝官方二级栏目（移网 / 融合 / 权益包 / 流量包 / 促销 / 合约…）；其余三网官方页面没有二级栏目，退回一级分类。选了类型后不属于它的会置灰">
+          <select id="ty" title="细分类型。选了类型后，不属于它的大类会置灰">
             <option value="">全部细分</option>
           </select></label>
       </div>
@@ -561,7 +550,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
             <option value="100,99999">≥ 100 元</option>
           </select></label>
         <label class="f"><span class="fl">流量</span>
-          <select id="gf" title="按流量筛选（已按 dataUnit 归一到 GB）。「无流量」含两种：流量填 0 的，和压根没填流量字段的">
+          <select id="gf" title="按流量（GB）筛选。「无流量」含流量为 0 与未标注两种">
             <option value="">不限流量</option>
             <option value="none">无流量</option>
             <option value="0,5">≤ 5 GB</option>
@@ -570,7 +559,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
             <option value="100,99999">≥ 100 GB</option>
           </select></label>
         <label class="f"><span class="fl">通话</span>
-          <select id="cf" title="按国内通话时长（分钟）筛选，与「月费」上的通话是同一口径">
+          <select id="cf" title="按国内通话时长（分钟）筛选">
             <option value="">不限通话</option>
             <option value="none">无通话</option>
             <option value="0,100">≤ 100 分</option>
@@ -589,7 +578,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       </div>
       <div class="fsec"><span class="glab">办理</span>
         <label class="f"><span class="fl">渠道</span>
-          <select id="chx" title="办理渠道：已按官方原文归一到三档。线上＝APP/网站/热线/短信，线下＝营业厅/门店/校园/代理">
+          <select id="chx" title="办理渠道。线上＝APP/网站/热线/短信，线下＝营业厅/门店/校园/代理">
             <option value="">不限渠道</option>
             <option value="线上">线上</option>
             <option value="线下">线下</option>
@@ -644,7 +633,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 <section class="view" id="v-ov">
   <div class="stats" id="ovStats"></div>
   <div class="panel">
-    <div class="ph"><h2 class="pt">分类构成</h2><span class="ps" id="ovCatNote">四网统一口径的大类</span></div>
+    <div class="ph"><h2 class="pt">分类构成</h2><span class="ps" id="ovCatNote">四网统一分类</span></div>
     <div class="bars" id="ovCat"></div>
   </div>
   <div class="panel">
@@ -685,7 +674,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   <th data-k="gb">流量<span class="ar"></span></th>
   <th data-k="call">通话<span class="ar"></span></th>
   <th data-k="name">名称<span class="ar"></span></th>
-  <th data-k="ty" title="类型大类（四网统一口径：套餐 / 加装包 / …）；点列头排序，官方原始分类见展开详情">类型<span class="ar"></span></th>
+  <th data-k="ty" title="资费大类；点列头排序，官方原始分类见展开详情">类型<span class="ar"></span></th>
   <th title="归属：个人资费 / 政企资费（官方标注；仅移动提供）">归属</th>
   <th data-k="bw">宽带<span class="ar"></span></th>
   <th>目标客户</th>
@@ -715,113 +704,6 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   </div>
 </section>
 
-<!-- ═══ 数据说明 ═══ -->
-<section class="view" id="v-about">
-  <div class="panel ab">
-    <div class="ph"><h2 class="pt">数据说明与口径</h2></div>
-    <p>数据为运营商<b>报备公示口径</b>；「目标客户」为原文条件，能否办理需以营业厅 / 客服为准。
-    每日 <b>06:00（北京时间）</b>自动巡检，
-    源码与变更记录见 <a href="https://github.com/starrry365/hebei-tariff-monitor" target="_blank" rel="noopener">GitHub 仓库</a>。</p>
-
-    <h3>本页功能</h3>
-    <ul>
-      <li><b>★ 收藏关注</b>：条目名称前的星标把这条资费收进本机收藏；筛选条上的
-        「☆ 只看收藏」只显示收藏项。收藏存在<b>浏览器本地</b>（localStorage），
-        不上传；可用筛选条上的<b>「收藏导出 / 收藏导入」</b>把收藏备份成 JSON
-        或搬到别的设备（导入按<b>合并</b>处理，不覆盖本机已有的）。</li>
-      <li><b>同价位更优</b>：展开任意一条资费的详情，会自动列出同网
-        ±10 元档内、流量更多且每元流量更高的在售资费（最多 3 条）——
-        省去手动翻几千条比价的过程。</li>
-      <li><b>离线安装（PWA）</b>：在浏览器菜单里「添加到主屏幕 / 安装应用」可把本页
-        装成一个独立应用；断网时能打开上一次缓存的版本（页面本身仍是网络优先，
-        保证看到的不是昨天的价目表）。</li>
-      <li><b>在架规模趋势</b>：「变化历史」页顶部按网画出每天在架条数的折线 ——
-        哪一网在涨、哪一网在缩，不用逐天点开时间线就能看出。</li>
-      <li><b>深色 / 浅色主题</b>：右上角开关切换，默认跟随系统；手动选过后记住选择。</li>
-      <li><b>源码包</b>：<a href="hebei-tariff-monitor-source.zip" download>下载源码快照</a>
-        —— 可直接跑的一份代码（<b>不含任何凭据与数据快照</b>，由
-        <code>cloud/tariff/make_source_zip.py</code> 确定性打包）。</li>
-    </ul>
-
-    <h3>来源</h3>
-    <ul id="abSrc"></ul>
-
-    <h3>地域口径（河北省 / 全国 + 地市）</h3>
-    <p>按各网<b>原始地域字段</b>判定（不是从名称里猜地名）：移动看 <code>applicableArea</code> / <code>city</code> / <code>province</code>，
-    电信看 <code>applicableArea</code>，广电看 <code>_areaNames</code>。与河北无关的（其他省份专属）已按需求剔除。</p>
-    <p><b>地市</b>按各网<b>各自的</b>判据取条目级适用范围，全在构建期算好：</p>
-    <ul>
-      <li><b>移动</b>：条目自带的 4 位地市码（12 市实测命中 1974 次）；
-        极少数没有码的（如「雄安新区」「华北油田」）用<b>文案兜底</b>（名称 / 套餐名 /
-        目标客户 / 权益四字段并集，实测再捞 373 条）。</li>
-      <li><b>电信</b>：条目自带的 4 位地市码（实测 265 次）。</li>
-      <li><b>联通</b>：<b>按 12 个地市逐城取资费目录并集</b>后，每条资费都带回
-        「目录里出现在哪些城市」。覆盖全部 12 城的即为「不限地市」（全省通用）；
-        只出现在部分城市的算「地市专属」（如沧州「华油专属」、雄安「雄安工地0元50G流量包」）。
-        <b>已下架的那批不算</b>：它们的目录归属是各城遗留清单的差异，不可信。</li>
-      <li><b>广电</b>：上游只有「全国 / 河北省」两档（区域码表无地市级，传地市码回
-        <code>BASE102</code>）⇒ 该网<b>不出地市这一层</b>（隐藏，不是置灰 ——
-        置灰会让人以为「本网暂时没有」，而真相是上游根本没有这个维度）。</li>
-    </ul>
-    <p><b>下拉里的地市 = 11 个地级市 ＋ 雄安新区 ＋ 华北油田。</b>
-    上游<b>没有</b>给「定州 / 辛集」独立的地市码（逐码单独出现的条目里一条都没有），
-    这两个地方的数据并入保定 / 石家庄。早先页面里那个「省直辖（定州/辛集）」档位是
-    <b>把雄安的码认错了</b>：4 位码 <code>3121</code> 实测就是<b>雄安新区</b> ——
-    该码单独出现的 8 条资费里 7 条名字直接写着「雄安」（雄安新区咪咕融合权益包、
-    雄安9元返费优惠、雄安公交出行权益包…），其余 11 个码单独出现时名字里也各自写着
-    自己的城市名，只有它对不上。修正后「雄安新区」档才拿到自己的资费。</p>
-    <p><b>「全省通用」有两种上游写法，都已识别</b>：① 地域字段留空；
-    ② 把<b>全部 12 个地市码</b>都列出来（实测 59 条，多是「0预存5G金币购机合约活动」
-    这类全省活动）。第二种以前被当成了「12 城专属」——于是它既不在「仅全省通用」档里，
-    又被计进「地市专属」总数。（电信那批只列 10~11 个码的<b>不是</b>全省 ——
-    它们确实只限那几个市，属正常。）</p>
-    <p>哪一网有没有地市这一层，由<b>数据本身</b>决定（本网有没有条目带地市归属），
-    不看任何「本网不分城市」的声明 —— 联通那网曾经就是这么被藏掉的：声明与数据不符时，
-    页面信声明、不信数据，而整个过程没有任何提示。</p>
-    <p><b>「城市」与「地域」是两个维度</b>，别混：地域是<b>省级</b>口径（河北 / 全国，
-    决定这条资费是不是给河北用户的）；城市是<b>条目级</b>适用范围（这条资费限哪几个市）。
-    一条「河北省」的资费完全可能同时限定「仅邢台」。</p>
-
-    <p><b>按地市筛的语义</b>：选某个市 = 「不限地市」的那批 <b>＋</b> 该市的专属资费，
-    也就是「<b>这个市能办什么</b>」。想<b>只看</b>不限地市的那批，选下拉里的
-    「仅全省通用（不限地市）」。
-    （早先的口径是「只留地市归属里含该市的」—— 那回答的其实是「哪些资费的上游目录里
-    恰好写了这个市」。用户按「邢台」筛会得到 9 条、全部停售，于是得出「邢台在售一条都没有」，
-    而邢台实际能办的资费全在「不限地市」那批里被排除了。2026-09-24 更正。）</p>
-
-    <p><b>已下架条目不参与地市归属</b>：那些「停售目录」是各城各自的遗留清单，同一条停售
-    资费被哪些城市收录并不固定（实测 139 条「城市专属」里 18 条其实是 9~11 城共有，
-    含 6 条明摆着是「…-河北省版」的省版资费）。所以已下架条目<b>只在「全部城市」下可见</b>，
-    选具体地市时不会混进来；「已下架」页签下地市下拉整体禁用。</p>
-
-    <h3>归属（个人 / 政企）</h3>
-    <p>按官方接口条目的归属字段归一（上游 type1：<code>1</code>=个人资费、<code>2</code>=政企资费）。
-    <b>四网里只有移动官方标注了归属</b>，联通 / 电信 / 广电的条目里连这个字段都不存在 ⇒ 这三网的「归属」下拉隐藏。
-    这是<b>上游字段口径</b>，不是从「目标客户」文本里猜的 —— 后者会把「中国移动用户（不含港澳台）」这种
-    没写明客户类型的大批量条目判成未知（实测占比 84%~99%），撑不起一个筛选维度。</p>
-
-    <h3>类型（两级 + 四网同名）</h3>
-    <p>四网的原始分类<b>本来不同构</b> —— 广电那网根本没有「套餐」这个词（它写「5G套餐」「流量包」「语音包」）。
-    所以由构建脚本按 <code>TYPE_CAT</code> 归一成统一<b>大类</b>（套餐 / 加装包 / 营销活动 / 标准资费 / 宽带 / 港澳台-国际）后写进行数据，
-    页面只读不算。选了某个大类后，不属于它的<b>细分</b>项会置灰，免得选出「套餐 ＋ 加装包」这种不存在的组合。</p>
-
-    <h3>渠道</h3>
-    <p>同样做了归一（线上 / 线下 / 线上+线下 / 其他）：上游原文极碎，光移动一家就有 8 种写法表达「线上」。
-    四网合计 <b>99.6%</b> 能归上，剩下的原文没写明，一律落「其他」（不猜）。</p>
-
-    <h3>数值与时间</h3>
-    <p><b>月费 / 流量 / 通话 / 宽带速率</b>四档区间都按<b>数值</b>卡（流量已按 <code>dataUnit</code> 归一为 GB）；
-    「无流量 / 无通话」含两种情形 —— 填 0 的，和压根没填那个字段的。</p>
-    <p><b>上架 / 下线天数以各网自己的「数据基线日期」为基准</b>，四网各自一个、不跨网共用
-    （数据没变，页面就逐字节一致，便于归档去重）。基线一旦解析失败，时间筛选会整体停用（fail-closed）并给出可见警告 ——
-    绝不放行成「全部通过」那种看不出来的错。</p>
-
-    <h3>「已下架」页签</h3>
-    <p>判据各网不同，且只用上游给的信号：联通＝归入一级分类「99 停售套餐」（<b>不能</b>靠下线日判，实测那批一条都没过期）；
-    广电＝服务端 <code>stateFlag≠1</code>；电信＝下线日早于数据基线日；
-    <b>移动公开接口取不到下架数据</b>（<code>isPublic=0</code> 能列出分类但明细恒返回 0 条），故该网「已下架」页签置灰。</p>
-  </div>
-</section>
 </main>
 </div>
 <div id="toast"></div>
@@ -929,7 +811,7 @@ function owTag(d){
     +esc(d.ow)+'（官方标注）">'+esc(d.ow)+'</span>';
 }
 function stopTag(d){
-  return d.st?' <span class="bg bg-stop" title="已下架（判据见「关于本页」页脚）">已下架</span>':"";
+  return d.st?' <span class="bg bg-stop" title="已下架">已下架</span>':"";
 }
 
 /* —— 宽带判定 ——
@@ -965,14 +847,14 @@ function bwMbps(d){
 }
 function bwDetail(d){
   const i=bwInfo(d),raw=String(d.bw==null?"":d.bw).trim();
-  const v=i?(i.src==="field"?"含宽带":"含宽带（字段未填，按名称判定）"):"不含宽带";
+  const v=i?(i.src==="field"?"含宽带":"含宽带（按名称判定）"):"不含宽带";
   /* 🔴 raw 是运营商接口原文，必须 esc —— 这是全页唯一经手上游原文且进 innerHTML
      的位置；漏转义就是构建期烤进静态页的存储型 XSS（2026-10-02 代码审查抓到）。 */
-  if(!i)return v+"（字段原文："+(esc(raw)||"空")+"）";
+  if(!i)return v+"（官方原文："+(esc(raw)||"空")+"）";
   const mb=bwMbps(d);
   const sp=bwSpeed(d)?' · <span class="bwtg" title="名称/权益里带「提速、光网、组网、FTTR」字样">提速/组网</span>':"";
   return v+(mb?' · <span class="bwtg">'+mb+'M</span>':"")+sp
-    +'（字段原文：'+(esc(raw)||"空")+"）";
+    +'（官方原文：'+(esc(raw)||"空")+"）";
 }
 function cityTags(d){return d.cty||[]}
 function bwCell(d){
@@ -1457,7 +1339,7 @@ function render(){
       +'<td>'+fmtGb(d.g)+perCell(d)+'</td>'
       +'<td>'+(d.c&&d.c!=="0"?esc(d.c)+" 分":"—")+'</td>'
       +'<td class="nm">'+scTag(d)+esc(d.n||d.t)+chgTag(d)+stopTag(d)+'</td>'
-      +'<td><span class="tg" title="类型大类（四网统一口径）；官方原始分类见展开详情">'+esc(d.cat||"—")+'</span></td>'
+      +'<td><span class="tg" title="资费大类；官方原始分类见展开详情">'+esc(d.cat||"—")+'</span></td>'
       +'<td>'+owTag(d)+'</td>'
       +'<td>'+bwCell(d)+'</td>'
       +'<td class="ap">'+esc((d.ap||"—").slice(0,90))+'</td>'
@@ -1672,7 +1554,7 @@ function syncTabs(){
   document.querySelectorAll("#tabs button").forEach(b=>{
     const v=b.dataset.v,n=(v==="")?rs.length:rs.filter(d=>((d.st?1:0)===+v)).length;
     b.disabled=(v==="1"&&!hasStop);
-    b.title=b.disabled?"本网公开接口取不到下架资费的数据（原因见「关于本页」页脚）":"";
+    b.title=b.disabled?"本网暂无下架资费数据":"";
     b.classList.toggle("on",v===STA);
     b.textContent=ST_LB[v]+"（"+n+"）";
   });
@@ -1742,7 +1624,7 @@ function readHash(){
   $("#sort").value=sortK;
   /* 页签：只认白名单里的四个值，认不出来就当没传（同「枚举参数先核对」的原则）。 */
   const vv=p.get("v");
-  if(vv&&["ov","list","hist","about"].indexOf(vv)>=0)setView(vv);
+  if(vv&&["ov","list","hist"].indexOf(vv)>=0)setView(vv);
 }
 
 /* —— 网别导航 —— */
@@ -1838,8 +1720,8 @@ function renderNet(){
   }
   $("#sub").innerHTML=has
     ?"来源："+esc(n.src||"—")+" · 数据基线 "+esc(n.base||"—")+" · 共 "+rs.length+" 条"
-      +(scTxt?"（"+scTxt+"）":"")+" · 单位已按 dataUnit 归一"
-    :"来源：待接入 —— 本网资费数据尚未接入，页面结构已就位";
+      +(scTxt?"（"+scTxt+"）":"")
+    :"来源：待接入";
   /* —— 类型两级：先建大类，再建细分 ——
      · 大类按 CAT_ORDER 的**固定顺序**生成（不是按条数或拼音）：顺序稳定，
        逐日看的时候才知道「今天冒出来的是哪一类」。
@@ -1893,15 +1775,6 @@ function renderNet(){
     op.value=o;op.textContent=o+"（"+owc[o]+"）";
     owSel.appendChild(op);
   });
-  /* —— 来源清单（数据说明页）：按四网元信息现算，与顶栏同源 —— */
-  const ab=$("#abSrc");
-  if(ab){
-    ab.innerHTML=NET_LS.filter(c=>NETS[c]).map(c=>{
-      const nn=NETS[c]||{};
-      return "<li><b>"+esc(nn.nm||c)+"</b>：来源 "+esc(nn.src||"待接入")
-        +" · 基线 "+esc(nn.base||"—")+" · "+rowsOf(c).length+" 条</li>";
-    }).join("");
-  }
   syncTabs();
   renderDims();
   /* 切网会增删「归属」「地市」两个下拉（移动有、联通/广电没有），筛选栏因此
@@ -1951,12 +1824,10 @@ function buildCtOptions(counts){
      · dimOff：本网上游没有条目级地市 ⇒ 整层隐藏（构建期一条 cty 都没有）；
      · stop  ：「已下架」页签 ⇒ 已下架条目没有地市归属（见 apply() 里的注释）；
      · 都不成立 ⇒ 可用。 */
-const CT_TIP_ON="地市：按**官方声明的适用范围**判定 —— 移动/电信读条目地市字段"
-  +"（没有字段的少数条目才按文案兜底），联通读 12 城资费目录的归属。"
-  +"选某个市 = 「不限地市」的那批 + 该市专属；只看不限地市的，选「仅全省通用」。";
-const CT_TIP_STOP="已下架条目不参与地市归属：官方「停售目录」是各城各自的遗留清单，"
-  +"同一条资费被哪些城市收录并不固定 —— 具体地市档对这批数据不存在。";
-const CT_TIP_OFF="本网官方没有条目级地市数据，该维度不提供";
+const CT_TIP_ON="地市：选某个市 = 「不限地市」的那批 + 该市专属；"
+  +"只想看全省通用的，选「仅全省通用」。";
+const CT_TIP_STOP="已下架条目不参与地市归属，本页签下该维度不可用。";
+const CT_TIP_OFF="本网官方没有地市维度，该维度不提供";
 function syncCtAvail(dimOff,stop){
   const ct=$("#ct");if(!ct)return;
   const off=!!(dimOff||stop);
@@ -2082,8 +1953,8 @@ function renderBaseWarn(){
   const w=$("#basewarn");
   if(BASE_OK||!online(NET)){w.style.display="none";w.textContent="";return}
   w.style.display="";
-  w.textContent="⚠️ 本网（"+(net().nm||NET)+"）缺少可解析的「数据基线日期」（当前值："
-    +String(net().base||"（空）")+"）⇒ 上架/下线的时间筛选与相对天数已停用（fail-closed），"
+  w.textContent="⚠️ 本网（"+(net().nm||NET)+"）的基线日期读取失败（当前值："
+    +String(net().base||"（空）")+"）⇒ 上架 / 下线的时间筛选与相对天数已停用，"
     +"以免给出看似正常的错误结果。";
 }
 
@@ -2115,11 +1986,7 @@ function renderEmptyState(){
   }
   const n=net();
   ph.innerHTML="<h2>"+esc(n.nm||NET)+" · 资费数据尚未接入</h2>"
-    +"<p>页面骨架已就位：网别切换、筛选与排序逻辑四网共用。接入时只需往 "
-    +"<code>NETS['"+esc(NET)+"'].rows</code> 灌数据，并补上 <code>src</code>（来源）"
-    +"与 <code>base</code>（数据基线日期）两项元信息。</p>"
-    +"<p>每网各自带一个<b>数据基线日期</b> —— 上架 / 下线天数与时间筛选都以<b>本网</b>基线为准，"
-    +"不跨网共用：三家的抓取时点不会总落在同一天。</p>";
+    +"<p>该运营商的资费数据暂未采集到，先看看其它三网。</p>";
   fixBarh();
 }
 
@@ -2234,13 +2101,13 @@ function saveOffline(){
 
 
 /* ══════════════════════════════════════════════════════════════════════
-   视图页签（数据总览 / 资费明细 / 变化历史 / 数据说明）
+   视图页签（数据总览 / 资费明细 / 变化历史）
    ★ 默认「资费明细」：打开页面即见按上架时间倒序的最新资费清单。
    ★ 只切显示，不碰筛选状态 —— 页签是「看哪一块」，不是筛选条件。
      切回明细页时筛选原样还在，用户不会因为看了一眼总览就丢掉筛选。
    ══════════════════════════════════════════════════════════════════════ */
 let VIEW="list";
-const VIEWS=["ov","list","hist","about"];
+const VIEWS=["ov","list","hist"];
 function setView(v){
   if(VIEWS.indexOf(v)<0)v="list";
   VIEW=v;
@@ -2326,7 +2193,7 @@ function renderOverview(){
 
   /* ── 分类构成 ── */
   const cat={};rs.forEach(d=>{const c=d.cat||"其他";cat[c]=(cat[c]||0)+1});
-  $("#ovCatNote").textContent="共 "+CAT_ORDER.filter(c=>cat[c]).length+" 个大类 · 四网统一口径";
+  $("#ovCatNote").textContent="共 "+CAT_ORDER.filter(c=>cat[c]).length+" 个大类";
   ovBars($("#ovCat"),CAT_ORDER,cat);
 
   /* ── 地域构成 ── */
@@ -2374,7 +2241,7 @@ function renderOverview(){
     ["≥ 100 元",d=>{const v=num(d.f);return v!=null&&v>100}],
     ["未标月费",d=>num(d.f)==null]];
   const fc={};FEES.forEach(f=>{fc[f[0]]=rs.filter(f[1]).length});
-  ovBars($("#ovFee"),FEES.map(f=>f[0]),fc,"按标准月费（元），与「月费」筛选同口径");
+  ovBars($("#ovFee"),FEES.map(f=>f[0]),fc,"按标准月费（元）分档");
 
   /* ── 上架时间 ── */
   const AGES=[["7 天内",7],["30 天内",30],["90 天内",90],["一年内",365],["一年以上",1e9]];

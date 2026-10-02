@@ -85,7 +85,7 @@ def main():
     # 浅色主题
     c.ev("applyTheme('light'); document.documentElement.setAttribute('data-theme','light'); 1")
 
-    plan = [("ov", "01-ov"), ("list", "02-list"), ("hist", "03-hist"), ("about", "04-about")]
+    plan = [("ov", "01-ov"), ("list", "02-list"), ("hist", "03-hist")]
     for view, name in plan:
         c.ev(f"setView('{view}'); 1")
         time.sleep(0.8)

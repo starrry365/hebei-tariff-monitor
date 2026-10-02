@@ -16,7 +16,7 @@
  *
  * 输出 JSON 字符串，含：
  *   bind   初始化是否把事件全装上（全是 function 才算过）
- *   views  四个视图页签是否都能切、对应 section 是否显示
+ *   views  三个视图页签是否都能切、对应 section 是否显示
  *   nets   每个网：条数、每个筛选下拉逐 option 试值后的结果条数、异常
  *   misc   排序逐项、翻页、行展开、主题、chips、关键词
  *   misc.geom  滚动 600px 后的常驻层几何 + 命中测试（筛选控件是否真能点到）
@@ -83,14 +83,14 @@
     R.bind.dims[k] = tp("#" + k, "onchange");
   });
 
-  /* ══ B. 四个视图页签 ══
+  /* ══ B. 三个视图页签 ══
      🔴 量之前先把网钉到第一个：总览页的 KPI 卡数量**随网而变**（联通/广电没有
         地市维度 ⇒ 少「地市专属」那张卡，也不显示政企）。不钉住的话，B 段测的
         就是「上一轮结束时遗留在哪个网」—— 同一份脚本连跑两次会得到 7 vs 5，
         幂等判据直接失效，而页面本身完全正常。 */
   var NETKEYS = (typeof NETS !== "undefined") ? Object.keys(NETS) : [];
   safe("views-net", function () { if (NETKEYS.length) switchNet(NETKEYS[0]); });
-  ["ov", "list", "hist", "about"].forEach(function (v) {
+  ["ov", "list", "hist"].forEach(function (v) {
     var o = {};
     safe("view:" + v, function () {
       setView(v);

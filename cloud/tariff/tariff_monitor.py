@@ -461,7 +461,8 @@ class NetSource:
     snap_prefix = ""       # 本网独立快照前缀 —— 各网必须各存各的：
                            # load_prev 按**文件名排序**取「最近一份」，混用前缀会让
                            # A 网拿去 B 网的快照当基准（2026-09-22 的坑：数字全错）
-    src = ""               # 页面顶部「来源」行
+    src = ""               # 页面顶部「来源」行（用户向的展示名）
+    src_tech = ""          # 技术溯源（接口域名 / 路径）—— 只进 docs 与变更报告，不进页面
     mod = ""               # 适配器模块名；空 = 采集实现就在本文件（移动）
     stopped = False        # 适配器 fetch_all 是否接受 include_stopped
     nocache = False        # 「纯本地转换」网（不发请求、读采集产物）⇒ 不进本地缓存
@@ -501,7 +502,10 @@ class MoveNet(NetSource):
     """
     code, sh, cn, vendor = "move", "移动", "河北移动", "中国移动"
     snap_prefix = "hebei_tariff_"
-    src = "中国移动 APP「资费专区」（nrapigate / nrtariff）"
+    # src = 页面「来源」行显示的名字（用户向：别放接口主机名 / 路径）；
+    # src_tech = 技术溯源，只进 docs 与变更报告。
+    src = "中国移动 APP「资费专区」"
+    src_tech = "nrapigate / nrtariff（h.app.coc.10086.cn）"
     where = staticmethod(_mv_where)
 
     def fetch(self):
@@ -513,7 +517,8 @@ class UnicomNet(NetSource):
     code, sh, cn, vendor = "unicom", "联通", "河北联通", "中国联通"
     tag = "unicom"
     snap_prefix = "unicom_tariff_"
-    src = "中国联通 APP「资费专区」（mxx.client.10010.com / queryTariffNew）"
+    src = "中国联通 APP「资费专区」"
+    src_tech = "mxx.client.10010.com / queryTariffNew"
     mod = "unicom_monitor"
     stopped = True
     where = staticmethod(_uc_where)
@@ -538,7 +543,8 @@ class TelecomNet(NetSource):
     code, sh, cn, vendor = "telecom", "电信", "河北电信", "中国电信"
     tag = "ct"
     snap_prefix = "ct_tariff_"
-    src = "中国电信「资费专区」H5（www.189.cn / tariffSection，真实浏览器采集）"
+    src = "中国电信「资费专区」"
+    src_tech = "www.189.cn / tariffSection（真实浏览器采集）"
     mod = "ct_monitor"
     nocache = True
     fallback = "latest"
@@ -576,7 +582,8 @@ class CbnNet(NetSource):
     code, sh, cn, vendor = "cbn", "广电", "中国广电", "中国广电"
     tag = "cbn"
     snap_prefix = "cbn_tariff_"
-    src = "中国广电「资费公示」H5（m.10099.com.cn / queryTariffAllByCond）"
+    src = "中国广电「资费公示」"
+    src_tech = "m.10099.com.cn / queryTariffAllByCond"
     mod = "cbn_monitor"
     stopped = True
     where = staticmethod(_cbn_where)
@@ -1355,6 +1362,9 @@ def data_day(o, fallback=""):
 #    那正是本次模块化要消灭的东西（同一网的属性散在多处，漏一处不报错）。
 NETS_META = tuple((c, NETS[c].sh, NETS[c].vendor) for c in _PAGE_ORDER)
 SRC_OF = {c: NETS[c].src for c in _PAGE_ORDER}
+# 技术溯源（接口域名 / 路径）：**只写进 docs 与变更报告**，不进页面 ——
+# 页面那行「来源」是给用户看的，塞接口主机名属于噪音（2026-10-02 清理）。
+SRC_TECH_OF = {c: NETS[c].src_tech for c in _PAGE_ORDER}
 # 每日巡检里**由脚本直连就能采到**的那几家（有 src / base / rows 的）。
 # 电信也在里面 —— 但它和另两家不同：它需要真实浏览器，是**机会性采集**
 # （采到就正常入库；采不到自动退回下面的 NET_SNAP 快照渲染，绝不拖垮其它网）。
@@ -1921,6 +1931,14 @@ def render_only():
     # 重渲染要把**所有网**的条数都算上，否则顶部「共 N 条」会只报移动一家的。
     all_n = sum(len((nets.get(c) or {}).get("rows") or []) for c in SNAP_PREFIX)
 
+    # 「来源」是**注册表里的元信息**，不是抓来的数据 ⇒ 重渲染时按 SRC_OF 刷新。
+    # 不刷新的话，改一次来源文案还得跑一趟抓取才生效 —— 而抓取会顺带写快照、
+    # 写当天的 changes/<今天>.md、覆盖 state.json，把云端真实结果顶掉。
+    # 数据（rows）照旧一动不动，只动这一项元信息。
+    for _c, _p in nets.items():
+        if _c in SRC_OF and isinstance(_p, dict):
+            _p["src"] = SRC_OF[_c]
+
     # 日期与通知必须沿用页面里的原值：基线日期是「数据基线」，
     # 重渲染不该让它漂移（漂移会让归档天天不等）。
     # 基线优先取 NETS["move"].base（唯一真相），退回页面正文的「数据基线 <日期>」。
@@ -2188,11 +2206,11 @@ def net_round(code, today, fallback=None):
             G.atomic_write_text(
                 rp, f"# {cn}资费基线 · {data['fetchedAt']}\n\n"
                     f"- {'首版基线快照' if old_o is None else '数据量连续偏低后重同步'}"
-                    f"，共 **{n}** 条\n- 来源：{SRC_OF[code]}\n", newline="\n")
+                    f"，共 **{n}** 条\n- 来源：{SRC_TECH_OF[code]}\n", newline="\n")
         elif not os.path.exists(rp):
             with open(rp, "w", encoding="utf-8") as f:
                 f.write(f"# {cn}资费基线 · {data['fetchedAt']}\n\n"
-                        f"- 首版基线快照，共 **{n}** 条\n- 来源：{SRC_OF[code]}\n")
+                        f"- 首版基线快照，共 **{n}** 条\n- 来源：{SRC_TECH_OF[code]}\n")
         hist_append({"ts": str(data.get("fetchedAt") or "")[:19], "d": day,
                      "code": code, "net": cn, "n": n, "a": 0, "r": 0, "c": 0,
                      "note": "baseline" if old_o is None else "resync", "smp": []})
@@ -2404,7 +2422,7 @@ def main():
                 txt = (f"# 河北移动资费基线 · {data['fetchedAt']}\n\n"
                        f"- {'首版基线快照' if old_o is None else '数据量连续偏低后重同步'}"
                        f"，共 **{n}** 条\n"
-                       f"- 来源：中国移动 APP「资费专区」（nrapigate / nrtariff）\n")
+                       f"- 来源：{SRC_TECH_OF['move']}\n")
                 if G:
                     G.atomic_write_text(rp, txt, newline="\n")
                 else:
