@@ -930,18 +930,22 @@ function toDate(s){
 }
 function fmtD(s){s=String(s==null?"":s);return /^\d{8}$/.test(s)?s.slice(0,4)+"-"+s.slice(4,6)+"-"+s.slice(6,8):""}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
-function fmtGb(g){if(g==null||g===""||g===0)return"—";if(g>=1)return(g%1?g.toFixed(1):g)+"GB";return Math.round(g*1024)+"MB"}
-function feeCls(f){const n=num(f);if(n===0)return"free";if(n!==null&&n<=10)return"low";return""}
-/* 每元流量的显示形式。perVal() 为 null（无流量 / 月费为 0 / 缺值）时不显示，
-   不臆造 0 或 ∞。 */
-function perCell(d){
-  const v=perVal(d);
-  if(v==null)return "";
-  /* 0 元含流量显示 ∞ —— 不显示反而更糟：按该列降序时它们排在最前，
-     却不写值，看着像排序坏了。 */
-  const s=v===Infinity?"∞":(v>=10?String(Math.round(v)):(v>=1?v.toFixed(1):v.toFixed(2)));
-  return '<div class="mut">每元 '+s+'GB</div>';
+/* 流量显示分档：≥1TB → TB；≥100GB → 整数 GB；≥1GB → 一位小数（整数不带
+   「.0」）；<1GB → MB；<1MB → 「<1MB」。
+   🔴 不能无脑 toFixed(1) —— 上游 1049MB 归一成 1.024GB，显示「1.0GB」看着
+      像精确值其实是舍入噪音；进位后恰是整数的按整数显示。 */
+function fmtGb(g){
+  if(g==null||g===""||g===0)return"—";
+  if(g>=1024){const t=g/1024;return (t%1?t.toFixed(1):t)+"TB"}
+  if(g>=100)return Math.round(g)+"GB";
+  if(g>=1){const s=g.toFixed(1);return (s.endsWith(".0")?s.slice(0,-2):s)+"GB"}
+  const mb=g*1024;
+  if(mb<1)return"<1MB";
+  return Math.round(mb)+"MB";
 }
+function feeCls(f){const n=num(f);if(n===0)return"free";if(n!==null&&n<=10)return"low";return""}
+/* 🔴 行内常驻的「每元 xGB」小字已删（2026-10-03 评估）：覆盖 1785 行、
+   多数是无分辨力的 0.0xGB/元，纯视觉噪音；比价走「每元流量」排序（perVal）。 */
 /* 本次巡检变更徽章（标注由构建脚本的 diff 写入，页面只读） */
 function chgTag(d){
   if(d.ck)return ' <span class="bg bg-chg" title="关键字段（月费 / 流量 / 上下线 / 权益等）本次有变更">变更</span>';
@@ -1124,11 +1128,13 @@ const FAR  =3650;                                          // 下线日超过这
 function perVal(d){
   const f=num(d.f);
   if(!d.g||f==null||f<0)return null;
-  /* 月费 0 元却含流量：每元流量在数学上是 +∞。
-     这里**不能**返回 null —— null 会被当成「没有这个值」，按「每元流量」降序排时
-     整批沉到空值尾部，而它们恰恰是最划算的。实测这类有 227 条，
-     占「有流量」条目的三成，不是边角料。 */
-  return f===0?Infinity:d.g/f;
+  /* 🔴 0 元含流量曾返回 +∞（当时的理由：「0 元档最划算，给 null 会沉底」）。
+     2026-10-03 数据评估推翻：按每元流量降序的 top15 **全部**是 0 元赠送包 /
+     营销活动（统付年包、购机送 200G…），∞ 语义让排序第一屏全是前置条件包，
+     真正想比的主套餐一个都看不见 —— 比价工具失真就没用了。
+     ⇒ 0 元改沉底（null），职责分离：找免费流量包走「0 元」chip + 流量降序，
+       「每元流量」排序只服务有月费条目的比价。 */
+  return f===0?null:d.g/f;
 }
 
 /* 排序字段表：def = 首次点该列时的默认方向（1 升 / -1 降） */
@@ -1501,7 +1507,9 @@ function offCell(d){
    ★ 判据全用页面既有口径（perVal / num / fmtGb），不另立一套：
      「更划算」= 每元流量严格更高；「更多」= 流量严格更大。两者同时满足才算更优，
      只便宜不多给的不算（那可能是权益缩水）。
-   ★ 0 元档（每元流量 = ∞）天然是「更优」，保留 —— 它确实更划算。
+   ★ 0 元档不进候选：perVal 对 0 元返回 null（2026-10-03 语义变更，见 perVal
+     注释）—— 0 元赠送包的「划算」带着前置条件（统付 / 回馈 / 购机送），
+     不再当「更优」推给人；想找免费包走「0 元」chip + 流量降序。
    ★ 确定性：只读行数据，同一份数据展开两次结果逐字节一致。 */
 function aiCompareHTML(d){
   const f=num(d.f);
@@ -1520,7 +1528,7 @@ function aiCompareHTML(d){
   }
   if(!hits.length)return"";
   hits.sort((a,b)=>b[0]-a[0]);
-  const fmt=v=>v===Infinity?"∞":(v>=10?String(Math.round(v)):v.toFixed(1));
+  const fmt=v=>v>=10?String(Math.round(v)):v.toFixed(1);
   return '<span class="mut">±10 元内、流量更多且更划算的：</span>'
     +hits.slice(0,3).map(p=>{
       const x=p[1];
@@ -1814,8 +1822,8 @@ function render(){
     tr.title="点击展开详情 / 复制";
     tr.setAttribute("aria-expanded","false");
     tr.innerHTML='<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元":"—")+'</td>'
-      +'<td>'+fmtGb(d.g)+perCell(d)+'</td>'
-      +'<td>'+(d.c&&d.c!=="0"?esc(d.c)+" 分":"—")+'</td>'
+      +'<td>'+fmtGb(d.g)+'</td>'
+      +'<td>'+(d.c&&d.c!=="0"?'<span style="white-space:nowrap">'+esc(d.c)+" 分钟</span>":"—")+'</td>'
       +'<td class="nm">'+scTag(d)+hl(d.n||d.t,terms)+chgTag(d)+stopTag(d)+vpTag(d)+'</td>'
       +'<td><span class="tg" title="资费大类；官方原始分类见展开详情">'+esc(d.cat||"—")+'</span></td>'
       +'<td>'+owTag(d)+'</td>'
@@ -2451,7 +2459,7 @@ function copyText(s){
 const CSV_COLS=[
   ["地域",d=>SC_LB[d.sc]||""],["状态",d=>d.st?"已下架":"在售"],["归属",d=>d.ow||""],
   ["月费(元)",d=>d.f],["流量(GB)",d=>d.g],["流量原文",d=>d.d],["流量单位",d=>d.du],
-  ["每元流量(GB)",d=>{const v=perVal(d);return v==null?"":(v===Infinity?"∞":+v.toFixed(3))}],
+  ["每元流量(GB)",d=>{const v=perVal(d);return v==null?"":+v.toFixed(3)}],
   ["通话(分)",d=>d.c],["名称",d=>d.n],["套餐名",d=>d.t],
   /* 大类在前、细分在后：大类是四网可比的横轴，细分是上游各自的说法。
      两个都留着 —— 只给大类会丢掉「流量包还是语音包」这种关键差别。 */
