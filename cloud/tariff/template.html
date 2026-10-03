@@ -688,7 +688,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
           <select id="cat" title="资费大类：套餐 / 加装包 / 营销活动 / 标准资费 / 宽带 / 港澳台-国际">
             <option value="">全部大类</option>
           </select></label>
-        <label class="f"><span class="fl">细分</span>
+        <label class="f" id="wty"><span class="fl">细分</span>
           <select id="ty" title="细分类型。选了类型后，不属于它的大类会置灰">
             <option value="">全部细分</option>
           </select></label>
@@ -1302,6 +1302,10 @@ function condOf(){
   const ct=$("#ct"),ctOpt=ct&&ct.selectedOptions?ct.selectedOptions[0]:null;
   /* 已下架页签下地市维度整体失效（理由见 apply() 里那段注释）。 */
   dm.ct=dm.ct||!!(ctOpt&&ctOpt.disabled)||STA==="1";
+  /* 已下架页签下细分维度失效 —— 仅当本网已下架条目**本来就没有**细分
+     （联通的停售条目上游只有「原一级」这一层，细分留空；见 rows_of 停售还原）。
+     判据是数据：哪网上游给下架条目补了细分，这里自动放开，不必改代码。 */
+  dm.ty=dm.ty||!!(STA==="1"&&!rowsOf(NET).some(d=>d.st&&d.ty));
   const g=k=>{const e=document.getElementById(k);return e?e.value:""};
   /* 区间值在这里一次性解析（["0,5" → [0,5]]），match() 里直接用数组 ——
      否则每行每轮都重复 split/map。rg 值三种形态：null=不筛 / "none"=无该项 /
@@ -1899,7 +1903,8 @@ function match(d,c){
         ty=c.ty,ct=c.ct,pf=c.pf,gf=c.gf,
         cf=c.cf,bw=c.bw,chx=c.chx,
         on=c.on,off=c.offv,chg=c.chg;
-  const ctDimOff=c.dimOff.ct,owDimOff=c.dimOff.ow,sbDimOff=c.dimOff.sb;
+  const ctDimOff=c.dimOff.ct,owDimOff=c.dimOff.ow,sbDimOff=c.dimOff.sb,
+        tyDimOff=c.dimOff.ty;
 
     /* 「在售 / 已下架」页签先判 —— 它是这一页的**前提**，不是并列条件。
        d.st 为 1 表示已下架（由采集侧按各网判据写好，见 tariff_monitor.state_of）；
@@ -1931,7 +1936,9 @@ function match(d,c){
        sbDimOff 是保险丝 —— 本网没有这一维时按它筛会给出「0 条」的假答案。 */
     if(sbv&&!sbDimOff&&d.sect!==sbv)return false;
     if(cat&&d.cat!==cat)return false;
-    if(ty&&d.ty!==ty)return false;
+    /* tyDimOff：联通已下架条目上游没有细分（见 condOf），「已下架」页签下
+       细分按它筛会给出恒 0 条的假答案 —— 无效筛选 = 不筛（与 ct/ow/sb 同一条原则）。 */
+    if(ty&&!tyDimOff&&d.ty!==ty)return false;
     /* 保险丝：当前取值若是「本网已置灰的维度」，当没筛。
        UI 上点不到置灰项，但脚本 / 程序化赋值仍可能把它设进来（实测可行）——
        那时按它筛会输出「邢台 0 条」这类看着正常、实则拿不存在的维度筛出来的
@@ -2064,8 +2071,12 @@ function apply(){
      顺便把已选的地市值**清掉** —— 留着它会让筛选标签写着「城市：邢台」而结果
      却是全部，控件 / 标签 / 结果三者对不上。代价是切回「在售」要重选一次，
      比给一个假的状态划算。禁用态由 syncCtAvail 统一维护（唯一写处）。 */
-  if(STA==="1"){const e=$("#ct");if(e&&e.value)e.value=""}
+  if(STA==="1"){const e=$("#ct");if(e&&e.value)e.value="";
+    /* 细分同理 —— 仅当本网已下架条目没有细分（联通停售那批），见 condOf 的 dm.ty。
+       留着旧值会让筛选标签写「细分：流量包」而结果却是全部已下架，三者对不上。 */
+    const t=$("#ty");if(t&&t.value&&!rowsOf(NET).some(d=>d.st&&d.ty))t.value=""}
   syncCtAvail($("#ct").style.display==="none",STA==="1");
+  syncTyAvail(STA==="1");
   const c=condOf();
   view=rowsOf(NET).filter(d=>match(d,c));
   sortView();
@@ -2395,6 +2406,26 @@ function syncCtAvail(dimOff,stop){
   const w=document.getElementById("wct");
   if(w){
     w.title=t;
+    w.classList.toggle("off",off);
+  }
+}
+
+/* —— 细分维度的「已下架页签」停用（与 syncCtAvail 同一模式，唯一写处）——
+   联通的停售条目上游只有「原一级」这一层（细分留空，见 rows_of），在「已下架」
+   页签下细分整个维度不存在：置 disabled + 说明文案，而不是留一个
+   全是置灰项的下拉让用户以为页面坏了。切回「在售 / 全部」自动恢复。
+   判据是数据（本网已下架条目有没有细分），广电/电信若有带细分的下架数据，
+   这里自动放开。 */
+function syncTyAvail(stop){
+  const ty=$("#ty");if(!ty)return;
+  const hasStopTy=rowsOf(NET).some(d=>d.st&&d.ty);
+  const off=!!(stop&&!hasStopTy);
+  ty.disabled=off;
+  ty.title=off?"已下架条目上游没有细分分类（停售条目只保留大类），本页签不提供该筛选"
+              :"细分类型。选了类型后，不属于它的大类会置灰";
+  const w=document.getElementById("wty");
+  if(w){
+    w.title=ty.title;
     w.classList.toggle("off",off);
   }
 }
