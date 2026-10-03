@@ -33,6 +33,107 @@ RE_ITEM = re.compile(r"^-\s+\*\*(.+?)\*\*\s*〔(.+?)〕")
 # 否则回填出来的历史只能显示「改了哪几个字段」，显示不了改成什么样。
 RE_DELTA = re.compile(r"^  - (.+?)：`(.*)` → `(.*)`\s*$")
 
+SNAP_DIR = os.path.join(BASE, "snapshots")
+LEN_GZ = len(".json.gz")
+
+
+def _enrich(rec):
+    """把 md 解析出的「仅变更字段」样本升级成**整行**旧→新对照。
+
+    页面的全字段 diff 卡（含上线/下线日等未变信息、变更项高亮）需要整行；
+    md 只有变更字段。快照在 git 里留存（KEEP_SNAPSHOTS=60），按名称+类型
+    把套餐对到「上一份快照 vs 当天快照」的行上：
+    ★ 变更字段的旧值/新值**以 md 为准**（它是运行时权威产物）—— 不用快照
+      重算 diff 来核对计数：运行时数字过过护栏（假新增抑制/回弹冻结等），
+      原始 diff 对不上是常态而非异常，拿计数做闸门只会把大部分记录拒之门外。
+    ★ 未变字段从快照行补全；套餐在快照里找不到（更名/快照被 prune）就整条
+      跳过，该样本保持 md 解析的紧凑格式 —— 降级展示好过编造数据。
+    """
+    try:
+        import gzip
+        import tariff_monitor as TM
+    except Exception as e:
+        print("   ! 无法加载 tariff_monitor，跳过富化：%s" % e)
+        return None
+    prefix = TM.SNAP_PREFIX.get(rec.get("code"))
+    if not prefix:
+        return None
+    day8 = (rec.get("d") or "").replace("-", "")
+    if not re.fullmatch(r"\d{8}", day8):
+        return None
+    fs = sorted(f for f in os.listdir(SNAP_DIR)
+                if f.startswith(prefix) and f.endswith(".json.gz"))
+    dates = {f[len(prefix):-LEN_GZ]: f for f in fs}
+    if day8 not in dates:
+        return None                        # 当天快照已不在（被 prune），无从富化
+    older = [d for d in sorted(dates) if d < day8]
+    if not older:
+        return None                        # 首版基线，没有比对对象
+    with gzip.open(os.path.join(SNAP_DIR, dates[older[-1]]), "rt", encoding="utf-8") as f:
+        old_idx = TM.index_rows(json.load(f))
+    with gzip.open(os.path.join(SNAP_DIR, dates[day8]), "rt", encoding="utf-8") as f:
+        new_idx = TM.index_rows(json.load(f))
+    rev_cn = {v: k for k, v in TM.FIELD_CN.items()}
+
+    def find(ix, nm, ty):
+        hit = [v for v in ix.values()
+               if (v.get("_name") or v.get("_tname") or "")[:60] == nm]
+        byty = [v for v in hit if v.get("_ty") == ty]
+        return byty or hit
+
+    def pick(cands, deltas, side):
+        """同名行可能不止一条：优先选「变更字段旧/新值与 md 一致」的那条。
+        md 里空值写成「—」，比对前归一成空串。"""
+        i = 0 if side == "o" else 1
+        for cand in cands:
+            ok = True
+            for ff, do, dn in deltas:
+                if not ff:
+                    continue
+                dv = (do if i == 0 else dn)
+                dv = "" if dv == "—" else dv
+                cv = str(cand.get(ff, "") or "").replace("\n", " ").strip()[:70]
+                if cv != dv:
+                    ok = False
+                    break
+            if ok:
+                return cand
+        return cands[0] if cands else None
+
+    n_rich = 0
+    for s in rec.get("smp", []):
+        if s.get("k") != "c" or not s.get("ch"):
+            continue
+        deltas = [(rev_cn.get(c["f"], ""), str(c.get("o") or ""),
+                   str(c.get("n") or "")) for c in s["ch"]]
+        o_cands = find(old_idx, s["n"], s.get("ty") or "")
+        n_cands = find(new_idx, s["n"], s.get("ty") or "")
+        if not o_cands and not n_cands:
+            continue
+        o_row = pick(o_cands, deltas, "o") if o_cands else {}
+        n_row = pick(n_cands, deltas, "n") if n_cands else {}
+        rows = []
+        for f in TM.DIFF_SHOW_FIELDS:
+            flag = 0
+            ov = nv = ""
+            for ff, do, dn in deltas:
+                if ff == f:
+                    ov, nv, flag = do, dn, 1
+                    break
+            if not flag:
+                ov = str(o_row.get(f, "") or "").replace("\n", " ").strip()[:48]
+                nv = str(n_row.get(f, "") or "").replace("\n", " ").strip()[:48]
+                if not ov and not nv:
+                    continue
+            rows.append([TM.FIELD_CN.get(f, f), ov, nv, flag])
+        if rows:
+            s["rows"] = rows
+            n_rich += 1
+    if not n_rich:
+        return None                        # 一条都没富化成功，保持原样
+    rich = dict(rec)
+    return rich
+
 
 def parse(md_path, tag):
     """解析一份变更报告 → 一条 history 记录（解析不出关键行就返回 None）。"""
@@ -128,6 +229,9 @@ def main():
         rec = parse(p, tag)
         if not rec:
             continue
+        rich = _enrich(rec)
+        if rich:
+            rec = rich              # 富化成功：数字与 md 一致，c 样本带整行对照
         md[(rec["d"], rec["code"])] = rec
 
     add, repl = [], 0

@@ -877,6 +877,61 @@ def diff_rows(old, new):
     return added, removed, changed
 
 
+# 字段变更样本「整行对照」的展示字段顺序 —— 页面照这个顺序铺行，
+# 把用户最关心的月费/流量/通话放前面，权益说明这类长文本垫底。
+DIFF_SHOW_FIELDS = ("fees", "data", "dataUnit", "call", "brandwidth",
+                    "applicablePeople", "channel", "validPeriod",
+                    "onlineDay", "offineDay", "extraFees", "otherContent")
+DIFF_VAL_MAX = 48         # 单个值截断长度（history.json 是长期提交的文件）
+
+
+def diff_row_payload(o_row, n_row, changed_fields):
+    """一条变更资费的**整行**旧→新对照（页面全字段 diff 卡的数据）。
+
+    返回 [字段中文名, 旧值, 新值, 是否变更(0/1)] 的数组：
+    - 只收「至少一侧非空」的字段 —— 两边都空展示出来只是噪音；
+    - 值截到 DIFF_VAL_MAX 字；换行压成空格（页面 diff 行是单行布局）；
+    - 变更字段打 1 标，页面据此高亮 —— 未变的字段也要显示（用户要看
+      「这个套餐长什么样」），但视觉上退后一步。
+    """
+    rows = []
+    for f in DIFF_SHOW_FIELDS:
+        ov = str(o_row.get(f, "") or "").replace("\n", " ").strip()
+        nv = str(n_row.get(f, "") or "").replace("\n", " ").strip()
+        if not ov and not nv:
+            continue
+        rows.append([FIELD_CN.get(f, f), ov[:DIFF_VAL_MAX], nv[:DIFF_VAL_MAX],
+                     1 if f in changed_fields else 0])
+    return rows
+
+
+def build_smp(idx, oidx, added, removed, changed):
+    """构造 history.json 的 smp 样本数组 —— 页面「变化历史」的明细层。
+
+    独立成函数而不写在 write_report 里：backfill_history 回填历史时要从
+    快照重算**一模一样**的样本结构（见那边 enrich 逻辑），两处各写一份
+    迟早漂移 —— 页面上「运行时记录」和「回填记录」长得不一样就是症状。
+    """
+    _smp = []
+    for k in added[:6]:
+        r = idx[k]
+        _smp.append({"n": (r.get("_name") or r.get("_tname") or "")[:60],
+                     "ty": r.get("_ty") or "", "k": "a"})
+    for k in removed[:4]:
+        r = oidx[k]
+        _smp.append({"n": (r.get("_name") or r.get("_tname") or "")[:60],
+                     "ty": r.get("_ty") or "", "k": "r"})
+    # 字段变更样本：上限与 changes/*.md 的明细段一致（120 条）——
+    #   实际分布里单轮最多 116 条，页面先铺 6 张、其余折叠，多存不撑爆。
+    for k, dd in changed[:120]:
+        r = idx[k]
+        _smp.append({"n": (r.get("_name") or r.get("_tname") or "")[:60],
+                     "ty": r.get("_ty") or "", "k": "c",
+                     "f": list(dd.keys())[:4],
+                     "rows": diff_row_payload(oidx[k], idx[k], dd)})
+    return _smp
+
+
 def brief(row):
     fee = row.get("fees") or "—"
     gb = ((row.get("data") or "") + (row.get("dataUnit") or "")).strip() or "—"
@@ -1063,30 +1118,8 @@ def write_report(old_o, new_o, added, removed, changed,
     # ★ 顺手把这一网的变更摘要追加进 history.json（页面时间线用）。
     #   放在 write_report 里、而不是各调用点：移动走 main()、其余三网走 net_round()，
     #   两处**都**经过这里；写在调用点就得分两遍，漏一处 = 时间线里少一网且不报错。
-    _smp = []
-    for k in added[:6]:
-        r = idx[k]
-        _smp.append({"n": (r.get("_name") or r.get("_tname") or "")[:60],
-                     "ty": r.get("_ty") or "", "k": "a"})
-    for k in removed[:4]:
-        r = oidx[k]
-        _smp.append({"n": (r.get("_name") or r.get("_tname") or "")[:60],
-                     "ty": r.get("_ty") or "", "k": "r"})
-    # 字段变更样本：除了字段名，把「旧值 → 新值」也带上（ch 数组）——
-    #   页面「变化历史」的对照卡（左=旧值，右=新值，中间一条分隔线）靠它渲染；
-    #   只有字段名的话页面只能显示「改了哪几个字段」，看不到改成什么样。
-    #   上限与 changes/*.md 的明细段一致（120 条）：实际分布里单轮最多 116 条，
-    #   页面侧只先铺 6 张、其余折叠展开，所以这里多存不会把时间线撑爆。
-    #   值截到 48 字：history.json 是会被 CI 长期提交的文件，整段权益文本
-    #   塞进来会把 diff 撑爆；想看全文走 changes/*.md（那里截到 70 字）。
-    #   旧记录没有 ch 键 —— 页面按「有没有 ch」回退到旧的字段名 chip 展示。
-    for k, dd in changed[:120]:
-        r = idx[k]
-        _smp.append({"n": (r.get("_name") or r.get("_tname") or "")[:60],
-                     "ty": r.get("_ty") or "", "k": "c", "f": list(dd.keys())[:4],
-                     "ch": [{"f": FIELD_CN.get(ff, ff),
-                             "o": str(ov)[:48], "n": str(nv)[:48]}
-                            for ff, (ov, nv) in list(dd.items())[:4]]})
+    #   样本构造在 build_smp（与回填共用，字段变更样本带整行旧→新对照）。
+    _smp = build_smp(idx, oidx, added, removed, changed)
     rec = {"ts": str(new_o.get("fetchedAt") or "")[:19], "d": d,
            "code": _code_of_net(net), "net": net, "n": len(idx),
            "a": len(added), "r": len(removed), "c": len(changed), "smp": _smp}

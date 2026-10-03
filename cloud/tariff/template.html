@@ -453,6 +453,12 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   font-weight:700;line-height:16px;margin-right:5px;vertical-align:1px;flex:none}
 .dtg.o{background:var(--badbg);color:var(--bad)}
 .dtg.n{background:var(--okbg);color:var(--ok)}
+/* 整行对照（.full）：未变字段不配色不挂徽标 —— 信息在场，但视觉上让位给变更行 */
+.dold.plain,.dnew.plain{color:var(--tx3);background:none}
+.drow.chg .dlab{color:var(--tx)}
+.dstat{margin-left:auto;font-weight:400;font-size:11px;color:var(--tx3)}
+.dc.full .drow{font-size:11.5px}
+.dc.full .dlab,.dc.full .dold,.dc.full .dnew{padding-top:5px;padding-bottom:5px}
 /* 对照卡折叠：单轮最多见过 116 条字段变更，全铺开会把当天节点拉出好几屏 ——
    每轮先铺 DIFF_SHOW 张，其余收进 .dmore，点按钮展开/收起。 */
 .dmorebtn{margin:8px 0 0 11px;padding:4px 12px;border:1px solid var(--bd2);
@@ -2305,15 +2311,30 @@ function renderHistory(){
              不全改成卡：新增/下架没有「新旧」可对照，塞进同一布局只是空壳。 */
           const chips=[],diffs=[];
           (x.smp||[]).forEach(s=>{
-            if(s.k==="c"&&s.ch&&s.ch.length){
-              const rows=s.ch.map(c=>{
-                const o=(c.o==null?"":String(c.o))||"—",n=(c.n==null?"":String(c.n))||"—";
-                return '<div class="drow"><div class="dlab">'+esc(c.f||"字段")+'</div>'
+            if(s.k==="c"&&((s.rows&&s.rows.length)||(s.ch&&s.ch.length))){
+              /* rows = 整行对照 [字段名, 旧, 新, 是否变更0/1]（新格式）：
+                 未变字段（上线/下线日等）也显示 —— 用户要看「这个套餐长什么样」，
+                 变更项高亮、未变项退后；ch = 旧格式（仅变更字段），全部按变更处理。
+                 头部标注「变更 N / 共 M 项」，一眼知道高亮看什么。 */
+              const items=(s.rows&&s.rows.length)
+                ?s.rows.map(r=>({f:r[0],o:r[1],n:r[2],ch:!!r[3]}))
+                :s.ch.map(c=>({f:c.f,o:c.o,n:c.n,ch:true}));
+              const nch=items.filter(i=>i.ch).length;
+              const rows=items.map(i=>{
+                const o=(i.o==null?"":String(i.o))||"—",n=(i.n==null?"":String(i.n))||"—";
+                if(!i.ch)return '<div class="drow"><div class="dlab">'+esc(i.f||"")+'</div>'
+                  +'<div class="dold plain">'+esc(o)+'</div>'
+                  +'<div class="dnew plain">'+esc(n)+'</div></div>';
+                return '<div class="drow chg"><div class="dlab">'+esc(i.f||"字段")+'</div>'
                   +'<div class="dold"><span class="dtg o">旧</span>'+esc(o)+'</div>'
                   +'<div class="dnew"><span class="dtg n">新</span>'+esc(n)+'</div></div>';
               }).join("");
-              diffs.push('<div class="dc"><div class="dch">⇄ '+esc(s.n||"")
-                +(s.ty?'<span class="nn">'+esc(s.ty)+'</span>':"")+'</div>'+rows+'</div>');
+              diffs.push('<div class="dc'+(nch<items.length?" full":"")
+                +'"><div class="dch">⇄ '+esc(s.n||"")
+                +(s.ty?'<span class="nn">'+esc(s.ty)+'</span>':"")
+                +(nch<items.length?'<span class="dstat">变更 '+nch+' 项 / 共 '
+                  +items.length+' 项 · 高亮为变更</span>':"")
+                +'</div>'+rows+'</div>');
               return;
             }
             const mark=s.k==="a"?"＋":s.k==="r"?"－":"⇄";
