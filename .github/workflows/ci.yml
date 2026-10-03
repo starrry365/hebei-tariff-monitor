@@ -45,7 +45,7 @@ jobs:
       - name: 语法检查（全量 Python 文件）
         run: python -m compileall -q cloud probes tools tests
 
-      - name: 测试套件（既有 4 个自测）
+      - name: 测试套件（既有 5 个自测）
         run: python tests/run_all.py
 
       - name: 本轮新增脚本冒烟

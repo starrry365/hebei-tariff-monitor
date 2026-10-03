@@ -30,8 +30,7 @@
 **工作流**（`.github/workflows/`）：
 `tariff-daily.yml` 每日巡检 + 部署 ·
 `ci.yml` push/PR 跑语法检查与测试 ·
-`fresh-check.yml` 每日两次新鲜度巡检 ·
-`notify-test.yml` 推送通道自检
+`fresh-check.yml` 每日两次新鲜度巡检（推送通道手动诊断：本地跑 `python cloud/tariff/notify.py --check` / `--test`）
 
 **页面**：查询页支持 ★ 收藏关注（本机 localStorage）与「只看收藏」，
 并可「添加到主屏幕」当 PWA 用；「关于」页里有源码包下载入口。
