@@ -2348,7 +2348,13 @@ function renderNet(){
 function buildCtOptions(counts){
   const ct=$("#ct");if(!ct)return;
   const keep=ct.value;
-  while(ct.options.length>2)ct.remove(2);
+  /* ★ 清旧选项必须连 <optgroup> 一起清：ct.options 是**拍平**的集合（optgroup
+     里的 option 也在其中），remove(2) 只摘 option、清空的 optgroup 壳会留在
+     原地 —— 而 renderNet 每次切网都重建一遍选项，于是两组空壳标签
+     （「地市」「专属区域」）就叠在真实分组前面，用户看到的就是一排重复的
+     分组名（2026-10-03 实测截图）。按 children 清：optgroup 整个摘走，
+     它肚里的 option 随之消失。前两项固定 option 是直接子节点，不受影响。 */
+  while(ct.children.length>2)ct.removeChild(ct.children[2]);
   const c=counts||{};
   const mk=(label,names)=>{
     if(!names||!names.length)return;

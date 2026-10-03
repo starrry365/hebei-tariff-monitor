@@ -689,7 +689,7 @@ def _unwrap_payload(j):
     return j
 
 
-def call(path, body, retry=2):
+def call(path, body, retry=2, cap=8.0):
     """调网关：POST 明文 JSON -> 若响应是 {"body": "<密文>"} 则本地解密 -> dict
 
     🔴 失败契约：打不通时返回 ``{"_err": "<分类前缀>: 详情"}``，**绝不抛异常**
@@ -701,6 +701,8 @@ def call(path, body, retry=2):
          · ``body:``   200 但不是合法 JSON / 不是预期结构 —— 上游改版信号
     退避：指数 + 全抖动（``sleep = rand(0, min(cap, base*2**i))``）。固定间隔的
     问题是并发抓取时所有线程同拍重试，形成自愈不了的节奏性拥堵；抖动让重试散开。
+    cap 默认 8s：单页明细调用方多（并发线程各自重试），退避太长会把整轮拖垮；
+    单点依赖（如 getType2List，整轮都等它）应传更大的 cap —— 见 fetch_all。
     """
     if mz_crypto is None:
         return {"_err": f"缺少加解密依赖 pycryptodome（{_MZ_ERR}），只能跑 --render-only"}
@@ -737,8 +739,8 @@ def call(path, body, retry=2):
             last = f"body: {type(e).__name__}: {e}"
             log(f"  !! call({path}) 第{i + 1}次响应异常: {last[:130]}")
         if i < retry:
-            # 指数退避 + 全抖动：base 1.5s，上限 8s（random 已在顶部导入）
-            time.sleep(random.uniform(0, min(8.0, 1.5 * (2 ** i))))
+            # 指数退避 + 全抖动：base 1.5s，上限 cap（默认 8s，单点依赖可传大）
+            time.sleep(random.uniform(0, min(cap, 1.5 * (2 ** i))))
     return {"_err": last}
 
 
@@ -819,7 +821,24 @@ def fetch_group(c):
 
 def fetch_all(workers=4):
     t0 = time.time()
-    t2 = call("nrtariff/new/Tariff/getType2List", {"province": PROV, "isPublic": "1"})
+    # 🔴 分类列表是整轮的**单点依赖**：后面每个组合都由它展开，它拿不到 =
+    #    整轮巡检报废（电信白采 / 页面不重建 / 部署 skip）。
+    #    2026-10-03 一天两遇（run #43 明细接口、#44 分类接口，均为 GitHub 服务器
+    #    到移动网关的 Errno 101 Network is unreachable）：call() 内部的 3 连试 +
+    #    ≤8s 退避，每次还被 ~25s 的连接超时占着，桥不过分钟级的路由抖动窗。
+    #    这里给专项长重试：6 轮、退避上限 30s，最坏 ~5 分钟——分钟级的抖动
+    #    基本都能跨过去。敢这么等的底气是 call 的 _err 契约把「网络不可达」
+    #    与「上游确实没数据」分得清清楚楚：后者不值得等，直接走失败分支。
+    t2 = {"_err": "net: 首轮（尚未请求）"}
+    for rnd in range(6):
+        t2 = call("nrtariff/new/Tariff/getType2List",
+                  {"province": PROV, "isPublic": "1"}, retry=3, cap=30.0)
+        if not (isinstance(t2, dict) and t2.get("_err")):
+            break
+        if rnd < 5:
+            log(f"  分类列表第{rnd + 1}轮不可达（{str(t2.get('_err'))[:110]}），"
+                f"歇 20s 再来一轮")
+            time.sleep(20)
     combos = (t2.get("data") if isinstance(t2, dict) else None) or []
     if not combos:
         log(f"分类列表获取失败: {str(t2)[:200]}")

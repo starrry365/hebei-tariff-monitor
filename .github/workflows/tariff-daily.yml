@@ -150,7 +150,27 @@ jobs:
           retention-days: 14
 
       - name: 抓取 + 对比 + 生成并归档页面
-        run: python cloud/tariff/tariff_monitor.py
+        run: |
+          # 🔴 兜底重试（2026-10-03 立）。背景：run #43/#44 一天两遇 GitHub 服务器
+          #    到移动网关的 Errno 101（Network is unreachable），采集器 exit 3 把
+          #    整轮巡检掐死——电信白采、页面不重建、部署 skip。
+          #    采集器内部已有两层重试（call() 3 连试 + fetch_all 对分类接口的
+          #    6 轮长退避），这里再加最后一道：歇 2 分钟把整个采集流程重来一遍。
+          #    分钟级的路由抖动，三层里总有一层能跨过去。
+          #    ★ 重试是安全的：exit 3 发生在写快照**之前**，失败轮不留任何半成品，
+          #      第二轮从干净状态开始；对比/归档逻辑本身幂等。
+          for i in 1 2; do
+            if [ "$i" = "2" ]; then
+              echo "::warning::第一轮采集失败（多为 GitHub 服务器到运营商网关的瞬时网络问题），歇 120s 重来"
+              sleep 120
+            fi
+            echo "=== 采集尝试 第 $i/2 轮 ==="
+            if python cloud/tariff/tariff_monitor.py; then
+              exit 0
+            fi
+          done
+          echo "::error::两轮采集均失败，按真失败处理（上游大概率不是抖动，而是改版/封禁）"
+          exit 1
 
       # ── 判据层体检 ───────────────────────────────────────────────────
       # 🔴 这两步以前**从来没在 CI 里跑过**，只在本机手动执行过 ——
