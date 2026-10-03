@@ -627,7 +627,7 @@ jobs:
   post-checks:
     needs: tariff
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 30
     env:
       TZ: CST-8
     steps:
@@ -654,7 +654,15 @@ jobs:
           #   ③ tariffAttributes 是否只有 1/2（有没有第三个板块）
           #   ④ 超出上游目录声明的组合是否真的没有数据（「目录没列」≠「没有数据」）
           # 拿联通当代表：它是唯二能逐城取数的网（另一网是电信，需真实浏览器）。
-          python probes/probe_coverage_axes.py --net unicom
+          # ★ 三连试：GitHub 服务器到运营商网关的 Errno 101 抖动今天一天把本探针
+          #   干红两次（run #41/#45）—— 都是秒级失败，重试即愈；判据本身没意见。
+          ok=0
+          for i in 1 2 3; do
+            echo "=== 尝试 $i/3 ==="
+            if python probes/probe_coverage_axes.py --net unicom; then ok=1; break; fi
+            [ "$i" = "3" ] || { echo "::warning::第 $i 次失败（多为瞬时网络），歇 45s 重试"; sleep 45; }
+          done
+          [ "$ok" = "1" ] || { echo "::error::三次均失败——大概率不是抖动而是上游改版"; exit 1; }
 
       - name: 核对移动采集维度穷尽性（全网/河北 × 个人/政企 × 5 个类目）
         run: |
@@ -670,7 +678,14 @@ jobs:
           #   ⚠️ 判据方向：请求**失败**与**上游确实没数据**必须分清 —— 两者在
           #      返回值里同形（都是 0 条）。任何一次请求没问到就判
           #      **无法判定 = 失败**（exit 2），而不是把「没问到」印成「没漏采」。
-          python probes/probe_coverage_axes.py --net move
+          #      （与上一步同理：三连试防瞬时网络抖动，run #41/#45 两度误伤。）
+          ok=0
+          for i in 1 2 3; do
+            echo "=== 尝试 $i/3 ==="
+            if python probes/probe_coverage_axes.py --net move; then ok=1; break; fi
+            [ "$i" = "3" ] || { echo "::warning::第 $i 次失败（多为瞬时网络），歇 45s 重试"; sleep 45; }
+          done
+          [ "$ok" = "1" ] || { echo "::error::三次均失败——大概率不是抖动而是上游改版"; exit 1; }
 
       - name: 核对联通栏目覆盖（上游有目录 / 快照有没有条目）
         run: |
@@ -685,7 +700,14 @@ jobs:
           #       有请求失败格                     ⇒ 结论不可信，判失败
           #   ⚠️ 判据不能写成「两个数相等」：同一条资费可挂多栏目，快照 entries 是
           #     按 reportNo 去重后的（实测 9120 → 8041，差 1079 是重复挂载不是漏）。
-          python probes/probe_unicom_axes.py
+          #      （528 格逐格打真接口，单格抖动即全步失败——同样加三连试。）
+          ok=0
+          for i in 1 2 3; do
+            echo "=== 尝试 $i/3 ==="
+            if python probes/probe_unicom_axes.py; then ok=1; break; fi
+            [ "$i" = "3" ] || { echo "::warning::第 $i 次失败（多为瞬时网络），歇 45s 重试"; sleep 45; }
+          done
+          [ "$ok" = "1" ] || { echo "::error::三次均失败——大概率不是抖动而是上游改版"; exit 1; }
 
   # 部署单独一个 job：Pages 的 environment 需要独立声明，
   # 也让「抓取失败」和「部署失败」在 Actions 页面上一眼可分。
