@@ -663,10 +663,11 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
           <span class="axlab">资费范围</span>
           <div class="axseg" id="segSb" role="group" aria-label="资费范围"></div>
           <select id="sb" class="axsel" tabindex="-1" aria-hidden="true"
-                  title="资费范围：全网资费＝全国/跨省目录，河北资费＝本省目录">
+                  title="资费范围：全网资费＝全国/跨省目录，河北资费＝本省目录，集团公示＝电信集团公示目录">
             <option value="">全部</option>
             <option value="全国资费">全网资费</option>
             <option value="本省资费">河北资费</option>
+            <option value="集团资费">集团公示</option>
           </select>
         </div>
       </div>
@@ -1225,10 +1226,11 @@ function sortView(){
 const DIM_PRE={sb:"资费范围：",sc:"地域：",ow:"归属：",cat:"类型：",ty:"细分：",ct:"城市：",pf:"月费：",
                gf:"流量：",cf:"通话：",bw:"宽带：",chx:"渠道：",on:"上架：",off:"下线：",chg:""};
 /* 资费范围的**显示名**：数据值说的是「这一条从哪个目录来」（tariffAttr 1/2 =
-   全国跨省目录 / 本省目录），官方页面给用户看的词是「全网资费 / 河北资费」。
+   全国跨省目录 / 本省目录；3 = 电信集团公示目录，2026-10-03 接入），
+   官方页面给用户看的词是「全网资费 / 河北资费 / 集团资费公示」。
    只改**显示**，不动落盘取值 —— 构建期判据、probe_filter_dims 的 ATTR_CN
-   白名单、以及审计脚本都按 全国资费/本省资费 这两个值对账，改值等于把对账打断。 */
-const SB_LABEL={"全国资费":"全网资费","本省资费":"河北资费"};
+   白名单、以及审计脚本都按 全国资费/本省资费/集团资费 这几个值对账，改值等于把对账打断。 */
+const SB_LABEL={"全国资费":"全网资费","本省资费":"河北资费","集团资费":"集团公示"};
 /* 读某个维度控件当前选中项的**可读文本**。
    选项文本带条数（如「加装包（2135）」）—— 那是给下拉里挑的时候看的，
    写进筛选说明 / 标签里就是噪音，这里统一削掉。 */
@@ -2513,7 +2515,7 @@ function renderDims(){
     if(wsb)wsb.style.display=hasSb?"":"none";
     if(!hasSb)sbSel.value="";      // 切网时把别网带过来的值清掉，否则筛选恒空
     sbSel.title=hasSb
-      ?"板块：全国资费＝全国/跨省目录，本省资费＝河北本省目录（0 条的档置灰）"
+      ?"板块：全国资费＝全国/跨省目录，本省资费＝河北本省目录，集团公示＝电信集团公示目录（0 条的档置灰）"
       :"本网官方页面只有一个板块，该维度不提供";
     [...sbSel.options].forEach(o=>{
       if(!o.value){o.disabled=false;return}

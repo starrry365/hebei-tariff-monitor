@@ -157,9 +157,20 @@ for k, v in (d.get("sections") or {}).items():
     c = v.get("count")
     if c is not None and int(c) != n:
         print("::warning title=电信采集被截断::分类「%s」count=%s 但只收到 %s 条" % (k, c, n))
-print("[ct-grab] provCode=%s codes=%s 合计 %d 条" % (d.get("provCode"), d.get("codes"), tot))
+jt = d.get("jt") or {}
+jtot = 0
+if isinstance(jt, dict) and not jt.get("err"):
+    for k, v in (jt.get("sections") or {}).items():
+        jtot += len(v.get("zoneTitleList") or [])
+    if (jt.get("codes") or {}) and any(c not in ("0", "W_0000", None) for c in jt["codes"].values()):
+        print("::warning title=集团采集接口异常::codes=%s" % jt["codes"])
+print("[ct-grab] provCode=%s codes=%s 合计 %d 条（省级）+ %d 条（集团公示）"
+      % (d.get("provCode"), d.get("codes"), tot, jtot))
 if tot < 500:
     print("::warning title=电信采集条数异常::只拿到 %d 条（正常 800+），本轮视为失败" % tot)
+if jtot < 400:
+    print("::warning title=集团公示条数异常::只拿到 %d 条（2026-10-03 基准 524），"
+          "面板将缺「集团资费」板块" % jtot)
 PY
 
 echo "[ct-grab] 完成，产物 $OUT"

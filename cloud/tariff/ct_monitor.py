@@ -45,8 +45,14 @@
   ⚠️ 查询参数 `type`：**type=1 才是「按 lable1Id 过滤」**；type≠1（0/2/3）
      会忽略 lable1Id 返回全量 884 条 —— 别拿它做分类轮询，会采到 5 份全同副本。
 
-**tariffAttr（1/2/3）**：与是否过期**零相关**（2026-09-22 全量核对：无一过期条目），
-  语义未定；页面模板根本不使用 a1 字段，这里统一置 "2" 与其他网对齐。
+**tariffAttr（1/2/3）**：省级 1/2/3 与是否过期**零相关**（2026-09-22 全量核对：无一过期条目），
+  语义未定；页面模板根本不使用 a1 字段，省级统一置 "2" 与其他网对齐。
+  ★ **"3" 现在有确定语义了（2026-10-03）**：集团资费公示（provCode=1000000037，
+  harvest_hb.js 的 jt 块另族 GET 接口采的，`_normalize_jt` 归一）——
+  tariff_monitor.ATTR_CN["3"]="集团资费"，电信因此凑齐「本省/集团」两档板块。
+  ── 归一化出口两族 ──
+    · _normalize：省级（结构化字段 fees/feesUnit/onlineDay…）
+    · _normalize_jt：集团（HTML 详情族 jbxx/ffnr/report_no，宁空勿错）
 ════════════════════════════════════════════════════════════════════
 
 输出与 unicom/cbn 适配器同构：``fetch_all() → {fetchedAt, groups:[{tariffAttr,
@@ -167,6 +173,99 @@ def _normalize(e, lable1_name, lable1_id):
     return r
 
 
+def _strip_tags(s):
+    return re.sub(r"<[^>]+>", "", str(s or "")).strip()
+
+
+def _jt_sec(jb, label):
+    """jbxx 详情 HTML 里取「<span class="dark">标签：</span>值</p>」的值（去内嵌标签）。"""
+    m = re.search(label + r"：</span>(.*?)</p>", jb, re.S)
+    return _strip_tags(m.group(1)) if m else ""
+
+
+def _jt_table(ffnr):
+    """ffnr 内容表格 → {表头: 值}。表头行 <th>、值行 <td>，两行各自拆格配对。"""
+    heads, vals = [], []
+    for row in re.findall(r"<tr[^>]*>(.*?)</tr>", str(ffnr or ""), re.S):
+        cells = re.findall(r"<t([hd])[^>]*>(.*?)</t\1>", row, re.S)
+        if not cells:
+            continue
+        kinds = [k for k, _ in cells]
+        texts = [_strip_tags(v) for _, v in cells]
+        if "h" in kinds and not vals:
+            heads = texts
+        elif all(k == "d" for k in kinds):
+            vals = texts
+    return dict(zip(heads, vals))
+
+
+def _normalize_jt(e, lable1_name, lable1_id, l2name):
+    """集团条目（newTarifZone3Title，HTML 详情族）→ 移动字段名契约。
+
+    与省级 `tariffSection.do` 的结构化字段不同族：详情是一坨 HTML ——
+      · jbxx：资费类型 / 资费标准 / 适用范围 / 适用地区 / 销售渠道 /
+        上下线时间 / 有效期限 / 退订方式 / 在网要求 / 违约责任
+      · ffnr：内容表格（语音 / 通用流量 / 短信 / 带宽 / IPTV / 权益 …）
+    解析不出来的一律留空（宁空勿错），费用原文进 otherContent 保底可见。
+    """
+    jb = str(e.get("jbxx") or "")
+    std = _jt_sec(jb, "资费标准")                       # '0元/1月' / '169元/7天' / '50元'
+    m = re.match(r"\s*([\d.]+)\s*(元.*)?", std)
+    fv, uv = (m.group(1), (m.group(2) or "").strip()) if m else ("", "")
+    fees = _fee(fv, uv)
+    tab = _jt_table(e.get("ffnr"))
+    # 语音 '0分钟' → 0；通用流量 '500MB' → (500, MB)；'畅享' 等无数值 → 0（不猜）
+    call = next((re.sub(r"\D", "", v) for k, v in tab.items() if "语音" in k and re.sub(r"\D", "", v)), "0")
+    data, du = "0", "GB"
+    for k, v in tab.items():
+        if "流量" in k:
+            md = re.match(r"\s*([\d.]+)\s*(MB|M|GB|TB)", v, re.I)
+            if md:
+                data, du = _gb(md.group(1), md.group(2))
+            break
+    on, off = "", ""
+    mm = re.search(r"(\d{4}-\d{2}-\d{2})\s*至\s*(\d{4}-\d{2}-\d{2})", _jt_sec(jb, "上下线时间"))
+    if mm:
+        on, off = mm.group(1), mm.group(2)
+    x = str(e.get("other_content") or "").strip()
+    oth = str(e.get("others") or "").strip()
+    if oth and oth not in x:
+        x = (x + "；" + oth) if x else oth
+    # 非月费口径的费用原文必须可见（同 _normalize 的 fee_note 规则）
+    fee_note = (fv + " " + uv).strip() if (fv and uv) else ""
+    if fee_note and fee_note not in x:
+        x = ("费用：" + fee_note + "；" + x) if x else ("费用：" + fee_note)
+    return {
+        "name": str(e.get("name") or "").strip(),
+        "tariffName": str(e.get("name") or "").strip(),
+        "fees": fees,
+        "data": data,
+        "dataUnit": du,
+        "call": call or "0",
+        "applicablePeople": _jt_sec(jb, "适用范围") or "全国电信用户",
+        "channel": _jt_sec(jb, "销售渠道"),
+        "onlineDay": _day(on),
+        # 🔴 键名是 offineDay（没有 f）—— rows_of 用的就是这拼写，改了就断
+        "offineDay": _day(off),
+        "reportNo": str(e.get("report_no") or e.get("id") or "").strip(),
+        "otherContent": x,
+        "extraFees": str(e.get("extra_fees") or "").strip(),
+        "validPeriod": _jt_sec(jb, "有效期限"),
+        "brandwidth": next((v for k, v in tab.items() if "带宽" in k), ""),
+        # 分组与显示用
+        "type2": lable1_id,
+        "type2Name": lable1_name,
+        # 二级归属：接口不在条目里带，采集侧用 lable2Id 反查建 map（81/524 条有），
+        # 其余细分留空 → rows_of 退回一级栏目名（与移动/省级电信同语义）
+        "type3Name": str(l2name or ""),
+        "tariffAttr": "3",        # 3 = 集团（ATTR_CN["3"]="集团资费"，见 tariff_monitor）
+        "_tariffAttrRaw": "3",
+        "_province": "集团（全国）",
+        # 集团条目适用地区=全国，无地市码；文案兜底照走（构建侧统一判）
+        "_areaCodes": "",
+    }
+
+
 def raw_path():
     """原始采集产物的实际路径（.ct_raw.json 优先，退回 .gz），都没有则 None。"""
     return RAW if os.path.exists(RAW) else (RAW_GZ if os.path.exists(RAW_GZ) else None)
@@ -278,7 +377,30 @@ def fetch_all():
             g["entries"].append(n)
             entries.append(n)
         groups.append(g)
-    groups.sort(key=lambda g: ({"套餐": 0, "加装包": 1, "营销活动": 2}.get(g["type2Name"], 9),
+    # ══ 集团资费公示（provCode=1000000037，harvest_hb.js 的 jt 块）══════════
+    # 2026-10-03 补采：此前只采省级，面板缺「集团资费公示」整块（524 条）。
+    # tariffAttr=3 → ATTR_CN["3"]="集团资费" → 电信由此凑齐两档、页面自动出
+    # 「资费范围」维度。jt 块缺失 / 采集失败（err）都不算硬错：省级数据照常出。
+    jt = raw.get("jt") or {}
+    if isinstance(jt, dict) and jt.get("tree") and not jt.get("err"):
+        l2map = jt.get("l2map") or {}
+        for x in jt["tree"]:
+            name, lid = str(x.get("lable1Name") or ""), str(x.get("lable1Id") or "")
+            sec = (jt.get("sections") or {}).get(name) or {}
+            arr = sec.get("zoneTitleList") or []
+            g = {"tariffAttr": "3", "type2": lid, "type2Name": name, "entries": []}
+            for e in arr:
+                n = _normalize_jt(e, name, lid, l2map.get(e.get("report_no") or e.get("id")))
+                k = n["reportNo"] or ("name:" + n["name"])
+                if k in seen:   # 与省级共用一份去重（同 reportNo 以省级为准）
+                    continue
+                seen.add(k)
+                g["entries"].append(n)
+                entries.append(n)
+            groups.append(g)
+    # 集团组排在本省之后（同组内仍按 套餐→加装包→营销活动 的既有次序）
+    groups.sort(key=lambda g: (0 if str(g.get("tariffAttr")) == "2" else 1,
+                               {"套餐": 0, "加装包": 1, "营销活动": 2}.get(g["type2Name"], 9),
                                g["type2Name"]))
     return {"province": PROV, "provinceName": PROV_NAME + "省",
             "endpoint": EP, "fetchedAt": _local_ts(raw.get("fetchedAt")),
@@ -289,7 +411,7 @@ def fetch_all():
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     d = fetch_all()
-    stat = {g["type2Name"]: len(g["entries"]) for g in d["groups"]}
+    stat = {"%s/%s" % (g["tariffAttr"], g["type2Name"]): len(g["entries"]) for g in d["groups"]}
     log("电信 %s：%d 条 %s（fetchedAt=%s）"
         % (PROV_NAME, len(d["entries"]), stat, d["fetchedAt"]))
     no_fee = sum(1 for e in d["entries"] if not e["fees"])

@@ -37,7 +37,7 @@ ARCHIVE = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
 SNAP_DIR = os.path.join(REPO, "cloud", "tariff", "snapshots")
 PREFIX = {"move": "hebei_tariff_", "unicom": "unicom_tariff_",
           "telecom": "ct_tariff_", "cbn": "cbn_tariff_"}
-ATTR_CN = {"1": "全国资费", "2": "本省资费"}
+ATTR_CN = {"1": "全国资费", "2": "本省资费", "3": "集团资费"}  # 3=集团，2026-10-03 起
 
 
 def log(m):
@@ -209,6 +209,72 @@ log("大类分布（面板 vs 重算）：" +
               for c in sorted(set(cat_p) | set(cat_e), key=lambda x: -(cat_p.get(x, 0)))))
 if cat_p != cat_e:
     fails.append("大类分布不一致")
+
+# ── 4. 电信逐条复核（本省/集团板块，2026-10-03 集团块接入）───────────────
+log("== 电信逐条复核（本省/集团板块）==")
+day_t, snap_t = latest_snapshot(PREFIX["telecom"])
+src_t = json.load(gzip.open(snap_t, "rt", encoding="utf-8"))
+ent_t = src_t.get("entries") or []
+if not ent_t:
+    ent_t = [e for g in (src_t.get("groups") or []) for e in (g.get("entries") or [])]
+by_rn_t = {}
+for e in ent_t:
+    rn = str(e.get("reportNo") or "").strip()
+    if rn in by_rn_t:
+        fails.append("电信源快照 reportNo 重复：%s" % rn)
+    by_rn_t[rn] = e
+attrs_t = {str(g.get("tariffAttr") or "").strip() for g in (src_t.get("groups") or [])}
+sect_on_t = len(attrs_t & set(ATTR_CN)) >= 2   # 与 rows_of 同判据：两档才落盘
+rows_t = nets["telecom"]["rows"]
+bad_t = Counter()
+ex_t = {}
+
+
+def note_t(fld, msg):
+    bad_t[fld] += 1
+    ex_t.setdefault(fld, []).append(msg)
+
+
+for r in rows_t:
+    rn = str(r.get("r") or "").strip()
+    e = by_rn_t.get(rn)
+    if e is None:
+        note_t("bind", "%s %s：面板行不在源快照" % (rn, r.get("n")))
+        continue
+    l1 = str(e.get("type2Name") or "").strip()
+    l2 = str(e.get("type3Name") or "").strip()   # 集团 81 条有二级，其余空
+    exp = {
+        "cat": T.type_cat(l1),
+        "ty": l2 or l1,   # 无二级 → 细分退回一级（与移动/省级电信同语义）
+        "sect": ATTR_CN.get(str(e.get("tariffAttr") or "").strip()) if sect_on_t else None,
+        # 电信下架 = 下线日早于基线日（TelecomNet.stopped_of 的独立重实现）
+        "st": 1 if (str(e.get("offineDay") or "").strip().isdigit()
+                    and len(str(e.get("offineDay")).strip()) == 8
+                    and str(e.get("offineDay")).strip() < day_t) else None,
+        "a1": str(e.get("tariffAttr") or "").strip(),
+        "sc": "hb",
+    }
+    got = {"cat": r.get("cat"), "ty": r.get("ty") or "", "sect": r.get("sect"),
+           "st": r.get("st"), "a1": r.get("a1"), "sc": r.get("sc")}
+    for k in exp:
+        if got[k] != exp[k]:
+            note_t(k, "%s %s：面板 %r ≠ 期望 %r" % (rn, r.get("n"), got[k], exp[k]))
+    # 电信没有停售桶/细分改名，l1/l2 溯源恒不应出现
+    if r.get("l1") or r.get("l2"):
+        note_t("l1/l2", "%s：电信行带了溯源 l1=%r l2=%r" % (rn, r.get("l1"), r.get("l2")))
+
+orphan_t = set(str(r.get("r") or "").strip() for r in rows_t) - set(by_rn_t)
+if orphan_t:
+    note_t("bind", "面板行 reportNo 不在源快照：%d 个，例 %s" % (len(orphan_t), list(orphan_t)[:5]))
+log("电信行 %d 条（本省 %d · 集团 %d）· 源 %d 条 · 板块两档 %s"
+    % (len(rows_t), sum(1 for r in rows_t if r.get("sect") == "本省资费"),
+       sum(1 for r in rows_t if r.get("sect") == "集团资费"), len(by_rn_t),
+       "开" if sect_on_t else "关"))
+log("逐条比对：%s" % ("✅ 全部一致（cat/ty/sect/st/a1/sc × %d 条）" % len(rows_t)
+                    if not bad_t else "🔴 有差异"))
+for fld, n in bad_t.most_common():
+    log("   🔴 %s：%d 条 · 例：%s" % (fld, n, "; ".join(ex_t[fld][:3])))
+    fails.append("电信行 %s 差异 %d 条" % (fld, n))
 
 log("== 结论：%s ==" % ("✅ 面板数据分类全部正确" if not fails else "🔴 %d 项问题" % len(fails)))
 for f in fails:
