@@ -319,6 +319,11 @@ button{font-family:inherit}
 /* ── 表格 ───────────────────────────────────────────────────────── */
 /* 🔴 必须 overflow:clip，**不能** overflow:hidden：
    hidden 会让表格成为滚动容器，th 的 position:sticky 彻底失效。 */
+/* .tblwrap 默认 overflow:visible —— visible 不产生滚动容器，桌面上 th 的
+   sticky（相对页面滚动）照常工作。窄屏媒体查询里才切成 overflow-x:auto：
+   那时 wrapper 成为滚动容器，表头随内容滚走（窄屏上表格本就一屏装不下，
+   「能看全」优先于「表头钉住」），右侧被 clip 裁掉的列就能滚出来了。 */
+.tblwrap{overflow:visible}
 table{width:100%;border-collapse:separate;border-spacing:0;
   background:var(--glass);border:1px solid var(--bd2);border-radius:var(--r);overflow:clip;
   font-size:13px;box-shadow:var(--sh)}
@@ -333,8 +338,19 @@ th.act{color:var(--ac)}
 th.act .ar{opacity:1}
 td{padding:10px;border-bottom:1px solid var(--bd2);vertical-align:top}
 tbody tr:last-child td{border-bottom:0}
-tbody tr.row:nth-child(4n+3) td{background:var(--zebra)}
+/* 斑马纹走 JS 打的 .zeb 类而不是 nth-child：行与详情行成对插入 tbody，
+   「只看收藏」显隐后 nth-child 仍把隐藏行数进去，可见行的条纹会忽有忽无；
+   zebrafy() 只数**可见**行，任何显隐路径下条纹都连续。 */
+tbody tr.row.zeb td{background:var(--zebra)}
 tr.row:hover td{background:var(--hover);cursor:pointer}
+/* 键盘可达：Tab 聚焦行、Enter/Space 展开（render() 里绑定） */
+tr.row:focus-visible{outline:2px solid var(--ac);outline-offset:-2px}
+/* 展开指示：行首小箭头，展开时转向 —— 不占新列，hover/聚焦之外也看得出可点 */
+td.fee::before{content:"▸";display:inline-block;width:11px;font-size:10px;
+  opacity:.3;transition:transform .15s,opacity .15s}
+tr.row.open td.fee::before{transform:rotate(90deg);opacity:.9;color:var(--ac)}
+/* 新上架行的左缘绿条：NEW 徽标只在日期格里，扫全表时行级标记更快 */
+tr.row.isnew td:first-child{box-shadow:inset 3px 0 0 var(--ok)}
 .nm{font-weight:600}
 /* 搜索命中高亮：淡主色底、不抢字色（深浅主题都走 --ac2 半透明，字色继承） */
 mark{background:var(--ac2);color:inherit;padding:0 1px;border-radius:2px}
@@ -386,6 +402,12 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 .pager button:hover:not(:disabled){border-color:var(--ac);color:var(--ac)}
 .pager button:disabled{opacity:.4;cursor:default}
 #pg{color:var(--tx2);font-size:13px;font-variant-numeric:tabular-nums}
+.pjump{display:inline-flex;align-items:center;gap:5px;color:var(--tx2);font-size:12.5px}
+#pgin{width:56px;padding:6px 7px;border:1px solid var(--bd2);background:var(--glass3);
+  border-radius:9px;font-size:12.5px;color:var(--tx);text-align:center;font-family:inherit;
+  -moz-appearance:textfield}
+#pgin::-webkit-outer-spin-button,#pgin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+#psz{padding:7px 8px;font-size:12.5px;font-weight:600}
 .empty{padding:48px;text-align:center;color:var(--tx2)}
 .empty a{color:var(--ac)}
 .netempty{max-width:760px;margin:40px auto;padding:26px 30px}
@@ -509,8 +531,16 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   .brow{grid-template-columns:minmax(78px,104px) 1fr 52px;font-size:12px}
   .stat .sn{font-size:22px}
   th,td{padding:8px 7px}
+  /* 🔴 窄屏下 10 列的自然宽度远超屏宽，table 的 overflow:clip 会把右侧列
+     （目标客户/上架/下线）**直接剪掉**且无任何办法看到 —— 切成横向滚动。
+     wrapper 此刻成为滚动容器，th 的 sticky 随之失效（表头随内容滚走），
+     窄屏上「能看全」优先于「表头钉住」。 */
+  .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--r)}
+  table{min-width:640px}
   .detgrid{grid-template-columns:1fr}
   .rbar{gap:8px}
+  .pager{flex-wrap:wrap;gap:6px}
+  .pjump{display:none}
   /* 字段变更对照卡：窄屏字段名独占一行，旧/新仍左右并排 ——
      「左旧右新」这个对照关系比字段名更不能丢，所以压缩的是标签行。 */
   .drow{grid-template-columns:1fr 1fr}
@@ -763,6 +793,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
     <button type="button" id="dir" title="切换升序 / 降序">↓</button>
   </div>
 </div>
+<div class="tblwrap">
 <table>
 <thead><tr>
   <th data-k="fee">月费<span class="ar"></span></th>
@@ -778,8 +809,17 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 </tr></thead>
 <tbody id="tb"></tbody>
 </table>
+</div>
 <div class="pager">
-  <button id="prev">上一页</button><span id="pg"></span><button id="next">下一页</button>
+  <button id="first" title="第一页">«</button><button id="prev">上一页</button>
+  <span id="pg"></span>
+  <span class="pjump">第 <input id="pgin" type="number" min="1" value="1" aria-label="跳到第几页"> 页</span>
+  <select id="psz" aria-label="每页条数">
+    <option value="80">80 条/页</option>
+    <option value="200">200 条/页</option>
+    <option value="400">400 条/页</option>
+  </select>
+  <button id="next">下一页</button><button id="last" title="最后一页">»</button>
 </div>
 </section>
 
@@ -830,7 +870,14 @@ const NET_DEF=(NET_LS.filter(online)[0])||NET_LS[0];
 let NET=NET_DEF;
 const net=()=>NETS[NET]||{};
 
-const PAGE=80;
+/* 每页条数可调（80/200/400）：全量 5000+ 行一次铺完会卡顿几秒，
+   「全部」档不提供 —— 真想一次看完用 CSV 导出（口径与列表一致）。
+   let 而非 const：#psz 切换时改写。 */
+let PAGE=80;
+/* 深链带回的页码（readHash 写入、apply 消费一次后清掉）：
+   apply() 对「筛选变了」一律回第 1 页，但「深链 / 刷新恢复」不该丢页码，
+   所以走旁路注入而不是改 apply 的默认行为。 */
+let _pgNext=null;
 /* 在售 / 已下架 页签的当前值（"0" 在售 / "1" 已下架 / "" 全部）。
    默认「在售」：这是日常要看的那份；下架资费要收全、但要单列，
    不能混进在售清单的排序与变更检测里。 */
@@ -1443,6 +1490,8 @@ function applyOnlyFav(){
     if(det&&det.classList.contains("det"))det.style.display=hit?"":"none";
     if(hit)shown++;
   }
+  /* 斑马纹按可见行重排 —— 不重排的话条纹按「含隐藏行」的序数分布，忽有忽无 */
+  zebrafy();
   return shown;
 }
 function favRefresh(){
@@ -1628,17 +1677,29 @@ function diagEmpty(){
     +esc(c.lab)+' → 找回 '+c.n+' 条</button>').join("")+'</div>';
 }
 
+/* 斑马纹按**可见行**重排（见 CSS .zeb 注释）：render 后、「只看收藏」显隐后都要跑。
+   行与详情行成对插入，只数 tr.row 且 display 不为 none 的。 */
+function zebrafy(){
+  const rows=$("#tb").querySelectorAll("tr.row");
+  let i=0;
+  for(const tr of rows){
+    tr.classList.toggle("zeb",tr.style.display!=="none"&&(i++%2===1));
+  }
+}
 function render(){
   const tb=$("#tb");tb.innerHTML="";
   const terms=kwTermsNow();          // 命中词高亮与筛选用同一份词表
   const st=pg*PAGE,slice=view.slice(st,st+PAGE);
+  const tp=Math.max(1,Math.ceil(view.length/PAGE));
   $("#stat").innerHTML="匹配 <b>"+view.length+"</b> 条"
     +" · 共 "+rowsOf(NET).length+" 条"
     +(view.length?" · 显示 "+(st+1)+"–"+Math.min(st+PAGE,view.length):"")
     +' · <span class="sortinfo">'+F[sortK].lb+(sortD===1?" ↑ 升序":" ↓ 降序")+"</span>"
     +" · 筛选："+chipsHtml();
-  $("#pg").textContent="第 "+(pg+1)+" / "+Math.max(1,Math.ceil(view.length/PAGE))+" 页";
-  $("#prev").disabled=pg===0;$("#next").disabled=st+PAGE>=view.length;
+  $("#pg").textContent="第 "+(pg+1)+" / "+tp+" 页";
+  $("#pgin").value=pg+1;$("#pgin").max=tp;
+  $("#prev").disabled=pg===0;$("#first").disabled=pg===0;
+  $("#next").disabled=st+PAGE>=view.length;$("#last").disabled=st+PAGE>=view.length;
   if(!view.length){
     tb.innerHTML='<tr><td colspan="10" class="empty"><div>没有匹配的资费</div>'
       +diagEmpty()
@@ -1648,12 +1709,18 @@ function render(){
     return;
   }
   slice.forEach(d=>{
-    const isNew=BASE_OK&&(ago(toDate(d.o))??9e9)>=0&&(ago(toDate(d.o))??9e9)<=30;
+    const agNew=BASE_OK?(ago(toDate(d.o))??9e9):9e9;
+    const isNew=agNew>=0&&agNew<=30;
     const tr=document.createElement("tr");
     tr.className="row"+(isNew?" isnew":"")+(d.st?" stopped":"");
     /* 收藏关注用的稳定键（网 + 名称）。星标靠它记 ——
        不从 DOM 反推名称：名称单元格里还混着分类 / 变更 / 下架标签，反推不可靠。 */
     tr.dataset.k=NET+"|"+(d.n||d.t||"");
+    /* 键盘可达：行展开原本只认 click，Tab 进不来、回车也没反应。
+       tabindex=0 + Enter/Space → 与点击同一条路（调 click()，不复制逻辑）。 */
+    tr.tabIndex=0;
+    tr.title="点击展开详情 / 复制";
+    tr.setAttribute("aria-expanded","false");
     tr.innerHTML='<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元":"—")+'</td>'
       +'<td>'+fmtGb(d.g)+perCell(d)+'</td>'
       +'<td>'+(d.c&&d.c!=="0"?esc(d.c)+" 分":"—")+'</td>'
@@ -1668,6 +1735,8 @@ function render(){
     dr.innerHTML='<td colspan="10"><div class="detwrap">'+detHTML(d)+'</div></td>';
     tr.onclick=()=>{
       const open=dr.classList.toggle("on");
+      tr.classList.toggle("open",open);          // 行首箭头转向（CSS）
+      tr.setAttribute("aria-expanded",open?"true":"false");
       /* 「同价位更优」按需计算（首次展开才算一次）：全表 9000 行扫一遍，
          80 行都预计算就是 72 万次比较/每次渲染 —— 而绝大多数详情根本没被展开过。 */
       if(open&&!dr.dataset.ai){
@@ -1679,12 +1748,16 @@ function render(){
         dr.dataset.ai="1";
       }
     };
+    tr.onkeydown=ev=>{
+      if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();tr.click()}
+    };
     /* 复制按钮在**另一个 tr**（详情行）里，点它不会冒泡到上面那个 tr，
        所以不需要 stopPropagation；但它是独立元素，得自己绑事件。 */
     dr.querySelector(".cpbtn").onclick=()=>copyText(rowText(d));
     tb.appendChild(tr);tb.appendChild(dr);
   });
   decorateFav();
+  zebrafy();
 }
 /* —— 唯一的一条筛选判据 ——
    apply() 用它筛结果，syncDims() 用它算「每个档位几条」。
@@ -1836,7 +1909,14 @@ function apply(){
   const c=condOf();
   view=rowsOf(NET).filter(d=>match(d,c));
   sortView();
-  pg=0;render();markHead();syncHash();
+  /* 页码：筛选变了就回第 1 页（新结果集里旧页码毫无意义）；
+     唯一例外是深链 #p=N 带进来的 _pgNext —— 那是「恢复现场」不是「新筛选」。
+     clamp 到结果集的实际页数：数据更新后页数可能缩水，越界页码自愈到最后一页。 */
+  if(_pgNext!=null){
+    pg=Math.min(Math.max(0,_pgNext),Math.max(0,Math.ceil(view.length/PAGE)-1));
+    _pgNext=null;
+  }else pg=0;
+  render();markHead();syncHash();
 }
 
 function markHead(){
@@ -1875,6 +1955,9 @@ function syncHash(){
      时默认网由 NET_DEF 决定，而 NET_DEF 会随「哪网有数据」变化 ——
      显式写出 net，分享出去的链接才会一直指向同一网。 */
   const m={net:NET,st:STA,kw:$("#kw").value.trim(),s:sortK,d:sortD};
+  /* 页码进深链：翻到几十页再刷新/分享，落回来的还是那一页。
+     第 1 页不写（保持无参链接干净）；apply → syncHash 与翻页路径都会走到这里。 */
+  if(pg>0)m.p=pg+1;
   /* 页签也进深链（但「资费明细」是默认值、不写）—— 分享「总览」或「变化历史」
      时，收链接的人应该直接落在同一屏，而不是又回到明细表。 */
   if(VIEW!=="list")m.v=VIEW;
@@ -1931,6 +2014,11 @@ function readHash(){
   syncTabs();
   const s=p.get("s");if(s&&F[s])sortK=s;
   const d=p.get("d");if(d==="1"||d==="-1")sortD=+d;
+  /* 页码：只认正整数，认不出来当没传；越界由 apply() 消费时 clamp。
+     写进 _pgNext 旁路而不直接改 pg —— apply() 对新筛选一律回第 1 页，
+     深链恢复必须绕过那条默认路（见 _pgNext 声明处的注释）。 */
+  const pv=parseInt(p.get("p"),10);
+  if(pv>=1)_pgNext=pv-1;
   $("#sort").value=sortK;
   /* 页签：只认白名单里的四个值，认不出来就当没传（同「枚举参数先核对」的原则）。 */
   const vv=p.get("v");
@@ -2619,6 +2707,9 @@ initTheme();
    真正需要常驻顶部的提示是「降级冻结 / 沿用快照 / 真变化」，那些都有内容，
    不会走到这条隐藏分支。 */
 (function(){const nb=$("#notice");if(nb&&!nb.textContent.trim())nb.style.display="none";})();
+/* 每页条数记忆恢复：必须在 readHash() 之前 —— 深链 #p=N 的页码要按恢复后的
+   PAGE 折算（第 5 页/80条 与 第 5 页/200条 是两回事），apply() 里 clamp 用的也是它。 */
+(function(){try{const v=+localStorage.getItem("hbtm_psz");if(v===80||v===200||v===400){PAGE=v;$("#psz").value=String(v)}}catch(e){}})();
 renderNav();renderNet();
 favInject();
 readHash();
@@ -2732,8 +2823,33 @@ document.addEventListener("keydown",e=>{
   if(e.key==="/"&&!typing){e.preventDefault();$("#kw").focus()}
   else if(e.key==="Escape"&&e.target===$("#kw")&&$("#kw").value){$("#kw").value="";apply()}
 });
-$("#prev").onclick=()=>{if(pg>0){pg--;render();markHead();scrollTo(0,0)}};
-$("#next").onclick=()=>{if((pg+1)*PAGE<view.length){pg++;render();markHead();scrollTo(0,0)}};
+$("#prev").onclick=()=>{if(pg>0){pg--;render();markHead();syncHash();scrollToList()}};
+$("#next").onclick=()=>{if((pg+1)*PAGE<view.length){pg++;render();markHead();syncHash();scrollToList()}};
+$("#first").onclick=()=>{if(pg>0){pg=0;render();markHead();syncHash();scrollToList()}};
+$("#last").onclick=()=>{const n=Math.max(1,Math.ceil(view.length/PAGE));if(pg<n-1){pg=n-1;render();markHead();syncHash();scrollToList()}};
+$("#pgin").onchange=()=>{
+  const n=Math.max(1,Math.ceil(view.length/PAGE));
+  const v=Math.min(n,Math.max(1,parseInt($("#pgin").value,10)||1));
+  if(v-1!==pg){pg=v-1;render();markHead();syncHash();scrollToList()}
+  else $("#pgin").value=v;      // 越界输入归位（如第 0 页 / 第 999 页）
+};
+$("#psz").onchange=e=>{
+  /* 换每页条数：页码语义全变（第 3 页/80条 ≠ 第 3 页/200条），一律回第 1 页 ——
+     apply() 本来就会置 pg=0，这里只改 PAGE。 */
+  PAGE=+e.target.value||80;
+  try{localStorage.setItem("hbtm_psz",String(PAGE))}catch(err){}
+  apply();
+};
+/* 翻页后滚到表格头而不是页顶：筛选区 / 快捷 chips 展开时页顶可能离表格
+   两三屏，每次翻页都被甩回最顶上，上下文全丢。对齐到 th 的吸顶层下沿。 */
+function scrollToList(){
+  const t=document.querySelector("table");
+  if(!t)return;
+  const sh=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--stackh"))||0;
+  const y=t.getBoundingClientRect().top+window.pageYOffset-sh-6;
+  window.scrollTo(0,Math.max(0,y));
+}
+/* 每页条数记忆（读回放在 init 段） */
 
 document.querySelectorAll("th[data-k]").forEach(th=>{
   th.onclick=()=>{
