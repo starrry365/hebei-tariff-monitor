@@ -26,10 +26,12 @@ import gzip
 import io
 import json
 import os
+import random
 import re
 import ssl
 import sys
 import time
+import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
@@ -673,8 +675,33 @@ def log(msg):
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {msg}", flush=True)
 
 
+def _unwrap_payload(j):
+    """网关响应的统一拆壳：`{"body": "<密文>"}` -> 解密 -> dict。
+
+    抽成独立函数的原因：fetch_group / 各探针 / 公告通道都要走同一套壳判定
+    （`set(keys)=={"body"}`），散着写的话哪天上游加一个签名字段（变成
+    `{"body":..., "sign":...}`）就得改 N 处。
+    """
+    if isinstance(j, dict) and "body" in j and isinstance(j["body"], str):
+        if mz_crypto is None:
+            raise RuntimeError("响应带加密壳但缺少加解密依赖 pycryptodome")
+        j = json.loads(mz_crypto.decrypt(j["body"]))
+    return j
+
+
 def call(path, body, retry=2):
-    """调网关：POST 明文 JSON -> 若响应是 {"body": "<密文>"} 则本地解密 -> dict"""
+    """调网关：POST 明文 JSON -> 若响应是 {"body": "<密文>"} 则本地解密 -> dict
+
+    🔴 失败契约：打不通时返回 ``{"_err": "<分类前缀>: 详情"}``，**绝不抛异常**
+       —— 调用方（fetch_group / 各探针）靠 ``_err`` 区分「没问到」和「没数据」
+       （见 probe_coverage_axes._transport_failed）。分类前缀：
+         · ``net:``    连接层（DNS / 路由 / 超时）—— 重跑可自愈
+         · ``http:NNN:`` 拿到了 HTTP 状态但不是 200（412 = 瑞数类挑战，网关被封；
+                         5xx = 服务端抽风）
+         · ``body:``   200 但不是合法 JSON / 不是预期结构 —— 上游改版信号
+    退避：指数 + 全抖动（``sleep = rand(0, min(cap, base*2**i))``）。固定间隔的
+    问题是并发抓取时所有线程同拍重试，形成自愈不了的节奏性拥堵；抖动让重试散开。
+    """
     if mz_crypto is None:
         return {"_err": f"缺少加解密依赖 pycryptodome（{_MZ_ERR}），只能跑 --render-only"}
     data = json.dumps(body, ensure_ascii=False).encode("utf-8")
@@ -690,14 +717,28 @@ def call(path, body, retry=2):
             if len(raw) > 64 * 1024 * 1024:
                 raise ValueError("单页响应超过 64MB 上限")
             txt = raw.decode("utf-8", "replace").strip()
-            j = json.loads(txt)
-            if isinstance(j, dict) and set(j.keys()) == {"body"}:
-                j = json.loads(mz_crypto.decrypt(j["body"]))
+            j = _unwrap_payload(json.loads(txt))
             return j
+        except urllib.error.HTTPError as e:
+            body_txt = ""
+            try:
+                body_txt = e.read(4096).decode("utf-8", "replace").strip()
+            except Exception:
+                pass
+            hint = "（瑞数类 JS 挑战：网关侧风控，纯 HTTP 短期内打不通）" if e.code == 412 else ""
+            last = f"http:{e.code}: {e.reason} {hint} {body_txt[:120]}".strip()
+            log(f"  !! call({path}) 第{i + 1}次 HTTP {e.code}{hint}")
+        except (urllib.error.URLError, OSError, ssl.SSLError, TimeoutError) as e:
+            last = f"net: {type(e).__name__}: {e}"
+            log(f"  !! call({path}) 第{i + 1}次网络异常: {last[:130]}")
         except Exception as e:
-            last = f"{type(e).__name__}: {e}"
-            if i < retry:
-                time.sleep(2 * (i + 1))
+            # JSON 解析失败 / 解密失败 —— 200 但内容不对，多半是上游改版或密钥漂移。
+            # 这类**不值得原样重试**（同样的请求拿同样的坏响应），但仍重试一次防抖动截断。
+            last = f"body: {type(e).__name__}: {e}"
+            log(f"  !! call({path}) 第{i + 1}次响应异常: {last[:130]}")
+        if i < retry:
+            # 指数退避 + 全抖动：base 1.5s，上限 8s（random 已在顶部导入）
+            time.sleep(random.uniform(0, min(8.0, 1.5 * (2 ** i))))
     return {"_err": last}
 
 

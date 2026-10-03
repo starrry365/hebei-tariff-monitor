@@ -69,10 +69,22 @@ def _to_urlsafe(b64):
 
 
 def decrypt(cipher_text, urlsafe_aware=True):
-    """密文(base64) -> 明文字符串"""
+    """密文(base64) -> 明文字符串
+
+    ★ 载荷若被服务端 **gzip 压缩**（AES 明文以魔数 ``1f 8b 08`` 开头），自动解压后
+      再按 utf-8 解码。2026-10-03 逆向实锤：移动同族网关（aidd 触达 SDK）的成功响应
+      data 一律 AES(vt,gt)+gzip —— nrapigate 当前未开启，但这是同一套网关家族的
+      现成开关；一旦哪天打开，没有这层就是每天几千次无意义重试 + 「Padding 错误」假警报。
+      判据用魔数而不是 try/except：gzip 解压失败会抛真异常（结构变了就该红），
+      而「不是 gzip」是常态路径，不该付出异常开销。
+    """
     raw = _b64_to_std(cipher_text) if urlsafe_aware else base64.b64decode(cipher_text)
     pt = AES.new(KEY, AES.MODE_CBC, IV).decrypt(raw)
-    return unpad(pt, 16).decode("utf-8")
+    pt = unpad(pt, 16)
+    if pt[:3] == b"\x1f\x8b\x08":
+        import gzip
+        pt = gzip.decompress(pt)
+    return pt.decode("utf-8")
 
 
 def encrypt(plain, urlsafe=False):

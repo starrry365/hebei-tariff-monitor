@@ -409,7 +409,7 @@ def move_probe():
             "ok": (not extra) and (not failed) and (not iso_err)}
 
 
-def move_count(T, a, t1, t2):
+def move_count(T, a, t1, t2, tries=3):
     """请求一个 (attr, type1, type2) 组合，返回
        ``{"n": 条目数, "series": 系列数, "dead": 传输错误或 None, "rejected": 上游是否明确拒绝}``。
 
@@ -426,13 +426,30 @@ def move_count(T, a, t1, t2):
         大家就学会忽略它了。
 
       · **正常返回** —— 数条目。
+
+    🔴 「没问到」先重试 ``tries-1`` 次（指数退避 2s/4s）再下结论 —— 2026-10-03 的
+       CI run 37098431459 就是败在这一格：GitHub runner 一次单发
+       ``URLError [Errno 101] Network is unreachable`` 让 30 组合的探针 exit 2，
+       当天 deploy 全 skipped。传输层抖动是**已知的、会自愈的**故障（环境自检那步
+       已为此把出口预检降级成只告警），探针这里必须同样免疫：只有**连续**失败
+       才判定「真的没问到」。重试对「明确拒绝 / 正常返回」无影响 —— 那两类
+       第一发就返回，不会多花一秒。
     """
     body = {"cellNum": "", "province": T.PROV, "isPublic": "1", "linkScn": "2",
             "tariffAttr": a, "type1": t1, "type2": t2,
             "page": 1, "limit": 100, "fistLimit": 5000}
-    r = T.call("nrtariff/new/Tariff/getTariffListInfo", body)
-    if _transport_failed(r):
-        return {"n": 0, "series": 0, "dead": str(r)[:160], "rejected": False}
+    dead = None
+    for i in range(tries):
+        r = T.call("nrtariff/new/Tariff/getTariffListInfo", body)
+        if not _transport_failed(r):
+            dead = None
+            break
+        dead = str(r)[:160]
+        if i < tries - 1:
+            time.sleep(2 * (i + 1))
+            log("   · attr=%s t1=%s t2=%s 传输失败，第%d次重试…" % (a, t1, t2, i + 2))
+    if dead:
+        return {"n": 0, "series": 0, "dead": dead, "rejected": False}
     d = r.get("data") if isinstance(r, dict) else None
     if not isinstance(d, dict):
         return {"n": 0, "series": 0, "dead": None, "rejected": True}
