@@ -376,6 +376,9 @@ mark{background:var(--ac2);color:inherit;padding:0 1px;border-radius:2px}
 .bg-sc{background:var(--ac2);color:var(--ac);border:1px solid transparent}
 .bg-sc-cn{background:var(--warnbg);color:var(--warn)}
 .bg-stop{background:var(--badbg);color:var(--bad)}
+/* 城市专属徽标（联通按城市上架，实测约 139 条只挂部分城市目录）：
+   绿色系 —— 语义是「只在下列城市有售」，与「全国」琥珀、「变更/下架」红都区分开。 */
+.bg-city{background:var(--okbg);color:var(--ok)}
 /* —— 有效期徽标（名称列 + 详情高亮行） ——
    soon 红 / mid 琥珀 / far 灰三档，rn（自动续）虚线小标。
    灰档刻意用 --card3 + --tx3：远期与长约要有但必须「退后」，红琥珀才是重点。 */
@@ -970,6 +973,22 @@ function owTag(d){
 }
 function stopTag(d){
   return d.st?' <span class="bg bg-stop" title="已下架">已下架</span>':"";
+}
+/* —— 城市专属徽标 ——
+   联通上游是**按城市上架**的（同一份「资费专区」换个城市就是另一套目录；
+   2026-10-03 实测：约 139/8096 条只挂在部分城市的目录里，其余 7957 条全省通用）。
+   收起行里原本完全看不出这一点 —— 要展开详情才见「地域 · 沧州」。
+   只对 cty 非空的条目出徽标（全省通用条目零噪音）：
+     · ≤3 城逐个列出（沧州/邯郸）；
+     · 更多用「首城等N城」（唐山等9城），完整清单在 title 与展开详情里。
+   🔴 这只是信息展示不是筛选维度：「地市」筛选 2026-10-03 已按需求整体下线，
+     别在这里加回任何可交互的东西 —— 幽灵条件比没有条件更糟。 */
+function cityTag(d){
+  const c=d.cty||[];
+  if(!c.length)return"";
+  const lb=c.length<=3?c.join("/"):c[0]+"等"+c.length+"城";
+  return ' <span class="bg bg-city" title="城市专属：上游只在这些城市的目录上架（'
+    +esc(c.join("、"))+'）">'+esc(lb)+'</span>';
 }
 
 /* —— 有效期解析与徽标 ——
@@ -1826,7 +1845,7 @@ function render(){
     tr.innerHTML='<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元":"—")+'</td>'
       +'<td>'+fmtGb(d.g)+'</td>'
       +'<td>'+(d.c&&d.c!=="0"?'<span style="white-space:nowrap">'+esc(d.c)+" 分钟</span>":"—")+'</td>'
-      +'<td class="nm">'+scTag(d)+hl(d.n||d.t,terms)+chgTag(d)+stopTag(d)+vpTag(d)+'</td>'
+      +'<td class="nm">'+scTag(d)+cityTag(d)+hl(d.n||d.t,terms)+chgTag(d)+stopTag(d)+vpTag(d)+'</td>'
       +'<td><span class="tg" title="资费大类；官方原始分类见展开详情">'+esc(d.cat||"—")+'</span></td>'
       +'<td>'+owTag(d)+'</td>'
       +'<td>'+bwCell(d)+'</td>'
