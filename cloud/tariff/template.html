@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>河北四网资费全量查询</title>
+<title>河北运营商资费查询</title>
+<meta name="description" content="河北移动、联通、电信、广电四网资费套餐全量查询与每日变更监控，支持筛选、对比与变化历史追溯。">
+<meta name="keywords" content="河北资费,移动资费,联通资费,电信资费,广电资费,套餐查询,宽带资费">
 <style>
 /* ══════════════════════════════════════════════════════════════════════
    河北四网资费查询页 —— 样式表（2026-10-01 极光版重设计）
@@ -2192,7 +2194,7 @@ function renderNet(){
   setBase();
   const n=net(),rs=rowsOf(NET),has=online(NET),name="河北"+(n.sh||"");
   $("#h1").textContent=name+" · 资费全量目录";
-  document.title=name+"资费全量查询"+(has?"（"+rs.length+" 条）":"");
+  document.title=name+"资费查询"+(has?"（"+rs.length+" 条）":"");
   /* 主题色跟着当前网走：文档级属性一变，所有 --op* 变量同时切到那家的色板。 */
   document.documentElement.setAttribute("data-net",NET);
   /* 横栏统计。切网时必须整行重算 —— 只改标题不改这里，横栏会一直挂着
