@@ -23,6 +23,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 
 BASE = os.path.dirname(os.path.abspath(__file__))          # probes/tools
 REPO = os.path.dirname(os.path.dirname(BASE))
@@ -71,6 +72,32 @@ def main():
     # 3) 导航 + 执行
     url = "file:///" + html.replace("\\", "/") + "#net=" + net
     subprocess.run([sys.executable, STEP, "nav", url], check=False)
+    # 🔴 页面就绪轮询（2026-10-04 修）：cdp_desktop_step 的 nav 只固定歇 2s，
+    #    而页面已膨胀到 13 MB —— file:// 解析 + 主脚本执行经常吃满 2s 还没完，
+    #    紧跟的 eval 会落在「控件尚未生成 / apply 尚未定义」的半初始化状态，
+    #    83 个用例全部以「页面缺控件 #cat」「apply is not defined」告终
+    #    （2026-10-04 实测 4 网全灭，ran=0/83）。
+    #    这里显式轮询到消费脚本真正依赖的最小就绪集（#cat 存在 + apply 可调），
+    #    30s 兜底超时 —— 超时就按环境故障退出，不带病跑用例。
+    ready_js = os.path.join(TMP, "ready.js")
+    io.open(ready_js, "w", encoding="utf-8").write(
+        'JSON.stringify({ready: !!document.getElementById("cat")'
+        ' && typeof apply === "function"})')
+    ok = False
+    for _ in range(30):
+        subprocess.run([sys.executable, STEP, "eval", ready_js,
+                        os.path.join(TMP, "ready.json")], check=False)
+        try:
+            if json.loads(io.open(os.path.join(TMP, "ready.json"),
+                                  encoding="utf-8").read()).get("ready"):
+                ok = True
+                break
+        except Exception:
+            pass
+        time.sleep(1)
+    if not ok:
+        print("!! 页面 30s 内未就绪（#cat/apply 始终缺失）—— 检查页面是否白屏")
+        return 2
     out_p = os.path.join(TMP, "result.json")
     subprocess.run([sys.executable, STEP, "eval", runner_p, out_p], check=False)
     if not os.path.exists(out_p):

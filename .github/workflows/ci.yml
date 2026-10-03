@@ -108,7 +108,11 @@ jobs:
           import yaml
 
           bad = 0
-          for f in sorted(glob.glob(".github/workflows/*.yml")):
+          # 防御性兼容 .yaml 后缀：现在只有 .yml，但漏校验一个新 workflow
+          # 比多校验一个文件代价高（2026-10-04 审查项）。
+          files = sorted(set(glob.glob(".github/workflows/*.yml")
+                             + glob.glob(".github/workflows/*.yaml")))
+          for f in files:
               try:
                   d = yaml.safe_load(open(f, encoding="utf-8"))
                   jobs = list((d or {}).get("jobs", {}).keys())

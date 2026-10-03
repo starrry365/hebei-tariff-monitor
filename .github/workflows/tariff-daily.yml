@@ -160,14 +160,26 @@ jobs:
           #    ★ 重试是安全的：exit 3 发生在写快照**之前**，失败轮不留任何半成品，
           #      第二轮从干净状态开始；对比/归档逻辑本身幂等。
           for i in 1 2; do
+            if python cloud/tariff/tariff_monitor.py; then
+              exit 0
+            fi
+            # 🔴 快照已存在 ⇒ 第一轮其实**推进到了写快照之后**（采集已成功，
+            #    死因是采集后的某一步，比如页面构建）。此时绝不能重试：
+            #    第二轮 load_prev 会发现「今天已有快照」，退回用当天快照当对比
+            #    基准 ⇒ diff 全 0，把第一轮刚写好的真实变更报告与 history 记录
+            #    **原位覆盖成「本次未检测到任何变化」**（hist_append 按 (日期,网)
+            #    原位替换）—— 假报告 + 真变更丢失，且页面上看不出任何异常。
+            #    重试只对「死在写快照之前」的采集失败（exit 2/3，网络类）有收益；
+            #    快照已存在时按真失败处理，交给人工排查。
+            if [ -f "cloud/tariff/snapshots/hebei_tariff_$(date +%Y%m%d).json.gz" ]; then
+              echo "::error::第一轮在快照写入之后失败（采集已完成，死因在后续步骤）。不重试——重跑会把真实变更报告覆盖成全 0。请查看上方日志定位。"
+              exit 1
+            fi
             if [ "$i" = "2" ]; then
               echo "::warning::第一轮采集失败（多为 GitHub 服务器到运营商网关的瞬时网络问题），歇 120s 重来"
               sleep 120
             fi
             echo "=== 采集尝试 第 $i/2 轮 ==="
-            if python cloud/tariff/tariff_monitor.py; then
-              exit 0
-            fi
           done
           echo "::error::两轮采集均失败，按真失败处理（上游大概率不是抖动，而是改版/封禁）"
           exit 1
@@ -556,6 +568,9 @@ jobs:
           done
           # 原子写的残片绝不能被提交（.gitignore 已挡，这里再断言一次：
           # 万一哪天 gitignore 被改动，坏基线就会跟着入库）
+          # ⚠️ `**` 需要 globstar（bash 默认关）：不开的话 `dir/**/*.tmp`
+          #    退化成单层匹配，子目录残片漏清（2026-10-04 审查项）。
+          shopt -s globstar || true
           left=$(ls -1 cloud/tariff/**/*.tmp cloud/tariff/*.tmp cloud/tariff/**/*.new 2>/dev/null | wc -l)
           if [ "$left" != "0" ]; then
             echo "::warning::发现 $left 个原子写残片（*.tmp/*.new），清理后再提交"

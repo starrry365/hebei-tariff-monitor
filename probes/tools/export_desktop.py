@@ -223,10 +223,14 @@ def main():
     # 原始 JSON（解压后，供二次加工）
     for code, tag in (("move", "移动"), ("unicom", "联通"),
                       ("telecom", "电信"), ("cbn", "广电")):
+        # 快照前缀必须与 tariff_monitor.SNAP_PREFIX 一致（telecom 那网是 ct_）。
+        # 🔴 曾写成 telecom_tariff_ ⇒ 电信那份永远 exists=False 被静默跳过，
+        #    导出包里缺「原始_电信.json」且无任何提示（2026-10-04 审查发现）。
         src = os.path.join(SNAP, "%s_tariff_%s.json.gz"
-                           % ({"move": "hebei"}.get(code, code),
+                           % ({"move": "hebei", "telecom": "ct"}.get(code, code),
                               (date or "").replace("-", "")))
         if not os.path.exists(src):
+            print("!! 找不到 %s 快照（%s），导出包将缺这一网" % (NET_CN[code], os.path.basename(src)))
             continue
         with gzip.open(src, "rb") as f:
             o = json.loads(f.read().decode("utf-8"))

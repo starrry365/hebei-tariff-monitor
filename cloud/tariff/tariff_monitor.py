@@ -274,6 +274,10 @@ OW_ORDER = ("个人", "政企")
 #     恒置 "3"，省级恒 "2" ⇒ 电信 _attrs={2,3} 凑齐两档，「资费范围」自动出现。
 #     移动/广电不受影响（它们没有 3，落盘规则照旧）。
 ATTR_CN = {"1": "全国资费", "2": "本省资费", "3": "集团资费"}
+# 集团公示档的 tariffAttr 值（见 ATTR_CN["3"]）。**唯一权威**：rows_of 靠它决定
+# 「不写 pw」（集团目录没有地市概念，写 pw=1 会被「仅全省通用」档照单收进）；
+# audit_data.check_city 的三态判据也读它 —— 两边各写一个字面量 "3" 又是一份会漂的副本。
+ATTR_GROUP_PUB = "3"
 
 # 联通「停售套餐(99)」—— 它**不是分类，是状态桶**。见 rows_of 里的还原规则。
 STOPPED_L1 = "停售套餐"
@@ -1866,7 +1870,12 @@ def rows_of(o, diff=None, code=""):
             if not st:
                 if cty:
                     rec["cty"] = cty
-                elif code in CITY_NETS:
+                elif code in CITY_NETS and str(attr or "").strip() != ATTR_GROUP_PUB:
+                    # ★ 集团公示（电信 attr=3）不写 pw：目录本身就没有「地市」概念，
+                    #   写 pw=1 会被「仅全省通用（不限地市）」档照单收进来 ——
+                    #   用户在「河北 + 仅全省通用」下会看到 524 条集团公示混在
+                    #   本省目录的全省资费里（2026-10-04 审查发现）。想看集团公示
+                    #   ⇒ 板块下拉的「集团公示」档，那条路才是它的入口。
                     rec["pw"] = 1
             if st:
                 rec["st"] = 1
@@ -2641,7 +2650,7 @@ def main():
         rel = repo_rel(rp)
         tail = (f' · <a href="https://github.com/{REPO}/blob/main/{rel}"'
                 f' target="_blank" rel="noopener">查看变更明细 →</a>')
-        # 移动这网本轮是否「完全没事」：零新增/下线/变更，护栏也没摘过、补过任何东西。
+        # 常规 diff 分支才算得出「quiet」：零新增/下线/变更，护栏也没摘过、补过任何东西。
         # 注意排除降级/回弹 —— 那几种 situation 走 _hold()，根本到不了这里。
         move_quiet = not (move_sm["added"] or move_sm["removed"] or move_sm["changed"]
                           or move_sm["relocated"] or move_sm["fake_removed"]
@@ -2662,6 +2671,15 @@ def main():
     # 代价：同一天重跑（fetchedAt 变了、rows 没变）归档字节也会变、会多写一次 ——
     # 刻意接受（用户要求看到更新时刻），约 1 MB/次，频率很低。
     # 想知道巡检有没有在跑，看 state.json（view_page 会读）。
+    # ★ move_quiet：移动这网本轮是否「完全没事」。**三条路径都要有定义** ——
+    #   它在下面 not no_html 分支被引用，而这里只有常规 diff 分支算得出「quiet」；
+    #   降级冻结 / 首版基线 / 重同步三条路径的提示语本身就是必须显示的警告
+    #   （数据量异常、基线建立），绝不能被「全网安静就隐藏提示条」的逻辑误判。
+    #   🔴 2026-10-04 审查修：原先只在上面的 else 分支赋值，走降级/首版分支时
+    #      这里直接 NameError —— 整轮巡检在页面重建前崩掉，页面不更新。
+    #      与 other_nets 那次 summaries NameError（2026-09-26，CI 炸第 8 步）
+    #      是同一类「函数级自测全绿、集成缝没人走」的病，修法也同类。
+    move_quiet = False
     summaries = [move_sm]
     if not no_html:
         extra, xdiff, tails, xsum = other_nets(today)

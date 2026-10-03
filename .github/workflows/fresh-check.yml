@@ -95,7 +95,8 @@ jobs:
           import notify
 
           rep = json.load(open("fresh.json", encoding="utf-8"))
-          rc = os.environ.get("RC", "")
+          # （2026-10-04 清理：原有一行 os.environ.get("RC") 死代码 —— RC 只写进了
+          #   GITHUB_OUTPUT，从未导出为环境变量，读了也读不到；且本段没用到它。）
 
           L = ["# ⚠ 河北四网资费数据已过期", ""]
           L.append("巡检可能**根本没在跑**（不是跑失败，是没启动）。")

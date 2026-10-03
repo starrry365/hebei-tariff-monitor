@@ -135,10 +135,12 @@ def _normalize(e, lable1_name, lable1_id):
     fees = _fee(e.get("fees"), e.get("feesUnit"))
     data, du = _gb(e.get("data"), e.get("dataUnit"))
     x = str(e.get("otherContent") or "").strip()
-    # 费用原文（非月费口径时页面 f 为空，详情里必须还能看到真实费用；
-    # 只有金额没有单位、或只有单位没有金额的残缺值不进注记）
+    # 费用原文（非月费口径时页面 f 为空，详情里必须还能看到真实费用）。
+    # 🔴 原判据 `(fv and uv)` 要求金额与单位**同时非空**——实测 9 条「fees=0
+    #    且无单位」的条目（免费体验类）费用信息整条丢失。改为只要金额非空
+    #    就进注记（单位空则不拼接），残缺也比静默丢失强（2026-10-04 审查项）。
     fv, uv = str(e.get("fees") or "").strip(), str(e.get("feesUnit") or "").strip()
-    fee_note = (fv + " " + uv).strip() if (fv and uv) else ""
+    fee_note = (fv + " " + uv).strip() if fv else ""
     if fee_note and fee_note not in x:
         x = ("费用：" + fee_note + "；" + x) if x else ("费用：" + fee_note)
     r = {
@@ -194,7 +196,10 @@ def _jt_table(ffnr):
         texts = [_strip_tags(v) for _, v in cells]
         if "h" in kinds and not vals:
             heads = texts
-        elif all(k == "d" for k in kinds):
+        elif all(k == "d" for k in kinds) and not vals:
+            # ★ `and not vals`（2026-10-04 审查项）：表头后出现多行值行时取第一行，
+            #   与 heads 的「首个」语义对齐 —— 原写法后者静默覆盖前者，留下哪行
+            #   全凭上游排布。
             vals = texts
     return dict(zip(heads, vals))
 
@@ -231,8 +236,9 @@ def _normalize_jt(e, lable1_name, lable1_id, l2name):
     oth = str(e.get("others") or "").strip()
     if oth and oth not in x:
         x = (x + "；" + oth) if x else oth
-    # 非月费口径的费用原文必须可见（同 _normalize 的 fee_note 规则）
-    fee_note = (fv + " " + uv).strip() if (fv and uv) else ""
+    # 非月费口径的费用原文必须可见（同 _normalize 的 fee_note 规则：
+    # 金额非空即写、单位空则不拼接 —— 2026-10-04 对齐，见那边 🔴 注释）
+    fee_note = (fv + " " + uv).strip() if fv else ""
     if fee_note and fee_note not in x:
         x = ("费用：" + fee_note + "；" + x) if x else ("费用：" + fee_note)
     return {

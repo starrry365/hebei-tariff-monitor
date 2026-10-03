@@ -7,13 +7,12 @@
  *
  * 断言四网各自的关键 UI 行为：
  *   · 地域筛选 #sc 的档位与置灰（只有一档地域的网，另一档必须置灰）
- *   · ★ 地市维度**必须已整体下线**：`#ct` 与 `#ovCityPanel` 都不许存在、
- *     生效筛选标签里不许出现「城市：」，且往工作表塞一个 ct 值也不得改变结果。
- *     —— 2026-10-03 用户要求去掉「地市分布」面板与「地市」下拉。这条断言是
- *        **反向**的（原先验的是「有地市数据就该显示下拉、且筛得准」）：
- *        防止哪天有人「顺手恢复一下」只恢复一半（比如把面板加回来却没了判据），
- *        或者深链 `#ct=石家庄` 留下一个筛不动却显示着的幽灵条件。
- *        数据侧的 d.cty / d.pw 仍在（CI 照旧断言），所以这不是「数据没了」。
+ *   · ★ 地市维度（2026-10-04 改回**正向**断言）：有 #ct 的网，深链 ct=城市
+ *        必须筛准（恰好等于该市专属条数，faa6d2e 口径）；无 #ct 的网（cbn）
+ *        深链带 ct 必须一字不变。历史：10-03 白天曾整块下线（当时是反向断言），
+ *        当晚用户要求恢复筛选，反向断言随之过时 —— 四网全红且报的全是正确行为；
+ *        「恢复一半」的形态（控件没了 match 还在筛 / match 删了数据还在）由
+ *        这两条分叉各防一种。
  *   · 幽灵塞值：不存在的维度手工塞值必须**不生效**（否则等于拿不存在的维度筛）
  *   · 已下架页签的可用性与条数
  *   · 类型**两级**：#cat 大类的顺序与条数（必须与数据逐条对齐）、
@@ -47,11 +46,29 @@
       ids = ["#kw", "#sc", "#cat", "#ty", "#pf", "#gf", "#cf",
              "#bw", "#chx", "#on", "#off", "#chg"];
     }
+    /* ★★ 地址栏也要抹干净：walk / 人工 / 其他脚本会留下带筛选的 hash
+       （实测：#net=cbn&kw=宽带&v=ov&on=7&off=30 —— walk 遍历遗留）。
+       本脚本后面构造深链用的正是「在现有 hash 上追加」—— 里面带着遗留
+       条件时，赋值 location.hash 会触发 hashchange → readHash 把旧条件
+       （连同旧 net）全部恢复，view 立刻错位：2026-10-04 实测 walk 之后跑
+       本脚本，move 大类套餐筛出 0 条、深链 ct 对不上 —— 遗留 hash 把
+       NET 都切走了，而后面的断言还在按 move 对账。
+       replaceState 不触发 hashchange（不会半路执行 readHash），只把地址栏
+       抹掉；控件本来就由下面的清空负责，apply() 会用 syncHash 写回干净快照。 */
+    try {
+      if (location.hash) { history.replaceState(null, "", location.pathname + location.search); }
+    } catch (e) {}
     for (var i = 0; i < ids.length; i++) {
       var e = $(ids[i]);
       if (e) { e.value = ""; }
     }
-    try { if (typeof syncTyOptions === "function") { syncTyOptions(); } } catch (e) {}
+    try { if (typeof syncDims === "function") { syncDims(); } } catch (e) {}
+    /* ★ 视图也要恢复成列表：视图（v）不是 select 控件、不在 DIMS 里，walk 遍历
+       结束时停在 setView("ov")（总览）—— ov 视图下 view.length 不是列表行数，
+       本脚本后面所有条数断言（cityProbe / catFilterSample …）都会拿到 0
+       （2026-10-04 实测：before=5280 正常、深链 readHash 读出 v=ov 后 got=0）。
+       恢复视图后 apply→syncHash 写出的快照才不含 v=ov，深链测试的基准才是列表。 */
+    try { if (typeof setView === "function") { setView("list"); } } catch (e) {}
     try { if (typeof STA !== "undefined") { STA = "0"; } } catch (e) {}
     try { if (typeof pg !== "undefined") { pg = 0; } } catch (e) {}
     try { clearChips(); } catch (e) {}
@@ -99,44 +116,75 @@
       return { t: b.textContent, disabled: !!b.disabled };
     });
 
-    /* ══ 地市维度**必须已下线**（2026-10-03）══
-       三条互相独立的反向判据，缺一条就还能漏掉一种「恢复了一半」的形态：
-         ① 控件没了：#ct（下拉）与 #ovCityPanel（总览面板）都不该在 DOM 里；
-         ② 标签没了：生效筛选标签里不该出现「城市：」——
-            这是最容易漏的一处：match() 里删干净了，但 DIM_PRE 忘了删，
-            深链带个 ct 进来就会渲染出一个**筛不动却显示着**的筛选标签，
-            用户点 × 才消失，而且他会以为这个条件一直在生效；
-         ③ 幽灵值不生效：手工把 ct 塞进任何 select 或 location.hash 里，
-            结果条数必须**一字不变**（拿一个不存在的维度筛出来的假答案是静默的）。 */
+    /* ══ 地市维度（2026-10-04 改回正向断言）══
+       历史：10-03 白天曾整块下线（当时这里是三条反向断言），当晚用户要求恢复筛选
+       —— 反向断言就此过时，四网全红且报的都是「正确行为」（深链生效反被叫幽灵）。
+       现在的分叉：
+         · #ct 存在的网（move/telecom/unicom）：挑第一个可点（专属>0）的城市，
+           深链 ct=该市，条数必须**恰好等于**该市专属数（faa6d2e 口径）——
+           只验「变了」验不出「筛错市」；
+         · #ct 不存在的网（cbn，上游无地市粒度）：保留幽灵断言 ——
+           深链带 ct 必须一字不变（防止哪天恢复一半：控件没了、match 还在筛）。 */
     o.ctEl = !!$("#ct");
-    o.ovCityEl = !!$("#ovCityPanel");
+    /* 分支判据必须是「可见」而不是「存在」：cbn（无地市维度）的 #ct 在 DOM 里
+       但被 display:none 隐藏 —— readHash 对隐藏控件拒绝写入（深链无效），
+       那网应走幽灵断言；按「存在」分支的话会在隐藏控件上做正向对账，
+       误报「深链条数不符」（2026-10-04 实测 cbn 212 ≠ 0 就是这么来的）。 */
+    o.ctUsable = !!o.ctEl && $("#ct").style.display !== "none";
     o.chipTextsNoCity = [].map.call(document.querySelectorAll("#stat .fchip"),
                                     function (b) { return txt(b); })
       .filter(function (t) { return t.indexOf("城市") >= 0 || t.indexOf("地市") >= 0; });
-    /* 幽灵值：走深链那条**最真实**的路径 —— 深链是唯一还会被人手写进来的入口。
-       🔴 必须把 ct 参数**追加**在现有 hash 后面，不能整个换掉：
-          换掉会连 net / st / s / d 一起丢掉，`readHash()` 随即把 STA 置成「全部」，
-          于是条数从「在售」跳到「全部」—— 那是**我这条测试自己造出来的**变化，
-          与 ct 毫无关系。实测踩过：unicom 报 8096 ≠ 4741、cbn 报 5 ≠ 212，
-          两条都是假的（前者正是「全量 vs 在售」，后者是被更早一次的坏 hash 连累）。
-          真正要问的只有一句：**多带一个 ct 参数，结果会不会变**。 */
-    (function () {
-      var h0 = location.hash || "#", before = view.length;
-      o.ghostRowsBefore = before;
-      o.ghostHashUsed = h0;
-      try {
-        var extra = "ct=%E7%9F%B3%E5%AE%B6%E5%BA%84";        // ct=石家庄
-        location.hash = h0 + (h0.length > 1 ? "&" : "") + extra;
-        if (typeof readHash === "function") { readHash(); }
-        if (typeof apply === "function") { apply(); }
-        o.ghostHashRows = view.length;
-        o.ghostUnaffected = (view.length === before);
-      } catch (e) {
-        o.ghostErr = String(e && e.message || e);
-      } finally {
-        try { location.hash = h0; readHash(); apply(); } catch (e) {}
+    if (!o.ctUsable) {
+      /* 幽灵值：走深链那条最真实的路径。🔴 必须把 ct 参数**追加**在现有 hash 后面：
+         换掉会连 net / st 一起丢，readHash 把 STA 置成「全部」，条数从「在售」
+         跳到「全部」—— 那是测试自己造的变化，与 ct 毫无关系（实测踩过）。 */
+      (function () {
+        var h0 = location.hash || "#", before = view.length;
+        o.ghostRowsBefore = before;
+        try {
+          var extra = "ct=%E7%9F%B3%E5%AE%B6%E5%BA%84";        // ct=石家庄
+          location.hash = h0 + (h0.length > 1 ? "&" : "") + extra;
+          if (typeof readHash === "function") { readHash(); }
+          if (typeof apply === "function") { apply(); }
+          o.ghostHashRows = view.length;
+          o.ghostUnaffected = (view.length === before);
+        } catch (e) {
+          o.ghostErr = String(e && e.message || e);
+        } finally {
+          try { location.hash = h0; } catch (e) {}
+          if (typeof readHash === "function") { readHash(); }
+          try { clearChips(); } catch (e) {}
+          apply();
+        }
+      })();
+    } else {
+      /* 正向：深链 ct=城市 必须筛准。resetAll 在 snap() 开头跑过，此时基准是干净的。 */
+      var cit = opts("#ct").filter(function (x) {
+        return x.value && x.value !== "_none" && !x.disabled;
+      })[0] || null;
+      o.cityProbe = null;
+      if (cit) {
+        try {
+          var b0 = view.length, h0c = location.hash || "#";
+          location.hash = h0c + (h0c.length > 1 ? "&" : "")
+            + "ct=" + encodeURIComponent(cit.value);
+          if (typeof readHash === "function") { readHash(); }
+          apply();
+          o.cityProbe = { city: cit.value, before: b0, got: view.length,
+                          want: wantBy(function (d) {
+                            return (d.cty || []).indexOf(cit.value) >= 0;
+                          }) };
+        } catch (e) {
+          o.cityProbeErr = String(e && e.message || e);
+        } finally {
+          try { location.hash = h0c; } catch (e) {}
+          if (typeof readHash === "function") { readHash(); }
+          var ctSel = $("#ct"); if (ctSel) { ctSel.value = ""; }
+          try { clearChips(); } catch (e) {}
+          apply();
+        }
       }
-    })();
+    }
 
     /* ★★ 「已下架」页签的条数（地市那一层已下线，这里只剩页签自身的可用性）。
        记录它是为了验证：本网有下架数据时该页签可点，且点进去条数与数据一致。 */
@@ -261,17 +309,24 @@
     if (!o.scOptions.length) { bad.push("无地域档位"); }
     else if (!o.scChoosable.length) { bad.push("地域两档都不可选"); }
 
-    /* ══ 地市维度必须已整体下线（2026-10-03）——无条件，四网一致 ══
-       三条判据对应三种「只恢复了一半」的形态，缺一条就漏一种（见 snap() 里的长注释）。 */
-    if (o.ctEl) { bad.push("页面里还有 #ct（地市下拉应已下线）"); }
-    if (o.ovCityEl) { bad.push("页面里还有 #ovCityPanel（地市分布面板应已下线）"); }
-    if ((o.chipTextsNoCity || []).length) {
-      bad.push("筛选标签里出现了城市/地市条件：" + o.chipTextsNoCity.join(" / "));
-    }
-    if (o.ghostErr) { bad.push("深链幽灵值操作异常: " + o.ghostErr); }
-    else if (o.ghostUnaffected === false) {
-      bad.push("深链 #ct=… 竟然改变了结果（幽灵条件生效了，严重）："
-        + o.ghostHashRows + " ≠ " + o.ghostRowsBefore);
+    /* ══ 地市维度（2026-10-04 改回正向）══
+       · 有 #ct 的网：深链 ct=城市 必须筛准（恰好等于该市专属条数）；
+       · 无 #ct 的网（cbn）：深链 ct 必须一字不变（幽灵断言，防「恢复一半」）。 */
+    if (o.ctUsable) {
+      if (o.cityProbeErr) { bad.push("地市深链操作异常: " + o.cityProbeErr); }
+      else if (o.cityProbe) {
+        var cp = o.cityProbe;
+        if (cp.got !== cp.want) {
+          bad.push("深链 ct=" + cp.city + " 条数不符：页面 " + cp.got
+            + " ≠ 数据 " + cp.want + "（专属口径）");
+        }
+      }
+    } else {
+      if (o.ghostErr) { bad.push("深链幽灵值操作异常: " + o.ghostErr); }
+      else if (o.ghostUnaffected === false) {
+        bad.push("深链 #ct=… 竟然改变了结果（幽灵条件生效了，严重）："
+          + o.ghostHashRows + " ≠ " + o.ghostRowsBefore);
+      }
     }
     /* ★ 「已下架」页签：本网有下架数据时该页签可点、且能算出条数。 */
     if (exp.stopped) {

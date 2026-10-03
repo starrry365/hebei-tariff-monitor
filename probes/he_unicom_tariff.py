@@ -408,14 +408,21 @@ def collect(city=CITY, workers=4, include_stopped=False, check_drift=True, verbo
                 entries.append(normalize(e))
 
     # 按 reportNo 去重：同一资费会在多个三级目录下重复出现（实测邢台 8978 → 7899）
+    # 🔴 键不能只用 reportNo：广电那网实测上游存在**垃圾备案号**（字面 '空' ×10 条、
+    #    '123@#$' ×1，见 he_cbn_tariff.collect 的注释），纯编号判重会把 10 条不同
+    #    资费静默折叠成 1 条 —— 那网已改成「编号+名称」联合键并真丢过 9 条。
+    #    联通与广电同上游体系，此处对齐同一判据（2026-10-04 审查项）：
+    #    名称不同就是不同资费，不能只凭一个编号判同。
     seen, uniq = set(), []
     for e in entries:
-        k = str(e.get("reportNo") or "").strip() or json.dumps(e, ensure_ascii=False, sort_keys=True)
+        rn = str(e.get("reportNo") or "").strip()
+        nm = str(e.get("name") or e.get("tariffName") or "").strip()
+        k = (rn + "\x1f" + nm) if rn else json.dumps(e, ensure_ascii=False, sort_keys=True)
         if k in seen:
             continue
         seen.add(k)
-        if k in rep_cities:                  # 用并集覆盖（见上：不能取首次命中的那个）
-            e["_cities"] = sorted(rep_cities[k])
+        if rn in rep_cities:                 # 用并集覆盖（见上：不能取首次命中的那个）
+            e["_cities"] = sorted(rep_cities[rn])
         uniq.append(e)
     log("去重：%d → %d 条（重复 %d）" % (len(entries), len(uniq), len(entries) - len(uniq)))
 

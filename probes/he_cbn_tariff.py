@@ -181,7 +181,12 @@ def fetch_area(area_code, include_stopped=False):
                   "type1": "GZ", "timestamp": _ms()}), "queryTariffAllByCond")
     arr = j.get("data") or []
     if not include_stopped:
-        arr = [x for x in arr if str(x.get("stateFlag")) == "1"]
+        # ★ 缺 stateFlag 的条目按**在售**收（`or "1"`）—— 与构建侧 stopped_of
+        #   （cbn_monitor 注册的 CbnNet.stopped_of：`str(e.get("stateFlag") or "1") != "1"`）
+        #   同一语义：上游哪天去掉这个字段，两边一个丢在采集、一个标下架，
+        #   **必然不一致**（一边 335 条、一边 0 条在售，页面全空还无解释）。
+        #   同向「宁当在售」至少保证两边计数一致（2026-10-04 审查项）。
+        arr = [x for x in arr if str(x.get("stateFlag") or "1") == "1"]
     return arr
 
 

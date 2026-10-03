@@ -12,7 +12,12 @@
      cat != 套餐 的那部分必须占多数 —— 只写「其他=0」会被「全改成套餐」骗过去
      （那正是 2026-09-24 的旧错：3177 条被一律归成套餐）。
   2) 细分（ty）的取值域必须是**上游真实栏目**的子集，不得凭空造词。
-     联通：ty ⊆ {一级栏目} ∪ {二级栏目}；其余三网没有二级栏目 ⇒ ty ⊆ {一级栏目}。
+     ty ⊆ {一级栏目（type2Name / ZFLX 映射名）} ∪ {条目二级栏目 type3Name}
+     ∪ {构建期归一映射 UC_TY_NORM 的目标值（仅联通）}。
+     ⚠️ 2026-10-04 修正：旧判据写死「联通才有二级栏目」，电信集团公示块接入后
+        其条目也带 type3Name（东亚 / 促销 / 增值业务…，构建期 sub=type3Name），
+        16 个合法取值被误判越界；联通的「其他加装 / 移网套餐」是 UC_TY_NORM
+        的映射**目标**（设计内），同样被误判。两处都是探针没跟上构建侧。
      域为空也算失败（那条细分维度等于废了，且没有任何报错）。
   3) 板块（sect）只在「本网上游 tariffAttr 真有两档」时落盘。
      落盘 ⇒ 该网至少出现 2 个 ATTR_CN 取值；不落盘 ⇒ 上游取值 < 2（或取不到）。
@@ -139,11 +144,18 @@ def main():
                 if l1:
                     allow.add(l1)
                 allow.add(str(T.ZFLX.get(str(g.get("type2")), "") or "").strip())
-                if net == "unicom":
-                    for e in g.get("entries", []):
-                        l2 = str(e.get("type3Name") or "").strip()
-                        if l2:
-                            allow.add(l2)
+                # 条目级二级栏目：联通在售与电信集团公示块（attr=3）都真有
+                # type3Name，构建期 sub=type3Name（见 tariff_monitor.rows_of）。
+                # 移动 / 广电条目里没有这个键 ⇒ 统一计入对它们无影响。
+                for e in g.get("entries", []):
+                    l2 = str(e.get("type3Name") or "").strip()
+                    if l2:
+                        allow.add(l2)
+        # 联通构建期对二级名做规整映射（UC_TY_NORM，见 tariff_monitor 注释），
+        # 页面 ty 是映射**后**的值 —— allow 必须包含映射目标，否则设计内的
+        # 「其他→其他加装」「国际/港澳台移网套餐→移网套餐」会被误判越界。
+        if net == "unicom":
+            allow.update(T.UC_TY_NORM.values())
         allow.discard("")
         alien = [t for t in tys if t not in allow]
         print("    %-8s 细分 %2d 档 · 上游栏目 %2d 个 · 越界 %d"

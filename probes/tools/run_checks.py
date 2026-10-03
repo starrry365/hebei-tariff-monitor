@@ -63,6 +63,12 @@ def _net_arg(default=None):
 
 ONLY = _net_arg()
 if ONLY:
+    if ONLY not in NETS_ALL:
+        # 🔴 无效 --net 静默回退跑全量曾是默认行为（2026-10-04 修）：
+        #    `--net telecom` 手滑打成 `--net ct` 时，你以为只查了电信，
+        #    实际把四网全部跑了一遍 —— 结论里「telecom 通过」那行查的根本不是你想要的。
+        #    宁可报错让人重敲，也不给一个看似正常、实则答非所问的运行。
+        sys.exit("!! 未知网别 %r（可选：%s）" % (ONLY, ", ".join(NETS_ALL)))
     NETS_ALL = (ONLY,) if ONLY in NETS_ALL else NETS_ALL
     NETS_CONF = (ONLY,) if ONLY in NETS_CONF else NETS_CONF
 

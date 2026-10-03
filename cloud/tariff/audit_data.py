@@ -11,9 +11,11 @@
 - ``onlineDay`` / ``offineDay``：页面按 8 位数字解析，格式一变（如 ``2003-05-17``）解析就返回 null，
   所有时间筛选会**静默漏掉**那些条目，而页面照样正常渲染。
 - 城市：判据在**构建期**（tariff_monitor.WHERE_OF + text_cities）算好写进行数据，
-  且**只有两种合法形态**（2026-09-24 起）：
-  `d.cty` = 该资费限这几个市（中文名列表）；`d.pw=1` = 不限地市（全省通用）。
-  二者互斥且完备地覆盖**在售**条目；**已下架**条目刻意两者皆无（那批的城市归属
+  且有**三种合法形态**（2026-10-04 起）：
+  `d.cty` = 该资费限这几个市（中文名列表）；`d.pw=1` = 不限地市（全省通用）；
+  二者皆无 = 集团公示条目（a1=3，目录本身没有地市概念，见 tariff_monitor.ATTR_GROUP_PUB）
+  —— 2026-10-04 前它们被错标成「全省通用」混进本省目录。
+  **已下架**条目也刻意两者皆无（那批的城市归属
   来自各城「停售目录」的差异，收录范围任意、不可信）。
   2026-10-03 起地市不再是一个**筛选维度**（面板与下拉都从页面撤了），页面只在
   详情行 / CSV 里把 d.cty 当信息展示 —— 但这套数据判据照旧：它是「上游有没有说清
@@ -58,12 +60,17 @@ sys.path.insert(0, BASE)
 # 本脚本不再自己留一份副本 —— 见文件头「城市」那段：留副本的代价是两份各自漂。
 import tariff_monitor as T      # noqa: E402
 
-# ⚠️ 下面两条规则必须与 template.html 里 bwInfo() 的常量保持一致，
+# ⚠️ 下面三条规则必须与 template.html 里 bwInfo() 的常量保持一致，
 #    脚本末尾的 check_sync() 会从模板里读出来比对，不同步直接报错。
 # ⚠️ 必须与 template.html 里**逐字相同**，因为它们是「空值」的判定表 ——
 #    各网对「不适用」的写法不一样（广电写 '/'），而判定是跨网共用的。
 BW_BADVAL = r"^(0|[-—－\/\\]|无.*|没有|否|不涉及|不限|暂无|无需)$"
 BW_NOTLINE = r"提速|电视|IPTV|检修|装机|调测|加速|绿色上网|调优|扩容|移机|权益|营销活动|预约办理|电子券|标识|游戏宽带|无宽带|神眼"
+# 名称分支的「断言」词表：名称里必须**明确说有**宽带（含宽带 / 宽带版 / 宽带包 /
+# …套餐 / 融合 / FTTR / 速率数字），只是「提到」宽带的不算线路。
+# 2026-10-04 conformance 抓到本常量曾缺失 —— oracle 只查「宽带 in n」而页面
+# 还要求 BW_ASSERT.test(n)，多判 3 条（move bw=line 期望 128 / 实际 125）。
+BW_ASSERT = r"含宽带|宽带版|宽带包|宽带套餐|宽带融合|融合宽带|宽带流量|宽带[+＋]|单宽带|FTTR|宽带.{0,8}\d{3,4}\s*M|\d{3,4}\s*M\D{0,4}宽带|千兆宽带|光宽带|宽带.{0,4}套餐"
 # 本网自己的数据基线（YYYY-MM-DD），由 load_rows() 填充。四网理论上可不同。
 NET_BASE = ""
 # 页面搜索实际覆盖的字段（用于比对是否漏字段）—— 必须与 template.html apply() 里那份一致。
@@ -74,6 +81,7 @@ ALL_FIELDS = ("n", "t", "ap", "ch", "r", "ty", "x", "bw", "d", "du", "ex", "vp")
 
 BADVAL_RE = re.compile(BW_BADVAL)
 NOTLINE_RE = re.compile(BW_NOTLINE)
+ASSERT_RE = re.compile(BW_ASSERT)
 
 problems = []
 
@@ -115,18 +123,23 @@ def load_rows(net=None):
 def bw_info(x):
     """复现 template.html 的 bwInfo()：返回 ('field', 速率) / ('name', '含宽带') / None
 
-    🔴 结构必须与页面**同序**：字段明示优先，名称线索只在字段空/否定时兜底。
+    🔴 结构必须与页面**同序同判**：字段明示优先，名称线索只在字段空/否定时兜底。
        2026-10-02 conformance 抓到本函数曾「名称含 NOTLINE 词 ⇒ 直接 None」，
        把字段明明写了「含宽带」的条目也排除了（名称叫「…宽带电视…」而字段写
        「300M」的融合套餐）——与页面「字段优先」语义反向漂移，37 个 bw 用例
        恒失败（页面是对的，oracle 是复现，漂移改 oracle —— 同 city_tags 先例）。
-       字段值本身也不做 NOTLINE 过滤：页面信任字段，名称文本才要防「提到≠包含」。
+       2026-10-04 conformance 又抓到两处同向漂移（都是 oracle 多判，页面是对的）：
+       · field 分支漏了页面的 ``!BW_NOTLINE.test(v)`` —— 字段自己在说
+         「提速 / 电视」这类附加动作的不算（之前 docstring 写「页面信任字段、
+         不做 NOTLINE 过滤」是对旧版页面的误读，页面 1085 行一直有这道过滤）；
+       · name 分支漏了页面的 ``BW_ASSERT.test(n)`` —— 名称必须**明确说有**
+         宽带才算，「提到」不算（弱提及「…含宽带权益…」这类挡掉）。
     """
     v = str(x.get("bw") or "").strip()
     n = x.get("n") or ""
-    if v and not BADVAL_RE.match(v):
+    if v and not BADVAL_RE.match(v) and not NOTLINE_RE.search(v):
         return ("field", v)
-    if "宽带" in n and not NOTLINE_RE.search(n):
+    if "宽带" in n and not NOTLINE_RE.search(n) and ASSERT_RE.search(n):
         return ("name", "含宽带")
     return None
 
@@ -287,16 +300,21 @@ def check_city(rows, net_code):
     # 不限地市（全省通用）—— 构建期标的 pw。
     stat["pw"] = sum(1 for x in rows if x.get("pw"))
 
-    # ★★ 地市归属的**互斥与完备** —— 这三条是本轮（2026-09-24）新加的判据：
-    #   在售条目必须**恰有** `cty` 或 `pw` 之一。
-    #     两者皆无 ⇒ 上游对这条资费的地域范围一个字都没说（既没限定到市、也没说是全省通用）；
+    # ★★ 地市归属的**互斥与完备**（2026-09-24 加；2026-10-04 升为三态）：
+    #   在售条目必须落到三个合法形态之一：恰有 `cty` / 恰有 `pw` /
+    #   集团公示（a1=ATTR_GROUP_PUB，目录没有地市概念，两者皆无是**合法**的）。
+    #     非集团公示却两者皆无 ⇒ 上游对这条资费的地域范围一个字都没说；
     #     两者皆有 ⇒ 归属自相矛盾（既限这几个市、又不限地市）。
     #   已下架条目刻意两者皆无，不在本判据内。
     #   ⚠️ 2026-10-03 起页面不再按地市筛，所以这两条不再是「页面上会算错」的证据，
-    #      而是「上游给的地域信息是否自洽/完整」的记录 —— 判据本身保留。 */
+    #      而是「上游给的地域信息是否自洽/完整」的记录 —— 判据本身保留。
+    #   ⚠️ 2026-10-04 教训：构建侧改成「集团公示不写 pw」的同一提交里没跟上这里的
+    #      判据，524 条 a1=3 被误报成「上下游都没说地域范围」—— 又一次「判据副本漂移」。
+    grp_pub = T.ATTR_GROUP_PUB
     stat["both"] = [x for x in rows if x.get("cty") and x.get("pw")]
     stat["neither"] = [x for x in rows
-                       if not x.get("st") and not x.get("cty") and not x.get("pw")]
+                       if not x.get("st") and not x.get("cty") and not x.get("pw")
+                       and str(x.get("a1") or "").strip() != grp_pub]
     # 无地市维度的网（广电）反向判据：一条 cty / pw 都不该有。
     stat["any_mark"] = [x for x in rows if x.get("cty") or x.get("pw")]
     stat["live_n"] = live_n
@@ -340,12 +358,15 @@ def check_sync(raw, rows):
     errs = []
     m1 = re.search(r"const BW_BADVAL=/(.+?)/;", tpl)
     m2 = re.search(r"const BW_NOTLINE=/(.+?)/;", tpl)
-    if not m1 or not m2:
-        return ["模板里找不到 BW_BADVAL / BW_NOTLINE 常量"]
+    m3 = re.search(r"const BW_ASSERT=/(.+?)/;", tpl)
+    if not m1 or not m2 or not m3:
+        return ["模板里找不到 BW_BADVAL / BW_NOTLINE / BW_ASSERT 常量"]
     if m1.group(1) != BW_BADVAL:
         errs.append("BW_BADVAL 与模板不一致：模板=%r 脚本=%r" % (m1.group(1), BW_BADVAL))
     if m2.group(1) != BW_NOTLINE:
         errs.append("BW_NOTLINE 与模板不一致：模板=%r 脚本=%r" % (m2.group(1), BW_NOTLINE))
+    if m3.group(1) != BW_ASSERT:
+        errs.append("BW_ASSERT 与模板不一致：模板=%r 脚本=%r" % (m3.group(1), BW_ASSERT))
 
     # ★ 两个地市占位符**必须在**模板里（2026-10-03 当晚恢复）：「地市」下拉回来了，
     #   选项由注入的 CITY_ORDER / CITY_EXTRA 建。白天曾断言它们「必须不在」；
@@ -448,13 +469,14 @@ def main():
     rep("地市取值不在统一命名空间 CITY_ALL 里", st["bad_names"], 0)
     # ★ 文案兜底有没有漏跑（只对移动/电信：见 tariff_monitor.CITY_TEXT）。
     rep("文案能认出地市、却没有 cty（rows_of 漏跑兜底）", st["fallback_miss"], 0)
-    # ★★ pw / cty 的**互斥与完备** —— 本轮（2026-09-24）新加的判据。
-    #   这两者必须把在售条目的地市归属**恰好**覆盖一遍：
-    #     缺一个 ⇒ 上游没说这条资费的地域范围（既不属于某市、也非全省通用）；
+    # ★★ pw / cty 的**互斥与完备**（2026-09-24 加；2026-10-04 升为三态，见 check_city）。
+    #   在售条目必须落到三个合法形态之一：恰有 cty / 恰有 pw /
+    #   集团公示（a1=3，两者皆无是合法的）。
+    #     缺一个（非集团公示却两者皆无）⇒ 上游没说这条资费的地域范围；
     #     多一个 ⇒ 归属自相矛盾（既限这几个市、又不限地市）。
     #   判据网别用 tariff_monitor.CITY_NETS（唯一权威），**不是**硬编码一串网名。
     if net in T.CITY_NETS:
-        rep("在售条目既无 cty 也无 pw（上下游都没说地域范围）", st["neither"], 0)
+        rep("在售非集团公示条目既无 cty 也无 pw（上下游都没说地域范围）", st["neither"], 0)
         rep("地市归属自相矛盾（同时写了 cty 与 pw）", st["both"], 0)
         rep("有地市归属的网却一条 cty 都没有（码→名换算那条链断了？）",
             [] if st["hit_any"] else ["<该网 0 条带 cty>"])

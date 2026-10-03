@@ -128,8 +128,14 @@ def build_oracle(rows, base):
             dt = to_date(d.get("e"))
             if dt is None:
                 return False
+            # ★ |lf| <= N（2026-10-04 对齐页面判据）：页面 match() 的「N 天内下线」
+            #   早就改成了绝对值 —— 在售页签匹配「即将下线」（lf>=0）、已下架页签
+            #   匹配「刚下线」（lf<0）、「全部」页签两者都算（见 template.html
+            #   match() 那段 🔴 注释）。oracle 还停在旧的 lf<0 拒绝 ⇒ off 类用例
+            #   期望系统性偏小（实测 cbn off=90 期望 73 / 页面 87），此前一直被
+            #   「页面缺控件」的加载竞态掩盖，竞态修复后现形。
             lf = dt - base
-            if lf < 0 or lf > float(c["off"]):
+            if abs(lf) > float(c["off"]):
                 return False
         if c["bw"] == "line" and not A.bw_info(d):
             return False
