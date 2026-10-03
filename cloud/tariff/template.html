@@ -210,9 +210,14 @@ body[data-view="list"] .bar{display:block}
 #kw::placeholder{color:var(--tx3)}
 #kw:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2)}
 /* 工具按钮 */
-#reset,#csv,#offline{padding:8.5px 13px;border:1px solid var(--bd2);background:var(--glass3);
+#reset,#csv,#offline,#ftog{padding:8.5px 13px;border:1px solid var(--bd2);background:var(--glass3);
   border-radius:10px;cursor:pointer;font-size:12.5px;color:var(--tx2);transition:.16s;white-space:nowrap;font-family:inherit}
-#reset:hover,#csv:hover,#offline:hover{border-color:var(--ac);color:var(--ac)}
+#reset:hover,#csv:hover,#offline:hover,#ftog:hover{border-color:var(--ac);color:var(--ac)}
+/* 筛选折叠开关的「生效条件数」徽标；折叠态下开关保持高亮提示「里面还挂着条件」 */
+#fbadge{font-style:normal;margin-left:5px;padding:0 7px;border-radius:999px;
+  background:linear-gradient(135deg,var(--op1),var(--op2));color:#fff;font-size:11px;font-weight:700}
+.deck.folded .ffilt,.deck.folded .chips{display:none}
+.deck.folded #ftog{border-color:var(--ac);color:var(--ac)}
 input,select{padding:7px 10px;border:1px solid var(--bd2);border-radius:9px;font-size:13px;
   background:var(--glass3);color:var(--tx);font-family:inherit;color-scheme:light dark}
 input:focus,select:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2)}
@@ -280,6 +285,12 @@ button{font-family:inherit}
   border-radius:999px;font-size:12px;cursor:pointer;line-height:1.7;font-family:inherit}
 .fchip:hover{border-color:var(--ac)}
 .fchip i{font-style:normal;font-weight:700;margin-left:4px}
+/* 空结果诊断的建议按钮（样式与快捷 chip 同族，可点摘条件） */
+.diag{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;margin-top:10px}
+.diag>span{color:var(--tx3);font-size:12.5px}
+.diagb{padding:5px 12px;border:1px solid var(--bd2);background:var(--glass3);border-radius:999px;
+  font-size:12.5px;cursor:pointer;color:var(--tx2);transition:.14s;font-family:inherit}
+.diagb:hover{border-color:var(--ac);color:var(--ac)}
 
 /* ── 收藏关注（并入主样式表，2026-10-01 重设计版）────────────────── */
 .favbtn{background:none;border:0;cursor:pointer;font-size:14px;line-height:1;
@@ -325,6 +336,8 @@ tbody tr:last-child td{border-bottom:0}
 tbody tr.row:nth-child(4n+3) td{background:var(--zebra)}
 tr.row:hover td{background:var(--hover);cursor:pointer}
 .nm{font-weight:600}
+/* 搜索命中高亮：淡主色底、不抢字色（深浅主题都走 --ac2 半透明，字色继承） */
+mark{background:var(--ac2);color:inherit;padding:0 1px;border-radius:2px}
 .tg{display:inline-block;padding:1px 8px;border-radius:6px;background:var(--ac2);color:var(--ac);
   font-size:11.5px;font-weight:650;white-space:nowrap}
 .fee{font-weight:750;white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -568,6 +581,8 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
         <input id="kw" placeholder="搜索名称 / 套餐 / 客户 / 渠道 / 报备编号 / 权益 / 宽带速率…">
       </div>
+      <button type="button" id="ftog" aria-expanded="true"
+              title="展开 / 收起下方筛选区">筛选<i id="fbadge" hidden></i></button>
       <button type="button" id="reset">重置</button>
       <button type="button" id="csv" title="把当前筛选结果导出为 CSV（全部结果、不只是本页；Excel 可直接打开）">导出 CSV</button>
       <button type="button" id="offline" title="把当前页面另存为一份可离线打开的单文件 HTML">保存本页</button>
@@ -688,9 +703,9 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
         <label class="f"><span class="fl">下线时间</span>
           <select id="off">
             <option value="">全部下线时间</option>
-            <option value="30">30 天内下线</option>
-            <option value="60">60 天内下线</option>
-            <option value="90">90 天内下线</option>
+            <option value="30">30 天内下线/已下线</option>
+            <option value="60">60 天内下线/已下线</option>
+            <option value="90">90 天内下线/已下线</option>
           </select></label>
         <label class="f"><span class="fl">变更</span>
           <select id="chg">
@@ -704,7 +719,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       <button data-p="new7">🆕 7 天内上架</button>
       <button data-p="new30">🆕 30 天内上架</button>
       <button data-p="new90">🆕 90 天内上架</button>
-      <button data-p="exp60">⏳ 60 天内下线</button>
+      <button data-p="exp60">⏳ 60 天内下线/已下线</button>
       <button data-p="free">0 元</button>
       <button data-p="bw">含宽带</button>
       <button data-p="g100">≥ 100GB 流量</button>
@@ -1123,7 +1138,10 @@ function condOf(){
      [lo,hi]=区间。 */
   const rg=k=>{const v=g(k);if(!v)return null;if(v==="none")return"none";
     const p=v.split(",").map(Number);return[p[0],p[1]]};
-  return {kw:$("#kw").value.trim().toLowerCase(),
+  /* 关键词按空白拆成词数组（match 里做多词 AND）；
+     空串拆出来是 [""]，先滤掉。高亮（render 侧）用同一份词表，口径一致。 */
+  const kwTerms=$("#kw").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return {kw:kwTerms,
           sb:g("sb"),sc:g("sc"),ow:g("ow"),cat:g("cat"),ty:g("ty"),
           pf:rg("pf"),gf:rg("gf"),cf:rg("cf"),bw:g("bw"),chx:g("chx"),
           on:g("on"),offv:g("off"),chg:g("chg"),sta:STA,dimOff:dm};
@@ -1172,6 +1190,98 @@ function syncDims(){
   if(dimVisible("sb"))fill(sb,sbN,"全部",v=>SB_LABEL[v]||v);
   fill(cat,catN,"全部大类");
   fill(ty,tyN,"全部细分");
+  /* —— 第二组 facet：档位 / 属性类维度（地域 / 归属 / 月费 / 流量 / 通话 / 宽带 / 渠道 / 时效）——
+     口径与上面分类 facet 一致：「把这一格换成 X 会有几条」。
+     ★ 组内互相不设限（core2 一次摘掉这一组），组间约束照常生效 ——
+       选了 cat=加装包 时，月费各档的条数就是加装包内部的分布。
+       严格「每维只摘自己」要 9 遍过滤（8000 行 × 9 = 7 万次判据，每敲一个搜索键
+       都付一遍）；组内不设限的近似只要 1 遍，且与分类三层「互相不设限」同一取舍。
+     ★ 行上的数值（月费/流量/通话/速率/相对天数）在循环里各算**一次**再落档，
+       别在每个档的判断里重复 num()/toDate()。
+     ★ 各档的判定必须与 match() **逐字对应**（含 fail-closed：速率未知不算 ≥200M、
+       缺基准日不进时间档）—— 两处口径一漂移，就是「选项写着 8 条、点进去 5 条」。 */
+  const core2=Object.assign({},base,{sc:"",ow:"",pf:null,gf:null,cf:null,bw:"",chx:"",on:"",offv:""});
+  const n2={sc:{},ow:{},pf:{},gf:{},cf:{},bw:{},chx:{},on:{},off:{}};
+  const inR=(v,lo,hi)=>v!=null&&v>=lo&&v<=hi;
+  rs.forEach(d=>{
+    if(!match(d,core2))return;
+    if(d.sc)n2.sc[d.sc]=(n2.sc[d.sc]||0)+1;
+    if(d.ow)n2.ow[d.ow]=(n2.ow[d.ow]||0)+1;
+    if(d.chx)n2.chx[d.chx]=(n2.chx[d.chx]||0)+1;
+    const f=num(d.f);
+    if(f!=null){
+      if(f===0)n2.pf["0,0"]=(n2.pf["0,0"]||0)+1;
+      if(f<=10)n2.pf["0,10"]=(n2.pf["0,10"]||0)+1;
+      if(f<=30)n2.pf["0,30"]=(n2.pf["0,30"]||0)+1;
+      if(f<=60)n2.pf["0,60"]=(n2.pf["0,60"]||0)+1;
+      if(inR(f,60,100))n2.pf["60,100"]=(n2.pf["60,100"]||0)+1;
+      if(f>=100)n2.pf["100,99999"]=(n2.pf["100,99999"]||0)+1;
+    }
+    const gN=d.g;
+    if(gN==null||gN===0)n2.gf.none=(n2.gf.none||0)+1;
+    if(inR(gN,0,5))n2.gf["0,5"]=(n2.gf["0,5"]||0)+1;
+    if(inR(gN,5,30))n2.gf["5,30"]=(n2.gf["5,30"]||0)+1;
+    if(inR(gN,30,100))n2.gf["30,100"]=(n2.gf["30,100"]||0)+1;
+    if(gN!=null&&gN>=100)n2.gf["100,99999"]=(n2.gf["100,99999"]||0)+1;
+    const cm=num(d.c);
+    if(cm==null||cm===0)n2.cf.none=(n2.cf.none||0)+1;
+    if(inR(cm,0,100))n2.cf["0,100"]=(n2.cf["0,100"]||0)+1;
+    if(inR(cm,100,500))n2.cf["100,500"]=(n2.cf["100,500"]||0)+1;
+    if(cm!=null&&cm>=500)n2.cf["500,99999"]=(n2.cf["500,99999"]||0)+1;
+    if(bwInfo(d)){
+      n2.bw.line=(n2.bw.line||0)+1;
+      if(bwSpeed(d))n2.bw.speed=(n2.bw.speed||0)+1;
+      const mb=bwMbps(d);
+      if(mb!=null){
+        if(mb>=200)n2.bw.m200=(n2.bw.m200||0)+1;
+        if(mb>=500)n2.bw.m500=(n2.bw.m500||0)+1;
+        if(mb>=1000)n2.bw.m1000=(n2.bw.m1000||0)+1;
+      }
+    }
+    const ot=toDate(d.o);
+    if(ot==null)n2.on.none=(n2.on.none||0)+1;
+    else if(BASE_OK){
+      const ag=ago(ot);
+      if(ag>=0){
+        if(ag<=7)n2.on["7"]=(n2.on["7"]||0)+1;
+        if(ag<=30)n2.on["30"]=(n2.on["30"]||0)+1;
+        if(ag<=90)n2.on["90"]=(n2.on["90"]||0)+1;
+        if(ag<=180)n2.on["180"]=(n2.on["180"]||0)+1;
+        if(ag<=365)n2.on["365"]=(n2.on["365"]||0)+1;
+      }
+    }
+    if(BASE_OK){
+      const et=toDate(d.e);
+      if(et!=null){
+        const lf=Math.abs(left(et));
+        if(lf<=30)n2.off["30"]=(n2.off["30"]||0)+1;
+        if(lf<=60)n2.off["60"]=(n2.off["60"]||0)+1;
+        if(lf<=90)n2.off["90"]=(n2.off["90"]||0)+1;
+      }
+    }
+  });
+  /* 条数写进选项文本；0 条的档置灰（点进去必然空，不如直接挡住）。
+     显示名从首次写入时缓存的 dataset.lbl 取 —— 这组下拉的选项文本是手工
+     排版的（「仅 0 元」「≤ 10 元」），不能拿 value 当文本重新生成。 */
+  const fillLbl=(sel,mp,fb)=>{
+    if(!sel)return;
+    [...sel.options].forEach(o=>{
+      if(!o.value){o.disabled=false;o.textContent=fb;return}
+      if(!o.dataset.lbl)o.dataset.lbl=o.textContent.replace(/（\d+）$/,"");
+      const n=mp[o.value]||0;
+      o.textContent=n?(o.dataset.lbl+"（"+n+"）"):o.dataset.lbl;
+      o.disabled=!n;
+    });
+  };
+  fillLbl($("#sc"),n2.sc,"全部地域（河北 + 全国）");
+  if(dimVisible("ow"))fillLbl($("#ow"),n2.ow,"全部");
+  fillLbl($("#pf"),n2.pf,"全部月费");
+  fillLbl($("#gf"),n2.gf,"不限流量");
+  fillLbl($("#cf"),n2.cf,"不限通话");
+  fillLbl($("#bw"),n2.bw,"不限宽带");
+  fillLbl($("#chx"),n2.chx,"不限渠道");
+  fillLbl($("#on"),n2.on,"全部上架时间");
+  fillLbl($("#off"),n2.off,"全部下线时间");
   /* ★ 全页**唯一一处**「联动清值」：细分项不属于当前所选大类时。
      判据是**从属关系**（细分挂在大类下，data-cat 由 renderNet 写好），
      而不是「这个组合恰好 0 条」。
@@ -1442,8 +1552,69 @@ function detHTML(d){
     +'<div class="detact"><button type="button" class="cpbtn">复制这条资费</button></div>';
 }
 
+/* —— 搜索词表 + 命中高亮 ——
+   词表与 condOf() 的 kw 同一口径（trim → 小写 → 空白分词），两处各读一次输入、
+   语义一致；不共享变量是因为 condOf 每轮 apply 都要重建条件对象，render 只需要词表。
+   ★ 先 split 再对每一片单独 esc：不能先 esc 整串再替换 —— esc 会把 & 变 &amp;，
+     词表里若恰好有「amp」「lt」这类片段就会命中转义产物，把标签拼坏。
+   ★ 长词优先：两个词有前缀关系时（「流量」与「流量包」），短词先匹配会把长词切碎。
+   ★ split 带捕获组：匹配段会出现在结果里，逐段判断是否命中词（大小写归一后比对）。 */
+function kwTermsNow(){
+  return $("#kw").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+}
+function hl(text,terms){
+  const t=String(text==null?"":text);
+  if(!terms.length||!t)return esc(t);
+  const re=new RegExp("("+terms.slice().sort((a,b)=>b.length-a.length)
+    .map(w=>w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")).join("|")+")","gi");
+  return t.split(re).map(p=>
+    (p&&terms.indexOf(p.toLowerCase())>=0)?"<mark>"+esc(p)+"</mark>":esc(p)).join("");
+}
+
+/* —— 空结果诊断：哪个条件把结果筛没了 ——
+   只在 0 条时算：对每个**生效中**的条件单独摘掉、重算一次 count，
+   把「摘掉它能找回多少条」列成可点建议。≤ 15 次过滤，只在空结果页付一次。
+   ★ 按找回条数降序 —— 用户最想先看到「误伤最重的那个条件」。
+   ★ 全部为 0（即摘掉任何单条仍为 0）时不渲染：那说明是多条件联合筛没的，
+     逐条建议只会误导，让「重置全部」兜底。 */
+function activeConds(){
+  const a=[];
+  const kw=$("#kw").value.trim();
+  if(kw)a.push({k:"kw",lab:"关键词「"+kw+"」"});
+  if(STA!=="")a.push({k:"st",lab:"状态："+(STA==="1"?"已下架":"在售")});
+  DIMS.forEach(k=>{if($("#"+k).value)a.push({k:k,lab:(DIM_PRE[k]||"")+optText(k)})});
+  return a;
+}
+function removeCond(k){
+  if(k==="kw"){$("#kw").value="";apply();return}
+  if(k==="st"){STA="";syncTabs();apply();return}
+  const el=$("#"+k);if(el)el.value="";
+  if(k==="cat")syncDims();          // 摘掉大类 ⇒ 细分置灰复原（同标签 × 那条路）
+  apply();
+}
+function diagEmpty(){
+  const base=condOf();
+  const cands=activeConds().map(c=>{
+    const one=Object.assign({},base);
+    if(c.k==="kw")one.kw=[];
+    else if(c.k==="st")one.sta="";
+    else{
+      /* 维度 id → 条件键只有一处不一致：#off 控件在条件里叫 offv。
+         区间型（月费/流量/通话）复位成 null（= 不筛），其余复位空串。 */
+      const ck=(c.k==="off")?"offv":c.k;
+      one[ck]=(c.k==="pf"||c.k==="gf"||c.k==="cf")?null:"";
+    }
+    return {k:c.k,lab:c.lab,n:rowsOf(NET).filter(d=>match(d,one)).length};
+  }).filter(c=>c.n>0).sort((x,y)=>y.n-x.n);
+  if(!cands.length)return "";
+  return '<div class="diag"><span>试试摘掉一个条件：</span>'+cands.slice(0,6).map(c=>
+    '<button type="button" class="diagb" data-rm="'+esc(c.k)+'" title="摘掉这个条件并重新筛选">'
+    +esc(c.lab)+' → 找回 '+c.n+' 条</button>').join("")+'</div>';
+}
+
 function render(){
   const tb=$("#tb");tb.innerHTML="";
+  const terms=kwTermsNow();          // 命中词高亮与筛选用同一份词表
   const st=pg*PAGE,slice=view.slice(st,st+PAGE);
   $("#stat").innerHTML="匹配 <b>"+view.length+"</b> 条"
     +" · 共 "+rowsOf(NET).length+" 条"
@@ -1453,8 +1624,11 @@ function render(){
   $("#pg").textContent="第 "+(pg+1)+" / "+Math.max(1,Math.ceil(view.length/PAGE))+" 页";
   $("#prev").disabled=pg===0;$("#next").disabled=st+PAGE>=view.length;
   if(!view.length){
-    tb.innerHTML='<tr><td colspan="10" class="empty">没有匹配的资费 · 试试 <a href="#" id="clr">重置全部筛选</a></td></tr>';
+    tb.innerHTML='<tr><td colspan="10" class="empty"><div>没有匹配的资费</div>'
+      +diagEmpty()
+      +'<div style="margin-top:10px"><a href="#" id="clr">重置全部筛选</a></div></td></tr>';
     const c=$("#clr");if(c)c.onclick=e=>{e.preventDefault();resetAll()};
+    tb.querySelectorAll(".diagb").forEach(b=>{b.onclick=()=>removeCond(b.dataset.rm)});
     return;
   }
   slice.forEach(d=>{
@@ -1467,7 +1641,7 @@ function render(){
     tr.innerHTML='<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元":"—")+'</td>'
       +'<td>'+fmtGb(d.g)+perCell(d)+'</td>'
       +'<td>'+(d.c&&d.c!=="0"?esc(d.c)+" 分":"—")+'</td>'
-      +'<td class="nm">'+scTag(d)+esc(d.n||d.t)+chgTag(d)+stopTag(d)+'</td>'
+      +'<td class="nm">'+scTag(d)+hl(d.n||d.t,terms)+chgTag(d)+stopTag(d)+'</td>'
       +'<td><span class="tg" title="资费大类；官方原始分类见展开详情">'+esc(d.cat||"—")+'</span></td>'
       +'<td>'+owTag(d)+'</td>'
       +'<td>'+bwCell(d)+'</td>'
@@ -1511,8 +1685,11 @@ function match(d,c){
 
     /* 「在售 / 已下架」页签先判 —— 它是这一页的**前提**，不是并列条件。
        d.st 为 1 表示已下架（由采集侧按各网判据写好，见 tariff_monitor.state_of）；
-       缺失一律当在售。两页物理分开，在售页的排序与「本次变更」因此不含下架条目。 */
-    if(STA!==""&&(d.st?1:0)!==+STA)return false;
+       缺失一律当在售。两页物理分开，在售页的排序与「本次变更」因此不含下架条目。
+       ★ 判据读条件对象里的 sta（condOf 写入）而不是全局 STA：空结果诊断要算
+         「摘掉状态页签能找回几条」—— 那是在 c.sta="" 下重算的反事实，
+         判据若读全局变量，这个反事实永远算不出来。 */
+    if(c.sta!==""&&(d.st?1:0)!==+c.sta)return false;
     /* 地域：d.sc 是构建期按**原始地域字段**算出的（hb 河北 / cn 全国），
        不是从名称文本猜的 —— 猜地名会让「名称没写地市」的条目全部漏判。
        注意：这是**省级**口径（河北 vs 全国），与条目的地市归属（d.cty）无关；
@@ -1574,8 +1751,13 @@ function match(d,c){
     if(off){
       const dt=toDate(d.e);
       if(!BASE_OK||dt==null)return false;
+      /* 「N 天内下线/已下线」＝ 下线日落在基线前后 N 天内。
+         🔴 早先只算 left>=0（还没下线的），「已下架」页签和「全部」页签里
+         选这一档会**恒为 0 条** —— 已下线的条目 left 全是负数，全被挡掉。
+         改成 |left|<=N：在售页签匹配「即将下线」，已下架页签匹配「刚下线」，
+         「全部」页签两者都算 —— 文案与判据自此一致。 */
       const lf=left(dt);
-      if(lf<0||lf>+off)return false;
+      if(Math.abs(lf)>+off)return false;
     }
     if(bw==="line"&&!bwInfo(d))return false;
     if(bw==="speed"&&!bwSpeed(d))return false;
@@ -1593,11 +1775,16 @@ function match(d,c){
          大类是用户心里的词，细分是上游的词，搜索该按用户那套来。
          特意不含月费与流量数值：它们已有专门的筛选与排序，混进来只会让搜「50」全是噪音。
          🔴 拼接串缓存进行对象（_kws）：行数据是构建期常量，这串每个字都不变；
-            不缓存的话 1.4 万行 × 每次输入重建一遍，纯属浪费（2026-10-02 审查项）。 */
+            不缓存的话 1.4 万行 × 每次输入重建一遍，纯属浪费（2026-10-02 审查项）。
+         ★ 空格分词 AND（2026-10-03）：整串 includes 时搜「宽带 千兆」命中 0 条 ——
+           字段拼接顺序里两个词隔着几十个字。按空格拆成多词、要求**全部**命中，
+           与主流电商/文档站的搜索直觉一致。词序无关、重复词无害。 */
       let s=d._kws;
       if(s==null){s=[d.n,d.t,d.ap,d.ch,d.r,d.ty,d.cat,d.chx,d.x,d.bw,d.ex,d.vp]
                 .join(" ").toLowerCase();d._kws=s}
-      if(!s.includes(kw))return false;
+      for(let i=0;i<kw.length;i++){
+        if(s.indexOf(kw[i])<0)return false;
+      }
     }
     return true;
   return true;
@@ -1615,6 +1802,11 @@ function apply(){
      这种不存在的组合，页面安静地给出 0 条。
      ★ 必须在下面读 ty 的值**之前**跑 —— 它可能把已被置灰的那个细分清掉。 */
   syncDims();
+  /* 快捷 chip 高亮跟维度值对齐：深链 / 标签 × / 切网清空都改值而不经过 chips 点击，
+     每轮 apply 都重推一次选中态，chip 就永远不会「亮着、条件却不在」。 */
+  syncChips();
+  /* 折叠开关上的徽标：生效条件数（含关键词与状态页签） */
+  updateFbadge();
   /* 警告条在这里统一求值（而不是挂在 renderNet() 上）：renderNet 只在「换了网」
      时才跑，任何「base 坏了但没换网」的路径都会留下一份与数据不符的旧状态。
      放在未接入短路**之前**，还顺带保证切到未接入的网时警告条一定会被收起。 */
@@ -2446,6 +2638,32 @@ document.querySelectorAll("#tabs button").forEach(b=>{
 $("#sort").onchange=e=>{sortK=e.target.value;sortD=F[sortK].def;apply()};
 $("#dir").onclick=()=>{sortD=-sortD;apply()};
 $("#reset").onclick=resetAll;
+
+/* —— 筛选区折叠 ——
+   窄屏上筛选区（两级主轴 + 五段 + 快捷行）拉得比首屏还长，收起后一屏见表。
+   ★ 状态记在 localStorage；没有记录时只按**当前视口**定默认：桌面展开
+     （滚动成本低、可发现性好），窄屏收起。
+   ★ 徽标显示「生效条件数」：收起时也看得到里面还挂着几个条件，
+     不会出现「折叠区里藏着 5 个条件、结果莫名其妙只剩 3 条」的迷惑。 */
+const FT_KEY="ft-fold";
+function updateFbadge(){
+  let n=($("#kw").value.trim()?1:0)+(STA!==""?1:0);
+  DIMS.forEach(k=>{if($("#"+k).value)n++});
+  const b=$("#fbadge");
+  if(b){b.textContent=n||"";b.hidden=!n}
+}
+function foldFilters(f){
+  document.getElementById("deck").classList.toggle("folded",f);
+  $("#ftog").setAttribute("aria-expanded",f?"false":"true");
+  try{localStorage.setItem(FT_KEY,f?"1":"0")}catch(e){}
+}
+(function(){
+  let f=null;try{f=localStorage.getItem(FT_KEY)}catch(e){}
+  if(f==null)f=window.innerWidth<860?"1":"0";
+  document.getElementById("deck").classList.toggle("folded",f==="1");
+  $("#ftog").setAttribute("aria-expanded",f==="1"?"false":"true");
+})();
+$("#ftog").onclick=()=>foldFilters(!document.getElementById("deck").classList.contains("folded"));
 /* 视图页签 / 主题切换 / 历史展开。都是纯粹的「显示层」操作，
    一律不碰筛选状态（见 setView 注释）。 */
 $("#vtab").addEventListener("click",e=>{
@@ -2501,17 +2719,37 @@ document.querySelectorAll("th[data-k]").forEach(th=>{
   };
 });
 
+/* 快捷 chip → 维度取值的映射。选中态与点击行为都从这份表推导，两处共用。 */
+const CHIP_MAP={new7:["on","7"],new30:["on","30"],new90:["on","90"],exp60:["off","60"],
+                free:["pf","0,0"],bw:["bw","line"],g100:["gf","100,99999"],chg:["chg","1"]};
+/* chip 的选中态从**维度值**反推（而不是点击时手工加 class）——
+   深链进来、点筛选标签 × 摘掉条件、切网清空，任何路径改了维度值，
+   下一次 apply 都会把高亮对齐回真实状态，不会出现「chip 亮着条件却不在」的两张皮。 */
+function syncChips(){
+  document.querySelectorAll("#chips button[data-p]").forEach(b=>{
+    const m=CHIP_MAP[b.dataset.p];
+    b.classList.toggle("on",!!m&&($("#"+m[0]).value===m[1]));
+  });
+}
+
 $("#chips").addEventListener("click",e=>{
   const b=e.target.closest("button[data-p]");if(!b)return;
   const p=b.dataset.p;
-  /* 快捷项之间是**互斥**的（点了「含宽带」就该把「0 元」摘掉），所以先清空全部维度。
-     清完得 syncDims()：大类被清掉后，细分的置灰格局也要跟着复原。 */
-  $("#kw").value="";clearDims();syncDims();
-  const map={new7:["on","7"],new30:["on","30"],new90:["on","90"],exp60:["off","60"],
-             free:["pf","0,0"],bw:["bw","line"],g100:["gf","100,99999"],chg:["chg","1"]};
-  if(map[p])$("#"+map[p][0]).value=map[p][1];
-  clearChips();b.classList.add("on");
-  apply();
+  if(p==="all"){
+    /* 「全部」＝ 清空关键词 + 全部维度（状态页签与排序不动 —— 与「重置」同语义）。 */
+    $("#kw").value="";clearDims();syncDims();
+  }else{
+    const m=CHIP_MAP[p];
+    if(m){
+      const el=$("#"+m[0]);
+      /* toggle：再点一次同 chip ＝ 摘掉这个条件；其他维度与关键词**原样保留** ——
+         「0 元 + 含宽带」「7 天内上架 + 含宽带」这类组合正是快捷项存在的意义。
+         早先的互斥设计（点一个清全部）把组合能力砍掉了；映射到同一维度的
+         两个 chip（如 7 天 / 30 天上架）天然互斥，toggle 语义自动处理。 */
+      if(el)el.value=(el.value===m[1])?"":m[1];
+    }
+  }
+  apply();          // 高亮由 apply → syncChips 按维度值重算，不在这里手改 class
 });
 
 /* 粘性偏移：实量常驻层的高度写进 CSS 变量，供 th 取用。
