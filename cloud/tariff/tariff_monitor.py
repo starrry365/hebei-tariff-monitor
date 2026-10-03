@@ -1375,15 +1375,18 @@ def archive_page():
 
     ★ 直接按字节比对去重，只有资费数据真变了才写新归档。
 
-      能做到「按字节比」的前提是：**页面里不含任何运行时刻**。
-      所以页面顶部显示的是「数据基线日期」（取自快照的日期），不是「抓取时刻」——
-      数据没变，页面就一模一样，既省仓库体积又不会显示一个骗人的旧时间。
+      能做到「按字节比」的前提曾是：**页面里不含任何运行时刻**。
+      2026-10-03 起页面横栏带各网快照的抓取时刻（net_payload 的 ts，分钟级，
+      来自快照里的 fetchedAt）—— 它随每次新抓取变化，所以「同日重跑、数据没变」
+      也会产生新归档字节。刻意接受：用户要求看到更新时刻；ts 绑定的是数据
+      （快照冻结时 ts 停在旧时刻，不会显示骗人的新时间），纯模板重渲染
+      （--render-only，NETS 原样沿用）仍然字节稳定、去重照常生效。
 
       ⚠️ 早先的版本是「用正则把时间戳抹掉再比」，那样有个隐患：正则
       ``\\d{4}-\\d\\d-\\d\\d[ T]\\d\\d:\\d\\d:\\d\\d`` 会连带命中业务字段。
       当前 ``onlineDay``/``offineDay`` 的格式是 ``20030517``（无分隔符）侥幸没被误伤，
       但哪天上游把格式换成 ``2003-05-17 00:00:00``，真实的上下线变更就会被**静默忽略**。
-      现在页面本身没有运行时刻，正则就没必要了。
+      现在页面只有 ts 一处运行时刻，正则仍没必要。
     """
     if not os.path.exists(HTML_DST):
         return None
@@ -1522,13 +1525,17 @@ GZ_WARN = 900 * 1024
 def net_payload(payloads):
     """把各网的 rows 装进四网容器。
 
-    ``payloads``：``{网code: {"rows": [...], "base": "...", "src": "..."}}``。
+    ``payloads``：``{网code: {"rows": [...], "base": "...", "ts": "...", "src": "..."}}``。
     没给的网自动落成空壳 —— 骨架阶段那两家就是这么留白的。
 
     ★ 结构刻意做成**对称**的（每网都有 sh/nm/src/base/rows），而不是
       「移动特殊、另两家另放一个数组」—— 后者每加一处逻辑都要分叉一次，迟早漏一边。
     ★ 每网自带 base：相对天数与时间筛选都以**本网**基线为准。各网的抓取时点
       不可能总在同一天，共用一个全局基线会让后接入的那几家整体算错天数。
+    ★ ts 是本网快照的抓取时刻（分钟级，取自 fetchedAt）—— 只给「更新于」显示用；
+      base 保持纯日期，相对天数/日期解析都依赖它，混进时刻会把那些解析全弄脆。
+      ts 是**数据自己的属性**（存在快照里）：数据被降级冻结时它跟着停在旧时刻，
+      不会显示一个骗人的新时间。
     """
     out = {}
     for code, sh, nm in NETS_META:
@@ -1536,6 +1543,7 @@ def net_payload(payloads):
         out[code] = {"sh": sh, "nm": nm,
                      "src": p.get("src") or "",
                      "base": p.get("base") or "",
+                     "ts": p.get("ts") or "",
                      # ★ 这里**曾有**一个 allProvince 声明（「本网数据不分城市」），
                      #   页面拿它决定要不要出地市那一层。2026-09-24 删掉：
                      #   联通那网的声明是**错的**（它按城市分数据），而页面信声明、
@@ -1908,17 +1916,18 @@ def build_html(sources, notice="", diffs=None, archive=True):
                 "%s×%d" % (k, v) for k, v in sorted(unmapped.items()))
                 + " —— 请在 TYPE_CAT 里补映射（CI 会因此硬失败）")
         payloads[code] = {"rows": rows, "src": SRC_OF.get(code, ""),
-                          "base": data_day(o, time.strftime("%Y-%m-%d"))}
+                          "base": data_day(o, time.strftime("%Y-%m-%d")),
+                          # 抓取时刻（分钟级）—— 页面「更新于」显示用，见 net_payload
+                          "ts": str((o.get("fetchedAt") or ""))[:16]}
         total += len(rows)
     if not payloads:
         log("!! 没有任何一网的数据，放弃重建页面")
         return 0
     UP_N = total
     html = open(os.path.join(BASE, "template.html"), encoding="utf-8").read()
-    # __DATE__ 只取「日期」部分，不取到秒。
-    # ★ 这是归档去重能生效的前提：页面里一旦带上运行时刻，内容就天天不同，
-    #   按字节比对会永远不等 —— 要么每天白写一份归档撑大仓库，要么退回用正则
-    #   抹时间戳（会误伤业务日期字段）。只放日期，数据没变页面就一模一样。
+    # __DATE__ 只取「日期」部分，不取到秒（抓取时刻走 net_payload 的 ts，只进横栏）。
+    # ★ 归档去重依赖「页面字节随数据走」：__DATE__/base 只随日期变，ts 随抓取变 ——
+    #   纯模板重渲染两者都不动，去重照常生效（详见 archive_page 的注释）。
     # ★ __DATE__ 是「移动那网的基线」——页面顶部那行来源/基线/条数已改成
     #   由 JS 按当前网渲染（原来写死成移动的，切到联通会显示错的来源与条数），
     #   这个占位符只留作无 JS 时的后备文本，取移动的 base 最不容易误导。
@@ -1940,7 +1949,9 @@ def build_html(sources, notice="", diffs=None, archive=True):
         #   CI 也照旧按 CITY_ALL 断言 cty 的取值域。撤掉的只是「注入页面」这一步。
         # 变更历史（页面时间线）。走紧凑序列化 —— 它一年年涨，白空格也是体积。
         "__HIST__": js_json(load_history().get("items") or []),
-        "__NOTICE__": notice or "本次巡检未检测到变化"})
+        # notice=None → 用兜底文案；notice="" → 页面把提示条整个藏掉
+        # （main() 在四网全部零变化时传空串 —— 「本次无变化」没有信息量）。
+        "__NOTICE__": notice if notice is not None else "本次巡检未检测到变化"})
     # ★ 先写 .new 校验、再原子替换：这个文件坏掉＝全站白屏，而「写到一半」
     #   与「模板改坏」都不报错。校验不过就保留上一版可用页面（见 write_page）。
     ok, why = write_page(out)
@@ -2566,9 +2577,14 @@ def main():
         rel = repo_rel(rp)
         tail = (f' · <a href="https://github.com/{REPO}/blob/main/{rel}"'
                 f' target="_blank" rel="noopener">查看变更明细 →</a>')
+        # 移动这网本轮是否「完全没事」：零新增/下线/变更，护栏也没摘过、补过任何东西。
+        # 注意排除降级/回弹 —— 那几种 situation 走 _hold()，根本到不了这里。
+        move_quiet = not (move_sm["added"] or move_sm["removed"] or move_sm["changed"]
+                          or move_sm["relocated"] or move_sm["fake_removed"]
+                          or move_sm["restored"])
         notice = ((f"本次巡检：新增 {move_sm['added']} 条 · 下线 {move_sm['removed']} 条"
                    f" · 字段变更 {move_sm['changed']} 条" + tail)
-                  if (move_sm["added"] or move_sm["removed"] or move_sm["changed"])
+                  if not move_quiet
                   else ("本次巡检未检测到任何变化" + tail))
         if move_sm["relocated"] or move_sm["fake_removed"] or move_sm["restored"]:
             notice += (f" · 🛡 护栏另摘除 {move_sm['relocated'] + move_sm['fake_removed']}"
@@ -2576,13 +2592,25 @@ def main():
 
     # ── 其余三网 + 页面 ────────────────────────────────────────────────
     # 页面每次都重建（本地那份必须是当天最新），但归档只在内容真变了时才写。
-    # 「页面显示的时间停住」曾是个坑：所以页面显示的是「数据基线日期」而非抓取时刻，
-    # 停住＝数据确实没变，语义正确。想知道巡检有没有在跑，看 state.json（view_page 会读）。
+    # 「页面显示的时间停住」曾是个坑：所以页面主体显示的是「数据基线日期」；
+    # 2026-10-03 起横栏「更新于」另显示各网快照的抓取时刻（net_payload 的 ts）——
+    # 它是**数据自己的属性**（存在快照里），数据被冻结时跟着停在旧时刻，语义仍诚实。
+    # 代价：同一天重跑（fetchedAt 变了、rows 没变）归档字节也会变、会多写一次 ——
+    # 刻意接受（用户要求看到更新时刻），约 1 MB/次，频率很低。
+    # 想知道巡检有没有在跑，看 state.json（view_page 会读）。
     summaries = [move_sm]
     if not no_html:
         extra, xdiff, tails, xsum = other_nets(today)
         summaries += xsum
-        notice += "".join(tails)
+        # 全网（含移动）都零变化 → 顶部提示条整个不显示：
+        # 「本次无变化 · 联通无变化 · 广电无变化 · 电信无变化」对读者零信息量，
+        # 天天挂着只会把真正需要看的提示（降级/沿用快照/真变化）淹没。
+        # 判据是「tail 以『无变化』结尾」：降级/沿用快照那几种 tail 的文案不同，
+        # 天然不会被误判成安静 —— 该显示的提示一条都不会被藏。
+        if move_quiet and all(t.endswith("无变化") for t in tails):
+            notice = ""
+        else:
+            notice += "".join(tails)
         diffs = {"move": move_diffs} if move_diffs else {}
         diffs.update(xdiff)
         # 「结构变更 ⇒ 重建基线不通知」的收尾：结构变了但页面照常重建

@@ -1803,7 +1803,7 @@ function renderNet(){
   $("#navCnt").textContent=has?String(rs.length-nStop):"—";
   $("#navStop").textContent=has?String(nStop):"—";
   $("#navChg").textContent=has?String(nChg):"—";
-  $("#updTxt").textContent=has?("更新于 "+(n.base||"—")):"本网数据尚未接入";
+  $("#updTxt").textContent=has?("更新于 "+(n.ts||n.base||"—")):"本网数据尚未接入";
   /* 分档条数写进副标题：只报一个总数看不出「河北有几条 / 全国有几条」，
      而地域筛选正需要这两档的规模才读得懂。
      2026-10-03 起不再附报「地市专属 / 不限地市」—— 地市已不作筛选维度，
@@ -2398,6 +2398,10 @@ Object.keys(F).forEach(k=>{
 });
 $("#sort").value=sortK;
 initTheme();
+/* 全网零变化时构建侧把 notice 留空 —— 空提示条没有信息量，整条藏掉。
+   真正需要常驻顶部的提示是「降级冻结 / 沿用快照 / 真变化」，那些都有内容，
+   不会走到这条隐藏分支。 */
+(function(){const nb=$("#notice");if(nb&&!nb.textContent.trim())nb.style.display="none";})();
 renderNav();renderNet();
 favInject();
 readHash();
