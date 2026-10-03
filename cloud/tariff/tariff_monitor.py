@@ -1075,10 +1075,12 @@ def write_report(old_o, new_o, added, removed, changed,
     # 字段变更样本：除了字段名，把「旧值 → 新值」也带上（ch 数组）——
     #   页面「变化历史」的对照卡（左=旧值，右=新值，中间一条分隔线）靠它渲染；
     #   只有字段名的话页面只能显示「改了哪几个字段」，看不到改成什么样。
+    #   上限与 changes/*.md 的明细段一致（120 条）：实际分布里单轮最多 116 条，
+    #   页面侧只先铺 6 张、其余折叠展开，所以这里多存不会把时间线撑爆。
     #   值截到 48 字：history.json 是会被 CI 长期提交的文件，整段权益文本
     #   塞进来会把 diff 撑爆；想看全文走 changes/*.md（那里截到 70 字）。
     #   旧记录没有 ch 键 —— 页面按「有没有 ch」回退到旧的字段名 chip 展示。
-    for k, dd in changed[:6]:
+    for k, dd in changed[:120]:
         r = idx[k]
         _smp.append({"n": (r.get("_name") or r.get("_tname") or "")[:60],
                      "ty": r.get("_ty") or "", "k": "c", "f": list(dd.keys())[:4],

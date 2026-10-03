@@ -60,7 +60,7 @@ def parse(md_path, tag):
             it = RE_ITEM.match(line)
             if it:
                 k = {"新增资费": "a", "下线/下架资费": "r", "关键字段变更": "c"}[cur]
-                cap = {"a": 6, "r": 4, "c": 6}[k]
+                cap = {"a": 6, "r": 4, "c": 120}[k]
                 if sum(1 for x in smp if x["k"] == k) < cap:
                     entry = {"n": it.group(1)[:60], "ty": it.group(2), "k": k}
                     if k == "c":

@@ -453,6 +453,12 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   font-weight:700;line-height:16px;margin-right:5px;vertical-align:1px;flex:none}
 .dtg.o{background:var(--badbg);color:var(--bad)}
 .dtg.n{background:var(--okbg);color:var(--ok)}
+/* 对照卡折叠：单轮最多见过 116 条字段变更，全铺开会把当天节点拉出好几屏 ——
+   每轮先铺 DIFF_SHOW 张，其余收进 .dmore，点按钮展开/收起。 */
+.dmorebtn{margin:8px 0 0 11px;padding:4px 12px;border:1px solid var(--bd2);
+  background:var(--glass2);border-radius:999px;font-size:12px;cursor:pointer;
+  color:var(--tx2);font-family:inherit}
+.dmorebtn:hover{border-color:var(--ac);color:var(--ac)}
 .tgl{padding:5px 12px;border:1px solid var(--bd2);background:var(--glass3);border-radius:999px;
   font-size:12px;cursor:pointer;color:var(--tx2);font-family:inherit}
 .tgl:hover{border-color:var(--ac);color:var(--ac)}
@@ -2231,6 +2237,16 @@ function renderOverview(){
    删除时**没有**删掉 HIST 或 history.json —— 时间线仍按原样显示每轮的「N 条」，
    趋势信息只是不再单独画一张图；哪天要恢复，数据侧一个字都不用改。 */
 
+/* 对照卡每轮先铺的张数，其余折叠（数据侧上限与 changes/*.md 一致：120 条） */
+const DIFF_SHOW=6;
+function fmtDiffs(ds){
+  if(ds.length<=DIFF_SHOW)return ds.join("");
+  return ds.slice(0,DIFF_SHOW).join("")
+    +'<div class="dmore" hidden>'+ds.slice(DIFF_SHOW).join("")+'</div>'
+    +'<button type="button" class="dmorebtn" data-n="'+ds.length+'">展开其余 '
+    +(ds.length-DIFF_SHOW)+' 条字段变更</button>';
+}
+
 function renderHistory(){
   const box=$("#histBox"),note=$("#histNote");
   const items=(HIST||[]).slice().sort((a,b)=>String(b.ts||"").localeCompare(String(a.ts||"")));
@@ -2309,12 +2325,21 @@ function renderHistory(){
             +'</span><span class="nn">'+(x.n==null?"":x.n+" 条")+'</span></div>'
             +'<div class="tcaps">'+caps.join("")+'</div>'
             +(chips.length?'<div class="tcaps">'+chips.join("")+'</div>':"")
-            +diffs.join("")
+            +fmtDiffs(diffs)
             +'</div>';
         }).join("")+'</div></div>';
   }).join("");
   box.querySelectorAll(".thd").forEach(h=>{
     h.onclick=()=>h.parentNode.classList.toggle("open");
+  });
+  box.querySelectorAll(".dmorebtn").forEach(b=>{
+    b.onclick=()=>{
+      const m=b.parentNode.querySelector(".dmore");
+      if(!m)return;
+      const n=+b.dataset.n||0;
+      if(m.hidden){m.hidden=false;b.textContent="收起字段变更（共 "+n+" 条）"}
+      else{m.hidden=true;b.textContent="展开其余 "+(n-DIFF_SHOW)+" 条字段变更"}
+    };
   });
 }
 
