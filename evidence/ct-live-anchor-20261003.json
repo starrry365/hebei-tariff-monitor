@@ -1,0 +1,19 @@
+{
+ "fetchedAt": "2026-10-03T14:30:19.067Z",
+ "fullCount": 779,
+ "fullLen": 779,
+ "unionLen": 779,
+ "sumPerCat": 779,
+ "perCatCount": {
+  "套餐": 72,
+  "加装包": 492,
+  "营销活动": 215,
+  "国际/港澳台资费": 0,
+  "国内（不含港澳台）标准资费": 0
+ },
+ "onlyFull_count": 0,
+ "onlyFull_sample": [],
+ "onlyUnion_count": 0,
+ "onlyUnion_sample": [],
+ "fullDuplicateReportNo": 0
+}
