@@ -2380,7 +2380,11 @@ function buildCtOptions(counts){
     });
     ct.appendChild(g);
   };
-  mk("地市",CITY_ORDER);mk("专属区域",CITY_EXTRA);
+  /* 分组标签自带口径说明：选项条数 = 不限地市 + 该市专属（与 apply() 筛选结果
+     严格一致，见 renderDims 里那段「★★ 口径」注释）。这个数每市都接近全量
+     （全省通用占绝对多数），用户三次误读成「该市专属有这么多」—— 悬停提示
+     没人看，口径必须写在**看得见**的地方。 */
+  mk("地市（含全省通用）",CITY_ORDER);mk("专属区域（含全省通用）",CITY_EXTRA);
   const ok=[...ct.options].some(o=>o.value===keep);
   ct.value=ok?keep:"";
 }
