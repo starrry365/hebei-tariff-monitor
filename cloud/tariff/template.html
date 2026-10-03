@@ -231,6 +231,38 @@ button{font-family:inherit}
 /* 组标签右侧那条渐变细分隔线 */
 .fsec>.glab::after{content:'';position:absolute;right:0;top:12%;bottom:12%;width:2px;border-radius:2px;
   background:linear-gradient(180deg,var(--op1),var(--op2))}
+
+/* ── 两级主轴：资费归属（个人/政企）× 资费范围（全网/河北）──────────────
+   官方页面把这两级做成页签 —— 它们回答的是「先看哪一半」，不是「再筛什么」，
+   塞进筛选网格里只会跟地域 / 类型混成一团（用户报的就是这个）。
+   ★ 底层仍是那两个 <select>（#ow / #sb）：深链（#ow=政企）、CSV 表头、
+     判据、探针全都按 id 取值，改 id / 去掉控件等于把整条链静默打断。
+     所以按钮只是它的**镜像**，点了回写 select —— 单一数据源不变。
+   ★ 一级是一行（移动有归属这级，联通/电信/广电没有，那一行整个不出现）。 */
+.axisbar{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:7px 16px;align-items:center;
+  padding:8px 11px;border:1px solid var(--bd2);border-radius:12px;background:var(--glass2);
+  position:relative}
+.axis{display:flex;align-items:center;gap:9px;min-width:0;position:relative}
+.axis>.axlab{flex:none;font-size:10.5px;font-weight:800;letter-spacing:.15em;color:var(--tx3);
+  white-space:nowrap}
+.axseg{display:inline-flex;gap:3px;padding:3px;border:1px solid var(--bd2);border-radius:11px;
+  background:var(--card);min-width:0}
+.axseg button{border:0;background:transparent;padding:5.5px 13px;border-radius:8px;font-family:inherit;
+  font-size:12.5px;font-weight:650;color:var(--tx2);cursor:pointer;white-space:nowrap;
+  transition:background .18s,color .18s}
+.axseg button:hover{color:var(--ac)}
+.axseg button.on{background:linear-gradient(135deg,var(--op1),var(--op2));color:#fff;
+  box-shadow:0 3px 9px rgba(0,0,0,.16)}
+.axseg button:disabled{color:var(--tx3);opacity:.45;cursor:not-allowed}
+.axseg button:disabled.on{background:var(--tx3);color:#fff}
+.axseg button i{font-style:normal;margin-left:5px;font-size:10.5px;font-weight:700;opacity:.6}
+.axseg button.on i{opacity:.85}
+/* 底层 select：**不用 display:none 藏** —— 那样 dimVisible() / walk 探针会认为
+   「这一维在本网不存在」，于是按钮选中的条件会被判成「无效筛选 = 不筛」，
+   出现「按钮亮着、结果却是全量」的静默错。用视觉隐藏保住布局与可判定性。 */
+.axsel{position:absolute;width:1px;height:1px;margin:0;padding:0;border:0;opacity:0;
+  pointer-events:none;clip:rect(0 0 0 0);clip-path:inset(50%);overflow:hidden;white-space:nowrap}
+
 .f{flex:0 1 128px;min-width:112px;display:flex;flex-direction:column;gap:4px}
 .f.w2{flex:0 1 250px;min-width:190px}
 .f>.fl{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--tx3);padding-left:3px}
@@ -429,6 +461,10 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   /* 窄屏组标签独占一行（否则被挤到控件右侧、读不出是哪一组的开头） */
   .fsec>.glab{flex:1 0 100%;padding:1px 0 4px;margin-right:0}
   .fsec>.glab::after{display:none}
+  /* 两级主轴：窄屏每级独占一行，按钮允许折行 */
+  .axisbar{gap:7px;padding:8px 9px}
+  .axis{flex:1 0 100%;gap:8px}
+  .axseg{flex-wrap:wrap;flex:1 1 auto}
   .brow{grid-template-columns:minmax(78px,104px) 1fr 52px;font-size:12px}
   .stat .sn{font-size:22px}
   th,td{padding:8px 7px}
@@ -509,13 +545,37 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
          ★ 每个控件的 id 一个都没改 —— 深链（#cat=…）、CSV、判据、探针
            全都按 id 取值，改 id 等于把那一整条链静默打断。 -->
     <div class="ffilt">
+      <!-- ── 两级主轴 ────────────────────────────────────────────────────
+           官方「资费公示」是先选 个人资费 / 政企资费，再选 全网资费 / 河北资费，
+           最后才是类型与系列。这两级回答的是「先看哪一半」，不是「再筛什么」，
+           所以独立成一行页签，不混进下面的筛选网格。
+           ★ 二级（资费范围）四网不同：移动/联通/广电有全网与本省两档，电信只有一个。
+             本网只有一档时整行不出现（判据是数据，见 renderDims）——
+             给一个「选与不选一个样」的控件只会让人以为还有一半没显示。
+           ★ 一级（归属）只有移动的官方接口带这个字段，其余三网的条目连键都没有。
+           ★ 底层的 #ow / #sb 两个 select 仍在（视觉隐藏，见 .axsel）：
+             深链、CSV 表头、筛选标签、一致性判据、探针全按 id 取值。 -->
+      <div class="axisbar" id="axisbar">
+        <div class="axis" id="wow">
+          <span class="axlab">资费归属</span>
+          <div class="axseg" id="segOw" role="group" aria-label="资费归属"></div>
+          <select id="ow" class="axsel" tabindex="-1" aria-hidden="true"
+                  title="归属：个人资费 / 政企资费（官方标注）">
+            <option value="">全部</option>
+          </select>
+        </div>
+        <div class="axis" id="wsb">
+          <span class="axlab">资费范围</span>
+          <div class="axseg" id="segSb" role="group" aria-label="资费范围"></div>
+          <select id="sb" class="axsel" tabindex="-1" aria-hidden="true"
+                  title="资费范围：全网资费＝全国/跨省目录，河北资费＝本省目录">
+            <option value="">全部</option>
+            <option value="全国资费">全网资费</option>
+            <option value="本省资费">河北资费</option>
+          </select>
+        </div>
+      </div>
       <div class="fsec"><span class="glab">范围</span>
-        <label class="f" id="wsb"><span class="fl">板块</span>
-          <select id="sb" title="板块：1＝全国/跨省目录（全国资费），2＝本省目录（本省资费）。本网该维度只有一个取值的，这一格不出现">
-            <option value="">全部板块</option>
-            <option value="全国资费">全国资费</option>
-            <option value="本省资费">本省资费</option>
-          </select></label>
         <label class="f w2"><span class="fl">地域</span>
           <select id="sc" title="地域范围：河北省（含各地市专属与全省通用）/ 全国">
             <option value="">全部地域（河北 + 全国）</option>
@@ -584,10 +644,6 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
             <option value="线下">线下</option>
             <option value="线上+线下">线上+线下</option>
             <option value="其他">其他 / 未注明</option>
-          </select></label>
-        <label class="f" id="wow"><span class="fl">归属</span>
-          <select id="ow" title="归属：个人资费 / 政企资费（官方标注；仅移动提供，其余三网官方页面没有这个分类）">
-            <option value="">全部归属</option>
           </select></label>
       </div>
       <div class="fsec"><span class="glab">时效</span>
@@ -959,14 +1015,54 @@ function sortView(){
 }
 
 /* 维度的显示前缀。空串＝这个维度的选项文本本身就能读懂（如「本次变更」）。 */
-const DIM_PRE={sb:"板块：",sc:"地域：",ow:"归属：",cat:"类型：",ty:"细分：",ct:"城市：",pf:"月费：",
+const DIM_PRE={sb:"资费范围：",sc:"地域：",ow:"归属：",cat:"类型：",ty:"细分：",ct:"城市：",pf:"月费：",
                gf:"流量：",cf:"通话：",bw:"宽带：",chx:"渠道：",on:"上架：",off:"下线：",chg:""};
+/* 资费范围的**显示名**：数据值说的是「这一条从哪个目录来」（tariffAttr 1/2 =
+   全国跨省目录 / 本省目录），官方页面给用户看的词是「全网资费 / 河北资费」。
+   只改**显示**，不动落盘取值 —— 构建期判据、probe_filter_dims 的 ATTR_CN
+   白名单、以及审计脚本都按 全国资费/本省资费 这两个值对账，改值等于把对账打断。 */
+const SB_LABEL={"全国资费":"全网资费","本省资费":"河北资费"};
 /* 读某个维度控件当前选中项的**可读文本**。
    选项文本带条数（如「加装包（2135）」）—— 那是给下拉里挑的时候看的，
    写进筛选说明 / 标签里就是噪音，这里统一削掉。 */
 function optText(k){
   const s=document.getElementById(k),o=s&&s.selectedOptions[0];
   return o?o.textContent.replace(/（\d+）$/,""):"";
+}
+
+/* —— 两级主轴：把 #ow / #sb 的选项**镜像**成页签按钮 ——
+   ★ 单一数据源仍是那两个 select：按钮只负责「点击后回写 + 反射选中态」。
+     从 select 现算按钮，就不可能出现「按钮写着 8 条、下拉里写着 5 条」这种
+     两份口径 —— 置灰 / 条数 / 选中态全部跟着 select 走。
+   ★ 只在**结构**（取值 / 条数 / 置灰）变了才重建 DOM，单纯切选中态只改 class：
+     否则每敲一个搜索键都重建一遍按钮，点完那一下的焦点会当场丢掉。 */
+function syncAxis(){
+  [["ow","segOw"],["sb","segSb"]].forEach(p=>{
+    const sel=document.getElementById(p[0]),box=document.getElementById(p[1]);
+    if(!sel||!box)return;
+    const opts=[].slice.call(sel.options);
+    const sig=opts.map(o=>o.value+"|"+(o.textContent||"")+"|"+(o.disabled?1:0)).join("\u0001");
+    if(box.dataset.sig!==sig){
+      box.dataset.sig=sig;
+      box.innerHTML=opts.map(o=>{
+        /* 选项文本形如「全网资费（2956）」—— 条数挪到小号 <i> 里，
+           页签上就只剩名字，和官方那排页签读起来一样。 */
+        const m=/^(.*?)（(\d+)）$/.exec(o.textContent||"");
+        const lb=m?m[1]:(o.textContent||o.value);
+        const on=sel.value===o.value;
+        return '<button type="button" data-v="'+esc(o.value)+'"'
+          +(o.disabled?" disabled":"")
+          +(on?' class="on" aria-pressed="true"':' aria-pressed="false"')
+          +'>'+esc(lb)+(m?'<i>'+m[2]+'</i>':"")+'</button>';
+      }).join("");
+    }
+    [].forEach.call(box.children,(b,i)=>{
+      const o=opts[i];if(!o)return;
+      const on=sel.value===o.value;
+      b.classList.toggle("on",on);
+      b.setAttribute("aria-pressed",on?"true":"false");
+    });
+  });
 }
 
 /* —— 大类 ↔ 细分 联动 ——
@@ -982,8 +1078,12 @@ function optText(k){
      UI 上点不到，但脚本 / 深链 / 地址栏仍可能把它设进来（实测可行）。
      与 readHash「认不出来就当没传」同一原则：**无效筛选 = 不筛**。 */
 /* 某一维在本网是否存在（= 控件没被藏起来）。
-   ★ 同时看控件本身与它的外层标签（sb 那格是 <label id="wsb"> 包着 select）：
-     只藏一层的话，另一层的判据会把隐藏的维度当真 ⇒ 拿一个本网没有的取值去筛。 */
+   ★ 同时看控件本身与它的外层容器（id 约定：容器 = "w" + 控件 id：
+     #wsb 是「资费范围」整行、#wow 是「资费归属」整行、#wct 是地市那一格）。
+     只藏一层的话，另一层的判据会把隐藏的维度当真 ⇒ 拿一个本网没有的取值去筛。
+   ★ 资费范围 / 资费归属两个 select 是**视觉隐藏**（.axsel）而不是 display:none ——
+     它们由主轴页签代劳，但判据必须仍认为「这一维在本网存在」，否则用户在页签上
+     选中的条件会被判成无效筛选，出现「页签亮着、结果却是全量」。 */
 function dimVisible(k){
   const e=document.getElementById(k),w=document.getElementById("w"+k);
   if(!e)return false;
@@ -1033,17 +1133,21 @@ function syncDims(){
   });
   /* 条数写进选项文本；0 条的档置灰（点进去必然空，不如直接挡住）。
      optText() 会把「（N）」削掉，所以筛选标签 / CSV 头不会带上数字。 */
-  const fill=(sel,mp,fb)=>{
+  const fill=(sel,mp,fb,lab)=>{
     if(!sel)return;
     [...sel.options].forEach(o=>{
+      const nm=lab?lab(o.value):o.value;
       if(!o.value){o.disabled=false;o.textContent=fb;return}
       const n=mp[o.value]||0;
-      o.textContent=n?(o.value+"（"+n+"）"):o.value;
+      o.textContent=n?(nm+"（"+n+"）"):nm;
       o.disabled=!n;
     });
     /* 🔴 这里**不清值** —— 见下面的说明。 */
   };
-  if(dimVisible("sb"))fill(sb,sbN,"全部板块");
+  /* 资费范围是**唯一**带显示名映射的维度：数据值写的是目录来源
+     （全国资费 / 本省资费），官方页面对用户用的词是 全网资费 / 河北资费，
+     见 SB_LABEL。其余维度的选项文本本身就是取值，不需要这一层间接。 */
+  if(dimVisible("sb"))fill(sb,sbN,"全部",v=>SB_LABEL[v]||v);
   fill(cat,catN,"全部大类");
   fill(ty,tyN,"全部细分");
   /* ★ 全页**唯一一处**「联动清值」：细分项不属于当前所选大类时。
@@ -1058,6 +1162,9 @@ function syncDims(){
     const sel=ty.selectedOptions[0];
     if(sel&&sel.value&&cv&&sel.dataset.cat&&sel.dataset.cat!==cv)ty.value="";
   }
+  /* 两级主轴的页签跟着上面的条数 / 置灰一起刷新（放在最后一件事：
+     sb 的选项文本刚被 fill() 改过，早跑一步会把上一轮的条数镜像出去）。 */
+  syncAxis();
 }
 /* —— 当前生效筛选：渲染成可点掉的标签 ——
    以前这里是一行纯文本（「筛选：状态：在售 · 地域：仅河北省 · …」），
@@ -1769,7 +1876,7 @@ function renderNet(){
      否则用户选了会拿到 0 条，而那不是「本网没有政企资费」，是问了个不存在的值。 */
   const owc={};rs.forEach(d=>{if(d.ow)owc[d.ow]=(owc[d.ow]||0)+1});
   const owSel=$("#ow");
-  owSel.innerHTML='<option value="">全部归属</option>';
+  owSel.innerHTML='<option value="">全部</option>';
   OW_ORDER.filter(o=>owc[o]).forEach(o=>{
     const op=document.createElement("option");
     op.value=o;op.textContent=o+"（"+owc[o]+"）";
@@ -1942,11 +2049,15 @@ function renderDims(){
   if(owSel){
     const hasOw=rs.some(d=>d.ow);
     owSel.style.display=hasOw?"":"none";
-    const wow=$("#wow");if(wow)wow.style.display=hasOw?"":"none";   // 连「归属」标签一起收
+    const wow=$("#wow");if(wow)wow.style.display=hasOw?"":"none";   // 连「资费归属」整行一起收
     if(!hasOw)owSel.value="";   // 切网时把别网带过来的归属值清掉，否则筛选恒空
     owSel.title=hasOw?"归属：个人资费 / 政企资费（官方标注）"
       :"本网官方页面没有「归属」分类，该维度不提供";
   }
+  /* 切网后主轴页签要跟着本网重出（#ow 的选项刚刚在 renderNet 里重建过）。
+     正常路径上 apply() 还会再刷一次（那时已带上条数），这里是为「本网无数据、
+     syncDims 提前返回」那条分支兜底 —— 否则页签会留着上一个网的取值。 */
+  syncAxis();
 }
 
 function renderBaseWarn(){
@@ -2451,6 +2562,20 @@ DIMS.forEach(k=>{
   /* 这里**不再**单独处理大类联动：统一由 apply() 开头那一次 syncDims() 负责。
      两处都写会让人以为「只有走 onchange 才联动」，而深链那条路恰恰就是这么漏掉的。 */
   $("#"+k).onchange=()=>{clearChips();apply()};
+});
+/* —— 两级主轴的页签点击 → 回写底层 select 并派发 change ——
+   ★ 用事件委托而不是给按钮逐个绑定：按钮会被 syncAxis() 重建，直接绑的监听
+     在第一次重建后就没了（点了没反应，且完全不报错）。
+   ★ 派发的是**真的 change 事件**，走的是和用户拉下拉框完全同一条路
+     （DIMS 上那个 onchange ⇒ clearChips + apply）——
+     不另外写一条「点按钮就 apply」的旁路，免得两条路哪天口径分叉。 */
+$("#axisbar").addEventListener("click",e=>{
+  const b=e.target.closest(".axseg button");
+  if(!b||b.disabled)return;
+  const ax=b.closest(".axis"),sel=ax&&ax.querySelector("select");
+  if(!sel)return;
+  sel.value=b.dataset.v||"";
+  sel.dispatchEvent(new Event("change",{bubbles:true}));
 });
 /* 页签点击：只改 STA，不碰别的筛选 —— 切页签不该把关键词/地域筛掉。
    禁用项（本网拿不到下架数据的那些）点了不生效，与置灰语义一致。 */
