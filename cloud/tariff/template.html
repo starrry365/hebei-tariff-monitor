@@ -924,6 +924,9 @@ const SC_LB={hb:"河北",cn:"全国"};
 const CITY_ORDER=__CITY_ORDER__;
 const CITY_EXTRA=__CITY_EXTRA__;
 let view=[],pg=0,sortK="on",sortD=-1;
+/* 当前页的行数据（render 写下，表格事件委托经 data-i 回取）。
+   不从 DOM 文本反推行：名称单元格里混着分类/变更/下架标签，反推不可靠。 */
+let ROWS=[];
 
 const $=s=>document.querySelector(s);
 const DAY=864e5;
@@ -1847,20 +1850,21 @@ function render(){
     tb.querySelectorAll(".diagb").forEach(b=>{b.onclick=()=>removeCond(b.dataset.rm)});
     return;
   }
-  slice.forEach(d=>{
+  /* ★★ 整表**单次拼串 + 一个 innerHTML**：原来逐行 createElement×2、
+     每行一次 innerHTML、每行绑 onclick/onkeydown 闭包（80 行 = 160 个元素
+     + 160 个一次性函数），实测每次 render ~40ms 里一大半花在 DOM API
+     往返上。拼成字符串一次性注入同样的 DOM，耗时降到 ~1/3；行事件改由
+     #tb 上的**一份**委托处理（见 scrollToList 前的绑定段），行为与逐行
+     绑定等价（星标按钮自带 stopPropagation，不会误触展开）。 */
+  const buf=[];
+  ROWS=slice;
+  slice.forEach((d,i)=>{
     const agNew=BASE_OK?(ago(toDate(d.o))??9e9):9e9;
     const isNew=agNew>=0&&agNew<=30;
-    const tr=document.createElement("tr");
-    tr.className="row"+(isNew?" isnew":"")+(d.st?" stopped":"");
-    /* 收藏关注用的稳定键（网 + 名称）。星标靠它记 ——
-       不从 DOM 反推名称：名称单元格里还混着分类 / 变更 / 下架标签，反推不可靠。 */
-    tr.dataset.k=NET+"|"+(d.n||d.t||"");
-    /* 键盘可达：行展开原本只认 click，Tab 进不来、回车也没反应。
-       tabindex=0 + Enter/Space → 与点击同一条路（调 click()，不复制逻辑）。 */
-    tr.tabIndex=0;
-    tr.title="点击展开详情 / 复制";
-    tr.setAttribute("aria-expanded","false");
-    tr.innerHTML='<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元":"—")+'</td>'
+    /* data-i：委托器回取行数据的下标；data-k：收藏键（原样写入 dataset，
+       esc 只是属性层转义，浏览器读回 dataset 时会解码回原文）。 */
+    buf.push('<tr class="row'+(isNew?" isnew":"")+(d.st?" stopped":"")+'" data-i="'+i+'" data-k="'+esc(NET+"|"+(d.n||d.t||""))+'" tabindex="0" title="点击展开详情 / 复制" aria-expanded="false">'
+      +'<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元":"—")+'</td>'
       +'<td>'+fmtGb(d.g)+'</td>'
       +'<td>'+(d.c&&d.c!=="0"?'<span style="white-space:nowrap">'+esc(d.c)+" 分钟</span>":"—")+'</td>'
       +'<td class="nm">'+scTag(d)+cityTag(d)+hl(d.n||d.t,terms)+chgTag(d)+stopTag(d)+vpTag(d)+'</td>'
@@ -1869,32 +1873,10 @@ function render(){
       +'<td>'+bwCell(d)+'</td>'
       +'<td class="ap">'+esc((d.ap||"—").slice(0,90))+'</td>'
       +'<td style="white-space:nowrap">'+onCell(d)+'</td>'
-      +'<td style="white-space:nowrap">'+offCell(d)+'</td>';
-    const dr=document.createElement("tr");dr.className="det";
-    dr.innerHTML='<td colspan="10"><div class="detwrap">'+detHTML(d)+'</div></td>';
-    tr.onclick=()=>{
-      const open=dr.classList.toggle("on");
-      tr.classList.toggle("open",open);          // 行首箭头转向（CSS）
-      tr.setAttribute("aria-expanded",open?"true":"false");
-      /* 「同价位更优」按需计算（首次展开才算一次）：全表 9000 行扫一遍，
-         80 行都预计算就是 72 万次比较/每次渲染 —— 而绝大多数详情根本没被展开过。 */
-      if(open&&!dr.dataset.ai){
-        const el=dr.querySelector(".aicmp"),line=dr.querySelector(".ailine");
-        if(el&&line){
-          const html=aiCompareHTML(d);
-          if(html){el.innerHTML=html;line.style.display=""}
-        }
-        dr.dataset.ai="1";
-      }
-    };
-    tr.onkeydown=ev=>{
-      if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();tr.click()}
-    };
-    /* 复制按钮在**另一个 tr**（详情行）里，点它不会冒泡到上面那个 tr，
-       所以不需要 stopPropagation；但它是独立元素，得自己绑事件。 */
-    dr.querySelector(".cpbtn").onclick=()=>copyText(rowText(d));
-    tb.appendChild(tr);tb.appendChild(dr);
+      +'<td style="white-space:nowrap">'+offCell(d)+'</td></tr>'
+      +'<tr class="det"><td colspan="10"><div class="detwrap">'+detHTML(d)+'</div></td></tr>');
   });
+  tb.innerHTML=buf.join("");
   decorateFav();
   zebrafy();
 }
@@ -3159,12 +3141,60 @@ $("#psz").onchange=e=>{
 /* 翻页后滚到表格头而不是页顶：筛选区 / 快捷 chips 展开时页顶可能离表格
    两三屏，每次翻页都被甩回最顶上，上下文全丢。对齐到 th 的吸顶层下沿。 */
 function scrollToList(){
-  const t=document.querySelector("table");
-  if(!t)return;
-  const sh=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--stackh"))||0;
-  const y=t.getBoundingClientRect().top+window.pageYOffset-sh-6;
-  window.scrollTo(0,Math.max(0,y));
+  /* rAF 延后一帧：render 刚重建完整表 DOM，此刻读 getBoundingClientRect
+     会**强制同步布局**（实测首次 ~40ms，等于把 paint 前本来要做的 reflow
+     提前到点击处理器里阻塞主线程）。挪到下一帧后，布局与绘制在帧内自然
+     完成，滚动定位读的是同一份布局结果，落点完全一致。
+     这里的调用方全是翻页/跳页（纯视觉滚动），rAF 在后台窗口被暂停
+     只是「暂时不滚」，没有任何断言或状态依赖它同步完成。 */
+  requestAnimationFrame(()=>{
+    const t=document.querySelector("table");
+    if(!t)return;
+    const sh=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--stackh"))||0;
+    const y=t.getBoundingClientRect().top+window.pageYOffset-sh-6;
+    window.scrollTo(0,Math.max(0,y));
+  });
 }
+
+/* —— 表格事件委托（唯一一份监听器，配合 render() 的单次拼串）——
+   顶替原来随每行重建的三类绑定：
+     · tr.row 点击 / Enter / Space → 展开/收起详情（原 tr.onclick / onkeydown）；
+     · 详情行 .cpbtn → 复制（原 dr 里的逐行 onclick）。
+   行数据经 data-i 从 ROWS 回取。星标按钮自带 stopPropagation，
+   点它不会冒泡到这里，与逐行绑定时的行为一致。 */
+function toggleRow(tr){
+  const dr=tr.nextElementSibling;
+  if(!dr||!dr.classList.contains("det"))return;
+  const open=dr.classList.toggle("on");
+  tr.classList.toggle("open",open);          // 行首箭头转向（CSS）
+  tr.setAttribute("aria-expanded",open?"true":"false");
+  /* 「同价位更优」按需计算（首次展开才算一次）：全表 9000 行扫一遍，
+     80 行都预计算就是 72 万次比较/每次渲染 —— 而绝大多数详情根本没被展开过。 */
+  if(open&&!dr.dataset.ai){
+    const el=dr.querySelector(".aicmp"),line=dr.querySelector(".ailine");
+    if(el&&line){
+      const d=ROWS[+tr.dataset.i];
+      if(d){const html=aiCompareHTML(d);if(html){el.innerHTML=html;line.style.display=""}}
+    }
+    dr.dataset.ai="1";
+  }
+}
+$("#tb").addEventListener("click",e=>{
+  const cp=e.target.closest(".cpbtn");
+  if(cp){
+    const dr=cp.closest("tr.det"),tr=dr&&dr.previousElementSibling;
+    const d=tr&&ROWS[+tr.dataset.i];
+    if(d)copyText(rowText(d));
+    return;
+  }
+  const tr=e.target.closest("tr.row");if(!tr)return;
+  toggleRow(tr);
+});
+$("#tb").addEventListener("keydown",e=>{
+  if(e.key!=="Enter"&&e.key!==" ")return;
+  const tr=e.target.closest("tr.row");if(!tr)return;
+  e.preventDefault();toggleRow(tr);
+});
 /* 每页条数记忆（读回放在 init 段） */
 
 document.querySelectorAll("th[data-k]").forEach(th=>{
