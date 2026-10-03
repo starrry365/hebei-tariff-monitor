@@ -25,8 +25,10 @@ from collections import Counter
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(REPO, "probes"))
+sys.path.insert(0, os.path.join(REPO, "cloud", "tariff"))
 
 import he_unicom_tariff as U  # 只取 CITY 常量清单（数据，非逻辑）
+import tariff_monitor as T    # 取 ATTR_GROUP_PUB（唯一权威，见 L3 三态判据）
 
 PAGE = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
     REPO, "cloud", "tariff", "page", "index.html.gz")
@@ -220,7 +222,10 @@ for code, (prefix, fn) in SRC.items():
         sc, cities = fn(e)
         st = bool(r.get("st"))
         exp_cty = [] if st else cities
-        exp_pw = 1 if (not st and not cities and code in ("move", "unicom", "telecom")) else None
+        # 🔴 2026-10-04 三态：集团公示条目（面板行 a1=ATTR_GROUP_PUB）合法地
+        #    不写 pw —— 重算期望若仍按二态给 pw=1，就会与页面（新判据）假差 524。
+        exp_pw = 1 if (not st and not cities and code in ("move", "unicom", "telecom")
+                       and str(r.get("a1") or "").strip() != T.ATTR_GROUP_PUB) else None
         got_cty = list(r.get("cty") or [])
         got_pw = r.get("pw")
         if got_cty != exp_cty:
@@ -246,8 +251,14 @@ log("== L3 不变式 ==")
 for code in ("move", "unicom", "telecom", "cbn"):
     rows = nets[code]["rows"]
     both = [r for r in rows if r.get("cty") and r.get("pw")]
+    # 🔴 2026-10-04 三态语义：集团公示（a1=ATTR_GROUP_PUB）在售条目合法地
+    #    两者皆无 —— 构建侧「attr=3 不写 pw」后，这份判据曾因没跟上而把
+    #    524 条电信集团公示误报成「在售皆无」（与 audit_data / tariff-daily
+    #    内联断言同一判据的第三份副本，此次一并对齐到唯一权威）。
+    _grp = T.ATTR_GROUP_PUB
     sale_neither = [r for r in rows if not r.get("cty") and not r.get("pw")
-                    and not r.get("st") and code in ("move", "unicom", "telecom")]
+                    and not r.get("st") and code in ("move", "unicom", "telecom")
+                    and str(r.get("a1") or "").strip() != _grp]
     stop_with = [r for r in rows if (r.get("cty") or r.get("pw")) and r.get("st")]
     unknown = {c for r in rows for c in (r.get("cty") or [])} - CITY_ALL
     cbn_bad = [r for r in rows if code == "cbn" and (r.get("cty") or r.get("pw"))]
@@ -302,14 +313,17 @@ for code in ("move", "unicom", "telecom"):
         continue
     per = {c: sum(1 for r in sale if c in (r.get("cty") or [])) for c in CITY_ORDER + CITY_EXTRA}
     tot = pw_n + len([r for r in sale if r.get("cty")])
-    log("   %s：在售 %d = pw %d + 专属 %d · 各市专属 %s"
-        % (code, len(sale), pw_n, len([r for r in sale if r.get("cty")]),
+    # 🔴 2026-10-04 三态：在售 = pw + 专属 + 集团公示（两者皆无的合法形态）
+    grp_n = sum(1 for r in sale if not r.get("cty") and not r.get("pw")
+                and str(r.get("a1") or "").strip() == T.ATTR_GROUP_PUB)
+    log("   %s：在售 %d = pw %d + 专属 %d + 集团公示 %d · 各市专属 %s"
+        % (code, len(sale), pw_n, len([r for r in sale if r.get("cty")]), grp_n,
            {k: v for k, v in per.items() if v}))
     zero = [c for c, v in per.items() if v == 0]
     if zero:
         log("      （专属为 0 的档：%s —— 页面将显示（0）并置灰，与筛选结果一致）" % zero)
-    if pw_n + len([r for r in sale if r.get("cty")]) != len(sale):
-        err("%s 在售 = pw + 专属 不闭合" % code)
+    if pw_n + len([r for r in sale if r.get("cty")]) + grp_n != len(sale):
+        err("%s 在售 = pw + 专属 + 集团公示 不闭合" % code)
 
 log("== 结论：%s ==" % ("✅ 地市分类全部正确" if not fails else "⚠️ %d 处差异，见上" % len(fails)))
 if notes:
