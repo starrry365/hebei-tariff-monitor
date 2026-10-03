@@ -62,8 +62,12 @@ def regroup(entries):
     """
     groups, seen = {}, set()
     for e in entries:
+        # 🔴 与 he_cbn_tariff.collect 同一把锁：键不能只用 reportNo——上游有
+        #    垃圾备案号（字面 '空' ×10 条不同资费、'123@#$'），纯编号去重会
+        #    把它们静默折叠成一条（2026-10-03 实测丢 9 条）。编号+名称联合判重。
         rn = str(e.get("reportNo") or "").strip()
-        k = rn or ("_" + str(id(e)))
+        k = (rn + "\x1f" + str(e.get("name") or "").strip()) if rn \
+            else ("_" + str(id(e)))
         if k in seen:
             continue
         seen.add(k)

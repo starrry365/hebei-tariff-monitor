@@ -253,9 +253,18 @@ def collect(include_stopped=False, check_drift=True, verbose=True):
         for e in arr:
             entries.append(normalize(e, names, attr))
     # 去重（按 id 语义的 reportNo；两份地区理论上不重叠，实测交集为 0，这里是保险）
+    # 🔴 键不能只用 reportNo：上游存在垃圾备案号——字面 '空'（10 条不同资费共用）、
+    #    '123@#$'（1 条）。纯 reportNo 去重会把 10 条静默折叠成 1 条
+    #    （2026-10-03 实测：337 原始 → 326，丢了 9 条停售，用户发现数据不全）。
+    #    ⇒ 编号+名称联合判重：垃圾号各条名称不同，全部保留；真正的精确重复
+    #      （同号同名同内容，实测 25GH500170 ×3）仍被正确去掉。
     seen, uniq = set(), []
     for e in entries:
-        k = str(e.get("reportNo") or "").strip() or ("_" + str(id(e)))
+        rn = str(e.get("reportNo") or "").strip()
+        # ⚠️ 此处 e 已过 normalize：名称字段是 name（productName 已被映射掉）。
+        #    取错字段名等于名称恒空串，「编号+名称」退化回纯编号——修复无效。
+        nm = str(e.get("name") or e.get("productName") or "").strip()
+        k = (rn + "\x1f" + nm) if rn else ("_" + str(id(e)))
         if k in seen:
             continue
         seen.add(k)
