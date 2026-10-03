@@ -26,6 +26,7 @@
 【移动】
   D. getType2List 返回多少 (attr, type1, type2) 组合；带不带 cityId 是否不同
   E. getTariffListInfo 带 cityId 是否返回更多（移动要不要按地市采）
+  F. isPublic 取值域（官网预览态传 2，我们固定传 1）—— 信息项，不参与判据
 
 ════════════════════════════════════════════════════════════════════
 通用铁律：**「问不到」不许读成「没问题」**
@@ -350,14 +351,52 @@ def move_probe():
         log("   → 传任何 cityId 参数%s"
             % ("对结果无影响 ✅（移动上游不按地市分数据，省级一次采全是对的）"
                if same else "**改变结果** ❌ ⇒ 必须按地市采集"))
+
+    # ── [F] isPublic 取值域 ────────────────────────────────────────────
+    log("\n[F] isPublic 取值域（信息项）")
+    #   ★ 线索来自官网主 bundle 的 getZFLXListAll：
+    #       {'province': selectProv.code, 'isPublic': this.isPreview ? '2' : '1'}
+    #     即官网**预览态**并不是走别的接口，而是把 isPublic 换成 2。
+    #     我们也固定传 1（与官网正常态一致），所以这一节只**报告差异**：
+    #     isPublic=2 里的东西属于未公示数据，公开站点**本来就不该采**，
+    #     不该因为它有数据就判红；isPublic=0 语义未知，出现差异需要人工判断。
+    #     唯一参与判据的仍然是「请有没有问到」。
+    iso, iso_err, iso_rej = {}, [], []
+    for ip in ("0", "1", "2"):
+        b = dict(base_body)
+        b["isPublic"] = ip
+        r = T.call("nrtariff/new/Tariff/getTariffListInfo", b)
+        txt, err = _count(r)
+        iso[ip] = txt
+        if _transport_failed(r):
+            iso_err.append(ip)
+        elif err:
+            iso_rej.append(ip)
+        log("   isPublic=%-2s → %s%s" % (ip, txt, "   ← 上游明确拒绝该取值" if ip in iso_rej else ""))
+    if iso_err:
+        log("   ⚠️ 取值 %s 根本没能问到（缺密钥 / 网络不通）⇒ 本项不成立"
+            "（别读成「无差异」）" % iso_err)
+    else:
+        good = [k for k in ("1", "2", "0") if k in iso and k not in iso_rej]
+        dif = [k for k in good if iso[k] != iso.get("1")]
+        log("   → 能取到的取值 %s，与 isPublic=1 相比有差异的：%s" % (good, dif or "无"))
+        if "2" in dif:
+            log("      isPublic=2 = 官网**预览态**通道（isPreview=true）⇒ 未公示数据，"
+                "刻意不采，仅记录。")
+        if "0" in dif:
+            log("      isPublic=0 与公开口径不同 ⇒ 需人工判断是否属于应采范围。")
+
     return {"declared": sorted(map(list, declared)),
             "cartesian_missing": [list(k) for k in miss],
             "unexpected_with_data": [list(e) for e in extra],
             "declared_zero": [list(k) for k in zero],
             "request_failed": [list(f) for f in failed],
             "city_invariant": same,
-            # ★ 「没问到」不能让判据变绿：failed 非空 ⇒ 无法判定 ⇒ 失败。
-            "ok": (not extra) and (not failed)}
+            "ispublic": iso,
+            "ispublic_rejected": iso_rej,
+            "ispublic_unanswered": iso_err,
+            # ★ 「没问到」不能让判据变绿：failed / iso_err 非空 ⇒ 无法判定 ⇒ 失败。
+            "ok": (not extra) and (not failed) and (not iso_err)}
 
 
 def move_count(T, a, t1, t2):
@@ -395,6 +434,24 @@ def _count(r):
         for m in b.get("moduleList") or []:
             n += len(m.get("tariffList") or [])
     return "%d（系列 %d）" % (n, len(d.get("beans") or [])), None
+
+
+def _transport_failed(r):
+    """请求**根本没到达上游**（缺密钥 / 网络不通 / 超时）—— 与「上游明确拒绝」分开。
+
+    两者都不能当数据用，但处置完全相反：
+      · 没到达   ⇒ 是环境问题，判据**不成立**，重跑可自愈；
+      · 明确拒绝 ⇒ 说明上游就是没有这个取值，属于**正常结论**。
+    混为一谈的后果：探测 isPublic=0 时若上游回一句「参数错误」，整条探针就
+    天天红，人看两天就学会忽略它 —— 判据死于噪声。
+    """
+    if not isinstance(r, dict):
+        return True
+    if r.get("_err"):
+        return True
+    c = str(r.get("code") or r.get("retCode") or "")
+    m = str(r.get("msg") or r.get("desc") or "")
+    return c == "-1" or "请求失败" in m
 
 
 def main():
