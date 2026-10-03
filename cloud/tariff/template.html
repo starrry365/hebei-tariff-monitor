@@ -700,13 +700,14 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
             <option value="500,99999">≥ 500 分</option>
           </select></label>
         <label class="f"><span class="fl">宽带</span>
-          <select id="bw" title="宽带：前两档是「有没有这条宽带线路」，后三档按下行速率卡">
+          <select id="bw" title="宽带：前三档问「有没有这条宽带线路」，后三档按下行速率卡（速率未标注的条目不计入速率档）">
             <option value="">不限宽带</option>
             <option value="line">含宽带（有宽带线路）</option>
-            <option value="speed">宽带提速 / 光网组网</option>
-            <option value="m200">宽带 ≥ 200M</option>
-            <option value="m500">宽带 ≥ 500M</option>
-            <option value="m1000">宽带 ≥ 1000M</option>
+            <option value="noline">不含宽带（纯流量 / 语音）</option>
+            <option value="speed" title="名称或权益含「提速 / 光网 / 组网 / FTTR」；与「含宽带」相互独立 —— 只有提速包、没有宽带线路的也算这一档">提速 / 光网 / 组网</option>
+            <option value="m200" title="按名称与宽带字段提取的最大下行速率卡；速率未标注的条目不计入">宽带 ≥ 200M</option>
+            <option value="m500" title="按名称与宽带字段提取的最大下行速率卡；速率未标注的条目不计入">宽带 ≥ 500M</option>
+            <option value="m1000" title="按名称与宽带字段提取的最大下行速率卡；速率未标注的条目不计入">宽带 ≥ 1000M</option>
           </select></label>
       </div>
       <div class="fsec"><span class="glab">办理</span>
@@ -957,16 +958,31 @@ function stopTag(d){
    d.bw 字段四网写法极碎（「含宽带」「300M」「无」「提速包」…），而「办不办宽带」
    恰是用户筛资费的高频维度。判定顺序：字段明示 > 名称 / 权益文本线索。
    🔴 文本线索只作**兜底**：字段写「无」就是无，不能因为名称里出现「宽带」两个字
-   就反转为「含」—— 那是把「提到」当成「包含」（实测「宽带电视点播费」被误判过）。 */
-const BW_BADVAL=/^(0|[-—－\/\\]|无|没有|否)$/;
-const BW_NOTLINE=/提速|电视|IPTV|检修|装机|调测|加速|绿色上网|调优|扩容|移机/;
+   就反转为「含」—— 那是把「提到」当成「包含」（实测「宽带电视点播费」被误判过）。
+   🔴 2026-10-03 数据审计补的两刀：
+   ① 字段无效值黑名单扩容 ——「不涉及」「无需」「暂无」这类回避写法当时不在列，
+      被当成了「肯定有宽带」的明示值。
+   ② 字段**本身**在说「提速/装机/调测」这类附加动作的（实测移动
+      「宽带提速一档（宽带已为1000M则不再提速）」），不再当作线路明示值采信，
+      落回名称判定 —— 提速包是给已有宽带的人提速的，不是一条新线路。
+   🔴 名称兜底也要挡「名字里有宽带、实质不是线路」的：
+      实测联通「游戏宽带LOL手游50元权益包」（字段写「无」→ 名称含「宽带」）
+      曾被算进「含宽带」，77% 的名称判定里混着权益包 / 营销活动 / 设备条目。
+      排除词按数据逐一核过影响面：「光猫」「终端」「泛『活动』」不加 ——
+      广电「软终端新视听（300M宽带+电视）」、移动「融合宽带2000M优惠活动」
+      是真宽带，加了就误杀。 */
+const BW_BADVAL=/^(0|[-—－\/\\]|无.*|没有|否|不涉及|不限|暂无|无需)$/;
+const BW_NOTLINE=/提速|电视|IPTV|检修|装机|调测|加速|绿色上网|调优|扩容|移机|权益|营销活动|预约办理|电子券|标识|游戏宽带|无宽带/;
 const BW_SPEED=/提速|光网|组网|FTTR/;
 function bwInfo(d){
   const v=String(d.bw==null?"":d.bw).trim(),n=d.n||"";
-  /* 字段给了肯定值（含「宽带」「M」「光纤」之类）→ 直接采信 */
-  if(v&&!BW_BADVAL.test(v))return{t:v,src:"field"};
-  /* 字段没写 / 写「无」→ 看名称有没有宽带字样（且不是「提速/电视/检修」这类
-     「提到但不是一条宽带」的词） */
+  /* 字段给了肯定值（含「宽带」「M」「光纤」之类）→ 直接采信；
+     但字段自己在说提速 / 电视这类附加动作的不算（见上 ②），落回名称判定 */
+  if(v&&!BW_BADVAL.test(v)){
+    if(!BW_NOTLINE.test(v))return{t:v,src:"field"};
+  }
+  /* 字段没写 / 写「无」/ 写的是附加动作 → 看名称有没有宽带字样（且不是
+     「提速/电视/权益包」这类「提到但不是一条宽带」的词） */
   if(/宽带/.test(n)&&!BW_NOTLINE.test(n))return{t:"（名称判定）",src:"name"};
   return null;
 }
@@ -992,7 +1008,9 @@ function bwDetail(d){
   if(!i)return v+"（官方原文："+(esc(raw)||"空")+"）";
   const mb=bwMbps(d);
   const sp=bwSpeed(d)?' · <span class="bwtg" title="名称/权益里带「提速、光网、组网、FTTR」字样">提速/组网</span>':"";
-  return v+(mb?' · <span class="bwtg">'+mb+'M</span>':"")+sp
+  /* 判为含宽带但速率提不出来（名称与字段都没写数字）→ 明说，别让人以为是漏显示 */
+  const un=mb==null?' · <span class="mut" title="名称与宽带字段都没有可提取的速率数字">速率未标注</span>':"";
+  return v+(mb?' · <span class="bwtg">'+mb+'M</span>':"")+un+sp
     +'（官方原文：'+(esc(raw)||"空")+"）";
 }
 /* 条目的地市归属（中文名数组）——**只读**，不做任何换算，也**不再参与筛选**
@@ -1294,6 +1312,8 @@ function syncDims(){
        组网」字样，独立于「有没有一条宽带线路」—— 判据 bw==="speed" 也只认
        bwSpeed（审计抓过：面 45 / 实 257 的漂移就是这么来的）。 */
     if(bwSpeed(d))n2.bw.speed=(n2.bw.speed||0)+1;
+    /* line 与 noline 恰好互补（bwInfo 是单一判据），if/else 各记一档 ——
+       两条档的计数出自同一次判定，不可能出现 line+noline > total 的劈叉。 */
     if(bwInfo(d)){
       n2.bw.line=(n2.bw.line||0)+1;
       const mb=bwMbps(d);
@@ -1302,7 +1322,7 @@ function syncDims(){
         if(mb>=500)n2.bw.m500=(n2.bw.m500||0)+1;
         if(mb>=1000)n2.bw.m1000=(n2.bw.m1000||0)+1;
       }
-    }
+    }else n2.bw.noline=(n2.bw.noline||0)+1;
     const ot=toDate(d.o);
     if(ot==null)n2.on.none=(n2.on.none||0)+1;
     else if(BASE_OK){
@@ -1849,6 +1869,10 @@ function match(d,c){
       if(Math.abs(lf)>+off)return false;
     }
     if(bw==="line"&&!bwInfo(d))return false;
+    /* 反向档：只想要纯流量 / 纯语音套餐的人此前没有任何入口 ——
+       「不限宽带」是「不管」，不是「不含」。与 line 恰好互补且无缝（bwInfo 是
+       单一判据，一条资费要么有线路要么没有，不存在第三态）。 */
+    if(bw==="noline"&&bwInfo(d))return false;
     if(bw==="speed"&&!bwSpeed(d))return false;
     /* 速率档 m200 / m500 / m1000 —— 后缀数字就是要求的下行 Mbps。
        速率**未知**的一律不通过（fail-closed，与上架/下线时间筛选同一条原则）：
@@ -1876,7 +1900,6 @@ function match(d,c){
       }
     }
     return true;
-  return true;
 }
 
 function apply(){
