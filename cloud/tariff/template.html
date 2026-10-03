@@ -374,6 +374,18 @@ mark{background:var(--ac2);color:inherit;padding:0 1px;border-radius:2px}
 .bg-sc{background:var(--ac2);color:var(--ac);border:1px solid transparent}
 .bg-sc-cn{background:var(--warnbg);color:var(--warn)}
 .bg-stop{background:var(--badbg);color:var(--bad)}
+/* —— 有效期徽标（名称列 + 详情高亮行） ——
+   soon 红 / mid 琥珀 / far 灰三档，rn（自动续）虚线小标。
+   灰档刻意用 --card3 + --tx3：远期与长约要有但必须「退后」，红琥珀才是重点。 */
+.vptg{display:inline-block;padding:0 7px;border-radius:5px;font-size:11px;font-weight:700;
+  line-height:17px;white-space:nowrap;margin-left:5px}
+.vptg-soon{background:var(--badbg);color:var(--bad);border:1px solid currentColor}
+.vptg-mid{background:var(--warnbg);color:var(--warn)}
+.vptg-far{background:var(--card3);color:var(--tx3);font-weight:500}
+.vptg-rn{background:none;color:var(--tx3);border:1px dashed var(--bd2);font-weight:500}
+.ditem.vp-hi{background:var(--warnbg);border-radius:8px;padding:4px 8px;margin:2px -4px}
+.ditem.vp-hi em{font-style:normal}
+.ditem.vp-hi .vpraw{color:var(--tx)}
 /* 归属徽标：类名用 bg-ow / bg-ow-g，不拼中文标识符（压缩/正则处理时是常见坑） */
 .bg-ow{background:var(--ac2);color:var(--ac)}
 .bg-ow-g{background:var(--warnbg);color:var(--warn)}
@@ -952,6 +964,60 @@ function owTag(d){
 }
 function stopTag(d){
   return d.st?' <span class="bg bg-stop" title="已下架">已下架</span>':"";
+}
+
+/* —— 有效期解析与徽标 ——
+   宽带类资费普遍带期限（实测联通 229 条宽带里 199 条有限期），不标出来的话
+   看不出「这是长期资费还是一年一续的合约」。分档按紧迫度着色：
+   红=固定到期日 ≤90 天或已过，琥珀=≤1 年或 ≤12 个月的短包，灰=远期/长约；
+   「自动续约」单独降级标注 —— 到期顺延对用户的影响远小于硬截止。
+   🔴 阈值是展示口径不是数据口径：只影响颜色，不改任何筛选/排序结果。 */
+const VP_RENEW=/顺延|延续|自动续|以此类推|自动延期|无异议/;
+const VP_CN={"一":1,"两":2,"二":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9,"十":10,"半":.5};
+function vpInfo(d){
+  const v=String(d.vp==null?"":d.vp).trim();
+  if(!v||v==="长期"||v==="—")return null;
+  /* 固定到期日：取文案里**最晚**的一个 —— 有的条目先说促销截止再说恢复日，
+     「有效期到 X 日」语义上以最晚的才算数。8 位紧凑式（20261231）一并认；
+     2020–2040 之外的年份按解析噪音丢弃。 */
+  let best=null;
+  const RE=/20\d{2}\s*[年\/\-\.]\s*\d{1,2}\s*[月\/\-\.]\s*\d{1,2}|20\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])/g;
+  for(let m;(m=RE.exec(v));){
+    const s=m[0].replace(/\s+/g,"");let y,mo,dy;
+    if(/^\d{8}$/.test(s)){y=+s.slice(0,4);mo=+s.slice(4,6);dy=+s.slice(6,8)}
+    else{const p=s.split(/[年\/\-\.月日]+/).filter(Boolean);y=+p[0];mo=+p[1];dy=+p[2]||1}
+    if(mo<1||mo>12||dy<1||dy>31)continue;
+    const t=Date.UTC(y,mo-1,dy);
+    if(t>=Date.UTC(2020,0,1)&&t<=Date.UTC(2040,11,31)&&(best==null||t>best))best=t;
+  }
+  /* 时长：N个月 / N年（含汉字 一/两/三…），统一换算成月数 */
+  let term=null,tm;
+  if((tm=v.match(/(\d+)\s*个?\s*月/))&&+tm[1]>0&&+tm[1]<=120)term=+tm[1];
+  if(term==null&&(tm=v.match(/(\d+)\s*年/))&&+tm[1]>0&&+tm[1]<=10)term=+tm[1]*12;
+  if(term==null&&(tm=v.match(/([一两二三四五六七八九十半])\s*年/)))term=VP_CN[tm[1]]*12;
+  if(best==null&&term==null)return null;
+  return{date:best,term:term,renew:VP_RENEW.test(v)};
+}
+function fmtT(t){const dt=new Date(t);return dt.getUTCFullYear()+"-"
+  +String(dt.getUTCMonth()+1).padStart(2,"0")+"-"+String(dt.getUTCDate()).padStart(2,"0")}
+function vpTag(d){
+  const i=vpInfo(d);if(!i)return"";
+  const rn=i.renew?' <span class="vptg vptg-rn" title="到期后双方无异议则自动顺延/续约">自动续</span>':"";
+  if(i.date!=null&&BASE_OK){
+    const lf=left(i.date),ds=fmtT(i.date);
+    if(lf<=0)return ' <span class="vptg vptg-soon" title="资费标称有效期已过（'+ds+'）；上下架状态以上线/下线日期为准">'+ds+' 已过</span>'+rn;
+    if(lf<=90)return ' <span class="vptg vptg-soon" title="距标称有效期（'+ds+'）还有 '+lf+' 天">至 '+ds+'</span>'+rn;
+    if(lf<=365)return ' <span class="vptg vptg-mid" title="标称有效期至 '+ds+'">至 '+ds+'</span>'+rn;
+    return ' <span class="vptg vptg-far" title="标称有效期至 '+ds+'">至 '+ds+'</span>'+rn;
+  }
+  if(i.date!=null)  /* 本页缺基准日：给不了剩余天数就不给颜色档，按远期灰处理 */
+    return ' <span class="vptg vptg-far" title="标称有效期含日期，但本页缺基准日无法算剩余天数">'+fmtT(i.date)+'</span>'+rn;
+  /* 纯时长（订购起算）：≤12 个月琥珀短包，更长灰长约；带自动续再降一档 */
+  const y=Math.floor(i.term/12),mo=i.term%12;
+  const ts=y?(mo?y+"年"+mo+"个月":y+"年"):mo+"个月";
+  let cls=i.term<=12?"mid":"far";
+  if(i.renew&&cls==="mid")cls="far";
+  return ' <span class="vptg vptg-'+cls+'" title="订购起算 '+ts+'">'+ts+'</span>'+rn;
 }
 
 /* —— 宽带判定 ——
@@ -1629,11 +1695,14 @@ function detHTML(d){
   g.push(["状态",d.st?"已下架":"在售"]);
   g.push(["上下线",(fmtD(d.o)||"—")+" ~ "+(fmtD(d.e)||"—")]);
   g.push(["超套资费",d.ex||"—"]);
-  g.push(["有效期",d.vp||"—"]);
+  /* 有效期带期限时高亮整行：徽标给档位，官方原文全量跟在后面（不截断） */
+  if(vpInfo(d))g.push(["有效期",vpTag(d)+' <span class="vpraw">'+esc(d.vp)+'</span>',1]);
+  else g.push(["有效期",d.vp||"—"]);
   g.push(["权益说明",d.x||"—"]);
-  /* 宽带用 bwDetail() 的原始 HTML（内含速率徽标），其余字段一律转义 */
+  /* 宽带用 bwDetail() 的原始 HTML（内含速率徽标），其余字段一律转义；
+     p[2] 标记该行是**已转义/受控的 HTML**（vp 高亮行 / 宽带行），直接注入 */
   return '<div class="detgrid">'
-    +g.map(p=>'<div class="ditem"><span>'+esc(p[0])+'</span><em>'+esc(p[1])+'</em></div>').join("")
+    +g.map(p=>'<div class="ditem'+(p[2]?" vp-hi":"")+'"><span>'+esc(p[0])+'</span><em>'+(p[2]?p[1]:esc(p[1]))+'</em></div>').join("")
     +'<div class="ditem"><span>宽带</span><em>'+bwDetail(d)+'</em></div>'
     +'</div>'
     +'<div class="ailine" style="display:none"><b>同价位更优</b><span class="aicmp"></span></div>'
@@ -1747,7 +1816,7 @@ function render(){
     tr.innerHTML='<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元":"—")+'</td>'
       +'<td>'+fmtGb(d.g)+perCell(d)+'</td>'
       +'<td>'+(d.c&&d.c!=="0"?esc(d.c)+" 分":"—")+'</td>'
-      +'<td class="nm">'+scTag(d)+hl(d.n||d.t,terms)+chgTag(d)+stopTag(d)+'</td>'
+      +'<td class="nm">'+scTag(d)+hl(d.n||d.t,terms)+chgTag(d)+stopTag(d)+vpTag(d)+'</td>'
       +'<td><span class="tg" title="资费大类；官方原始分类见展开详情">'+esc(d.cat||"—")+'</span></td>'
       +'<td>'+owTag(d)+'</td>'
       +'<td>'+bwCell(d)+'</td>'
