@@ -264,18 +264,21 @@ jobs:
           #    不再自带一份替换列表（它那份曾在改造中静默漏掉过占位符）。
           #    漏检的后果很隐蔽：占位符原样留在页面里，而 JS 里 `const HIST=__HIST__`
           #    会**直接变成语法错误**，整页功能全废 —— 但标签看着都在。
-          #    ⚠️ 2026-10-03：__CITY_ORDER__ / __CITY_EXTRA__ 已随「地市」筛选维度一起
-          #       下线，这份列表与 tariff_monitor.PLACEHOLDERS 同步删掉了那两项。
+          #    ⚠️ 2026-10-03：__CITY_ORDER__ / __CITY_EXTRA__ 白天曾随「地市」筛选维度
+          #       一起下线，当晚恢复下拉时又加回了这份列表（与 tariff_monitor.
+          #       PLACEHOLDERS 同步）。
           left = [p for p in ('__NETS__', '__N__', '__DATE__', '__CAT_ORDER__',
-                              '__OW_ORDER__', '__HIST__', '__NOTICE__') if p in s]
+                              '__OW_ORDER__', '__CITY_ORDER__', '__CITY_EXTRA__',
+                              '__HIST__', '__NOTICE__') if p in s]
           assert not left, '占位符未替换: %s' % left
           m = re.search(r'const NETS=', s)
           assert m, '页面里找不到 const NETS= 数据容器'
           nets = json.JSONDecoder().raw_decode(s[m.end():])[0]
           assert set(nets) >= {'move', 'unicom', 'telecom', 'cbn'}, '四网容器不完整: %s' % sorted(nets)
-          # ★ 地市名的合法集合（CITY_ALL）从**构建脚本**取 —— 页面里已经不再注入它
-          #   （地市筛选维度 2026-10-03 下线，那两个 const 也跟着没了）。
-          #   它的价值仍在：行数据里出现的地市名必须落在同一个命名空间内 ——
+          # ★ 地市名的合法集合（CITY_ALL）从**构建脚本**取 —— 它是数据侧码→名
+          #   换算的唯一出口（页面里的下拉选项也由同一份常量经占位符注入，
+          #   2026-10-03 当晚恢复）。
+          #   它的价值：行数据里出现的地市名必须落在同一个命名空间内 ——
           #   落在外面说明有一处码→名换算漏登记（联通 3 位码 / 移动电信 4 位码并存时
           #   出过这个错：同一个市被当成两个）。
           sys.path.insert(0, 'cloud/tariff')

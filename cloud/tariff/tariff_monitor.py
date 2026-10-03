@@ -1835,7 +1835,8 @@ def rows_of(o, diff=None, code=""):
 #   原先是 build_html 与 render_only 各写一遍替换列表 —— 2026-09-22 加 __CAT_ORDER__
 #   时就只改了 build_html，render_only 那侧静默漏掉。合并到一处，从结构上消除这种漏。
 PLACEHOLDERS = ("__NETS__", "__N__", "__DATE__", "__CAT_ORDER__",
-                "__OW_ORDER__", "__HIST__", "__NOTICE__")
+                "__OW_ORDER__", "__CITY_ORDER__", "__CITY_EXTRA__",
+                "__HIST__", "__NOTICE__")
 
 
 def js_json(obj):
@@ -1942,11 +1943,13 @@ def build_html(sources, notice="", diffs=None, archive=True):
         "__CAT_ORDER__": js_json(list(CAT_ORDER)),
         # 归属档位顺序（同 CAT_ORDER 的理由：顺序只此一份，页面不另写常量）。
         "__OW_ORDER__": js_json(list(OW_ORDER)),
-        # ★ 地市清单**不再注入**（2026-10-03）：「地市分布」面板与「地市」下拉都已从
-        #   页面撤掉，原先的 __CITY_ORDER__ / __CITY_EXTRA__ 两个占位符随之作废。
-        #   注意 CITY_ORDER / CITY_EXTRA 这两个常量**本身仍在用** —— 它们仍是
-        #   数据侧把地市码换算成中文名的唯一出口（行数据的 cty 就是它算出来的），
-        #   CI 也照旧按 CITY_ALL 断言 cty 的取值域。撤掉的只是「注入页面」这一步。
+        # 地市清单（2026-10-03 当晚恢复注入）：「地市」下拉按它建选项。
+        # 白天曾随下拉一并撤掉；当晚用户要求恢复筛选（上游资费专区本就有
+        # 城市选择器，只留徽标对「查查我市有什么」不友好）。常量本身从未动 ——
+        # 它们始终是数据侧码 → 中文名的唯一出口（行数据 cty 由它算出），
+        # CI 也照旧按 CITY_ALL 断言 cty 的取值域。
+        "__CITY_ORDER__": js_json(list(CITY_ORDER)),
+        "__CITY_EXTRA__": js_json(list(CITY_EXTRA)),
         # 变更历史（页面时间线）。走紧凑序列化 —— 它一年年涨，白空格也是体积。
         "__HIST__": js_json(load_history().get("items") or []),
         # notice=None → 用兜底文案；notice="" → 页面把提示条整个藏掉
@@ -2053,7 +2056,8 @@ def render_only():
             "__NETS__": payload, "__N__": str(all_n), "__DATE__": date,
             "__CAT_ORDER__": js_json(list(CAT_ORDER)),
             "__OW_ORDER__": js_json(list(OW_ORDER)),
-            # 地市清单不再注入（见 build_html 里同一处注释）。
+            "__CITY_ORDER__": js_json(list(CITY_ORDER)),
+            "__CITY_EXTRA__": js_json(list(CITY_EXTRA)),
             "__HIST__": js_json(load_history().get("items") or []),
             "__NOTICE__": notice})
     except RuntimeError as e:
