@@ -1158,7 +1158,22 @@ function condOf(){
      30 个选项 × 8000 行 = 24 万次判据调用，每敲一个搜索键都要付一遍。 */
 function syncDims(){
   const rs=rowsOf(NET);
-  if(!rs.length)return;
+  if(!rs.length){
+    /* 空网（未接入 / 快照缺失）早退前，先把静态下拉里可能残留的**上一个网**
+       的档位条数与置灰清掉 —— 不清的话切到空网，月费/流量下拉还挂着
+       别网的数字，纯误导。分类两下拉由 renderNet 重建，不在此列。 */
+    const empt=[["sc","全部地域（河北 + 全国）"],["pf","全部月费"],["gf","不限流量"],
+                ["cf","不限通话"],["bw","不限宽带"],["chx","不限渠道"],
+                ["on","全部上架时间"],["off","全部下线时间"]];
+    empt.forEach(p=>{
+      const sel=document.getElementById(p[0]);if(!sel)return;
+      [...sel.options].forEach(o=>{
+        o.disabled=false;
+        o.textContent=o.value?(o.dataset.lbl||o.textContent.replace(/（\d+）$/,"")):p[1];
+      });
+    });
+    return;
+  }
   const base=condOf(),sb=$("#sb"),cat=$("#cat"),ty=$("#ty");
   const sv=sb?sb.value:"",cv=cat?cat.value:"",tv=ty?ty.value:"";
   /* 只把「分类」这三层摘掉，其余维度（搜索 / 地域 / 月费 / 时效…）照常生效。 */
@@ -1228,9 +1243,12 @@ function syncDims(){
     if(inR(cm,0,100))n2.cf["0,100"]=(n2.cf["0,100"]||0)+1;
     if(inR(cm,100,500))n2.cf["100,500"]=(n2.cf["100,500"]||0)+1;
     if(cm!=null&&cm>=500)n2.cf["500,99999"]=(n2.cf["500,99999"]||0)+1;
+    /* ⚠️ 提速档**不能**嵌进 bwInfo 里：bwSpeed 只看名称/权益里的「提速/光网
+       组网」字样，独立于「有没有一条宽带线路」—— 判据 bw==="speed" 也只认
+       bwSpeed（审计抓过：面 45 / 实 257 的漂移就是这么来的）。 */
+    if(bwSpeed(d))n2.bw.speed=(n2.bw.speed||0)+1;
     if(bwInfo(d)){
       n2.bw.line=(n2.bw.line||0)+1;
-      if(bwSpeed(d))n2.bw.speed=(n2.bw.speed||0)+1;
       const mb=bwMbps(d);
       if(mb!=null){
         if(mb>=200)n2.bw.m200=(n2.bw.m200||0)+1;
@@ -1315,14 +1333,8 @@ function chipsHtml(){
     '<button type="button" class="fchip" data-d="'+esc(p[0])+'" title="点掉这一个条件">'
     +esc(p[1])+'<i>×</i></button>').join("")+'</span>';
 }
-/* 纯文本版（导出 CSV 时写进文件头，将来要贴到别处也用得上）。 */
-function condText(){
-  const a=["状态："+(STA==="0"?"在售":STA==="1"?"已下架":"全部")];
-  const kw=$("#kw").value.trim();
-  if(kw)a.push("关键词「"+kw+"」");
-  DIMS.forEach(k=>{if($("#"+k).value)a.push((DIM_PRE[k]||"")+optText(k))});
-  return a.join(" · ");
-}
+/* 纯文本版条件说明（condText）已删除：它曾与 chipsHtml 各维护一份口径且
+   无人调用 —— 死代码留着的下场就是改一处忘一处。 */
 
 function onCell(d){
   const dt=toDate(d.o);
@@ -1444,8 +1456,12 @@ function favRefresh(){
   const note=document.getElementById("favNote");
   if(note){
     note.style.display=onlyFav?"":"none";
-    if(onlyFav)note.textContent="★ 仅显示收藏（本页 "+shown+" 条）· 分页与筛选不受影响，翻页后仍然只显示收藏";
+    if(onlyFav)note.textContent="★ 仅显示收藏（本页 "+shown+" 条）· 分页与筛选不受影响，翻页后仍然只显示收藏"
+      +(shown===0?(view.length?"（当前筛选结果里没有你收藏的条目）":"（还没有收藏，点条目名前的 ☆ 收藏）"):"");
   }
+  /* 徽标把「只看收藏」也算作一个生效条件；点收藏 chip 不走 apply，
+     不在这里刷一次就会停留旧值。 */
+  updateFbadge();
 }
 function favUpdateStars(){
   const tb=$("#tb");if(!tb)return;
@@ -2186,6 +2202,11 @@ function clearChips(){document.querySelectorAll("#chips button").forEach(b=>b.cl
 function resetAll(){
   $("#kw").value="";clearDims();syncDims();
   sortK="on";sortD=-1;$("#sort").value=sortK;
+  /* 「重置」是**全部**条件回默认：状态页签与「只看收藏」也是条件 ——
+     只清下拉会留下「点了重置、结果还是少一截」的迷惑；空结果页那个
+     「重置全部筛选」链接尤其要兑现「全部」二字。排序键也一并回默认。 */
+  if(STA!==""){STA="";syncTabs()}
+  if(onlyFav){onlyFav=false;try{localStorage.setItem(ONLY_KEY,"0")}catch(e){}favRefresh()}
   clearChips();apply();
 }
 
@@ -2274,8 +2295,12 @@ function download(name,text,mime){
   setTimeout(()=>URL.revokeObjectURL(a.href),4000);
 }
 function exportCSV(){
+  /* 「只看收藏」是 DOM 层显隐、不在 view 里 —— 导出若无视它，用户看着
+     几条收藏、导出的却是全量筛选结果，口径就劈了。按同一口径过滤；
+     收藏键与表格行的 dataset.k 同一构造（NET|名称）。 */
+  const rows=onlyFav?view.filter(d=>fav[NET+"|"+(d.n||d.t||"")]):view;
   const L=[CSV_COLS.map(c=>csvCell(c[0])).join(",")];
-  view.forEach(d=>L.push(CSV_COLS.map(c=>csvCell(c[1](d))).join(",")));
+  rows.forEach(d=>L.push(CSV_COLS.map(c=>csvCell(c[1](d))).join(",")));
   /* BOM 不能省：不加的话 Excel 会按本地代码页解读 UTF-8，中文全是乱码。
      文件名用「数据基线日期」而不是当前时刻 —— 同一份数据导两次得到同一个
      文件名，不会堆出一堆看着不同、其实一样的副本。 */
@@ -2647,7 +2672,7 @@ $("#reset").onclick=resetAll;
      不会出现「折叠区里藏着 5 个条件、结果莫名其妙只剩 3 条」的迷惑。 */
 const FT_KEY="ft-fold";
 function updateFbadge(){
-  let n=($("#kw").value.trim()?1:0)+(STA!==""?1:0);
+  let n=($("#kw").value.trim()?1:0)+(STA!==""?1:0)+(onlyFav?1:0);
   DIMS.forEach(k=>{if($("#"+k).value)n++});
   const b=$("#fbadge");
   if(b){b.textContent=n||"";b.hidden=!n}
