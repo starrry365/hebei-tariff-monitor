@@ -3,7 +3,7 @@
 
 为什么是「独立重写」而不是调页面代码：拿页面验页面等于自己验自己，发现不了系统性算错。
 本脚本照**语义**重写一套筛选逻辑，产出每个用例的期望条数，供浏览器侧逐条比对。
-只复用 audit_data.py 里已做同步校验的 bw_info() / city_tags()（同一套判据的既有复现）。
+只复用 audit_data.py 里已做同步校验的 bw_info()（同一套判据的既有复现）。
 
 用法：
     python conformance.py                       # 生成 cases.json（默认临时目录）
@@ -20,16 +20,18 @@
       还会把用例文件暴露给访问者。
 
 ⚠️ 覆盖范围（**不是四网全量**，别被文件名误导）：
-   · **有条目级地市归属的网**（移动 / 电信 / 联通）→ 本脚本可对账，含地市维度的用例。
-   · **广电**：上游只有「全国 / 河北省」两档、条目里没有地市 ⇒ `city_tags()` 恒空，
-     硬套会给它生成「邢台 N 条」这种与页面正面矛盾的期望值（页面全部按「全省通用」算）。
-     故**不为它**生成城市用例（其余各维同构，已用 `probes/tools/page_walk_check.js`
-     的遍历逐项实测过）。
-   ⚠️ 2026-09-24 修正：联通**已加入**可对账名单。此前它被归到「没有地市维度」那一类，
-      依据是数据源自报的 allProvince —— 而那个声明是错的（实测 22 个栏目组合里 12 个
-      随城市变化、12 个地市各有专属条目）。判据改成「数据里有没有 d.cty」之后，
-      联通有条件可对账，而且**正需要**对账：它的地市归属来自采集侧的 12 城目录归属，
-      是全链路里唯一一条「不是直接读上游字段」的判据。
+   · 默认覆盖 移动 / 电信 / 联通 / 广电 四网，条件见下面的 NETS_OK。
+   ⚠️ 2026-10-03：地市筛选维度整块下线（页面上的「地市分布」面板与「地市」下拉都撤了，
+      见 template.html 的注释）⇒ 本脚本里所有 `ct:*` / `ct=_none` 用例**同时作废**。
+      这里一并删掉，并把原先「城市 × 其它维度」的两两/多重组合改由**大类 cat** 承担
+      （同样是「先选一类，再看它和月费/时效/宽带怎么交叠」），否则删掉 ct 会顺带
+      丢掉三四维交互的覆盖。留着一批页面上不存在的用例，对账会**整体**偏红 ——
+      而那正是本机制最怕的失效方式：判据一红，人就学会忽略它。
+   ⚠️ 2026-10-03 同时把**广电**放进了 NETS_OK。它此前被排除的理由只有一条：
+      「上游没有地市粒度 ⇒ 给它生成城市用例会与页面正面矛盾」。城市用例没了，
+      这条理由也就不存在了 —— 实测 `--net cbn` 83/83 与 oracle 完全一致，
+      于是原来**完全没有 oracle 覆盖**的那一网补上了（页面级断言覆盖不到
+      「筛选语义算错」，只有这一层能）。要再加网，先按同样方式实测再放行。
 
 只断言「结构性」不变量（用例可生成、基准日期可解析），具体条数随上游数据每天变。
 """
@@ -39,8 +41,9 @@ from datetime import date
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
 import audit_data as A
-# 地市清单只有一份权威（构建脚本），这里不另抄 —— 抄一份就多一处会漂的地方，
-# 而漂的表现是「oracle 生成了一条页面上根本不存在的用例」，对账恒失败且指错方向。
+# 大类顺序只有一份权威（构建脚本，页面也是按它出下拉），这里不另抄 —— 抄一份就多一处
+# 会漂的地方，而漂的表现是「oracle 生成了一条页面上根本没有的大类用例」，对账恒失败
+# 且**指错方向**（看起来像页面坏了）。
 import tariff_monitor as T
 
 # 以 `-` 开头的参数不是路径（比如手滑敲了 `--help`）—— 照单全收会凭空生成一个
@@ -48,16 +51,14 @@ import tariff_monitor as T
 _arg = sys.argv[1] if len(sys.argv) > 1 else ""
 OUT = _arg if _arg and not _arg.startswith("-") else os.path.join(tempfile.gettempdir(), "cases.json")
 
-# 有地市维度的网才能用本脚本对账（见文件头「覆盖范围」）。默认移动。
 _NET = "move"
 if "--net" in sys.argv:
     _i = sys.argv.index("--net")
     if _i + 1 < len(sys.argv):
         _NET = sys.argv[_i + 1]
-NETS_OK = ("move", "telecom", "unicom")
+NETS_OK = ("move", "telecom", "unicom", "cbn")
 if _NET not in NETS_OK:
-    sys.exit("--net 只支持 %s（广电上游没有地市维度，拿它跑地市用例必然对不上）"
-             % "/".join(NETS_OK))
+    sys.exit("--net 只支持 %s" % "/".join(NETS_OK))
 
 # ---------- 与模板逐字对应的判据 ----------
 # ⚠️ 必须与 template.html 的 apply() 里那份**逐字段一致**。少了 cat / chx 两项，
@@ -104,20 +105,9 @@ def build_oracle(rows, base):
             return False
         if c["ty"] and d.get("ty") != c["ty"]:
             return False
-        if c["ct"]:
-            # 口径必须与页面的 apply() **逐字一致**（这里就是那个独立 oracle）：
-            #   · 「仅全省通用」= 构建期标了 pw（不限地市）的那批；
-            #   · 选某个市    = 「不限地市」的那批 **＋** 该市专属。
-            #     旧口径是「只留 cty 含该市的」，那答的是「上游目录里恰好写了谁」，
-            #     不是「这个市能办什么」—— 用户按邢台筛会得到「在售 0 条」的假答案
-            #     （2026-09-24 用户报障）。已下架条目两者皆无 ⇒ 任何具体地市档都筛不到它们。
-            tg = A.city_tags(d)
-            pw = bool(d.get("pw"))
-            if c["ct"] == "_none":
-                if not pw:
-                    return False
-            elif not (pw or c["ct"] in tg):
-                return False
+        # ⚠️ 2026-10-03：这里原先有一段 `ct` 判据（地市：不限地市(pw) ＋ 该市专属）。
+        #    地市筛选维度整块下线后，页面 match() 里已无这一段，oracle 必须同步删掉 ——
+        #    留着的后果是**期望值比页面少**，几十条对账用例集体偏红（而页面是对的）。
         if c["pf"]:
             lo, hi = [float(x) for x in c["pf"].split(",")]
             f = num(d.get("f"))
@@ -160,47 +150,21 @@ def main():
     date = A.NET_BASE or ((re.search(r"数据基线 ([\d-]+)", raw) or [None, ""])[1] or "")
     base = to_date(date.replace("-", ""))
     print("网 %s · 数据基线 %s → BASE=%s · %d 条" % (_NET, date, base, len(rows)))
-    print("覆盖 %s（上游有条目级地市码）" % "、".join(NETS_OK))
+    print("可对账网别 %s（run_checks.py 的 NETS_CONF 逐网调用本脚本）" % "、".join(NETS_OK))
     if base is None:
         sys.exit("!! 数据基线解析失败，无法建立基准")
 
     m = build_oracle(rows, base)
     ty_vals = sorted({d.get("ty") for d in rows if d.get("ty")})
-    # ★ 只给「本网真能取到」的地市档生成用例。页面 renderDims 会把 **0 条**的档
-    #   置灰，并在 apply 里加了保险丝（置灰档当没筛）—— 所以那类档在页面上
-    #   根本筛不出东西。**照旧为它们生成用例，对账必然失败，且失败指向错误方向**
-    #   （期望 0、实际 = 全部条数，看起来像「地市筛选整体失效」）。
-    #   典型的就是「雄安新区 / 华北油田」：判据改成「地市码优先」后它们没有码，
-    #   只在条目连码都没有时才走文本兜底，实测恒 0 条。
-    # 档位条数的口径必须与页面 renderDims() 的建选项**逐字一致**（否则会出现
-    # 「页面置灰了、这里却照着生成用例」，或反过来）。页面侧是：
-    #   每个城市档 = 「不限地市」(pw) ＋ 该市专属，且只算**在售**
-    #   （已下架条目没有地市归属，见 tariff_monitor.rows_of）。
-    # 🔴 必须遍历**全部**城市档再累加，不能只遍历「有专属的那些」：专属于某市为 0 时
-    #    那一档的条数就是 pw 本身（>0），页面上它**不置灰** —— 这里照抄同一算法才不会
-    #    一边生成用例、另一边把档置灰。
-    ccount, pw_n = {}, 0
-    for d in rows:
-        if d.get("st"):
-            continue
-        if d.get("pw"):
-            pw_n += 1
-            continue
-        for c in A.city_tags(d):
-            ccount[c] = ccount.get(c, 0) + 1
-    cities_all = list(T.CITY_ORDER) + list(T.CITY_EXTRA)
-    for c in cities_all:
-        ccount[c] = ccount.get(c, 0) + pw_n
-    cities = [c for c in cities_all if ccount.get(c)]
-    skipped = [c for c in cities_all if not ccount.get(c)]
-    print("   地市档位条数（不限地市 %d ＋ 各市专属）：%s"
-          % (pw_n, "、".join("%s %d" % (c, ccount[c]) for c in cities) or "（无）"))
-    if skipped:
-        print("⏭️  跳过页面上会被置灰的地市档（本网 0 条）: %s" % "、".join(skipped))
+    # 大类取值：只取**页面上真会出现**的那些 —— 页面 renderNet() 按
+    # `CAT_ORDER.filter(c=>有条数)` 建下拉，所以这里也用同一口径取交集。
+    # 取多了 ⇒ 灌值时报「#cat 无此取值」，整个用例被跳过（跳过 ≠ 通过）。
+    present = {d.get("cat") for d in rows if d.get("cat")}
+    cat_vals = [c for c in T.CAT_ORDER if c in present]
+    print("   大类取值（CAT_ORDER ∩ 本网有条数）：%s" % "、".join(cat_vals))
 
     def C(**kw):
         c = dict(kw=kw.get("kw", ""), cat=kw.get("cat", ""), ty=kw.get("ty", ""),
-                 ct=kw.get("ct", ""),
                  pf=kw.get("pf", ""), on=kw.get("on", ""), off=kw.get("off", ""),
                  bw=kw.get("bw", ""))
         return c
@@ -216,9 +180,8 @@ def main():
         add("kw:" + k, C(kw=k))
     for t in ty_vals:
         add("ty:" + t, C(ty=t))
-    for c in cities:
-        add("ct:" + c, C(ct=c))
-    add("ct:_none", C(ct="_none"))
+    for c in cat_vals:
+        add("cat:" + c, C(cat=c))
     for p in ("0,0", "0,10", "0,30", "0,60", "100,99999"):
         add("pf:" + p, C(pf=p))
     for o in ("7", "30", "90", "180", "365", "none"):
@@ -232,30 +195,31 @@ def main():
     for t in ty_vals:
         add("ty=%s+bw=line" % t, C(ty=t, bw="line"))
         add("ty=%s+on=30" % t, C(ty=t, on="30"))
-    for c in cities:
-        add("ct=%s+bw=line" % c, C(ct=c, bw="line"))
-        add("ct=%s+kw=宽带" % c, C(ct=c, kw="宽带"))
-        add("ct=%s+off=90" % c, C(ct=c, off="90"))
+    # ★ 这里原先是「城市 × {宽带 / 搜索 / 下线时间}」那三组。地市维度下线后由**大类**
+    #   顶上：形状完全同构（先选一个类目，再看它与宽带 / 搜索词 / 时效怎么交叠），
+    #   而且 cat 是四网统一口径，比 ty 更适合跨网复用。
+    for c in cat_vals:
+        add("cat=%s+bw=line" % c, C(cat=c, bw="line"))
+        add("cat=%s+kw=宽带" % c, C(cat=c, kw="宽带"))
+        add("cat=%s+off=90" % c, C(cat=c, off="90"))
     for p in ("0,0", "0,10", "0,60"):
-        add("pf=%s+ct=石家庄" % p, C(pf=p, ct="石家庄"))
         add("pf=%s+on=90" % p, C(pf=p, on="90"))
 
-    # 3) 三重及以上
-    add("三:ct=石家庄+pf=0,10+bw=line", C(ct="石家庄", pf="0,10", bw="line"))
-    add("三:ct=_none+on=30+bw=line", C(ct="_none", on="30", bw="line"))
-    # ★ 这两条用 cat（四网统一口径）而不是 ty（上游原始分类）：
+    # 3) 三重及以上 —— ★ 一律用 cat（四网统一口径）而不是 ty（上游原始分类）：
     #   联通的细分域在口径修正后已无「套餐」这一档，写 ty=套餐 会让用例在页面上
-    #   「无此取值」而被跳过 —— 跳过 ≠ 通过，对账会静默少覆盖两条。
-    add("三:cat=套餐+pf=0,30+kw=校园", C(cat="套餐", pf="0,30", kw="校园"))
-    add("三:ct=邯郸+off=90+kw=宽带", C(ct="邯郸", off="90", kw="宽带"))
-    add("四:ct=唐山+pf=0,60+on=365+kw=流量",
-        C(ct="唐山", pf="0,60", on="365", kw="流量"))
-    add("四:ct=_none+bw=speed+pf=0,30+on=180",
-        C(ct="_none", bw="speed", pf="0,30", on="180"))
-    add("五:cat=套餐+ct=保定+pf=0,60+on=365+bw=line",
-        C(cat="套餐", ct="保定", pf="0,60", on="365", bw="line"))
+    #   「无此取值」而被跳过 —— 跳过 ≠ 通过，对账会静默少覆盖几条。
+    #   用 cat_vals 判一下存在性：本网没有「套餐」这一档时整条不加，而不是加一条
+    #   注定被跳过的用例（那会让「用例数」这个数字失去意义）。
+    if "套餐" in cat_vals:
+        add("三:cat=套餐+pf=0,30+kw=校园", C(cat="套餐", pf="0,30", kw="校园"))
+        add("三:cat=套餐+off=90+kw=宽带", C(cat="套餐", off="90", kw="宽带"))
+        add("四:cat=套餐+pf=0,60+on=365+kw=流量",
+            C(cat="套餐", pf="0,60", on="365", kw="流量"))
+        add("五:cat=套餐+bw=line+pf=0,60+on=365",
+            C(cat="套餐", bw="line", pf="0,60", on="365"))
+    add("四:bw=speed+pf=0,30+on=180", C(bw="speed", pf="0,30", on="180"))
     # 反向：必然为 0 的组合
-    add("零:ct=衡水+bw=speed+kw=zzz", C(ct="衡水", bw="speed", kw="zzz"))
+    add("零:bw=speed+kw=zzz", C(bw="speed", kw="zzz"))
     add("零:oof off=30+on=7+kw=宽带", C(off="30", on="7", kw="宽带"))
 
     got = []

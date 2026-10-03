@@ -14,11 +14,14 @@
   且**只有两种合法形态**（2026-09-24 起）：
   `d.cty` = 该资费限这几个市（中文名列表）；`d.pw=1` = 不限地市（全省通用）。
   二者互斥且完备地覆盖**在售**条目；**已下架**条目刻意两者皆无（那批的城市归属
-  来自各城「停售目录」的差异，收录范围任意、不可信）。页面只读。
+  来自各城「停售目录」的差异，收录范围任意、不可信）。
+  2026-10-03 起地市不再是一个**筛选维度**（面板与下拉都从页面撤了），页面只在
+  详情行 / CSV 里把 d.cty 当信息展示 —— 但这套数据判据照旧：它是「上游有没有说清
+  这条资费的地域范围」的唯一记录，也是哪天要恢复地市筛选时的唯一依据。
   本脚本不再复现那套判据（**复现一份就等于又开一份会漂的副本** —— 它已经漂过一次：
   页面判据升级成「地市码优先」而这里没跟上，37 个地市用例恒失败却没人发现，
   因为平时没人跑）。
-  现在改成查**结果**：取值域是否封闭（每个值都能在页面的下拉里选到）、
+  现在改成查**结果**：取值域是否封闭（每个值都在统一命名空间 CITY_ALL 里）、
   上一条的互斥/完备、以及「没有 cty 的行」是不是真的从文案里也认不出地市
   （即文案兜底有没有被漏跑）。
 
@@ -281,14 +284,16 @@ def check_city(rows, net_code):
     stat["counts"] = cnt
     stat["hit_any"] = len(hit_any)
     stat["multi"] = [(x, tg) for x, tg in hit_any if len(tg) > 1]
-    # 不限地市（全省通用）—— 构建期标的 pw。页面「仅全省通用」档读它。
+    # 不限地市（全省通用）—— 构建期标的 pw。
     stat["pw"] = sum(1 for x in rows if x.get("pw"))
 
     # ★★ 地市归属的**互斥与完备** —— 这三条是本轮（2026-09-24）新加的判据：
     #   在售条目必须**恰有** `cty` 或 `pw` 之一。
-    #     两者皆无 ⇒ 页面按地市筛时整批看不到它（既不属于某市、也不属于「不限地市」）；
-    #     两者皆有 ⇒ 归属自相矛盾（既限这几个市、又不限地市），页面两档都会算它一次。
+    #     两者皆无 ⇒ 上游对这条资费的地域范围一个字都没说（既没限定到市、也没说是全省通用）；
+    #     两者皆有 ⇒ 归属自相矛盾（既限这几个市、又不限地市）。
     #   已下架条目刻意两者皆无，不在本判据内。
+    #   ⚠️ 2026-10-03 起页面不再按地市筛，所以这两条不再是「页面上会算错」的证据，
+    #      而是「上游给的地域信息是否自洽/完整」的记录 —— 判据本身保留。 */
     stat["both"] = [x for x in rows if x.get("cty") and x.get("pw")]
     stat["neither"] = [x for x in rows
                        if not x.get("st") and not x.get("cty") and not x.get("pw")]
@@ -296,10 +301,11 @@ def check_city(rows, net_code):
     stat["any_mark"] = [x for x in rows if x.get("cty") or x.get("pw")]
     stat["live_n"] = live_n
 
-    # ★ 取值域：构建期写进行数据的每个地市名，页面下拉里必须**选得到**。
-    #   选不到的取值在页面上等于不存在（下拉里没有那一项），点不到、也筛不出 ——
-    #   而数据里明明有 ⇒ 一批条目永远看不到，且没有任何提示。
-    #   页面下拉 = CITY_ORDER ∪ CITY_EXTRA（由构建脚本注入，见 buildCtOptions）。
+    # ★ 取值域：构建期写进行数据的每个地市名都必须在**统一命名空间** CITY_ALL 里。
+    #   落到它之外的取值，意味着有一处码→名换算漏了登记 —— 那是「同一个地方被当成
+    #   两个」的起点（联通 3 位码 / 移动电信 4 位码并存时出过这个错）。
+    #   2026-10-03 前这条比的是「下拉里选不选得到」，下拉撤掉后它退化成纯数据层的
+    #   命名空间闭合检查；CI 里那条 cty ⊂ CITY_ALL 的断言照旧天天跑。
     bad = sorted({c for _x, tg in hit_any for c in tg} - set(T.CITY_ALL))
     stat["bad_names"] = bad
 
@@ -322,10 +328,10 @@ def check_sync(raw, rows):
       「两边各留一份副本」，而 2026-09-23 的教训正是——两份副本漂了、比对本身没覆盖到
       漂的那一项，于是照样报 OK（详见 city_tags() 的注释）。
       现在地市判据只有构建期一份，页面与对账脚本都读结果。
-      所以本函数改查**「那份唯一的权威有没有被完整地送到页面」**：
-        · 模板里有没有两个注入占位符（丢了 ⇒ 页面 CITY_ORDER 是 undefined ⇒ 下拉空）；
-        · 页面里注入进来的清单是否与构建脚本逐字一致；
-        · 构建脚本能产出的每个地市名，是否都在可选项里（否则那个值永远选不到）；
+    2026-10-03：地市**筛选维度**整块下线（面板 + 下拉都撤了），页面里那两个注入
+      占位符与 const 也随之消失，所以下面查的是**剩下的那条链**：
+        · 构建脚本能产出的每个地市名，是否都在统一命名空间 CITY_ALL 里
+          （不在 ⇒ 行数据里的 cty 会冒出一个 CI 断言不认的名字）；
         · 页面的 cityTags() 是不是仍然「只读 d.cty」（判据结构的锚点）。
     """
     tpl = open(TPL, encoding="utf-8").read()
@@ -339,32 +345,23 @@ def check_sync(raw, rows):
     if m2.group(1) != BW_NOTLINE:
         errs.append("BW_NOTLINE 与模板不一致：模板=%r 脚本=%r" % (m2.group(1), BW_NOTLINE))
 
+    # ★ 两个地市占位符**必须不在**模板里 —— 地市下拉已下线，谁把它们加回来
+    #   （哪怕是「顺手恢复一下」）都得先想清楚：cityTags 那条锚点、CI 的 cty 断言、
+    #   以及 match() 里已经删掉的那段筛选逻辑，是成套的。
     for ph in ("__CITY_ORDER__", "__CITY_EXTRA__"):
-        if ph not in tpl:
-            errs.append("模板里找不到占位符 %s —— 地市下拉会变成空的"
-                        "（CITY_ORDER 为 undefined，页面直接 ReferenceError）" % ph)
+        if ph in tpl:
+            errs.append("模板里又出现了 %s：地市筛选维度已于 2026-10-03 下线。"
+                        "要恢复请成套地来（下拉 + match 判据 + 占位符 + 本文件），"
+                        "只加占位符会让页面既没有下拉、又多一处无人管的副本" % ph)
 
-    # 页面里**注入后**的清单（读的是生成物 docs/index.html，不是模板 —— 模板里是占位符）
-    m3 = re.search(r"const CITY_ORDER=(\[.*?\]);", raw)
-    m4 = re.search(r"const CITY_EXTRA=(\[.*?\]);", raw)
-    for name, mo, want in (("CITY_ORDER", m3, list(T.CITY_ORDER)),
-                           ("CITY_EXTRA", m4, list(T.CITY_EXTRA))):
-        if not mo:
-            errs.append("页面里找不到注入后的 const %s=（构建脚本漏填占位符？）" % name)
-            continue
-        try:
-            got = json.loads(mo.group(1))
-        except ValueError as e:
-            errs.append("页面里 %s 不是合法 JSON：%s" % (name, e))
-            continue
-        if got != want:
-            errs.append("%s 与构建脚本不一致：页面=%r 脚本=%r" % (name, got, want))
-
-    # 构建脚本可能产出的每个地市名都必须能选到（文案兜底那几个也不例外）。
+    # 构建脚本可能产出的每个地市名都必须在统一命名空间里。
+    # 2026-10-03 前这条比的是「下拉里有没有这个档」；下拉撤了之后它退化成
+    # **数据侧**的命名空间闭合检查 —— 仍然有意义：名字漏进 CITY_ALL 之外，
+    # 行数据的 cty 就会带出一个 CI 断言不认的值（那条断言照旧天天跑）。
     missing = set(T.TEXT_CITY_LS) | {n for n, _p in T.TEXT_CITY_ALIAS} | set(T.CITY_ORDER)
     missing -= set(T.CITY_ALL)
     if missing:
-        errs.append("这些地市名构建期可能产出、但下拉里没有（永远选不到）：%s"
+        errs.append("这些地市名构建期可能产出、但不在统一命名空间 CITY_ALL 里：%s"
                     % "、".join(sorted(missing)))
 
     # ★ 判据结构：页面只能「读」地市，不能自己再算一遍。
@@ -431,7 +428,7 @@ def main():
         print("      搜 %-8s 页面 %-4d 全字段 %-4d  ← 缺口 %d" % (kw, p, fl, fl - p))
     rep("存在搜不到的字段缺口", gaps, 0)
 
-    print("\n[5] 城市归属（读构建期写好的 d.cty —— 页面/本脚本都不再自己算）")
+    print("\n[5] 城市归属（读构建期写好的 d.cty —— 本脚本不自己算；页面也不再按它筛）")
     st = check_city(rows, net)
     allc = list(T.CITY_ORDER) + [c for c in T.CITY_EXTRA if st["counts"].get(c, 0)]
     zero = [c for c in T.CITY_ORDER if st["counts"].get(c, 0) == 0]
@@ -443,20 +440,20 @@ def main():
         print("      多市条目 %d 条：%s"
               % (len(st["multi"]),
                  "；".join("%s%s" % ((x.get("n") or "")[:20], tg) for x, tg in st["multi"][:4])))
-    # ★ 取值域：写进行数据的每个地市名都必须能在页面下拉里选到。
-    #   选不到 ⇒ 这批条目永远看不到（下拉里没有那一项），而数据里明明有，无任何提示。
-    rep("地市取值不在页面下拉里（写进去也选不到）", st["bad_names"], 0)
+    # ★ 取值域：写进行数据的每个地市名都必须在统一命名空间 CITY_ALL 里。
+    #   落到外面 ⇒ 有一处码→名换算漏登记，同一个地方会被当成两个。
+    rep("地市取值不在统一命名空间 CITY_ALL 里", st["bad_names"], 0)
     # ★ 文案兜底有没有漏跑（只对移动/电信：见 tariff_monitor.CITY_TEXT）。
     rep("文案能认出地市、却没有 cty（rows_of 漏跑兜底）", st["fallback_miss"], 0)
     # ★★ pw / cty 的**互斥与完备** —— 本轮（2026-09-24）新加的判据。
-    #   页面按地市筛的逻辑就是「pw 或 cty 含该市」，所以这两者必须把在售条目**恰好**覆盖一遍：
-    #     缺一个 ⇒ 那条资费在任何具体地市档下都看不到（页面不会报错，只是少了一批）；
-    #     多一个 ⇒ 同一条被两档各算一次，选项上的条数与真实结果对不上。
+    #   这两者必须把在售条目的地市归属**恰好**覆盖一遍：
+    #     缺一个 ⇒ 上游没说这条资费的地域范围（既不属于某市、也非全省通用）；
+    #     多一个 ⇒ 归属自相矛盾（既限这几个市、又不限地市）。
     #   判据网别用 tariff_monitor.CITY_NETS（唯一权威），**不是**硬编码一串网名。
     if net in T.CITY_NETS:
-        rep("在售条目既无 cty 也无 pw（按地市筛时整批看不到）", st["neither"], 0)
+        rep("在售条目既无 cty 也无 pw（上下游都没说地域范围）", st["neither"], 0)
         rep("地市归属自相矛盾（同时写了 cty 与 pw）", st["both"], 0)
-        rep("有地市维度的网却一条 cty 都没有（页面会静默藏掉整个维度）",
+        rep("有地市归属的网却一条 cty 都没有（码→名换算那条链断了？）",
             [] if st["hit_any"] else ["<该网 0 条带 cty>"])
     else:
         rep("本网（无地市维度）却写了 cty / pw 标记（CITY_NETS 漏了它？）",
@@ -471,7 +468,7 @@ def main():
         print("      ⚠️ %s 网零命中城市：%s —— 覆盖率低于默认网属正常"
               "（上游/采集没给这些市的地市归属），**不判失败**" % (net, "、".join(zero)))
     if not st["hit_any"]:
-        print("      ⚠️ 本网一条地市归属都没有 ⇒ 页面不出地市这一层（数据驱动，非错误）")
+        print("      ⚠️ 本网一条地市归属都没有 —— 上游未提供（非错误；页面也不再按地市筛）")
 
     print("\n[6] 规则同步（唯一权威 ↔ 页面）")
     errs = check_sync(raw, rows)

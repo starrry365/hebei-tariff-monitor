@@ -136,14 +136,15 @@ HB_CITY_CODES = frozenset(HB_CITY)
 #      它们的数据并入保定 / 石家庄 —— 所以 `CITY_ORDER` 里不再保留这个虚构档位。
 #   判据脚本：`probes/probe_city_code_semantics.py`（人眼判据：码名必须能在条目名里看到）。
 
-# ★★ 地市的**统一命名空间** —— 页面下拉、行数据（`cty`）、对账脚本都用它。
+# ★★ 地市的**统一命名空间** —— 行数据（`cty`）、对账脚本、CI 断言都用它。
 #   刻意用**中文名**而不是任何一套码：
 #     移动/电信是 4 位码（3190=邢台）、联通是 3 位码（185=邢台）。两套码并存时，
-#     页面拿到一个 `cty` 值得先问「这是哪张表的」—— 而值本身长得也像（纯数字），
-#     判错的结果是「某个市的筛选恒为空」，不报错、看着像「这个市本来就没资费」。
-#   统一成名字后只有一套，且与下拉里显示的文本逐字相同。
-#   ★ 页面由 __CITY_ORDER__ / __CITY_EXTRA__ 注入，不再自带副本 ——
-#     自带副本的下场见 audit_data.check_sync 的历史注释（改了一边忘了另一边）。
+#     拿到一个 `cty` 值得先问「这是哪张表的」—— 而值本身长得也像（纯数字），
+#     判错的结果是「某个市的归属算错」，不报错、看着像「这个市本来就没资费」。
+#   统一成名字后只有一套。
+#   ⚠️ 2026-10-03 起这份清单**不再注入页面**（地市筛选整块下线，见 template.html
+#      的 SC_LB 注释）—— 它的作用域现在只剩「构建期算 cty + 数据对账 + CI 断言」。
+#      自带副本搞漂的下场见 audit_data.check_sync 的历史注释（改了一边忘了另一边）。
 CITY_ORDER = ("石家庄", "唐山", "秦皇岛", "邯郸", "邢台", "保定",
               "张家口", "承德", "沧州", "廊坊", "衡水")
 # 🔴 「省直辖（定州/辛集）」**已从本表移除**（2026-09-24）：上游三网都没有给它俩独立的
@@ -152,10 +153,10 @@ CITY_ORDER = ("石家庄", "唐山", "秦皇岛", "邯郸", "邢台", "保定",
 #   拿到的是「不限地市」那一批，会读成「这个市有 4811 条资费」——比不给这个档更糟。
 #   （与 `#sc` 维度「取不到的档就置灰」是同一条原则：宁可让入口不存在，也不给假答案。）
 #   它的数据并入保定（定州原属保定）/ 石家庄（辛集原属石家庄）。
-# 「专属区域」：没有独立地市码的行政/功能区，只能从文案里认出来，页面下拉里单列一组。
+# 「专属区域」：没有独立地市码的行政/功能区，只能从文案里认出来。
 #   雄安新区在**移动**那网就是这样（移动的 12 个码里没有雄安）；联通侧它有码
 #   （CITY_CODES 里的 782），两条路最后都产出同一个名字 —— 这是刻意的：
-#   名字一致，页面/筛选/分布图才不会把同一个地方当成两个。
+#   名字一致，数据对账 / CI 断言才不会把同一个地方当成两个。
 CITY_EXTRA = ("雄安新区", "华北油田")
 CITY_ALL = frozenset(CITY_ORDER) | frozenset(CITY_EXTRA)
 # 允许「从文案里认地市」的网。
@@ -1741,8 +1742,7 @@ def rows_of(o, diff=None, code=""):
 #   原先是 build_html 与 render_only 各写一遍替换列表 —— 2026-09-22 加 __CAT_ORDER__
 #   时就只改了 build_html，render_only 那侧静默漏掉。合并到一处，从结构上消除这种漏。
 PLACEHOLDERS = ("__NETS__", "__N__", "__DATE__", "__CAT_ORDER__",
-                "__OW_ORDER__", "__CITY_ORDER__", "__CITY_EXTRA__",
-                "__HIST__", "__NOTICE__")
+                "__OW_ORDER__", "__HIST__", "__NOTICE__")
 
 
 def js_json(obj):
@@ -1848,12 +1848,11 @@ def build_html(sources, notice="", diffs=None, archive=True):
         "__CAT_ORDER__": js_json(list(CAT_ORDER)),
         # 归属档位顺序（同 CAT_ORDER 的理由：顺序只此一份，页面不另写常量）。
         "__OW_ORDER__": js_json(list(OW_ORDER)),
-        # 地市清单（下拉的「地市」组 + 「专属区域」组，也是地市分布图的顺序）。
-        # 页面**不再自带**这份清单 —— 一份副本的下场见 audit_data.check_sync：
-        # 页面那份是 4 位地市码表，而联通的地市码是 3 位，两套编码并存时
-        # 「这个 cty 该查哪张表」这个问题根本没人能答对。
-        "__CITY_ORDER__": js_json(list(CITY_ORDER)),
-        "__CITY_EXTRA__": js_json(list(CITY_EXTRA)),
+        # ★ 地市清单**不再注入**（2026-10-03）：「地市分布」面板与「地市」下拉都已从
+        #   页面撤掉，原先的 __CITY_ORDER__ / __CITY_EXTRA__ 两个占位符随之作废。
+        #   注意 CITY_ORDER / CITY_EXTRA 这两个常量**本身仍在用** —— 它们仍是
+        #   数据侧把地市码换算成中文名的唯一出口（行数据的 cty 就是它算出来的），
+        #   CI 也照旧按 CITY_ALL 断言 cty 的取值域。撤掉的只是「注入页面」这一步。
         # 变更历史（页面时间线）。走紧凑序列化 —— 它一年年涨，白空格也是体积。
         "__HIST__": js_json(load_history().get("items") or []),
         "__NOTICE__": notice or "本次巡检未检测到变化"})
@@ -1958,8 +1957,7 @@ def render_only():
             "__NETS__": payload, "__N__": str(all_n), "__DATE__": date,
             "__CAT_ORDER__": js_json(list(CAT_ORDER)),
             "__OW_ORDER__": js_json(list(OW_ORDER)),
-            "__CITY_ORDER__": js_json(list(CITY_ORDER)),
-            "__CITY_EXTRA__": js_json(list(CITY_EXTRA)),
+            # 地市清单不再注入（见 build_html 里同一处注释）。
             "__HIST__": js_json(load_history().get("items") or []),
             "__NOTICE__": notice})
     except RuntimeError as e:

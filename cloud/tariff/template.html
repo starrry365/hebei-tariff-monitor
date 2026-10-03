@@ -577,15 +577,10 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       </div>
       <div class="fsec"><span class="glab">范围</span>
         <label class="f w2"><span class="fl">地域</span>
-          <select id="sc" title="地域范围：河北省（含各地市专属与全省通用）/ 全国">
+          <select id="sc" title="地域范围：河北省 / 全国">
             <option value="">全部地域（河北 + 全国）</option>
             <option value="hb">仅河北省</option>
             <option value="cn">仅全国</option>
-          </select></label>
-        <label class="f" id="wct"><span class="fl">地市</span>
-          <select id="ct">
-            <option value="">全部城市</option>
-            <option value="_none">仅全省通用（不限地市）</option>
           </select></label>
       </div>
       <div class="fsec"><span class="glab">分类</span>
@@ -700,10 +695,6 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
     <div class="ph"><h2 class="pt">个人 / 政企构成</h2><span class="ps">仅移动官方提供归属标注</span></div>
     <div class="bars" id="ovOw"></div>
   </div>
-  <div class="panel" id="ovCityPanel">
-    <div class="ph"><h2 class="pt">地市分布</h2><span class="ps" id="ovCityNote"></span></div>
-    <div class="bars" id="ovCity"></div>
-  </div>
   <div class="panel">
     <div class="ph"><h2 class="pt">月费档位分布</h2><span class="ps">按标准月费（元）分档</span></div>
     <div class="bars" id="ovFee"></div>
@@ -784,7 +775,7 @@ const HIST=__HIST__;
    清空筛选 / 切网复位 / 深链读写本来都要遍历同一批控件，而原先是**每处各写一遍字面量**
    （5 处），加一个维度就得记得改 5 个地方。漏一处的后果是「切网后这个维度没被清掉」：
    上个网选中的条件继续生效，页面却毫无提示 —— 与「幽灵筛选值」是同一类静默错。 */
-const DIMS=["sb","sc","ow","cat","ty","ct","pf","gf","cf","bw","chx","on","off","chg"];
+const DIMS=["sb","sc","ow","cat","ty","pf","gf","cf","bw","chx","on","off","chg"];
 function clearDims(){DIMS.forEach(k=>{const e=document.getElementById(k);if(e)e.value=""})}
 const NET_LS=["move","unicom","telecom","cbn"];      // 顺序即导航条顺序
 const rowsOf=n=>((NETS[n]||{}).rows)||[];
@@ -804,16 +795,17 @@ let STA="0";
    sc 由构建脚本按**原始地域字段**算好（四网判据完全不同，见 tariff_monitor.WHERE_OF），
    页面只负责显示与筛选 —— 页面侧不能再拿名称文本猜地市（那是旧做法，会误判）。 */
 const SC_LB={hb:"河北",cn:"全国"};
-/* 地市清单：12 个地市 + 2 个「专属区域」，由构建脚本注入
-   （tariff_monitor.CITY_ORDER / CITY_EXTRA）—— 页面**不再自带**这份清单。
-   🔴 这里原先是一张「4 位地市码 → 中文名」的表（HB_CITY_LB），页面拿它把 d.cty
-      翻成名字。联通的地市码是 **3 位**（185=邢台），两张码表并存时「这个值该查
-      哪张表」根本判不出来（值本身都长得像），判错的结果是**某个市的筛选恒为空** ——
-      不报错，看着像「这个市本来就没资费」。
-      现在码 → 名的换算在**构建期**做（各网各有一套码，出口统一成中文名），
-      行数据 d.cty 直接就是中文名 ⇒ 页面只读不算，也就不存在第二份会漂的清单。 */
-const CITY_ORDER=__CITY_ORDER__;
-const CITY_EXTRA=__CITY_EXTRA__;
+/* 条目的地市归属（d.cty）**仍在数据里**，但页面不再把它做成筛选维度 ——
+   2026-10-03 起「地市分布」面板与「地市」下拉一并下线，地市只作为**信息**
+   出现在详情行与 CSV 的「城市」列（见 cityTags 的用法）。
+   🔴 原先这里还注入过一张地市清单（构建脚本的 CITY_ORDER / CITY_EXTRA），
+      靠两个占位符带进来给下拉建选项；下拉没了，那两个占位符也就一起从构建契约里
+      撤掉了（构建脚本、CI 归档校验、audit_data 三处同步删的）。
+      ⚠️ 本注释刻意**不写出占位符的字面量**：这份模板会被原样渲染进线上页面，
+        而「页面里出现一个双下划线包起来的记号」正是占位符漏替换的症状 ——
+        构建与 CI 都按字面量扫全页，写在这里会逼人放宽那条判据。
+      构建脚本里的 CITY_ORDER / CITY_EXTRA 常量**保留** —— 它们仍在数据侧
+      把地市码换算成中文名，CI 也照旧断言 cty 的取值域。 */
 let view=[],pg=0,sortK="on",sortD=-1;
 
 const $=s=>document.querySelector(s);
@@ -912,6 +904,10 @@ function bwDetail(d){
   return v+(mb?' · <span class="bwtg">'+mb+'M</span>':"")+sp
     +'（官方原文：'+(esc(raw)||"空")+"）";
 }
+/* 条目的地市归属（中文名数组）——**只读**，不做任何换算，也**不再参与筛选**
+   （下拉已下线，见 SC_LB 上方的注释）。仍是「单一来源」的锚点：
+   audit_data.py 会断言这一行原样存在，防的正是「页面自己又整出一份地市判据副本」。
+   仅用于详情行的「地域」、单条摘要与 CSV 的「城市」列。 */
 function cityTags(d){return d.cty||[]}
 function bwCell(d){
   const i=bwInfo(d);
@@ -1015,7 +1011,7 @@ function sortView(){
 }
 
 /* 维度的显示前缀。空串＝这个维度的选项文本本身就能读懂（如「本次变更」）。 */
-const DIM_PRE={sb:"资费范围：",sc:"地域：",ow:"归属：",cat:"类型：",ty:"细分：",ct:"城市：",pf:"月费：",
+const DIM_PRE={sb:"资费范围：",sc:"地域：",ow:"归属：",cat:"类型：",ty:"细分：",pf:"月费：",
                gf:"流量：",cf:"通话：",bw:"宽带：",chx:"渠道：",on:"上架：",off:"下线：",chg:""};
 /* 资费范围的**显示名**：数据值说的是「这一条从哪个目录来」（tariffAttr 1/2 =
    全国跨省目录 / 本省目录），官方页面给用户看的词是「全网资费 / 河北资费」。
@@ -1079,7 +1075,7 @@ function syncAxis(){
      与 readHash「认不出来就当没传」同一原则：**无效筛选 = 不筛**。 */
 /* 某一维在本网是否存在（= 控件没被藏起来）。
    ★ 同时看控件本身与它的外层容器（id 约定：容器 = "w" + 控件 id：
-     #wsb 是「资费范围」整行、#wow 是「资费归属」整行、#wct 是地市那一格）。
+     #wsb 是「资费范围」整行、#wow 是「资费归属」整行）。
      只藏一层的话，另一层的判据会把隐藏的维度当真 ⇒ 拿一个本网没有的取值去筛。
    ★ 资费范围 / 资费归属两个 select 是**视觉隐藏**（.axsel）而不是 display:none ——
      它们由主轴页签代劳，但判据必须仍认为「这一维在本网存在」，否则用户在页签上
@@ -1091,10 +1087,7 @@ function dimVisible(k){
 }
 function condOf(){
   const dm={};
-  ["sb","ow","ct"].forEach(k=>{dm[k]=!dimVisible(k)});
-  const ct=$("#ct"),ctOpt=ct&&ct.selectedOptions?ct.selectedOptions[0]:null;
-  /* 已下架页签下地市维度整体失效（理由见 apply() 里那段注释）。 */
-  dm.ct=dm.ct||!!(ctOpt&&ctOpt.disabled)||STA==="1";
+  ["sb","ow"].forEach(k=>{dm[k]=!dimVisible(k)});
   const g=k=>{const e=document.getElementById(k);return e?e.value:""};
   /* 区间值在这里一次性解析（["0,5" → [0,5]]），match() 里直接用数组 ——
      否则每行每轮都重复 split/map。rg 值三种形态：null=不筛 / "none"=无该项 /
@@ -1102,7 +1095,7 @@ function condOf(){
   const rg=k=>{const v=g(k);if(!v)return null;if(v==="none")return"none";
     const p=v.split(",").map(Number);return[p[0],p[1]]};
   return {kw:$("#kw").value.trim().toLowerCase(),
-          sb:g("sb"),sc:g("sc"),ow:g("ow"),cat:g("cat"),ty:g("ty"),ct:g("ct"),
+          sb:g("sb"),sc:g("sc"),ow:g("ow"),cat:g("cat"),ty:g("ty"),
           pf:rg("pf"),gf:rg("gf"),cf:rg("cf"),bw:g("bw"),chx:g("chx"),
           on:g("on"),offv:g("off"),chg:g("chg"),sta:STA,dimOff:dm};
 }
@@ -1477,14 +1470,15 @@ function render(){
 /* —— 唯一的一条筛选判据 ——
    apply() 用它筛结果，syncDims() 用它算「每个档位几条」。
    ★ 只有一份：任何「改了筛选却没改条数」的自相矛盾都不可能出现。
-   ★ 三条保险丝（地市 / 归属 / 板块）都走 dimOff：本网没有这一维 ⇒ 不筛，
-     而不是拿一个不存在的取值去筛出「0 条」这种看着正常的假答案。 */
+   ★ 两条保险丝（归属 / 板块）都走 dimOff：本网没有这一维 ⇒ 不筛，
+     而不是拿一个不存在的取值去筛出「0 条」这种看着正常的假答案。
+     （地市那一维 2026-10-03 起整个下线，不再是判据的一部分。） */
 function match(d,c){
   const kw=c.kw,scv=c.sc,owv=c.ow,sbv=c.sb,cat=c.cat,
-        ty=c.ty,ct=c.ct,pf=c.pf,gf=c.gf,
+        ty=c.ty,pf=c.pf,gf=c.gf,
         cf=c.cf,bw=c.bw,chx=c.chx,
         on=c.on,off=c.offv,chg=c.chg;
-  const ctDimOff=c.dimOff.ct,owDimOff=c.dimOff.ow,sbDimOff=c.dimOff.sb;
+  const owDimOff=c.dimOff.ow,sbDimOff=c.dimOff.sb;
 
     /* 「在售 / 已下架」页签先判 —— 它是这一页的**前提**，不是并列条件。
        d.st 为 1 表示已下架（由采集侧按各网判据写好，见 tariff_monitor.state_of）；
@@ -1492,8 +1486,8 @@ function match(d,c){
     if(STA!==""&&(d.st?1:0)!==+STA)return false;
     /* 地域：d.sc 是构建期按**原始地域字段**算出的（hb 河北 / cn 全国），
        不是从名称文本猜的 —— 猜地名会让「名称没写地市」的条目全部漏判。
-       注意：与「城市」那个下拉是**两件事** —— 前者是省级口径（河北 vs 全国），
-       后者是条目级地市（d.cty 地市码），只在移动/电信存在。 */
+       注意：这是**省级**口径（河北 vs 全国），与条目的地市归属（d.cty）无关；
+       后者自 2026-10-03 起只作展示，不参与筛选。 */
     if(scv&&d.sc!==scv)return false;
     /* 「本次变更」= 本次巡检**新增** 或 **关键字段有变更**的条目。
        下线/下架的条目不在这里 —— 它们已经不在本网数据里了。
@@ -1504,7 +1498,7 @@ function match(d,c){
        在 UI 上已经被置灰（见 syncDims），用户根本选不出
        「大类＝加装包 ＋ 细分＝5G套餐」这种必然为空的自相矛盾组合。 */
     /* 归属（个人 / 政企）：只有移动的条目带 d.ow。
-       owDimOff 是保险丝，与地市同一条原则 —— UI 上点不到隐藏项，但脚本 /
+       owDimOff 是保险丝 —— UI 上点不到隐藏项，但脚本 /
        深链仍可能把它设进来（实测可行），那时按它筛会给出「政企 0 条」这类
        看着正常、实则拿不存在的维度筛出来的假答案。无效筛选 = 不筛。 */
     if(owv&&!owDimOff&&d.ow!==owv)return false;
@@ -1514,23 +1508,6 @@ function match(d,c){
     if(sbv&&!sbDimOff&&d.sect!==sbv)return false;
     if(cat&&d.cat!==cat)return false;
     if(ty&&d.ty!==ty)return false;
-    /* 保险丝：当前取值若是「本网已置灰的维度」，当没筛。
-       UI 上点不到置灰项，但脚本 / 程序化赋值仍可能把它设进来（实测可行）——
-       那时按它筛会输出「邢台 0 条」这类看着正常、实则拿不存在的维度筛出来的
-       假答案。口径与 readHash 的「认不出来就当没传」一致：**无效筛选 = 不筛**。 */
-    if(ct&&!ctDimOff){
-      const tg=cityTags(d);
-      /* 「仅全省通用」= 构建期标了 pw 的那批（不限地市）。 */
-      if(ct==="_none"){if(!d.pw)return false}
-      /* ★★ 选某个市 = 「不限地市」的那批 **＋** 该市专属。
-         旧口径是「只留 cty 里含该市的」，那回答的不是「邢台能办什么」，而是
-         「哪些资费的上游目录里恰好写了邢台」。后果实测过：用户按邢台筛看到 9 条、
-         全是停售 ⇒ 「邢台在售一条都没有」，而邢台实际能办的 4820 条全在
-         「不限地市」那批里被这一句排除掉了（2026-09-24 用户报障，见
-         docs/联通河北资费-地市口径与已下架归属-20260924.md）。
-         已下架条目既无 cty 也无 pw ⇒ 任何具体地市档都筛不出它们（刻意的）。 */
-      else if(!(d.pw||tg.indexOf(ct)>=0))return false;
-    }
     if(pf){
       const f=num(d.f);
       if(f==null||f<pf[0]||f>pf[1])return false;
@@ -1618,19 +1595,7 @@ function apply(){
   if(!online(NET)){view=[];renderEmptyState();syncHash();return}
   renderEmptyState();
   /* 条件一次读成对象（见 condOf 上的注释）：判据与「档位条数」共用同一份 ——
-     apply() 里不再把各维度解成局部变量，省掉「改了筛选没改条数」的可能。
-     ★ 必须在「已下架 ⇒ 清掉地市值」**之后**读 —— 否则读进来的是一个不该生效的值。 */
-  /* ★★ 「已下架」页签下，地市维度**整体失效** —— 已下架条目没有地市归属
-     （上游「停售目录」是各城各自的遗留清单，同一条资费被哪些城市收录是任意的，
-     构建期因此刻意不给它们写 cty，见 tariff_monitor.rows_of 那段注释）。
-     不处理的话，用户在这一页选「邢台」会得到 0 条 —— 一个看着正常、实则是
-     「拿一个对该批数据不存在的维度去筛」的假答案（会被读成「邢台没有下架资费」）。
-     口径与其它保险丝一致：**无效筛选 = 不筛**（已写进 c.dimOff.ct，由 match 统一判）。
-     顺便把已选的地市值**清掉** —— 留着它会让筛选标签写着「城市：邢台」而结果
-     却是全部，控件 / 标签 / 结果三者对不上。代价是切回「在售」要重选一次，
-     比给一个假的状态划算。禁用态由 syncCtAvail 统一维护（唯一写处）。 */
-  if(STA==="1"){const e=$("#ct");if(e&&e.value)e.value=""}
-  syncCtAvail($("#ct").style.display==="none",STA==="1");
+     apply() 里不再把各维度解成局部变量，省掉「改了筛选没改条数」的可能。 */
   const c=condOf();
   view=rowsOf(NET).filter(d=>match(d,c));
   sortView();
@@ -1652,7 +1617,7 @@ function markHead(){
    把 STA 反映到 UI，并带上级内条数（不带条数就看不出这一页有多少东西）。
    ★ 不给「本网根本拿不到」的维度提供入口：移动那网的明细接口恒返回 0 条下架数据，
      若照旧让「已下架」可点，用户点进去看到 0 条会以为「河北移动没有下架资费」——
-     那是拿一个取不到的维度在问，答案没有意义。与 renderDims 对地市维度的处理一致：
+     那是拿一个取不到的维度在问，答案没有意义。与 renderDims 对「地域」置灰的处理一致：
      置灰 + 写明原因，而不是给一个能点却答非所问的按钮。 */
 const ST_LB={"0":"在售","1":"已下架","":"全部"};
 function syncTabs(){
@@ -1710,8 +1675,9 @@ function readHash(){
     const v=p.get(k),sel=$("#"+k);
     if(!sel)return;
     /* ★ 还得看这个取值在本网「存不存在」—— 见 renderDims()：
-       某网若没有这个维度，对应控件会被**隐藏**（地市）或 option 被置灰（地域）。
-       不查的话，地址栏里带着别网的地市值进来（#net=unicom&ct=邢台）会被照单全收，
+       某网若没有这个维度，对应控件会被**隐藏**（归属：只有移动的官方接口带这个字段）
+       或 option 被置灰（地域：本网取不到的那一档）。
+       不查的话，地址栏里带着别网的取值进来（#net=cbn&ow=政企）会被照单全收，
        筛选随即恒为空 —— 而链接看起来完全正常、不报任何错。 */
     if(v!=null&&sel.style.display!=="none"
        &&[...sel.options].some(o=>o.value===v&&!o.disabled))sel.value=v;
@@ -1809,21 +1775,15 @@ function renderNet(){
   $("#navStop").textContent=has?String(nStop):"—";
   $("#navChg").textContent=has?String(nChg):"—";
   $("#updTxt").textContent=has?("更新于 "+(n.base||"—")):"本网数据尚未接入";
-  /* 分档条数写进副标题：只报一个总数看不出「邢台有几条 / 全国有几条」，
-     而「邢台没有的自动取河北/全国」这个口径正需要这三档的规模才读得懂。 */
+  /* 分档条数写进副标题：只报一个总数看不出「河北有几条 / 全国有几条」，
+     而地域筛选正需要这两档的规模才读得懂。
+     2026-10-03 起不再附报「地市专属 / 不限地市」—— 地市已不作筛选维度，
+     在副标题里报一份用不上的分布只会让人去找那个已经不存在的地市下拉。 */
   let scTxt="";
   if(has){
     const cnt={};rs.forEach(d=>{cnt[d.sc]=(cnt[d.sc]||0)+1});
     scTxt=["hb","cn"].filter(k=>cnt[k])
           .map(k=>SC_LB[k]+" "+cnt[k]).join(" · ");
-    /* 地市维度只在**真有**数据的网上报数（广电的 #ct 是隐藏的，不报）。
-       判据 = 有没有条目带 d.cty，与 renderDims 出不出这一层**同一判据** ——
-       两处口径要是不一样，就会出现「副标题说地市专属 0 条、下拉却能选」这种自相矛盾。
-       ★ 只数**在售**（已下架条目没有地市归属，见 apply 里 ctStop 的注释），
-         并把「不限地市」一起报出来 —— 只报「专属 N」会让人以为剩下的都没地市信息。 */
-    const cty=rs.filter(d=>!d.st&&(d.cty||[]).length).length;
-    const pwn=rs.filter(d=>!d.st&&d.pw).length;
-    if(cty||pwn)scTxt+=(scTxt?" · ":"")+"地市专属 "+cty+" · 不限地市 "+pwn;
   }
   $("#sub").innerHTML=has
     ?"来源："+esc(n.src||"—")+" · 数据基线 "+esc(n.base||"—")+" · 共 "+rs.length+" 条"
@@ -1832,7 +1792,7 @@ function renderNet(){
   /* —— 类型两级：先建大类，再建细分 ——
      · 大类按 CAT_ORDER 的**固定顺序**生成（不是按条数或拼音）：顺序稳定，
        逐日看的时候才知道「今天冒出来的是哪一类」。
-     · 本网没有的大类不给入口 —— 与地市维度「本网没有就不出这一层」同一条原则。
+     · 本网没有的大类不给入口 —— 与「地域」本网没有的那一档就置灰同一条原则。
      · 细分项把所属大类记在 data-cat 上，供 syncDims() 做联动置灰。
        顺便把**条数**写进选项文本：用户问的就是「有哪些套餐、加装包」，
        先看到规模再决定要不要展开；筛选标签里会把「（数字）」削掉（见 optText）。 */
@@ -1884,127 +1844,27 @@ function renderNet(){
   });
   syncTabs();
   renderDims();
-  /* 切网会增删「归属」「地市」两个下拉（移动有、联通/广电没有），筛选栏因此
-     高低不同 —— 常驻偏移必须跟着重量，否则表头会钉在错的位置、或者被筛选栏盖住。
-     放在 renderDims() **之后**：此刻 #ow / #ct 的显隐已经定下来了。 */
+  /* 切网会增删「归属」下拉（只有移动的官方接口带这个字段），筛选栏因此高低不同
+     —— 常驻偏移必须跟着重量，否则表头会钉在错的位置、或者被筛选栏盖住。
+     放在 renderDims() **之后**：此刻 #ow 的显隐已经定下来了。 */
   fixBarh();
   /* 总览与本页共用同一份行数据，切网时它也得跟着刷 —— 放在这里而不是
      只在「切到总览页签」时算，是为了让两个页签的数字**永远同源**。 */
   renderOverview();
 }
 
-/* —— 地市下拉的选项：按注入的地市清单重建 ——
-   单一来源 = 构建脚本的 CITY_ORDER / CITY_EXTRA（由 __CITY_ORDER__ / __CITY_EXTRA__
-   注入）。这里**不写死**那份清单：写死就多一份副本，而副本漂了的表现是
-   「某个地市在下拉里选不到」—— 数据里明明有，页面上没有任何提示。
-   ★ 只删第 3 项起的（前两项「全部城市 / 仅全省通用（不限地市）」是固定的），
-     这样万一注入清单为空或构建脚本崩在半路，下拉至少还剩下「不筛」与
-     「仅全省通用」两个可用档。 */
-function buildCtOptions(counts){
-  const ct=$("#ct");if(!ct)return;
-  const keep=ct.value;
-  while(ct.options.length>2)ct.remove(2);
-  const c=counts||{};
-  const mk=(label,names)=>{
-    if(!names||!names.length)return;
-    const g=document.createElement("optgroup");g.label=label;
-    names.forEach(n=>{
-      const o=document.createElement("option");
-      /* 值 = 文本 = 中文名。刻意不用「值码 + 文本名」：那样每处比对都要记得用哪一边，
-         而 readHash / apply / syncHash 三处各写一遍时，漏一处就是不报错的静默失效。
-         条数写进文本、**不写进 value** —— 与其他维度的下拉同构（optText 会削掉「（数字）」）。 */
-      o.value=n;o.textContent=n+"（"+(c[n]||0)+"）";
-      g.appendChild(o);
-    });
-    ct.appendChild(g);
-  };
-  mk("地市",CITY_ORDER);mk("专属区域",CITY_EXTRA);
-  const ok=[...ct.options].some(o=>o.value===keep);
-  ct.value=ok?keep:"";
-}
-
-/* —— 地市控件的「可用状态 + 提示文案」：**唯一写处** ——
-   ★ 由 apply() 每轮调用，而不是只挂在「切网 / 切页签」的回调上：
-     程序化设值不触发 onchange（深链 #st=1 就是程序化设的），只挂回调的话
-     状态一变这两处就静默不同步 —— 控件看着能点、点了却按没筛处理。
-   禁用的三种原因互斥，取「谁的语义更靠前」的那一条：
-     · dimOff：本网上游没有条目级地市 ⇒ 整层隐藏（构建期一条 cty 都没有）；
-     · stop  ：「已下架」页签 ⇒ 已下架条目没有地市归属（见 apply() 里的注释）；
-     · 都不成立 ⇒ 可用。 */
-const CT_TIP_ON="地市：选某个市 = 「不限地市」的那批 + 该市专属；"
-  +"只想看全省通用的，选「仅全省通用」。";
-const CT_TIP_STOP="已下架条目不参与地市归属，本页签下该维度不可用。";
-const CT_TIP_OFF="本网官方没有地市维度，该维度不提供";
-function syncCtAvail(dimOff,stop){
-  const ct=$("#ct");if(!ct)return;
-  const off=!!(dimOff||stop);
-  ct.disabled=off;
-  const t=off?(dimOff?CT_TIP_OFF:CT_TIP_STOP):CT_TIP_ON;
-  ct.title=t;
-  const w=document.getElementById("wct");
-  if(w){
-    w.title=t;
-    w.classList.toggle("off",off);
-  }
-}
+/* —— 地市维度已于 2026-10-03 整体下线 ——
+   原先这里有三块：buildCtOptions()（按注入清单建下拉）、syncCtAvail()（可用状态与
+   提示文案）、以及 renderDims() 里那一段「建选项 + 置灰 + 显隐」。
+   整块删掉的理由不是「功能没用」，而是**它维护的成本落在了判据上**：
+   地市口径改过两次（2026-09-24 的「不限地市 + 该市专属」），每次都要同步
+   match() / 建选项 / 置灰 / 副标题 / 分布图 五处，任一处漏掉就出现
+   「选项写着 0 条却点得动」这类自相矛盾。
+   数据侧一个字没动：d.cty / d.pw 照旧写在行数据里，CI 也照旧断言它们的完备性，
+   所以哪天要恢复，只需把这一段与两个占位符加回来。 */
 
 function renderDims(){
-  const rs=rowsOf(NET),ct=$("#ct");
-  /* 判据 = 「有没有任一条目带地市」。与「归属」维度同一条原则：用数据，不硬编码哪网有。 */
-  const hasCty=rs.some(d=>(d.cty||[]).length);
-  if(ct){
-    /* 条数在这里一次算清，供「建选项」与「置灰」两处共用 ——
-       分两遍算的话，两处的口径哪天不一致，就会出现「选项写着 5 条却点不动」。 */
-    const cc={};let noneN=0;
-    if(hasCty){
-      rs.forEach(d=>{
-        /* ★ 只算**在售**：已下架条目没有地市归属（见 apply() 里 ctStop 那段注释）。
-           把它们算进来，选项上的条数就与「按它筛出来的」对不上（写着 57、点进去 17）；
-           而「建选项」与「置灰」两处用的若不是同一口径，还会冒出
-           「写着 0 条却没置灰」这种自相矛盾（本文件的既有判据之一）。 */
-        if(d.st)return;
-        if(d.pw){noneN++;return}     // 不限地市（构建期标的 pw）
-        cityTags(d).forEach(c=>{cc[c]=(cc[c]||0)+1});
-      });
-      /* ★★ 口径必须与 apply() 逐字一致：选某个市看到的是「不限地市 + 该市专属」，
-         选项上的条数就按这个写。否则「邢台（0）」会把用户直接挡在门外，
-         而点进去其实有一大批 —— 正是用户报的那个错觉（2026-09-24）。
-         🔴 必须遍历**全部城市档**再累加，不能只遍历 cc 里已有的键：
-            某个市在售专属恰好为 0（如联通那网的部分市）⇒ cc 里根本没有这个键
-            ⇒ 下面的置灰判据 `!cc[o.value]` 会把它当一个 0 条的档置灰，
-            而它其实能筛出整批「不限地市」的资费 —— 用户点不到一个**能办事**的档。 */
-      CITY_ORDER.concat(CITY_EXTRA).forEach(c=>{cc[c]=(cc[c]||0)+noneN});
-    }
-    buildCtOptions(cc);
-    /* 整格一起收（含「地市」标签）—— 只藏 select 会剩一个悬空的字。
-       ★ select 本身也要置 none：readHash / condOf / clearDims 以「控件是否隐藏」
-         判「这一维存不存在」，只藏外层标签它们会把隐藏的维度当真。 */
-    ct.style.display=hasCty?"":"none";
-    const wct=$("#wct");if(wct)wct.style.display=hasCty?"":"none";
-    /* 禁用态与提示文案交给 syncCtAvail（**唯一写处**，apply() 每轮也会调它）——
-       这里只把「本网有没有这个维度」这条事实落进 DOM。 */
-    syncCtAvail(!hasCty,STA==="1");
-    if(!hasCty)
-      ct.value="";   // 切网时把从别网带过来的地市值清掉，否则筛选恒空、控件与结果对不上
-    /* 与 #sc 同一条原则，本网**取不到**的档就置灰 ——
-       不置灰的话，用户选了拿到 0 条只会以为筛选坏了，而真相是
-       「这个取值在本网确实不存在」（正是 #sc 置灰要传达的同一件事）。
-       ⚠️ 判据用**实际条数**而不是硬编码哪个区域没数据：上游哪天补了，这里自动放开。
-       ★ 口径变化（2026-09-24）：城市档的条数已改成「不限地市 + 该市专属」（见上），
-         所以只要本网有「不限地市」的条目，就没有任何城市档会是 0 条 ——
-         这正确地反映了新语义（那个市确实能办这一批）。会被置灰的只剩两种情况：
-         本网在售条目**全部**限定了地市（noneN=0），或该市在售专属与不限地市都为空。 */
-    if(hasCty){
-      [...ct.querySelectorAll("option")].forEach(o=>{
-        if(!o.value){o.disabled=false;return}      // 「全部城市」恒可用
-        if(o.value==="_none"){o.disabled=noneN===0;return}
-        o.disabled=!cc[o.value];                   // 值 = 中文名（见 buildCtOptions）
-      });
-      // 选中项若被置灰（切网 / 上游数据变了），清掉 —— 否则控件显示一个筛不出东西的值
-      const csel=ct.selectedOptions[0];
-      if(csel&&csel.disabled)ct.value="";
-    }
-  }
+  const rs=rowsOf(NET);
   /* —— 地域（#sc）：本网没有的那一档不给选 ——
      判据用**实际条数**而不是硬编码哪网有哪档：上游哪天补了数据，这里自动放开。 */
   const sc=$("#sc");
@@ -2015,7 +1875,7 @@ function renderDims(){
     });
     const cs=sc.selectedOptions[0];
     if(cs&&cs.disabled)sc.value="";
-    sc.title="地域范围：河北省（含各地市专属与全省通用）/ 全国（本网没有的那一档会置灰）";
+    sc.title="地域范围：河北省 / 全国（本网没有的那一档会置灰）";
   }
   /* —— 板块（#sb：全国资费 / 本省资费）——
      判据 = 本网真有**两档以上**才给入口（构建期按同一判据决定是否落盘 d.sect，
@@ -2279,7 +2139,7 @@ function renderOverview(){
   if(!has){
     $("#ovStats").innerHTML='<div class="stat k"><div class="si">⏳</div>'
       +'<div class="sn">—</div><div class="sl">本网数据尚未接入</div></div>';
-    ["ovCat","ovSc","ovOw","ovCity","ovFee","ovAge"].forEach(k=>{
+    ["ovCat","ovSc","ovOw","ovFee","ovAge"].forEach(k=>{
       const e=document.getElementById(k);if(e)e.innerHTML="";
     });
     return;
@@ -2289,12 +2149,8 @@ function renderOverview(){
   const gq=rs.filter(d=>d.ow==="政企").length;
   const k=[];
   k.push(["🗂️","在架资费",live.length,"本网当前在售 + 未标下架的全部条目"]);
-  k.push(["📍","河北",live.filter(d=>d.sc==="hb").length,"适用地域为河北省（含各地市专属与全省通用）"]);
+  k.push(["📍","河北",live.filter(d=>d.sc==="hb").length,"适用地域为河北省"]);
   k.push(["🌐","全国",live.filter(d=>d.sc==="cn").length,"适用地域为全国"]);
-  const nCty=live.filter(d=>(d.cty||[]).length).length;
-  if(nCty)
-    k.push(["🏙️","地市专属",nCty,
-            "只适用某几个市（移动/电信按官方标注的地市归属，联通取 12 城资费目录的归属）"]);
   if(rs.some(d=>d.ow))k.push(["🏢","政企资费",gq,"官方标注为「政企」的条目（仅移动提供归属分类）"]);
   k.push(["📴","已下架",rs.filter(d=>d.st).length,"本网判据下已停售/下线的条目"]);
   k.push(["🔄","本次变更",rs.filter(d=>d.ca||d.ck).length,"本次巡检新增或关键字段有变动的条目"]);
@@ -2309,9 +2165,7 @@ function renderOverview(){
 
   /* ── 地域构成 ── */
   const sc={};rs.forEach(d=>{const k2=SC_LB[d.sc]||"未知";sc[k2]=(sc[k2]||0)+1});
-  $("#ovScNote").textContent=(live.some(d=>(d.cty||[]).length)
-    ? "河北含各地市专属与全省通用；另见下方地市分布"
-    : "本网官方只有「河北 / 全国」两档地域（无地市级数据）");
+  $("#ovScNote").textContent="本网官方只有「河北 / 全国」两档地域";
   ovBars($("#ovSc"),["河北","全国","未知"],sc);
 
   /* ── 个人 / 政企 ── */
@@ -2322,26 +2176,6 @@ function renderOverview(){
     ovBars($("#ovOw"),OW_ORDER,owc);
   }else{
     op.style.display="none";
-  }
-
-  /* ── 地市分布 ──
-     显隐判据与 #ct 下拉**同一个**（有没有条目带 d.cty）：两处要是不同源，就会出现
-     「面板画着地市分布、下拉却不见了」或者反过来的自相矛盾画面。 */
-  const cp=$("#ovCityPanel");
-  if(!live.some(d=>(d.cty||[]).length)){
-    cp.style.display="none";
-  }else{
-    cp.style.display="";
-    const cm={},order=CITY_ORDER.concat(CITY_EXTRA);
-    /* 值就是中文名（构建期归一过），不用再查码表 —— 查表那一步正是「两张码表」的来源。
-       ★ 与 #ct 下拉同口径：已下架条目**没有**地市归属（上游停售目录的收录范围不固定，
-         构建期刻意不写 cty），这里也不能把它们算进来，否则分布图与下拉两处对不上。 */
-    rs.forEach(d=>{if(d.st)return;(d.cty||[]).forEach(c=>{if(order.indexOf(c)>=0)cm[c]=(cm[c]||0)+1})});
-    const hit=rs.filter(d=>!d.st&&(d.cty||[]).length).length;
-    const pwn=rs.filter(d=>!d.st&&d.pw).length;
-    $("#ovCityNote").textContent="地市专属命中 "+hit+" 条（一条可属多市，故合计可大于命中数）"
-      +"；另有不限地市（全省通用）"+pwn+" 条在任意地市档下都会计入。已下架条目不参与地市归属。";
-    ovBars($("#ovCity"),order,cm);
   }
 
   /* ── 月费档位 ── */
@@ -2661,8 +2495,9 @@ $("#chips").addEventListener("click",e=>{
     （2026-09-25 修复的架构：吸顶层过高会把可见区压没）。
    ★ 量高度用 offsetHeight 而不是 getBoundingClientRect().height：元素一旦处于
      sticky 状态，rect 会带上偏移量；offset* 是布局尺寸，永远是自然高度。
-   ★ 数字不写死：筛选栏高度随网变化（联通/广电没有「归属」「地市」两个下拉，
-     矮一截），也随窗口宽度换行数变化，所以 resize / 切网 / 切页签都要重量。 */
+   ★ 数字不写死：筛选栏高度随网变化（只有移动的官方接口带「归属」字段，
+     没有这一维的网筛选栏矮一截），也随窗口宽度换行数变化，所以 resize / 切网 /
+     切页签都要重量。 */
 function fixBarh(){
   const vt=document.getElementById("vtab");
   const vh=vt?vt.offsetHeight:0;

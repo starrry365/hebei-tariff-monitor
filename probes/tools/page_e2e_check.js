@@ -7,30 +7,28 @@
  *
  * 断言四网各自的关键 UI 行为：
  *   · 地域筛选 #sc 的档位与置灰（只有一档地域的网，另一档必须置灰）
- *   · 地市筛选 #ct 的**显隐**（本网一条地市归属都没有的必须隐藏，而不是置灰）
- *     —— 判据是**数据**（有没有 d.cty），不是任何「本网不分城市」的声明：联通那网
- *        声明过 allProvince 而它与事实相反，地市维度因此被整层藏掉，无人察觉。
- *   · 地市筛选**真的筛对了**：每个可点地市档的条数必须与数据**精确相符**，
- *     口径 = 「不限地市(pw) ＋ 该市专属(cty)」，样本取**当前页签下真有条目**的那个。
- *     🔴 判据**不是**「结果必须收窄」—— 本网常常绝大部分都是不限地市，选一个市
- *        不收窄是正确行为，旧判据会把正确结果判成失败（2026-09-24 改口径时更正）。
- *   · 幽灵塞值：隐藏维度手工塞值必须**不生效**（否则等于拿不存在的维度筛）
- *   · 已下架页签的可用性与条数；且该页签下**地市维度必须整体禁用**、
- *     塞进去的地市值也不得生效（已下架条目没有地市归属）
+ *   · ★ 地市维度**必须已整体下线**：`#ct` 与 `#ovCityPanel` 都不许存在、
+ *     生效筛选标签里不许出现「城市：」，且往工作表塞一个 ct 值也不得改变结果。
+ *     —— 2026-10-03 用户要求去掉「地市分布」面板与「地市」下拉。这条断言是
+ *        **反向**的（原先验的是「有地市数据就该显示下拉、且筛得准」）：
+ *        防止哪天有人「顺手恢复一下」只恢复一半（比如把面板加回来却没了判据），
+ *        或者深链 `#ct=石家庄` 留下一个筛不动却显示着的幽灵条件。
+ *        数据侧的 d.cty / d.pw 仍在（CI 照旧断言），所以这不是「数据没了」。
+ *   · 幽灵塞值：不存在的维度手工塞值必须**不生效**（否则等于拿不存在的维度筛）
+ *   · 已下架页签的可用性与条数
  *   · 类型**两级**：#cat 大类的顺序与条数（必须与数据逐条对齐）、
  *     以及大类 → 细分的**联动置灰**（否则能选出「加装包 + 5G套餐」这种不存在的组合）
  *   · 渠道 #chx、流量 #gf、通话 #cf 三档筛选真的生效
  *   · 生效筛选被渲染成**可点掉的标签**，且点 × 真的摘掉那一个条件
  *
  * 🔴 每次测量前**必须自己重置全部筛选维度**（resetAll）：
- *   页面在多次 eval 之间**保留状态**（我把 #ct 留成 _none，下一次 eval 的 view 就是 3401 而不是 3887）。
- *   不重置的话，同一份脚本「刷新后跑」和「连跑两次」结果不同 —— 自动化检查最忌讳这个。
- *   实测踩过：连跑时 move 的「石家庄」被算成 0 条，误判成地市筛选坏了；重载后即 141 条。
+ *   页面在多次 eval 之间**保留状态**（上一次把某个维度留成非空，下一次 eval 的
+ *   view 就不是全量了）。不重置的话，同一份脚本「刷新后跑」和「连跑两次」结果
+ *   不同 —— 自动化检查最忌讳这个。
  *
  * 返回：JSON 字符串（直接给 python 解析），不抛异常 —— 断言失败只体现在 ok=false。
  */
 (function () {
-  function num(x) { return (x || []).length; }
   function txt(el) { return String((el && el.textContent) || ""); }
   function opts(sel) { return [].slice.call($(sel).options); }
 
@@ -46,7 +44,7 @@
       }
     } catch (e) { ids = null; }
     if (!ids) {
-      ids = ["#kw", "#sc", "#cat", "#ty", "#ct", "#pf", "#gf", "#cf",
+      ids = ["#kw", "#sc", "#cat", "#ty", "#pf", "#gf", "#cf",
              "#bw", "#chx", "#on", "#off", "#chg"];
     }
     for (var i = 0; i < ids.length; i++) {
@@ -92,103 +90,62 @@
     o.scChoosable = o.scOptions.filter(function (x) { return !x.disabled; })
                                .map(function (x) { return x.v; });
 
-    var ct = $("#ct");
-    o.ctVisible = getComputedStyle(ct).display !== "none";
-    o.ctOptionCount = ct.options.length;
-    o.ctValues = opts("#ct").map(function (x) { return x.value; });
-    o.ctChoosable = opts("#ct").filter(function (x) {
-      return !x.disabled && x.value && x.value !== "_none";
-    }).map(function (x) { return x.value; });
-    /* 选项文本带条数（「石家庄（19）」）—— 顺带把「有值但条数写 0」这种自相矛盾捞出来：
-       它说明建选项时用的口径与置灰时用的口径不是同一个。 */
-    o.ctZeroText = opts("#ct").filter(function (x) {
-      return !x.disabled && /（0）$/.test(String(x.textContent || ""));
-    }).map(function (x) { return x.value; });
-
     var rs = rowsOf(NET);
     o.rows = rs.length;
-    o.ctyRows = rs.filter(function (d) { return num(d.cty); }).length;
+    o.ctyRows = rs.filter(function (d) { return (d.cty || []).length; }).length;
+    o.pwRows = rs.filter(function (d) { return !!d.pw; }).length;
 
     o.tabs = [].slice.call(document.querySelectorAll("#tabs button")).map(function (b) {
       return { t: b.textContent, disabled: !!b.disabled };
     });
 
-    // 幽灵塞值：维度隐藏时手工塞一个地市值，view 必须**不受影响**
-    if (!o.ctVisible) {
-      var before = view.length;
-      $("#ct").value = "邢台";
-      if ($("#kw")) { $("#kw").value = ""; }
-      try { clearChips(); } catch (e) {}
-      try { apply(); } catch (e) {}
-      o.ghostCityFilterRows = view.length;
-      o.ghostUnaffected = (view.length === before);
-      resetAll();
-    }
-
-    // 地市筛选真实生效性（仅 ctVisible 时）
-    // 🔴 必须挑一个**非空、且没被置灰**的地市值：
-    //    · 选项 0 是「全部城市」('')、选项 1 是 _none —— 拿它们测等于没测（都是「不筛」）；
-    //    · 置灰的档在 apply() 里有保险丝（当没筛）⇒ 拿它测会得到「未收窄」的假失败，
-    //      而那不是筛选坏了，是本网真的没有这个地市（实测踩过：差点误判成地市筛选失效）。
-    // 🔴🔴 但「可点」还不够 —— 样本必须**在当前页签下真有条目**（本页签默认是「在售」）。
-    //    联通整批地市全是已下架（石家庄 19 / 邢台 9 / 承德 7 在「在售」下恒为 0），
-    //    而它们的下拉档按**全量**建、不算置灰 ⇒ 拿第一个可点档当样本会得到
-    //    「地市 石家庄 筛出 0 条」的**假失败**，看着像地市筛选坏了（2026-09-24 实测踩到）。
-    //    ⇒ 逐个试，取第一个筛出 > 0 的；一个都没有才判失败（那才是真筛不动）。
-    /* 🔴🔴 与数据的对账口径（2026-09-24 改）：**不再用「结果必须收窄」当判据**。
-       口径已改成「选某个市 = 不限地市 ＋ 该市专属」，而本网常常绝大部分都是不限地市
-       （联通在售 4820 条里 4775 条不限地市）⇒ 选一个市**完全可以不收窄**，
-       「未收窄」不再是失效的证据，反而是正确行为。旧判据会把正确结果判成失败。
-       现在改成与数据**精确对账**：页面条数 == 数据里「pw 或 cty 含该市」的条数。
-       这比「收窄了」强得多 —— 收窄只证明筛掉了点东西，证明不了筛对了。 */
-    if (o.ctVisible && o.ctValues.length) {
-      var real = o.ctChoosable;
-      if (real.length) {
-        var picked = null, tried = [], badCity = [];
-        for (var ci = 0; ci < real.length; ci++) {
-          $("#ct").value = real[ci];
-          try { clearChips(); } catch (e) {}
-          try { apply(); } catch (e) {}
-          var cw = wantBy(function (d) {
-            return !!d.pw || (d.cty || []).indexOf(real[ci]) >= 0;
-          });
-          var rec = { city: real[ci], rows: view.length, want: cw };
-          tried.push(rec);
-          if (rec.rows !== rec.want) { badCity.push(rec); }
-          if (view.length > 0 && !picked) { picked = rec; }
-        }
-        o.cityFilterTried = tried;
-        o.cityFilterBad = badCity;
-        o.cityFilterSample = picked || (tried.length
-          ? { error: "所有可选地市在本页签下都筛出 0 条（试了 " + tried.length + " 个）" }
-          : null);
-      } else {
-        o.cityFilterSample = { error: "没有可用的非空地市值" };
+    /* ══ 地市维度**必须已下线**（2026-10-03）══
+       三条互相独立的反向判据，缺一条就还能漏掉一种「恢复了一半」的形态：
+         ① 控件没了：#ct（下拉）与 #ovCityPanel（总览面板）都不该在 DOM 里；
+         ② 标签没了：生效筛选标签里不该出现「城市：」——
+            这是最容易漏的一处：match() 里删干净了，但 DIM_PRE 忘了删，
+            深链带个 ct 进来就会渲染出一个**筛不动却显示着**的筛选标签，
+            用户点 × 才消失，而且他会以为这个条件一直在生效；
+         ③ 幽灵值不生效：手工把 ct 塞进任何 select 或 location.hash 里，
+            结果条数必须**一字不变**（拿一个不存在的维度筛出来的假答案是静默的）。 */
+    o.ctEl = !!$("#ct");
+    o.ovCityEl = !!$("#ovCityPanel");
+    o.chipTextsNoCity = [].map.call(document.querySelectorAll("#stat .fchip"),
+                                    function (b) { return txt(b); })
+      .filter(function (t) { return t.indexOf("城市") >= 0 || t.indexOf("地市") >= 0; });
+    /* 幽灵值：走深链那条**最真实**的路径 —— 深链是唯一还会被人手写进来的入口。
+       🔴 必须把 ct 参数**追加**在现有 hash 后面，不能整个换掉：
+          换掉会连 net / st / s / d 一起丢掉，`readHash()` 随即把 STA 置成「全部」，
+          于是条数从「在售」跳到「全部」—— 那是**我这条测试自己造出来的**变化，
+          与 ct 毫无关系。实测踩过：unicom 报 8096 ≠ 4741、cbn 报 5 ≠ 212，
+          两条都是假的（前者正是「全量 vs 在售」，后者是被更早一次的坏 hash 连累）。
+          真正要问的只有一句：**多带一个 ct 参数，结果会不会变**。 */
+    (function () {
+      var h0 = location.hash || "#", before = view.length;
+      o.ghostRowsBefore = before;
+      o.ghostHashUsed = h0;
+      try {
+        var extra = "ct=%E7%9F%B3%E5%AE%B6%E5%BA%84";        // ct=石家庄
+        location.hash = h0 + (h0.length > 1 ? "&" : "") + extra;
+        if (typeof readHash === "function") { readHash(); }
+        if (typeof apply === "function") { apply(); }
+        o.ghostHashRows = view.length;
+        o.ghostUnaffected = (view.length === before);
+      } catch (e) {
+        o.ghostErr = String(e && e.message || e);
+      } finally {
+        try { location.hash = h0; readHash(); apply(); } catch (e) {}
       }
-      resetAll();
-    }
+    })();
 
-    /* ★★ 「已下架」页签下地市维度必须**整体禁用** —— 已下架条目没有地市归属
-       （上游「停售目录」是各城各自的遗留清单，同一条停售资费被哪些城市收录不固定，
-       构建期刻意不写 cty）。不禁用的话，用户选中某个市会得到 0 条，
-       而那会被读成「这个市没有下架资费」—— 真相是「这个维度对该批数据不存在」。
-       顺带记下：此刻按地市筛不该生效（无效筛选 = 不筛）。 */
+    /* ★★ 「已下架」页签的条数（地市那一层已下线，这里只剩页签自身的可用性）。
+       记录它是为了验证：本网有下架数据时该页签可点，且点进去条数与数据一致。 */
     if ((o.tabs || []).some(function (t) { return /已下架/.test(t.t) && !t.disabled; })) {
       try {
         STA = "1"; syncTabs();
-        if ($("#ct")) { $("#ct").value = ""; }
         try { clearChips(); } catch (e) {}
         apply();
         o.rowsOnStop = view.length;
-        var ctEl = $("#ct");
-        o.ctDisabledOnStop = !!(ctEl && ctEl.disabled);
-        /* 再塞一个具体地市值：禁用态下它必须**不生效**（否则又会给出 0 条的假答案） */
-        if (ctEl && o.ctChoosable.length) {
-          ctEl.value = o.ctChoosable[0];
-          try { clearChips(); } catch (e) {}
-          apply();
-          o.stopTabCityRows = view.length;
-        }
       } catch (e) { o.stopTabErr = String(e && e.message || e); }
       resetAll();
     }
@@ -286,17 +243,15 @@
     return o;
   }
 
-  /* 每网的期望。★ `city` 的判据是「本网数据里有没有条目级地市归属」，与页面同源。
-     🔴 unicom 从 false 改 true（2026-09-24）：此前它被归到「没有地市维度」是**错的** ——
-       那是「采集侧只采了邢台一城」造成的假阴性，而页面又信了数据源的 allProvince 声明，
-       于是整个维度被藏起来。现在联通按 12 城并集采集、逐条带回城市归属。
-       注意这条期望对**旧快照**会误报（老快照里没有城市字段，页面正确地隐藏了下拉）——
-       所以本地跑之前要保证页面是用 12 城并集数据重建的。 */
+  /* 每网的期望。`stopped` = 本网有没有下架数据（页签该不该可点）。
+     ⚠️ 2026-10-03：原先这里还有一个 `city` 期望（本网该不该出地市下拉）。
+        地市维度整块下线后它失去意义 —— 四个网的期望**一律**是「没有 #ct」，
+        所以那条断言从「按网给期望」变成了 check() 里的无条件断言（见下）。 */
   var EXPECT = {
-    move:    { city: true,  stopped: false },
-    telecom: { city: true,  stopped: false },
-    unicom:  { city: true,  stopped: true  },
-    cbn:     { city: false, stopped: true  }
+    move:    { stopped: false },
+    telecom: { stopped: false },
+    unicom:  { stopped: true  },
+    cbn:     { stopped: true  }
   };
 
   function check(o, exp) {
@@ -306,40 +261,23 @@
     if (!o.scOptions.length) { bad.push("无地域档位"); }
     else if (!o.scChoosable.length) { bad.push("地域两档都不可选"); }
 
-    // 期望：有地市归属 ⇒ #ct 显示 + 能筛；无 ⇒ 隐藏 + 塞值无效
-    if (exp.city && !o.ctVisible) { bad.push("期望有地市筛选，实际隐藏"); }
-    if (!exp.city && o.ctVisible) { bad.push("期望隐藏地市筛选，实际显示"); }
-    if (!exp.city && o.ghostUnaffected === false) { bad.push("幽灵地市值生效了(严重)"); }
-    if (exp.city) {
-      var s = o.cityFilterSample || {};
-      if (!s.city) { bad.push("地市筛选未取到非空样本（可点的地市档全是 0 条？）"); }
-      else if (!(s.rows > 0)) { bad.push("地市 " + s.city + " 筛出 0 条"); }
-      /* ★ 每个可点地市档都要与数据精确对上（口径 = 不限地市 ＋ 该市专属）。
-         ⚠️ 不能用「结果必须收窄」当判据：本网常常绝大部分都是不限地市，
-            选一个市**不收窄是正确行为**（见 snap() 里的注释）。 */
-      if ((o.cityFilterBad || []).length) {
-        bad.push("地市档条数与数据不符（口径应为「不限地市 ＋ 该市专属」）："
-          + o.cityFilterBad.slice(0, 4).map(function (r) {
-              return r.city + " 页面" + r.rows + "≠数据" + r.want;
-            }).join(" / "));
-      }
-      // 选项上写着「（N）」而有值的没被置灰的项，N 必须 > 0 —— 否则建选项与置灰两处口径不一致
-      if ((o.ctZeroText || []).length) {
-        bad.push("地市选项写着 0 条却没置灰：" + o.ctZeroText.join("/"));
-      }
+    /* ══ 地市维度必须已整体下线（2026-10-03）——无条件，四网一致 ══
+       三条判据对应三种「只恢复了一半」的形态，缺一条就漏一种（见 snap() 里的长注释）。 */
+    if (o.ctEl) { bad.push("页面里还有 #ct（地市下拉应已下线）"); }
+    if (o.ovCityEl) { bad.push("页面里还有 #ovCityPanel（地市分布面板应已下线）"); }
+    if ((o.chipTextsNoCity || []).length) {
+      bad.push("筛选标签里出现了城市/地市条件：" + o.chipTextsNoCity.join(" / "));
     }
-    /* ★ 「已下架」页签下：地市维度必须禁用，且塞进去的地市值必须**不生效**
-       （已下架条目没有地市归属，见 snap() 的注释）。 */
+    if (o.ghostErr) { bad.push("深链幽灵值操作异常: " + o.ghostErr); }
+    else if (o.ghostUnaffected === false) {
+      bad.push("深链 #ct=… 竟然改变了结果（幽灵条件生效了，严重）："
+        + o.ghostHashRows + " ≠ " + o.ghostRowsBefore);
+    }
+    /* ★ 「已下架」页签：本网有下架数据时该页签可点、且能算出条数。 */
     if (exp.stopped) {
       if (o.stopTabErr) { bad.push("已下架页签操作异常: " + o.stopTabErr); }
-      else {
-        if (o.ctDisabledOnStop === false) {
-          bad.push("「已下架」页签下地市维度没被禁用（选地市会给出 0 条这种假答案）");
-        }
-        if (o.stopTabCityRows != null && o.stopTabCityRows !== o.rowsOnStop) {
-          bad.push("「已下架」页签下地市值竟然生效了："
-            + o.stopTabCityRows + " ≠ " + o.rowsOnStop);
-        }
+      else if (!(o.rowsOnStop > 0)) {
+        bad.push("「已下架」页签算出 0 条（本网有下架数据，页签却空）");
       }
     }
 

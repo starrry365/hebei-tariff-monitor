@@ -84,10 +84,12 @@
   });
 
   /* ══ B. 三个视图页签 ══
-     🔴 量之前先把网钉到第一个：总览页的 KPI 卡数量**随网而变**（联通/广电没有
-        地市维度 ⇒ 少「地市专属」那张卡，也不显示政企）。不钉住的话，B 段测的
+     🔴 量之前先把网钉到第一个：总览页的 KPI 卡数量**随网而变**（只有移动的官方接口
+        带「归属」字段 ⇒ 才有「政企资费」那张卡）。不钉住的话，B 段测的
         就是「上一轮结束时遗留在哪个网」—— 同一份脚本连跑两次会得到 7 vs 5，
-        幂等判据直接失效，而页面本身完全正常。 */
+        幂等判据直接失效，而页面本身完全正常。
+     ⚠️ 2026-10-03：原先这里还提到「地市专属」那张卡 —— 地市维度下线后它已不存在，
+        随网变化的原因只剩「政企」一项。 */
   var NETKEYS = (typeof NETS !== "undefined") ? Object.keys(NETS) : [];
   safe("views-net", function () { if (NETKEYS.length) switchNet(NETKEYS[0]); });
   ["ov", "list", "hist"].forEach(function (v) {
@@ -107,7 +109,7 @@
   });
 
   /* ══ C. 每个网 × 每个筛选下拉 × 每个 option ══ */
-  var SELIDS = ["sc", "ow", "cat", "ty", "ct", "pf", "gf", "cf", "bw", "chx", "on", "off", "chg"];
+  var SELIDS = ["sc", "ow", "cat", "ty", "pf", "gf", "cf", "bw", "chx", "on", "off", "chg"];
   NETKEYS.forEach(function (c) {
     var rec = { total: 0, sel: {}, offline: null };
     safe("switchNet:" + c, function () { switchNet(c); setView("list"); });

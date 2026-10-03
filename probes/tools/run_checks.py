@@ -44,7 +44,13 @@ except Exception:
 argv = sys.argv[1:]
 NO_BROWSER = "--no-browser" in argv
 NETS_ALL = ("move", "telecom", "unicom", "cbn")      # 体检四网
-NETS_CONF = ("move", "telecom", "unicom")            # 对账三网（广电无地市维度）
+# 对账网别（与 cloud/tariff/conformance.py 的 NETS_OK 保持一致）。
+# ⚠️ 2026-10-03：广电此前被排除，理由只有一条「上游没有地市维度 ⇒ 城市用例必然对不上」。
+#    地市维度整块下线后那条理由失效，实测 `--net cbn` 83/83 与 oracle 一致，
+#    于是把它补进来 —— 这一网此前**完全没有 oracle 覆盖**。
+#    ⚠️ 代价是这一步会比原来慢一点（4 网 × 启动一次 Chrome）。要再加网，
+#       先按同样方式单独跑通再放行，别顺手加（对账是唯一能抓「页面系统性算错」的那层）。
+NETS_CONF = ("move", "telecom", "unicom", "cbn")
 
 
 def _net_arg(default=None):

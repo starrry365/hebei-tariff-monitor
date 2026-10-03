@@ -8,9 +8,12 @@
  * 这个脚本就是那个缺掉的消费者，但**不写进 template.html** ——
  * 生产页面不该为了自检背一段调试代码（还会把 cases.json 暴露给访问者）。
  *
- * 做法：把每个用例的取值**灌进真实 DOM 控件**（#kw/#ty/#ct/#pf/#on/#off/#bw），
+ * 做法：把每个用例的取值**灌进真实 DOM 控件**（#kw/#cat/#ty/#pf/#on/#off/#bw），
  *      调页面自己的 apply()，读页面自己的 view.length —— 走的是用户点下拉框的同一条路。
  *      ⚠️ 不走 rowsOf(NET).filter(...) 复刻：那就是「拿页面验页面」，发现不了系统性算错。
+ *      ⚠️ 2026-10-03：`ct`（地市）已从这张表里删掉 —— 该维度整个下线，页面里连
+ *        #ct 控件都没有了，oracle 也同步不再生成 ct 用例（见 conformance.py）。
+ *        两边少一个维度这件事必须**同时**发生：只删一边都会让对账集体偏红或集体跳过。
  *
  * 输入：全局 CONF_CASES（由 run_conformance.py 内联进来）、CONF_NET。
  * 输出：JSON 字符串（不抛异常；失败只体现在 mismatches 非空）。
@@ -21,7 +24,7 @@
   var CASES = (typeof CONF_CASES !== "undefined") ? CONF_CASES : [];
   var TARGET = (typeof CONF_NET !== "undefined") ? CONF_NET : "move";
   var DIMS = (typeof DIMS !== "undefined" && DIMS.length) ? DIMS
-    : ["sc", "ow", "cat", "ty", "ct", "pf", "gf", "cf", "bw", "chx", "on", "off", "chg"];
+    : ["sc", "ow", "cat", "ty", "pf", "gf", "cf", "bw", "chx", "on", "off", "chg"];
   function el(id) { return document.getElementById(id); }
 
   /* ★ 每个用例前必须把全部维度清干净：页面在多次 eval 之间**保留状态**，
@@ -50,8 +53,10 @@
       reset();
       var kw = el("kw"); if (kw) { kw.value = q.kw || ""; }
       /* cat 必须在这里：oracle 侧的两条「套餐」用例走的是大类（四网统一口径），
-         缺了它赋值会静默留空 ⇒ 用例退化成「只按 pf/ct… 筛」，对账恒偏。 */
-      var map = { cat: q.cat, ty: q.ty, ct: q.ct, pf: q.pf, on: q.on, off: q.off, bw: q.bw };
+         缺了它赋值会静默留空 ⇒ 用例退化成「只按 pf/on… 筛」，对账恒偏。
+         ★ cat 还必须排在 ty 前面：apply() 里 syncDims() 会按大类把不属于它的细分置灰，
+           顺序反了会让「某个 ty 被上一个用例的 cat 清掉」—— 静默留空，同上。 */
+      var map = { cat: q.cat, ty: q.ty, pf: q.pf, on: q.on, off: q.off, bw: q.bw };
       for (var k in map) {
         if (map[k] !== undefined && map[k] !== "") {
           var e = el(k);
