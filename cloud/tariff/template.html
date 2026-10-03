@@ -431,6 +431,28 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 .tcap.r{background:var(--badbg);color:var(--bad);border-color:transparent}
 .tcap.c{background:var(--warnbg);color:var(--warn);border-color:transparent}
 .tcap.w{background:var(--glass3);color:var(--bad);border:1px dashed var(--bad)}
+/* ── 字段变更对照卡：左=旧值，右=新值，中间一条分隔线 ─────────────
+   一条资费改了哪些字段、从什么改成什么，一眼对照 —— 不再是一串
+   「改了 月费/流量」的裸字段名（那样用户还得自己翻 changes/*.md）。 */
+.dc{margin-top:8px;border:1px solid var(--bd2);border-radius:10px;overflow:hidden;
+  background:var(--glass3)}
+.dch{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;padding:7px 11px;
+  font-size:12.5px;font-weight:700;border-bottom:1px solid var(--bd2);
+  background:var(--glass2)}
+.dch .nn{font-weight:400;color:var(--tx3)}
+.drow{display:grid;grid-template-columns:minmax(58px,88px) 1fr 1fr;font-size:12px}
+.drow+.drow{border-top:1px solid var(--bd2)}
+.dlab{padding:7px 4px 7px 11px;color:var(--tx2);font-weight:600;
+  display:flex;align-items:flex-start}
+.dold{padding:7px 11px;color:var(--tx3);word-break:break-word;
+  border-right:1px dashed var(--bd2);
+  background:linear-gradient(90deg,rgba(226,68,68,.05),rgba(226,68,68,0))}
+.dnew{padding:7px 11px;color:var(--tx);word-break:break-word;
+  background:linear-gradient(90deg,rgba(30,166,92,0),rgba(30,166,92,.055))}
+.dtg{display:inline-block;padding:0 5px;border-radius:5px;font-size:10.5px;
+  font-weight:700;line-height:16px;margin-right:5px;vertical-align:1px;flex:none}
+.dtg.o{background:var(--badbg);color:var(--bad)}
+.dtg.n{background:var(--okbg);color:var(--ok)}
 .tgl{padding:5px 12px;border:1px solid var(--bd2);background:var(--glass3);border-radius:999px;
   font-size:12px;cursor:pointer;color:var(--tx2);font-family:inherit}
 .tgl:hover{border-color:var(--ac);color:var(--ac)}
@@ -464,6 +486,11 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   th,td{padding:8px 7px}
   .detgrid{grid-template-columns:1fr}
   .rbar{gap:8px}
+  /* 字段变更对照卡：窄屏字段名独占一行，旧/新仍左右并排 ——
+     「左旧右新」这个对照关系比字段名更不能丢，所以压缩的是标签行。 */
+  .drow{grid-template-columns:1fr 1fr}
+  .dlab{grid-column:1/3;padding:6px 11px 0}
+  .dold,.dnew{padding-top:4px}
 }
 </style>
 <!-- ══ PWA：图标 / manifest / 主题色 ══
@@ -2255,16 +2282,34 @@ function renderHistory(){
           if(x.gf)caps.push('<span class="tcap" title="下线日期尚未到期，判为漏采而非下架">假下架抑制 '+x.gf+'</span>');
           if(x.gs)caps.push('<span class="tcap" title="上线日早于上一轮基线，属漏采补录">补录 '+x.gs+'</span>');
           if(!caps.length)caps.push('<span class="tcap">本次无变化</span>');
-          const smp=(x.smp||[]).map(s=>{
+          /* 样本展示分两路：
+             ① 带 ch（旧值→新值）的字段变更样本 → 对照卡：字段名 | 旧值 | 新值，
+                中间一条分隔线，一眼看清「从什么改成什么」；
+             ② 其余（新增/下架，以及没带 ch 的旧历史记录）→ 保持 chip。
+             不全改成卡：新增/下架没有「新旧」可对照，塞进同一布局只是空壳。 */
+          const chips=[],diffs=[];
+          (x.smp||[]).forEach(s=>{
+            if(s.k==="c"&&s.ch&&s.ch.length){
+              const rows=s.ch.map(c=>{
+                const o=(c.o==null?"":String(c.o))||"—",n=(c.n==null?"":String(c.n))||"—";
+                return '<div class="drow"><div class="dlab">'+esc(c.f||"字段")+'</div>'
+                  +'<div class="dold"><span class="dtg o">旧</span>'+esc(o)+'</div>'
+                  +'<div class="dnew"><span class="dtg n">新</span>'+esc(n)+'</div></div>';
+              }).join("");
+              diffs.push('<div class="dc"><div class="dch">⇄ '+esc(s.n||"")
+                +(s.ty?'<span class="nn">'+esc(s.ty)+'</span>':"")+'</div>'+rows+'</div>');
+              return;
+            }
             const mark=s.k==="a"?"＋":s.k==="r"?"－":"⇄";
             const fb=(s.f&&s.f.length)?(" · "+s.f.join("/")):"";
-            return '<span class="tcap'+(s.k==="a"?" a":s.k==="r"?" r":" c")+'" title="'
-              +esc((s.ty||"")+fb)+'">'+mark+esc(s.n||"")+'</span>';
-          }).join("");
+            chips.push('<span class="tcap'+(s.k==="a"?" a":s.k==="r"?" r":" c")+'" title="'
+              +esc((s.ty||"")+fb)+'">'+mark+esc(s.n||"")+'</span>');
+          });
           return '<div class="tnet"><div class="nh"><span>'+esc(x.net||x.code||"")
             +'</span><span class="nn">'+(x.n==null?"":x.n+" 条")+'</span></div>'
             +'<div class="tcaps">'+caps.join("")+'</div>'
-            +(smp?'<div class="tcaps">'+smp+'</div>':"")
+            +(chips.length?'<div class="tcaps">'+chips.join("")+'</div>':"")
+            +diffs.join("")
             +'</div>';
         }).join("")+'</div></div>';
   }).join("");

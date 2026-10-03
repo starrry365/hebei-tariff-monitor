@@ -28,6 +28,10 @@ RE_N = re.compile(r"条目数：\s*\d+\s*→\s*\*\*(\d+)\*\*")
 RE_CNT = re.compile(r"新增\s*\*\*(\d+)\*\*\s*·\s*下线\s*\*\*(\d+)\*\*\s*·\s*字段变更\s*\*\*(\d+)\*\*")
 RE_H2 = re.compile(r"^##\s+(新增资费|下线/下架资费|关键字段变更)", re.M)
 RE_ITEM = re.compile(r"^-\s+\*\*(.+?)\*\*\s*〔(.+?)〕")
+# 字段变更明细行（write_report 生成）：`  - 月费：\`39\` → \`29\``。
+# 解析成 ch（旧值 → 新值对照），页面变化历史的左旧右新 diff 卡才有数据 ——
+# 否则回填出来的历史只能显示「改了哪几个字段」，显示不了改成什么样。
+RE_DELTA = re.compile(r"^  - (.+?)：`(.*)` → `(.*)`\s*$")
 
 
 def parse(md_path, tag):
@@ -41,20 +45,37 @@ def parse(md_path, tag):
         return None
     a, r, c = (int(x) for x in m_c.groups())
 
-    # 按二级标题切段，逐段抽「- **名称** 〔类型〕」
-    smp, cur = [], ""
+    # 按二级标题切段，逐段抽「- **名称** 〔类型〕」；
+    # 字段变更段再往下抽「- 字段：`旧` → `新`」明细，挂到最后一条 c 样本上。
+    # last_c 在「样本配额已满 / 换了条目」时置 None —— 明细行只能归属
+    # 它上面最近的那条 c 样本，挂错对象比丢掉更糟。
+    smp, cur, last_c = [], "", None
     for line in txt.split("\n"):
         h = RE_H2.match(line)
         if h:
             cur = h.group(1)
+            last_c = None
             continue
         if cur:
             it = RE_ITEM.match(line)
             if it:
                 k = {"新增资费": "a", "下线/下架资费": "r", "关键字段变更": "c"}[cur]
-                cap = {"a": 6, "r": 4, "c": 4}[k]
+                cap = {"a": 6, "r": 4, "c": 6}[k]
                 if sum(1 for x in smp if x["k"] == k) < cap:
-                    smp.append({"n": it.group(1)[:60], "ty": it.group(2), "k": k})
+                    entry = {"n": it.group(1)[:60], "ty": it.group(2), "k": k}
+                    if k == "c":
+                        entry["f"] = []
+                        last_c = entry
+                    smp.append(entry)
+                else:
+                    last_c = None
+                continue
+            if last_c is not None:
+                dm = RE_DELTA.match(line)
+                if dm and len(last_c["f"]) < 4:
+                    last_c["f"].append(dm.group(1))
+                    last_c.setdefault("ch", []).append(
+                        {"f": dm.group(1), "o": dm.group(2), "n": dm.group(3)})
     d = m_ts.group(1).strip()[:10]
     return {"ts": m_ts.group(1).strip()[:19], "d": d, "code": TAG_CODE[tag],
             "net": CN_NET[TAG_CODE[tag]], "n": int(m_n.group(1)),

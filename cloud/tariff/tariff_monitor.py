@@ -1072,10 +1072,19 @@ def write_report(old_o, new_o, added, removed, changed,
         r = oidx[k]
         _smp.append({"n": (r.get("_name") or r.get("_tname") or "")[:60],
                      "ty": r.get("_ty") or "", "k": "r"})
-    for k, dd in changed[:4]:
+    # 字段变更样本：除了字段名，把「旧值 → 新值」也带上（ch 数组）——
+    #   页面「变化历史」的对照卡（左=旧值，右=新值，中间一条分隔线）靠它渲染；
+    #   只有字段名的话页面只能显示「改了哪几个字段」，看不到改成什么样。
+    #   值截到 48 字：history.json 是会被 CI 长期提交的文件，整段权益文本
+    #   塞进来会把 diff 撑爆；想看全文走 changes/*.md（那里截到 70 字）。
+    #   旧记录没有 ch 键 —— 页面按「有没有 ch」回退到旧的字段名 chip 展示。
+    for k, dd in changed[:6]:
         r = idx[k]
         _smp.append({"n": (r.get("_name") or r.get("_tname") or "")[:60],
-                     "ty": r.get("_ty") or "", "k": "c", "f": list(dd.keys())[:3]})
+                     "ty": r.get("_ty") or "", "k": "c", "f": list(dd.keys())[:4],
+                     "ch": [{"f": FIELD_CN.get(ff, ff),
+                             "o": str(ov)[:48], "n": str(nv)[:48]}
+                            for ff, (ov, nv) in list(dd.items())[:4]]})
     rec = {"ts": str(new_o.get("fetchedAt") or "")[:19], "d": d,
            "code": _code_of_net(net), "net": net, "n": len(idx),
            "a": len(added), "r": len(removed), "c": len(changed), "smp": _smp}
