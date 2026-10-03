@@ -298,14 +298,17 @@ def move_probe():
     #   若某个未声明组合其实有数据，那就是**整栏静默漏采**（接口恒 200、无异常）。
     #   与联通那次「栏目骨架只从单城取」是同一类错误：拿一个**间接信号**当**完备性依据**。
     log("\n[D2] 直接请求**全部** %d 个组合 —— 目录之外还有没有数据？" % len(allc))
-    extra, zero, failed = [], [], []
+    extra, zero, failed, rejected = [], [], [], []
     for (a, t1, t2) in allc:
-        n, series, err = move_count(T, a, t1, t2)
-        if err:
-            # 请求失败与「零条」必须分开记：见 move_count 的说明。
-            failed.append((a, t1, t2, err))
-            log("   attr=%s t1=%s t2=%s  ⚠️ 请求失败：%s" % (a, t1, t2, err[:90]))
+        r = move_count(T, a, t1, t2)
+        if r["dead"]:
+            # 「没问到」与「零条」必须分开记：见 move_count 的说明。
+            failed.append((a, t1, t2, r["dead"]))
+            log("   attr=%s t1=%s t2=%s  ⚠️ 请求没问到：%s" % (a, t1, t2, r["dead"][:90]))
             continue
+        n, series = r["n"], r["series"]
+        if r["rejected"]:
+            rejected.append((a, t1, t2))
         tag = "声明" if (a, t1, t2) in declared else "**未声明**"
         if n or series:
             log("   attr=%s t1=%s t2=%s  %-10s 条目 %-6d 系列 %d" % (a, t1, t2, tag, n, series))
@@ -314,6 +317,10 @@ def move_probe():
         if (a, t1, t2) in declared and not n and not series:
             zero.append((a, t1, t2))
     log("\n   → 声明了却零数据：%d 个 %s" % (len(zero), zero))
+    if rejected:
+        # 上游明确不认这些组合（回了合法 JSON 但无 data）。这不是漏采，
+        # 但也不能装作没这回事 —— 打出来让人一眼看到「哪些组合是问过的」。
+        log("   · 上游明确拒绝（视为无数据）：%d 个 %s" % (len(rejected), rejected))
     if extra:
         log("   ⚠️⚠️ **目录未声明但实有数据** %d 个（采集侧正在整栏漏掉）：" % len(extra))
         for e in extra:
@@ -332,15 +339,16 @@ def move_probe():
     n0, e0 = _count(r0)
     log("   不带 cityId            → %s" % n0)
     same = True
-    e_errs = 1 if e0 else 0
+    e_errs = 1 if _transport_failed(r0) else 0
     for city in ("185", "180", "782"):
         for pname in ("cityId", "city", "cityCode", "areaCode"):
             b = dict(base_body)
             b[pname] = city
-            c, cerr = _count(T.call("nrtariff/new/Tariff/getTariffListInfo", b))
-            # ★ 请求失败（ERR:…）不是「改变了结果」—— 早先将它算作差异，会把
+            r = T.call("nrtariff/new/Tariff/getTariffListInfo", b)
+            c, cerr = _count(r)
+            # ★ 「没问到」不是「改变了结果」—— 早先将任何异常结果都算作差异，会把
             #   「打不通上游」印成「**必须按地市采集** ❌」这种吓人的错误结论。
-            if cerr:
+            if _transport_failed(r):
                 e_errs += 1
             elif c != n0:
                 same = False
@@ -391,36 +399,49 @@ def move_probe():
             "unexpected_with_data": [list(e) for e in extra],
             "declared_zero": [list(k) for k in zero],
             "request_failed": [list(f) for f in failed],
+            "upstream_rejected": [list(k) for k in rejected],
             "city_invariant": same,
             "ispublic": iso,
             "ispublic_rejected": iso_rej,
             "ispublic_unanswered": iso_err,
             # ★ 「没问到」不能让判据变绿：failed / iso_err 非空 ⇒ 无法判定 ⇒ 失败。
+            #   rejected（上游明确拒绝该组合）不参与判定 —— 它等于「没有数据」。
             "ok": (not extra) and (not failed) and (not iso_err)}
 
 
 def move_count(T, a, t1, t2):
-    """直接请求一个 (attr, type1, type2) 组合，返回 (条目数, 系列数, 错误)（只看第 1 页，够判空）。
+    """请求一个 (attr, type1, type2) 组合，返回
+       ``{"n": 条目数, "series": 系列数, "dead": 传输错误或 None, "rejected": 上游是否明确拒绝}``。
 
-    🔴 第三个返回值不是可有可无的：请求失败时前两项都是 0，与「上游确实没数据」
-       **完全同形**。只返回两个数的话，这个探针在**打不通上游**（缺密钥、网络不通、
-       CI Secret 没配）时会一路绿灯，把「没问到」判成「没有」——
-      一个只会在最需要它报警的时候静默的判据。2026-10-03 实测：本地无密钥时
-      它照样打印「采集维度穷尽 ✅」并 exit 0。
+    🔴 三个状态必须分开，缺一条这个探针就会在**最需要它的时候**给出错误结论：
+
+      · **没问到**（缺密钥 / 网络不通 / 超时）—— 不能当数据用。若与「确实没数据」
+        混为一谈，本探针在打不通上游时会一路绿灯 exit 0。2026-10-03 本地无密钥
+        实测正是如此：打印「采集维度穷尽 ✅」。**一个只会在最该报警时静默的判据
+        比没有判据更糟**，因为它会让人以为已经核过了。
+
+      · **上游明确拒绝**（回了合法 JSON 但无 data，如「参数错误」）—— 与「返回
+        0 系列」同义，都表示**这个组合没有数据**，属于正常结论。若也判「没问到」，
+        探测 attr=3（未启用板块）这类组合时会天天红 —— 判据死于噪声，看两天
+        大家就学会忽略它了。
+
+      · **正常返回** —— 数条目。
     """
     body = {"cellNum": "", "province": T.PROV, "isPublic": "1", "linkScn": "2",
             "tariffAttr": a, "type1": t1, "type2": t2,
             "page": 1, "limit": 100, "fistLimit": 5000}
     r = T.call("nrtariff/new/Tariff/getTariffListInfo", body)
+    if _transport_failed(r):
+        return {"n": 0, "series": 0, "dead": str(r)[:160], "rejected": False}
     d = r.get("data") if isinstance(r, dict) else None
     if not isinstance(d, dict):
-        return 0, 0, str(r)[:160]
+        return {"n": 0, "series": 0, "dead": None, "rejected": True}
     n, bs = 0, (d.get("beans") or [])
     for b in bs:
         n += len(b.get("nonModuleList") or [])
         for m in b.get("moduleList") or []:
             n += len(m.get("tariffList") or [])
-    return n, len(bs), None
+    return {"n": n, "series": len(bs), "dead": None, "rejected": False}
 
 
 def _count(r):
