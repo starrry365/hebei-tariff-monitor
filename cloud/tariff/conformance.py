@@ -111,7 +111,14 @@ def build_oracle(rows, base):
         if c["pf"]:
             lo, hi = [float(x) for x in c["pf"].split(",")]
             f = num(d.get("f"))
-            if f is None or f < lo or f > hi:
+            # 2026-10-04 页面档位改半开 (lo,hi]（列表审查 G1/F1：边界值归上一档，
+            # 0 元独立档）。oracle 是复现，必须跟页面同一语义 —— 否则 pf:0,10
+            # 这类用例集体偏红（f=0 与 f=10 的档位归属变了）。仅 0 元（lo=hi=0）
+            # 仍是闭区间 [0,0]。
+            if lo == hi:
+                if f != lo:
+                    return False
+            elif f is None or f <= lo or f > hi:
                 return False
         if c["on"]:
             dt = to_date(d.get("o"))
@@ -188,7 +195,9 @@ def main():
         add("ty:" + t, C(ty=t))
     for c in cat_vals:
         add("cat:" + c, C(cat=c))
-    for p in ("0,0", "0,10", "0,30", "0,60", "100,99999"):
+    # 2026-10-04：档位值随页面 FEE_TIERS 更新（0,30/0,60 → 10,30/30,60，
+    # 补 60,100）—— 用例灌的是真实 DOM，选项不存在就是「无此取值」被跳过。
+    for p in ("0,0", "0,10", "10,30", "30,60", "60,100", "100,99999"):
         add("pf:" + p, C(pf=p))
     for o in ("7", "30", "90", "180", "365", "none"):
         add("on:" + o, C(on=o))
@@ -208,7 +217,7 @@ def main():
         add("cat=%s+bw=line" % c, C(cat=c, bw="line"))
         add("cat=%s+kw=宽带" % c, C(cat=c, kw="宽带"))
         add("cat=%s+off=90" % c, C(cat=c, off="90"))
-    for p in ("0,0", "0,10", "0,60"):
+    for p in ("0,0", "0,10", "30,60"):
         add("pf=%s+on=90" % p, C(pf=p, on="90"))
 
     # 3) 三重及以上 —— ★ 一律用 cat（四网统一口径）而不是 ty（上游原始分类）：
@@ -217,13 +226,13 @@ def main():
     #   用 cat_vals 判一下存在性：本网没有「套餐」这一档时整条不加，而不是加一条
     #   注定被跳过的用例（那会让「用例数」这个数字失去意义）。
     if "套餐" in cat_vals:
-        add("三:cat=套餐+pf=0,30+kw=校园", C(cat="套餐", pf="0,30", kw="校园"))
+        add("三:cat=套餐+pf=10,30+kw=校园", C(cat="套餐", pf="10,30", kw="校园"))
         add("三:cat=套餐+off=90+kw=宽带", C(cat="套餐", off="90", kw="宽带"))
-        add("四:cat=套餐+pf=0,60+on=365+kw=流量",
-            C(cat="套餐", pf="0,60", on="365", kw="流量"))
-        add("五:cat=套餐+bw=line+pf=0,60+on=365",
-            C(cat="套餐", bw="line", pf="0,60", on="365"))
-    add("四:bw=speed+pf=0,30+on=180", C(bw="speed", pf="0,30", on="180"))
+        add("四:cat=套餐+pf=30,60+on=365+kw=流量",
+            C(cat="套餐", pf="30,60", on="365", kw="流量"))
+        add("五:cat=套餐+bw=line+pf=30,60+on=365",
+            C(cat="套餐", bw="line", pf="30,60", on="365"))
+    add("四:bw=speed+pf=10,30+on=180", C(bw="speed", pf="10,30", on="180"))
     # 反向：必然为 0 的组合
     add("零:bw=speed+kw=zzz", C(bw="speed", kw="zzz"))
     add("零:oof off=30+on=7+kw=宽带", C(off="30", on="7", kw="宽带"))

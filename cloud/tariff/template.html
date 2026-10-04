@@ -697,13 +697,8 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       <div class="fsec"><span class="glab">资费</span>
         <label class="f"><span class="fl">月费</span>
           <select id="pf" title="按标准月费（元）筛选">
+            <!-- 选项由 FEE_TIERS 常量在启动时生成（单一来源，见脚本区） -->
             <option value="">全部月费</option>
-            <option value="0,0">仅 0 元</option>
-            <option value="0,10">≤ 10 元</option>
-            <option value="0,30">≤ 30 元</option>
-            <option value="0,60">≤ 60 元</option>
-            <option value="60,100">60 ~ 100 元</option>
-            <option value="100,99999">≥ 100 元</option>
           </select></label>
         <label class="f"><span class="fl">流量</span>
           <select id="gf" title="按流量（GB）筛选。「无流量」含流量为 0 与未标注两种">
@@ -712,7 +707,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
             <option value="0,5">≤ 5 GB</option>
             <option value="5,30">5 ~ 30 GB</option>
             <option value="30,100">30 ~ 100 GB</option>
-            <option value="100,99999">≥ 100 GB</option>
+            <option value="100,99999">100 GB 以上</option>
           </select></label>
         <label class="f"><span class="fl">通话</span>
           <select id="cf" title="按国内通话时长（分钟）筛选">
@@ -720,7 +715,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
             <option value="none">无通话</option>
             <option value="0,100">≤ 100 分</option>
             <option value="100,500">100 ~ 500 分</option>
-            <option value="500,99999">≥ 500 分</option>
+            <option value="500,99999">500 分以上</option>
           </select></label>
         <label class="f"><span class="fl">宽带</span>
           <select id="bw" title="宽带：前三档问「有没有这条宽带线路」，后三档按下行速率卡（速率未标注的条目不计入速率档）">
@@ -746,14 +741,8 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       <div class="fsec"><span class="glab">时效</span>
         <label class="f"><span class="fl">上架时间</span>
           <select id="on">
+            <!-- 选项由 AGE_TIERS 常量在启动时生成（单一来源，见脚本区） -->
             <option value="">全部上架时间</option>
-            <option value="7">7 天内上架</option>
-            <option value="30">30 天内上架</option>
-            <option value="90">90 天内上架</option>
-            <option value="180">半年内上架</option>
-            <option value="365">一年内上架</option>
-            <option value="future">待上架（未来生效）</option>
-            <option value="none">无上架日期</option>
           </select></label>
         <label class="f"><span class="fl">下线时间</span>
           <select id="off">
@@ -774,6 +763,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       <button data-p="new7">🆕 7 天内上架</button>
       <button data-p="new30">🆕 30 天内上架</button>
       <button data-p="new90">🆕 90 天内上架</button>
+      <button data-p="future">⏰ 待上架</button>
       <button data-p="exp60">⏳ 60 天内下线/已下线</button>
       <button data-p="free">0 元</button>
       <button data-p="bw">含宽带</button>
@@ -1173,8 +1163,51 @@ function perVal(d){
 }
 
 /* 排序字段表：def = 首次点该列时的默认方向（1 升 / -1 降） */
+/* —— 档位常量（2026-10-04 列表审查 G1）——
+   筛选下拉与总览分布**共用同一份**：曾经两处各写一份且互不一致
+   （总览 7 档互斥、下拉 6 档「累计+分段」混合），「总览看到的档 →
+   想筛时找不到同一档」，路径断在半路。
+   区间语义统一为**半开 (lo, hi]**：边界值归上一档（f=100 属「60~100」
+   不属「100 以上」，与总览旧判据 v>100 一致）；0 值归独立档
+   （仅 0 元 / 无流量 / 无通话）。match() 的 pf/gf/cf 分支按同一语义解读。 */
+const FEE_TIERS=[
+  {v:"0,0",lb:"仅 0 元"},
+  {v:"0,10",lb:"≤ 10 元"},
+  {v:"10,30",lb:"10 ~ 30 元"},
+  {v:"30,60",lb:"30 ~ 60 元"},
+  {v:"60,100",lb:"60 ~ 100 元"},
+  {v:"100,99999",lb:"100 元以上"},
+  {v:"none",lb:"未标月费"}];
+/* 上架时间档：下拉与总览分布共用（总览侧再并入「待上架 / 无上架日期」两个补充档）。
+   下拉的 value 就是天数（match 里 +on），总览用它做互斥分档（≤N 首个命中即归档）。 */
+const AGE_TIERS=[[7,"7 天内"],[30,"30 天内"],[90,"90 天内"],[180,"半年内"],[365,"一年内"]];
+/* 下拉的月费/上架选项由上面的常量生成（cat/ty/ct 早已是 JS 重建，
+   pf/on 是最后两个静态选项列表 —— 静态副本与常量并存就是第二份会漂的清单）。 */
+(function buildTierOptions(){
+  const pf=document.getElementById("pf");
+  if(pf)pf.innerHTML='<option value="">全部月费</option>'
+    +FEE_TIERS.map(t=>'<option value="'+t.v+'">'+t.lb+'</option>').join("");
+  const on=document.getElementById("on");
+  if(on)on.innerHTML='<option value="">全部上架时间</option>'
+    +AGE_TIERS.map(a=>'<option value="'+a[0]+'">'+a[1]+'上架</option>').join("")
+    +'<option value="future">待上架（未来生效）</option>'
+    +'<option value="none">无上架日期</option>';
+})();
+
 const F={
-  on  :{lb:"上架时间",def:-1,get:d=>toDate(d.o)},
+  /* 2026-10-04 列表审查 G2：待上架（未来生效）条目改用**负天数**参加排序。
+     原先纯按日期数值排：未来日期最大，降序时「N 天后生效」占满首屏
+     （实测联通 65 条在售待上架，切网后第 1 页全是他們）。
+     负天数 < 一切真实时间戳（毫秒级 1.7e12），降序时自然沉到已上架之后；
+     同组内 -10 > -500：越快生效越靠前。升序时它们排最前 —— 升序是罕见用法，可接受。
+     无上架日期仍返回 null（恒排最后，与其它排序键同口径）。 */
+  on  :{lb:"上架时间",def:-1,get:d=>{
+         const t=toDate(d.o);
+         if(t==null)return null;
+         if(!BASE_OK)return t;          // 缺基线退回纯日期序，绝不编造相对天数
+         const a=ago(t);
+         return a<0?a:t;
+       }},
   off :{lb:"下线时间",def: 1,get:d=>toDate(d.e)},
   fee :{lb:"月费",    def: 1,get:d=>num(d.f)},
   gb  :{lb:"流量",    def:-1,get:d=>(d.g==null?null:d.g)},
@@ -1672,8 +1705,17 @@ function favRefresh(){
   const note=document.getElementById("favNote");
   if(note){
     note.style.display=onlyFav?"":"none";
-    if(onlyFav)note.textContent="★ 仅显示收藏（本页 "+shown+" 条）· 分页与筛选不受影响，翻页后仍然只显示收藏"
-      +(shown===0?(view.length?"（当前筛选结果里没有你收藏的条目）":"（还没有收藏，点条目名前的 ☆ 收藏）"):"");
+    if(onlyFav){
+      /* V2（2026-10-04）：收藏的条目下架/改名后会从列表里消失，用户无感知、
+         收藏数悄悄缩水。这里对**本网全量数据**核对收藏键（不是当前筛选结果 ——
+         被筛选挡住的收藏不算失效），零命中的提示出来。 */
+      const hit={};
+      rowsOf(NET).forEach(d=>{hit[NET+"|"+(d.ty||"")+"|"+(d.n||d.t||"")]=1});
+      const miss=Object.keys(fav).filter(k=>k.indexOf(NET+"|")===0&&!hit[k]).length;
+      note.textContent="★ 仅显示收藏（本页 "+shown+" 条）· 分页与筛选不受影响，翻页后仍然只显示收藏"
+        +(miss?" · 另有 "+miss+" 个收藏条目已不在本网数据中（可能已下架）":"")
+        +(shown===0?(view.length?(miss?"":"（当前筛选结果里没有你收藏的条目）"):"（还没有收藏，点条目名前的 ☆ 收藏）"):"");
+    }
   }
   /* 徽标把「只看收藏」也算作一个生效条件；点收藏 chip 不走 apply，
      不在这里刷一次就会停留旧值。 */
@@ -1753,11 +1795,84 @@ function favInject(){
     };
     chips.appendChild(im);chips.appendChild(fi);
   }
+  /* V1（2026-10-04）：跨网收藏聚合入口 —— 收藏散在四网，「只看收藏」
+     只作用于当前网，想看全部要切四次网。 */
+  if(!document.getElementById("favAllBtn")){
+    const ab=document.createElement("button");
+    ab.type="button";ab.id="favAllBtn";ab.className="favchip";
+    ab.title="查看四网全部收藏的聚合列表（只读，点击行跳到对应网）";
+    ab.textContent="跨网收藏";
+    ab.onclick=openFavAll;
+    chips.appendChild(ab);
+  }
   if(!document.getElementById("favNote")){
     const d=document.createElement("div");
     d.id="favNote";d.className="favnote";d.style.display="none";
     chips.parentNode.insertBefore(d,chips.nextSibling);
   }
+}
+
+/* —— 跨网收藏聚合（V1，2026-10-04）——
+   只读聚合列表（保持列表形态）：按 NET_LS 网序分组，每行 = 网 | 细分 | 名称 |
+   月费 | 流量 | 状态；点击行 → 深链跳到对应网（readHash 会切网、清筛选，
+   st=0 保证落在在售页签）。不支持的跨网删改 —— 删除仍在各自网的行上做，
+   避免双写状态。已不在数据中的收藏（下架/改名）置灰展示。 */
+function openFavAll(){
+  let ov=document.getElementById("favAllOv");
+  if(!ov){
+    ov=document.createElement("div");ov.id="favAllOv";
+    ov.style.cssText="position:fixed;inset:0;background:rgba(8,32,64,.45);z-index:999;"
+      +"display:flex;align-items:flex-start;justify-content:center;padding:40px 12px;overflow:auto";
+    ov.onclick=e=>{if(e.target===ov)ov.remove()};
+  }
+  const rows=[];
+  let deadN=0;
+  NET_LS.forEach(nc=>{
+    const keys=Object.keys(fav).filter(k=>k.indexOf(nc+"|")===0);
+    if(!keys.length)return;
+    const hit={};
+    rowsOf(nc).forEach(d=>{hit[nc+"|"+(d.ty||"")+"|"+(d.n||d.t||"")]=d});
+    keys.sort();
+    rows.push('<tr><td colspan="7" style="font-weight:700;padding:8px 6px 4px;border-bottom:2px solid var(--bd2)">'
+      +esc((NETS[nc]||{}).nm||nc)+"（"+keys.length+"）</td></tr>");
+    keys.forEach(k=>{
+      const p=k.split("|"),ty=p.length===3?p[1]:"",nm=p[p.length-1];
+      const d=hit[k];
+      if(d){
+        rows.push('<tr class="farow" data-net="'+esc(nc)+'" style="cursor:pointer" '
+          +'title="点击跳到该网查看（切网并清空筛选）">'
+          +'<td>'+esc((NETS[nc]||{}).sh||nc)+'</td><td>'+esc(ty||"—")+'</td>'
+          +'<td>'+esc(nm)+'</td><td>'+esc(d.f!==""&&d.f!=null?d.f+" 元":"—")+'</td>'
+          +'<td>'+fmtGb(d.g)+'</td><td>'+esc(d.st?"已下架":"在售")+'</td>'
+          +'<td style="color:var(--tx3)">跳转 →</td></tr>');
+      }else{
+        deadN++;
+        rows.push('<tr><td>'+esc((NETS[nc]||{}).sh||nc)+'</td>'
+          +'<td>'+esc(ty||"—")+'</td><td>'+esc(nm)+'</td>'
+          +'<td colspan="3" style="color:var(--tx3)">已不在本网数据中（可能已下架）</td><td></td></tr>');
+      }
+    });
+  });
+  const body=rows.length
+    ?('<table style="width:100%;border-collapse:collapse;font-size:13px">'
+      +'<thead><tr>'+["网","细分","名称","月费","流量","状态"].map(h=>
+        '<th style="text-align:left;padding:4px 6px;color:var(--tx2);border-bottom:1px solid var(--bd2)">'+h+'</th>').join("")+'<th></th></tr></thead>'
+      +'<tbody>'+rows.join("")+"</tbody></table>")
+    :'<div style="padding:24px;text-align:center;color:var(--tx3)">还没有收藏 —— 在各网条目行上点 ☆ 收藏</div>';
+  ov.innerHTML='<div style="background:var(--card);color:var(--tx);border-radius:var(--r2);'
+    +'max-width:860px;width:100%;padding:16px;box-shadow:var(--sh2)">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+    +'<b>★ 跨网收藏（共 '+Object.keys(fav).length+' 个'
+    +(deadN?' · 失效 '+deadN+' 个':"")+')</b>'
+    +'<button type="button" id="favAllClose">关闭</button></div>'
+    +body+'</div>';
+  document.body.appendChild(ov);
+  ov.querySelectorAll(".farow").forEach(tr=>{
+    tr.onclick=()=>{const nc=tr.dataset.net;ov.remove();
+      /* st=0：跳过去落在在售页签，与日常浏览同起点；readHash 会切网并清筛选。 */
+      location.hash="net="+nc+"&st=0";};
+  });
+  const c=document.getElementById("favAllClose");if(c)c.onclick=()=>ov.remove();
 }
 
 /* —— 详情展开区：定义列表网格（标签在左、内容在右，自适应多列） —— */
@@ -1857,6 +1972,18 @@ function zebrafy(){
     tr.classList.toggle("zeb",tr.style.display!=="none"&&(i++%2===1));
   }
 }
+/* —— 目标客户列（L2/L4，2026-10-04）——
+   原先硬切 90 字符无省略号无提示：用户不知道内容被截了（详情里有全文，
+   列表层却无任何暗示）。现在截断补「…」+ title 全文。
+   顺带 L4：与名称列同款搜索高亮 —— 搜「政企」命中的就是这个字段，
+   行出现在结果里却不高亮，命中原因要展开才找得到。hl 内部自带转义。 */
+function apCell(d,terms){
+  const s=d.ap||"";
+  if(!s)return'<td class="ap">—</td>';
+  return '<td class="ap"'+(s.length>90?' title="'+esc(s)+'"':"")+'>'
+    +hl(s,terms)+(s.length>90?"…":"")+'</td>';
+}
+
 function render(){
   const tb=$("#tb");tb.innerHTML="";
   const terms=kwTermsNow();          // 命中词高亮与筛选用同一份词表
@@ -1902,11 +2029,15 @@ function render(){
       +'<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元":"—")+'</td>'
       +'<td>'+fmtGb(d.g)+'</td>'
       +'<td>'+(d.c&&d.c!=="0"?'<span style="white-space:nowrap">'+esc(d.c)+" 分钟</span>":"—")+'</td>'
-      +'<td class="nm">'+scTag(d)+cityTag(d)+hl(d.n||d.t,terms)+chgTag(d)+stopTag(d)+vpTag(d)+'</td>'
-      +'<td><span class="tg" title="资费大类；官方原始分类见展开详情">'+esc(d.cat||"—")+'</span></td>'
+      +'<td class="nm">'+scTag(d)+cityTag(d)+hl(d.n||d.t,terms)+chgTag(d)
+        /* L1（2026-10-04）：「已下架」页签下整页每行都挂同一枚徽标 ——
+           页签标题已声明状态，这里是纯冗余（联通 3177 行 × 1 枚）；
+           「全部」页签下它才有区分度，保留。 */
+        +(STA==="1"?"":stopTag(d))+vpTag(d)+'</td>'
+      +'<td><span class="tg" title="'+esc("大类："+(d.cat||"—")+(d.ty&&d.ty!==d.cat?" · 官方细分："+d.ty:"")+"；官方原始分类见展开详情")+'">'+esc(d.cat||"—")+'</span></td>'
       +'<td>'+owTag(d)+'</td>'
       +'<td>'+bwCell(d)+'</td>'
-      +'<td class="ap">'+esc((d.ap||"—").slice(0,90))+'</td>'
+      +apCell(d,terms)
       +'<td style="white-space:nowrap">'+onCell(d)+'</td>'
       +'<td style="white-space:nowrap">'+offCell(d)+'</td></tr>'
       +'<tr class="det"><td colspan="10"><div class="detwrap">'+detHTML(d)+'</div></td></tr>');
@@ -1978,8 +2109,14 @@ function match(d,c){
       else if(tg.indexOf(ct)<0)return false;
     }
     if(pf){
-      const f=num(d.f);
-      if(f==null||f<pf[0]||f>pf[1])return false;
+      /* F1/F2（2026-10-04）：档位与总览共用 FEE_TIERS，区间语义统一半开 (lo,hi] ——
+         边界值归上一档，同一条资费不再同属两档；「未标月费」是独立档（value none）。 */
+      if(pf==="none"){if(num(d.f)!=null)return false}
+      else{
+        const f=num(d.f);
+        if(pf[0]===0&&pf[1]===0){if(f!==0)return false}   // 仅 0 元
+        else if(f==null||f<=pf[0]||f>pf[1])return false;   // 半开 (lo,hi]
+      }
     }
     /* 流量区间。「无流量」＝ 流量填 0 **或** 压根没填流量字段 ——
        后者在移动那网占全部条目的 34.8%（1326 条）。若把它们挡在「无流量」之外，
@@ -1988,7 +2125,9 @@ function match(d,c){
       if(gf==="none"){
         if(!(d.g==null||d.g===0))return false;
       }else{
-        if(d.g==null||d.g<gf[0]||d.g>gf[1])return false;
+        /* 半开 (lo,hi]：g=5 归「≤ 5 GB」，不再同时落在「5 ~ 30 GB」里（F2）；
+           g=0 归「无流量」独立档，区间档不再重复收录。 */
+        if(d.g==null||d.g<=gf[0]||d.g>gf[1])return false;
       }
     }
     if(cf){
@@ -1996,7 +2135,8 @@ function match(d,c){
       if(cf==="none"){
         if(!(cm==null||cm===0))return false;
       }else{
-        if(cm==null||cm<cf[0]||cm>cf[1])return false;
+        /* 半开 (lo,hi]，与 gf 同口径（F2）：cm=0 归「无通话」，cm=100 归「≤ 100 分」。 */
+        if(cm==null||cm<=cf[0]||cm>cf[1])return false;
       }
     }
     /* 渠道：上游原文已由构建脚本归一到三档（+其他）写在 d.chx 上，这里直接比对。
@@ -2706,7 +2846,10 @@ const CSV_COLS=[
   ["渠道档",d=>d.chx],["办理渠道原文",d=>d.ch],
   ["报备编号",d=>d.r],["上架日",d=>fmtD(d.o)],["下线日",d=>fmtD(d.e)],
   ["本次变更",d=>(d.ca?"新增":"")+(d.ca&&d.ck?"/":"")+(d.ck?"字段变更":"")],
-  ["超套资费",d=>d.ex],["有效期",d=>d.vp],["权益说明",d=>d.x]];
+  ["超套资费",d=>d.ex],["有效期",d=>d.vp],["权益说明",d=>d.x],
+  /* C1（2026-10-04）：基线日期 —— 文件名里有但行内没有，多份 CSV 合并分析时
+     行级时效信息就丢了。取 net().base（与页面顶部「数据基线」同源）。 */
+  ["基线日期",()=>net().base||""]];
 /* 换行、逗号、引号都要按 RFC4180 处理：正文里这几种字符都有可能出现
    （权益说明尤其），不转义就会把一行拆成好几行、整张表错位。 */
 function csvCell(v){
@@ -2729,7 +2872,7 @@ function download(name,text,mime){
 function exportCSV(){
   /* 「只看收藏」是 DOM 层显隐、不在 view 里 —— 导出若无视它，用户看着
      几条收藏、导出的却是全量筛选结果，口径就劈了。按同一口径过滤；
-     收藏键与表格行的 dataset.k 同一构造（NET|名称）。 */
+     收藏键与表格行的 dataset.k 同一构造（NET|细分|名称，v2）。 */
   const rows=onlyFav?view.filter(d=>fav[NET+"|"+(d.ty||"")+"|"+(d.n||d.t||"")]):view;
   const L=[CSV_COLS.map(c=>csvCell(c[0])).join(",")];
   rows.forEach(d=>L.push(CSV_COLS.map(c=>csvCell(c[1](d))).join(",")));
@@ -2823,18 +2966,31 @@ function renderOverview(){
     return;
   }
   const live=rs.filter(d=>!d.st);
-  /* ── KPI 卡 ── */
+  /* ── KPI 卡 ── O1（2026-10-04）：可点 —— 总览是「发现问题」的入口，
+     明细是「看清单」的出口，原来中间断了一步。x[4] 是点击动作，
+     空串 = 无动作（在架资费即全量，不提供点击）。 */
   const gq=rs.filter(d=>d.ow==="政企").length;
   const k=[];
-  k.push(["🗂️","在架资费",live.length,"本网当前在售 + 未标下架的全部条目"]);
-  k.push(["📍","河北",live.filter(d=>d.sc==="hb").length,"适用地域为河北省"]);
-  k.push(["🌐","全国",live.filter(d=>d.sc==="cn").length,"适用地域为全国"]);
-  if(rs.some(d=>d.ow))k.push(["🏢","政企资费",gq,"官方标注为「政企」的条目（仅移动提供归属分类）"]);
-  k.push(["📴","已下架",rs.filter(d=>d.st).length,"本网判据下已停售/下线的条目"]);
-  k.push(["🔄","本次变更",rs.filter(d=>d.ca||d.ck).length,"本次巡检新增或关键字段有变动的条目"]);
+  k.push(["🗂️","在架资费",live.length,"本网当前在售 + 未标下架的全部条目",""]);
+  k.push(["📍","河北",live.filter(d=>d.sc==="hb").length,"适用地域为河北省","sc:hb"]);
+  k.push(["🌐","全国",live.filter(d=>d.sc==="cn").length,"适用地域为全国","sc:cn"]);
+  if(rs.some(d=>d.ow))k.push(["🏢","政企资费",gq,"官方标注为「政企」的条目（仅移动提供归属分类）","ow:政企"]);
+  k.push(["📴","已下架",rs.filter(d=>d.st).length,"本网判据下已停售/下线的条目","st1"]);
+  k.push(["🔄","本次变更",rs.filter(d=>d.ca||d.ck).length,"本次巡检新增或关键字段有变动的条目","chg"]);
   $("#ovStats").innerHTML=k.map(x=>
-    '<div class="stat k" title="'+esc(x[3])+'"><div class="si">'+x[0]+'</div>'
+    '<div class="stat k"'+(x[4]?' data-kact="'+x[4]+'" style="cursor:pointer" title="点击查看对应清单"':' title="'+esc(x[3])+'"')
+    +'><div class="si">'+x[0]+'</div>'
     +'<div class="sn">'+x[2]+'</div><div class="sl">'+esc(x[1])+'</div></div>').join("");
+  document.querySelectorAll("#ovStats [data-kact]").forEach(el=>{
+    el.onclick=()=>{
+      const a=el.dataset.kact;
+      if(a==="st1"){STA="1";syncTabs()}
+      else if(a==="chg"){const s=$("#chg");if(s)s.value="1"}
+      else if(a.indexOf("ow:")===0){const s=$("#ow");if(s)s.value=a.slice(3)}
+      else if(a==="hb"||a==="cn"){const s=$("#sc");if(s)s.value=a}
+      setView("list");apply();scrollToList();
+    };
+  });
 
   /* ── 分类构成 ── */
   const cat={};rs.forEach(d=>{const c=d.cat||"其他";cat[c]=(cat[c]||0)+1});
@@ -2856,28 +3012,33 @@ function renderOverview(){
     op.style.display="none";
   }
 
-  /* ── 月费档位 ── */
-  const FEES=[["0 元",d=>num(d.f)===0],["≤ 10 元",d=>{const v=num(d.f);return v>0&&v<=10}],
-    ["10 ~ 30 元",d=>{const v=num(d.f);return v>10&&v<=30}],
-    ["30 ~ 60 元",d=>{const v=num(d.f);return v>30&&v<=60}],
-    ["60 ~ 100 元",d=>{const v=num(d.f);return v>60&&v<=100}],
-    ["≥ 100 元",d=>{const v=num(d.f);return v!=null&&v>100}],
-    ["未标月费",d=>num(d.f)==null]];
-  const fc={};FEES.forEach(f=>{fc[f[0]]=rs.filter(f[1]).length});
-  ovBars($("#ovFee"),FEES.map(f=>f[0]),fc,"按标准月费（元）分档");
+  /* ── 月费档位 ── 档位与筛选下拉共用 FEE_TIERS（G1），判据同半开 (lo,hi] */
+  const fc={};
+  FEE_TIERS.forEach(t=>{
+    fc[t.lb]=rs.filter(d=>{
+      const f=num(d.f);
+      if(t.v==="none")return f==null;
+      if(t.v==="0,0")return f===0;
+      return f!=null&&f>+t.v.split(",")[0]&&f<=+t.v.split(",")[1];
+    }).length;
+  });
+  ovBars($("#ovFee"),FEE_TIERS.map(t=>t.lb),fc,"按标准月费（元）分档");
 
-  /* ── 上架时间 ── */
-  const AGES=[["7 天内",7],["30 天内",30],["90 天内",90],["一年内",365],["一年以上",1e9]];
-  const ac={},un=[];
+  /* ── 上架时间 ── 档位与筛选下拉共用 AGE_TIERS（G1）；O2：待上架单列一档 ——
+     原先 a<0 静默排除，整组横条看不出它们的存在（实测联通 65 条）。 */
+  const ac={},un=[];let fut=0;
   rs.forEach(d=>{
     const dt=toDate(d.o);
     if(!BASE_OK||dt==null){un.push(d);return}
     const a=ago(dt);
-    if(a<0)return;                      // 还没上架的（待上架）不计入历史分布
-    for(let i=0;i<AGES.length;i++)if(a<=AGES[i][1]){ac[AGES[i][0]]=(ac[AGES[i][0]]||0)+1;break}
+    if(a<0){fut++;return}               // 待上架（未来生效）
+    let hit=false;
+    for(let i=0;i<AGE_TIERS.length;i++)if(a<=AGE_TIERS[i][0]){ac[AGE_TIERS[i][1]]=(ac[AGE_TIERS[i][1]]||0)+1;hit=true;break}
+    if(!hit)ac["一年以上"]=(ac["一年以上"]||0)+1;
   });
+  if(fut)ac["待上架"]=fut;
   if(un.length)ac["无上架日期"]=un.length;
-  ovBars($("#ovAge"),AGES.map(a=>a[0]).concat(["无上架日期"]),ac,
+  ovBars($("#ovAge"),["待上架"].concat(AGE_TIERS.map(a=>a[1])).concat(["一年以上","无上架日期"]),ac,
          "相对本网数据基线日期"+(BASE_OK?"":"（当前基线不可解析）"));
 }
 
@@ -2927,7 +3088,12 @@ function renderHistory(){
   const days=Object.keys(byD).sort().reverse();
   note.textContent="共 "+items.length+" 次网级巡检 · "+days.length+" 天 · 点击任一行展开";
   box.innerHTML=days.map(d=>{
-    const ns=byD[d].slice().sort((a,b)=>String(a.net||"").localeCompare(String(b.net||"")));
+    /* 网序与导航条一致（NET_LS，2026-10-04 G4）：原先按中文名 localeCompare，
+       「广电/电信/联通/移动」的顺序随字音走，与用户在导航条看到的对不上。
+       老记录缺 code 时退回网名比对，不炸。 */
+    const nidx=x=>{const i=NET_LS.indexOf(x.code);return i>=0?i:NET_LS.length};
+    const ns=byD[d].slice().sort((a,b)=>
+      (nidx(a)-nidx(b))||String(a.net||"").localeCompare(String(b.net||"")));
     let A=0,R=0,C=0;
     ns.forEach(x=>{A+=x.a||0;R+=x.r||0;C+=x.c||0});
     const zero=!(A||R||C);
@@ -2936,9 +3102,13 @@ function renderHistory(){
     const notas=[...new Set(ns.map(x=>x.note).filter(Boolean))];
     return '<div class="tnode'+(zero?" zero":"")+'">'
       +'<div class="thd"><span class="ts">'+esc(d)+'</span>'
-      +'<span class="tcap a">新增 '+A+'</span>'
-      +'<span class="tcap r">下架 '+R+'</span>'
-      +'<span class="tcap c">字段变更 '+C+'</span>'
+      /* H2（2026-10-04 G3）：零值胶囊不再逐个排 —— 「新增 0 下架 0 字段变更 0」
+         三个 0 并排是纯噪音；全天零变化合并成一句。非零才写（有才写）。 */
+      +(zero
+        ?'<span class="tcap">全天无变化（'+ns.length+' 网巡检）</span>'
+        :((A?'<span class="tcap a">新增 '+A+'</span>':"")
+          +(R?'<span class="tcap r">下架 '+R+'</span>':"")
+          +(C?'<span class="tcap c">字段变更 '+C+'</span>':"")))
       +(notas.length?'<span class="tcap w" title="'+esc(notas.map(n=>NOTE_CN[n]||n).join("；"))+'">⚠ 有抑制 '+notas.length+'</span>':"")
       +'<span class="tm">'+ns.length+' 个网</span></div>'
       +'<div class="tbd">'+ns.map(x=>{
@@ -3254,7 +3424,7 @@ document.querySelectorAll("th[data-k]").forEach(th=>{
 });
 
 /* 快捷 chip → 维度取值的映射。选中态与点击行为都从这份表推导，两处共用。 */
-const CHIP_MAP={new7:["on","7"],new30:["on","30"],new90:["on","90"],exp60:["off","60"],
+const CHIP_MAP={new7:["on","7"],new30:["on","30"],new90:["on","90"],future:["on","future"],exp60:["off","60"],
                 free:["pf","0,0"],bw:["bw","line"],g100:["gf","100,99999"],chg:["chg","1"]};
 /* chip 的选中态从**维度值**反推（而不是点击时手工加 class）——
    深链进来、点筛选标签 × 摘掉条件、切网清空，任何路径改了维度值，

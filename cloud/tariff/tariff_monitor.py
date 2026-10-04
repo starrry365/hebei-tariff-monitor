@@ -1000,7 +1000,9 @@ def build_smp(idx, oidx, added, removed, changed):
 def brief(row):
     fee = row.get("fees") or "—"
     gb = ((row.get("data") or "") + (row.get("dataUnit") or "")).strip() or "—"
-    ap = (row.get("applicablePeople") or "—")[:70]
+    ap = row.get("applicablePeople") or "—"
+    if len(ap) > 70:
+        ap = ap[:70] + "…"   # R2（2026-10-04）：硬切无提示，读的人不知道内容被截了
     return f"月费 {fee} 元 · 流量 {gb} · 通话 {row.get('call') or '—'} 分 · {ap}"
 
 
@@ -1079,6 +1081,13 @@ def write_report(old_o, new_o, added, removed, changed,
       一个数字变小了而报告里不说明为什么变小，下一个看报告的人只会怀疑数据错了。
     """
     d = new_o.get("fetchedAt", "")[:10]
+    # R1（2026-10-04）：截断提示里给**具体快照路径** —— 原先只写「见快照」，
+    # 读者要自己猜是哪个文件。快照文件名 = 前缀 + 日期 + .json.gz（与 other_nets
+    # 里 basename 切片的约定同源）。上一版日期取 old_o 的 fetchedAt（可能缺失）。
+    _sp = SNAP_PREFIX.get(_code_of_net(net), "")
+    _snap_today = f"cloud/tariff/snapshots/{_sp}{d}.json.gz" if _sp else ""
+    _prev8 = (old_o.get("fetchedAt", "") or "")[:10].replace("-", "")
+    _snap_prev = f"cloud/tariff/snapshots/{_sp}{_prev8}.json.gz" if (_sp and _prev8) else ""
     idx, oidx = index_rows(new_o), index_rows(old_o)
     L = [f"# {net}资费变更报告 · {d}", "",
          f"- 本次抓取：{new_o.get('fetchedAt')}",
@@ -1151,7 +1160,7 @@ def write_report(old_o, new_o, added, removed, changed,
                 L.append(f"  - 报备编号 `{r['_reportNo']}` · 上线 {r.get('onlineDay') or '—'}"
                          f" ~ 下线 {r.get('offineDay') or '—'}")
         if len(added) > 120:
-            L.append(f"- …（其余 {len(added) - 120} 条见当日快照）")
+            L.append(f"- …（其余 {len(added) - 120} 条见当日快照 `{_snap_today or 'snapshots/'}`）")
         L.append("")
     if removed:
         L += [f"## 下线/下架资费（{len(removed)}）", ""]
@@ -1159,7 +1168,7 @@ def write_report(old_o, new_o, added, removed, changed,
             r = oidx[k]
             L.append(f"- **{r['_name'] or r['_tname']}** 〔{r['_ty']}〕 {brief(r)}")
         if len(removed) > 120:
-            L.append(f"- …（其余 {len(removed) - 120} 条见上一版快照）")
+            L.append(f"- …（其余 {len(removed) - 120} 条见上一版快照 `{_snap_prev or 'snapshots/'}`）")
         L.append("")
     if changed:
         L += [f"## 关键字段变更（{len(changed)}）", ""]
@@ -1169,7 +1178,7 @@ def write_report(old_o, new_o, added, removed, changed,
             for f, (a, b) in dd.items():
                 L.append(f"  - {FIELD_CN.get(f, f)}：`{a[:70] or '—'}` → `{b[:70] or '—'}`")
         if len(changed) > 120:
-            L.append(f"- …（其余 {len(changed) - 120} 条见当日快照）")
+            L.append(f"- …（其余 {len(changed) - 120} 条见当日快照 `{_snap_today or 'snapshots/'}`）")
         L.append("")
     if not (added or removed or changed):
         L += ["本次未检测到任何变化。", ""]
@@ -2073,9 +2082,12 @@ def write_feed():
             mark = {"a": "＋", "r": "－", "c": "±"}.get(s.get("k"), "·")
             if s.get("n"):
                 desc.append(f"{mark} {s['n']}")
+        # FD1（2026-10-04）：每类变化一个 <category>，阅读器/自动化脚本可按类过滤
+        cats = "".join(f"<category>{_xu.escape(p.split(' ')[0])}</category>" for p in parts)
         L += ["<item>",
               f"<title>{_xu.escape(title)}</title>",
               f"<link>{_xu.escape(link)}</link>",
+              cats,
               '<guid isPermaLink="false">'
               f"{_xu.escape(d + '-' + str(x.get('code') or ''))}</guid>",
               f"<pubDate>{_rfc822(str(x.get('ts') or '')[:19], d)}</pubDate>",
@@ -2601,7 +2613,8 @@ def other_nets(today):
     返回 ``(sources, diffs, tails, summaries)``：
       ``sources`` = {网code: 数据源对象}（失败的那网是上一版快照，可能没有）
       ``diffs``   = {网code: {"added": set, "changed": set} 或 None}
-      ``tails``   = [" · 联通新增 1 / 变更 0", " · 广电无变化"] 供页面顶部提示拼接
+      ``tails``   = [" · 联通新增 1、变更 2", " · 广电无变化"] 供页面顶部提示拼接
+                    （零值段不写 —— G3，2026-10-04："变更 0" 是零信息量噪音）
       ``summaries`` = [diff_round 的 summary] —— 推送只在 main() 末尾汇总发一次，
                       所以各网的核验结果必须**带出来**（在网内部发就等于一网一条，
                       用户会在第一天把这个通道静音）。
@@ -2639,10 +2652,14 @@ def other_nets(today):
             summaries.append(sm)
         cn = sh_of.get(code, code)
         if dd:
-            if dd["added"] or dd["changed"]:
-                tails.append(f' · {cn}新增 {len(dd["added"])} / 变更 {len(dd["changed"])}')
-            else:
-                tails.append(f" · {cn}无变化")
+            # G3（2026-10-04）：只写非零段 —— "新增 1 / 变更 0" 里的
+            # "变更 0" 对读者零信息量；全零才写「无变化」。
+            # 注意：quiet 判据（build_notice 的 endswith("无变化")）依赖
+            # 「有变化的 tail 不以『无变化』结尾」，这里改格式后依然成立。
+            parts = ([f"新增 {len(dd['added'])}"] if dd["added"] else []) \
+                  + ([f"变更 {len(dd['changed'])}"] if dd["changed"] else [])
+            tails.append(f" · {cn}{'、'.join(parts)}" if parts
+                         else f" · {cn}无变化")
         elif sm and sm.get("note"):
             # 采集失败 / 降级冻结 / 回弹 / 结构变更 —— 这几种都**没有变更可报**，
             # 但绝不能显示成「无变化」：那是「看到了，没变」，
@@ -2711,8 +2728,12 @@ def build_notice(move_sm, tails, special_notice=None):
     if quiet:
         notice = "本次巡检未检测到任何变化" + tail
     else:
-        notice = (f"本次巡检：新增 {move_sm['added']} 条 · 下线 {move_sm['removed']} 条"
-                  f" · 字段变更 {move_sm['changed']} 条" + tail)
+        # G3（2026-10-04）：零值段不写 —— 非 quiet 时至少一段非零，
+        # 把零段（如"字段变更 0 条"）一并印出来只是噪音。
+        parts = ([f"新增 {move_sm['added']} 条"] if move_sm["added"] else []) \
+              + ([f"下线 {move_sm['removed']} 条"] if move_sm["removed"] else []) \
+              + ([f"字段变更 {move_sm['changed']} 条"] if move_sm["changed"] else [])
+        notice = "本次巡检：" + " · ".join(parts) + tail
     if move_sm["relocated"] or move_sm["fake_removed"] or move_sm["restored"]:
         notice += (f" · 🛡 护栏另摘除 {move_sm['relocated'] + move_sm['fake_removed']}"
                    f" 条假变化、识别 {move_sm['restored']} 条补录")

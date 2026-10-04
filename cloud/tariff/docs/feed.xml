@@ -7,6 +7,7 @@
 <item>
 <title>2026-10-04 河北电信：变更 2</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-04.md</link>
+<category>变更</category>
 <guid isPermaLink="false">2026-10-04-telecom</guid>
 <pubDate>Sun, 04 Oct 2026 08:22:09 +0800</pubDate>
 <description>2026-10-04 河北电信：变更 2
@@ -16,6 +17,7 @@
 <item>
 <title>2026-10-02 河北移动：下线 2 · 变更 14</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-10-02.md</link>
+<category>下线</category><category>变更</category>
 <guid isPermaLink="false">2026-10-02-move</guid>
 <pubDate>Fri, 02 Oct 2026 09:25:53 +0800</pubDate>
 <description>2026-10-02 河北移动：下线 2 · 变更 14
@@ -28,6 +30,7 @@
 <item>
 <title>2026-10-02 河北电信：下线 5</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-02.md</link>
+<category>下线</category>
 <guid isPermaLink="false">2026-10-02-telecom</guid>
 <pubDate>Fri, 02 Oct 2026 08:59:59 +0800</pubDate>
 <description>2026-10-02 河北电信：下线 5
@@ -39,6 +42,7 @@
 <item>
 <title>2026-10-01 中国广电：变更 4</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/cbn-2026-10-01.md</link>
+<category>变更</category>
 <guid isPermaLink="false">2026-10-01-cbn</guid>
 <pubDate>Thu, 01 Oct 2026 09:09:30 +0800</pubDate>
 <description>2026-10-01 中国广电：变更 4
@@ -50,6 +54,7 @@
 <item>
 <title>2026-10-01 河北联通：新增 7 · 下线 58 · 变更 9</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-10-01.md</link>
+<category>新增</category><category>下线</category><category>变更</category>
 <guid isPermaLink="false">2026-10-01-unicom</guid>
 <pubDate>Thu, 01 Oct 2026 09:09:18 +0800</pubDate>
 <description>2026-10-01 河北联通：新增 7 · 下线 58 · 变更 9
@@ -62,6 +67,7 @@
 <item>
 <title>2026-10-01 河北移动：新增 6 · 下线 49 · 变更 17</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-10-01.md</link>
+<category>新增</category><category>下线</category><category>变更</category>
 <guid isPermaLink="false">2026-10-01-move</guid>
 <pubDate>Thu, 01 Oct 2026 09:06:26 +0800</pubDate>
 <description>2026-10-01 河北移动：新增 6 · 下线 49 · 变更 17
@@ -74,6 +80,7 @@
 <item>
 <title>2026-10-01 河北电信：下线 40 · 变更 1</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-01.md</link>
+<category>下线</category><category>变更</category>
 <guid isPermaLink="false">2026-10-01-telecom</guid>
 <pubDate>Thu, 01 Oct 2026 09:05:07 +0800</pubDate>
 <description>2026-10-01 河北电信：下线 40 · 变更 1
@@ -86,6 +93,7 @@
 <item>
 <title>2026-09-30 中国广电：变更 8</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/cbn-2026-09-30.md</link>
+<category>变更</category>
 <guid isPermaLink="false">2026-09-30-cbn</guid>
 <pubDate>Wed, 30 Sep 2026 17:16:15 +0800</pubDate>
 <description>2026-09-30 中国广电：变更 8
@@ -98,6 +106,7 @@
 <item>
 <title>2026-09-30 河北联通：新增 52 · 变更 11</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-09-30.md</link>
+<category>新增</category><category>变更</category>
 <guid isPermaLink="false">2026-09-30-unicom</guid>
 <pubDate>Wed, 30 Sep 2026 17:12:38 +0800</pubDate>
 <description>2026-09-30 河北联通：新增 52 · 变更 11
@@ -110,6 +119,7 @@
 <item>
 <title>2026-09-30 河北移动：新增 9 · 下线 2 · 变更 92</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-09-30.md</link>
+<category>新增</category><category>下线</category><category>变更</category>
 <guid isPermaLink="false">2026-09-30-move</guid>
 <pubDate>Wed, 30 Sep 2026 17:09:18 +0800</pubDate>
 <description>2026-09-30 河北移动：新增 9 · 下线 2 · 变更 92
@@ -122,6 +132,7 @@
 <item>
 <title>2026-09-30 河北电信：变更 53</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-09-30.md</link>
+<category>变更</category>
 <guid isPermaLink="false">2026-09-30-telecom</guid>
 <pubDate>Wed, 30 Sep 2026 17:07:35 +0800</pubDate>
 <description>2026-09-30 河北电信：变更 53
@@ -134,6 +145,7 @@
 <item>
 <title>2026-09-29 中国广电：变更 15</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/cbn-2026-09-29.md</link>
+<category>变更</category>
 <guid isPermaLink="false">2026-09-29-cbn</guid>
 <pubDate>Tue, 29 Sep 2026 09:32:26 +0800</pubDate>
 <description>2026-09-29 中国广电：变更 15
@@ -146,6 +158,7 @@
 <item>
 <title>2026-09-29 河北联通：变更 78</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-09-29.md</link>
+<category>变更</category>
 <guid isPermaLink="false">2026-09-29-unicom</guid>
 <pubDate>Tue, 29 Sep 2026 09:32:12 +0800</pubDate>
 <description>2026-09-29 河北联通：变更 78
@@ -158,6 +171,7 @@
 <item>
 <title>2026-09-29 河北移动：新增 2 · 变更 2</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-09-29.md</link>
+<category>新增</category><category>变更</category>
 <guid isPermaLink="false">2026-09-29-move</guid>
 <pubDate>Tue, 29 Sep 2026 09:29:20 +0800</pubDate>
 <description>2026-09-29 河北移动：新增 2 · 变更 2
@@ -169,6 +183,7 @@
 <item>
 <title>2026-09-28 河北联通：下线 15</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-09-28.md</link>
+<category>下线</category>
 <guid isPermaLink="false">2026-09-28-unicom</guid>
 <pubDate>Mon, 28 Sep 2026 08:22:19 +0800</pubDate>
 <description>2026-09-28 河北联通：下线 15
@@ -180,6 +195,7 @@
 <item>
 <title>2026-09-26 河北联通：下线 1</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-09-26.md</link>
+<category>下线</category>
 <guid isPermaLink="false">2026-09-26-unicom</guid>
 <pubDate>Sat, 26 Sep 2026 18:12:08 +0800</pubDate>
 <description>2026-09-26 河北联通：下线 1
@@ -188,6 +204,7 @@
 <item>
 <title>2026-09-25 河北联通：新增 120 · 下线 123 · 变更 81</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-09-25.md</link>
+<category>新增</category><category>下线</category><category>变更</category>
 <guid isPermaLink="false">2026-09-25-unicom</guid>
 <pubDate>Fri, 25 Sep 2026 22:27:20 +0800</pubDate>
 <description>2026-09-25 河北联通：新增 120 · 下线 123 · 变更 81
@@ -200,6 +217,7 @@
 <item>
 <title>2026-09-25 河北移动：新增 5 · 下线 1 · 变更 95</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-09-25.md</link>
+<category>新增</category><category>下线</category><category>变更</category>
 <guid isPermaLink="false">2026-09-25-move</guid>
 <pubDate>Fri, 25 Sep 2026 22:24:31 +0800</pubDate>
 <description>2026-09-25 河北移动：新增 5 · 下线 1 · 变更 95
@@ -212,6 +230,7 @@
 <item>
 <title>2026-09-25 河北电信：下线 71</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-09-25.md</link>
+<category>下线</category>
 <guid isPermaLink="false">2026-09-25-telecom</guid>
 <pubDate>Fri, 25 Sep 2026 22:23:36 +0800</pubDate>
 <description>2026-09-25 河北电信：下线 71
@@ -223,6 +242,7 @@
 <item>
 <title>2026-09-24 河北联通：新增 130 · 下线 1 · 变更 9</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-09-24.md</link>
+<category>新增</category><category>下线</category><category>变更</category>
 <guid isPermaLink="false">2026-09-24-unicom</guid>
 <pubDate>Thu, 24 Sep 2026 17:11:57 +0800</pubDate>
 <description>2026-09-24 河北联通：新增 130 · 下线 1 · 变更 9
@@ -235,6 +255,7 @@
 <item>
 <title>2026-09-24 河北移动：下线 78 · 变更 10</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-09-24.md</link>
+<category>下线</category><category>变更</category>
 <guid isPermaLink="false">2026-09-24-move</guid>
 <pubDate>Thu, 24 Sep 2026 17:08:47 +0800</pubDate>
 <description>2026-09-24 河北移动：下线 78 · 变更 10
@@ -247,6 +268,7 @@
 <item>
 <title>2026-09-24 河北电信：新增 12 · 下线 1 · 变更 99</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-09-24.md</link>
+<category>新增</category><category>下线</category><category>变更</category>
 <guid isPermaLink="false">2026-09-24-telecom</guid>
 <pubDate>Thu, 24 Sep 2026 17:07:01 +0800</pubDate>
 <description>2026-09-24 河北电信：新增 12 · 下线 1 · 变更 99
@@ -259,6 +281,7 @@
 <item>
 <title>2026-09-23 中国广电：变更 1</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/cbn-2026-09-23.md</link>
+<category>变更</category>
 <guid isPermaLink="false">2026-09-23-cbn</guid>
 <pubDate>Wed, 23 Sep 2026 23:50:03 +0800</pubDate>
 <description>2026-09-23 中国广电：变更 1
@@ -267,6 +290,7 @@
 <item>
 <title>2026-09-23 河北联通：新增 15 · 下线 2 · 变更 116</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-09-23.md</link>
+<category>新增</category><category>下线</category><category>变更</category>
 <guid isPermaLink="false">2026-09-23-unicom</guid>
 <pubDate>Wed, 23 Sep 2026 23:49:44 +0800</pubDate>
 <description>2026-09-23 河北联通：新增 15 · 下线 2 · 变更 116
@@ -279,6 +303,7 @@
 <item>
 <title>2026-09-23 河北移动：新增 1514 · 下线 26 · 变更 85</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-09-23.md</link>
+<category>新增</category><category>下线</category><category>变更</category>
 <guid isPermaLink="false">2026-09-23-move</guid>
 <pubDate>Wed, 23 Sep 2026 23:47:18 +0800</pubDate>
 <description>2026-09-23 河北移动：新增 1514 · 下线 26 · 变更 85
@@ -291,6 +316,7 @@
 <item>
 <title>2026-09-23 河北电信：新增 2</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-09-23.md</link>
+<category>新增</category>
 <guid isPermaLink="false">2026-09-23-telecom</guid>
 <pubDate>Wed, 23 Sep 2026 16:22:28 +0800</pubDate>
 <description>2026-09-23 河北电信：新增 2
@@ -300,6 +326,7 @@
 <item>
 <title>2026-09-22 河北联通：变更 2</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-09-22.md</link>
+<category>变更</category>
 <guid isPermaLink="false">2026-09-22-unicom</guid>
 <pubDate>Tue, 22 Sep 2026 21:27:31 +0800</pubDate>
 <description>2026-09-22 河北联通：变更 2
@@ -309,6 +336,7 @@
 <item>
 <title>2026-09-22 河北移动：新增 13 · 下线 4 · 变更 33</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-09-22.md</link>
+<category>新增</category><category>下线</category><category>变更</category>
 <guid isPermaLink="false">2026-09-22-move</guid>
 <pubDate>Tue, 22 Sep 2026 21:22:46 +0800</pubDate>
 <description>2026-09-22 河北移动：新增 13 · 下线 4 · 变更 33
@@ -321,6 +349,7 @@
 <item>
 <title>2026-09-21 河北移动：下线 1</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-09-21.md</link>
+<category>下线</category>
 <guid isPermaLink="false">2026-09-21-move</guid>
 <pubDate>Mon, 21 Sep 2026 08:00:37 +0800</pubDate>
 <description>2026-09-21 河北移动：下线 1

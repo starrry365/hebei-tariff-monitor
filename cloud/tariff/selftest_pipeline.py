@@ -151,6 +151,11 @@ def main():
         ck("build_notice 有变化带数字",
            ("新增 2" in n2 and "下线 1" in n2 and "字段变更 3" in n2), True)
         ck("build_notice 拼其余网提示", ("联通无变化" in n2), True)
+        # 方向 ②b（G3，2026-10-04）：零值段不写 —— 只有新增时，
+        # 「下线 0 条」「字段变更 0 条」不再出现在提示里（零信息量噪音）。
+        n2b = T.build_notice(dict(mv_hit, removed=0, changed=0), tails_quiet)
+        ck("build_notice 零值段不写（G3）",
+           ("新增 2" in n2b and "下线" not in n2b and "字段变更" not in n2b), True)
         # 方向 ③：护栏动过手 ⇒ 即便数字为零也不是安静（护栏结果必须露面）
         n3 = T.build_notice(mv_guard, tails_quiet)
         ck("build_notice 护栏摘除时不隐藏",

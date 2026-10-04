@@ -248,7 +248,9 @@
        （数据使然，不是 bug），拿它做断言会把正常情况判成失败。 */
     $("#gf").value = "0,5";
     try { apply(); } catch (e) {}
-    o.gfSample = { rows: view.length, want: wantBy(function (d) { return d.g != null && d.g >= 0 && d.g <= 5; }) };
+    /* 2026-10-04 页面档位改半开 (lo,hi]（列表审查 F2）：g=0 归「无流量」独立档，
+       「≤5GB」= (0,5]。oracle 是复现，跟页面同一语义。 */
+    o.gfSample = { rows: view.length, want: wantBy(function (d) { return d.g != null && d.g > 0 && d.g <= 5; }) };
     resetAll();
 
     $("#cf").value = "none";
