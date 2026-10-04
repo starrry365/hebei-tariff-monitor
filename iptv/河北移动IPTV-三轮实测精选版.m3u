@@ -1,0 +1,254 @@
+#EXTM3U
+# 河北移动 IPTV · 三轮实测精选版 v3 | 2026-10-04
+# 每条URL经3轮真实拉流复测；主选=中位速度最高，标[备]=异主机热备
+# 已剔除：死链 1 条、三轮中位<1Mbps 慢速 1 条
+
+# --- 央视（18 台）---
+#EXTINF:-1 tvg-name="CCTV-1" group-title="央视",CCTV-1 ·4.2Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CCTV-1/1.m3u8
+#EXTINF:-1 tvg-name="CCTV-2" group-title="央视",CCTV-2 ·4.8Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CCTV-2/1.m3u8
+#EXTINF:-1 tvg-name="CCTV-3" group-title="央视",CCTV-3 ·6.3Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-3/1.m3u8
+#EXTINF:-1 tvg-name="CCTV-4" group-title="央视",CCTV-4 ·4.9Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/CCTV-4/CCTV-4.m3u8
+#EXTINF:-1 tvg-name="CCTV-5" group-title="央视",CCTV-5 ·6.9Mbps
+http://121.19.134.202:808/tsfile/live/0005_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="CCTV5+" group-title="央视",CCTV5+ ·4.1Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/hdcctv05plus/1.m3u8
+#EXTINF:-1 tvg-name="CCTV-6" group-title="央视",CCTV-6 ·7.0Mbps
+http://121.19.134.202:808/tsfile/live/0006_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="CCTV-7" group-title="央视",CCTV-7 ·10.7Mbps
+http://221.13.235.44:9901/tsfile/live/0007_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="CCTV-8" group-title="央视",CCTV-8 ·4.0Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-8/1.m3u8
+#EXTINF:-1 tvg-name="CCTV-9" group-title="央视",CCTV-9 ·6.8Mbps
+http://121.19.134.202:808/tsfile/live/0009_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="CCTV-10" group-title="央视",CCTV-10 ·5.6Mbps
+http://221.13.235.44:9901/tsfile/live/0010_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="CCTV-11" group-title="央视",CCTV-11 ·5.2Mbps
+http://121.19.134.202:808/tsfile/live/0011_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="CCTV-12" group-title="央视",CCTV-12 ·8.4Mbps
+http://125.43.244.2:9901/tsfile/live/1015_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="CCTV-13" group-title="央视",CCTV-13 ·6.7Mbps
+http://121.19.134.202:808/tsfile/live/0013_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="CCTV-14" group-title="央视",CCTV-14 ·5.1Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CCTV-14/1.m3u8
+#EXTINF:-1 tvg-name="CCTV-15" group-title="央视",CCTV-15 ·11.3Mbps
+http://101.66.199.13:9901/tsfile/live/0015_1.m3u8?key=txiptv&playlive=0&authid=0
+#EXTINF:-1 tvg-name="CCTV-16" group-title="央视",CCTV-16 ·5.9Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-cctv16/1.m3u8
+#EXTINF:-1 tvg-name="CCTV-17" group-title="央视",CCTV-17 ·6.2Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-cctv17/1.m3u8
+#EXTINF:-1 tvg-name="CCTV-1" group-title="央视",CCTV-1 ·2.8Mbps 备
+http://121.19.134.202:808/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="CCTV-2" group-title="央视",CCTV-2 ·3.5Mbps 备
+http://124.228.160.112:9901/tsfile/live/0018_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="CCTV-3" group-title="央视",CCTV-3 ·6.3Mbps 备
+http://121.19.134.202:808/tsfile/live/0003_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="CCTV-4" group-title="央视",CCTV-4 ·2.7Mbps 备
+http://124.228.160.112:9901/tsfile/live/0004_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="CCTV-5" group-title="央视",CCTV-5 ·6.2Mbps 备
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-5/1.m3u8
+#EXTINF:-1 tvg-name="CCTV-6" group-title="央视",CCTV-6 ·4.9Mbps 备
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-6/1.m3u8
+#EXTINF:-1 tvg-name="CCTV-7" group-title="央视",CCTV-7 ·4.1Mbps 备
+http://121.19.134.202:808/tsfile/live/0007_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="CCTV-8" group-title="央视",CCTV-8 ·3.4Mbps 备
+http://121.19.134.202:808/tsfile/live/0008_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="CCTV-9" group-title="央视",CCTV-9 ·3.8Mbps 备
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CCTV-9/1.m3u8
+#EXTINF:-1 tvg-name="CCTV-10" group-title="央视",CCTV-10 ·4.7Mbps 备
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/CCTV-10/CCTV-10.m3u8
+#EXTINF:-1 tvg-name="CCTV-11" group-title="央视",CCTV-11 ·3.5Mbps 备
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/CCTV-11/1.m3u8
+#EXTINF:-1 tvg-name="CCTV-12" group-title="央视",CCTV-12 ·2.9Mbps 备
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/CCTV-12/CCTV-12.m3u8
+#EXTINF:-1 tvg-name="CCTV-13" group-title="央视",CCTV-13 ·3.7Mbps 备
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/CCTV-13/CCTV-13.m3u8
+#EXTINF:-1 tvg-name="CCTV-14" group-title="央视",CCTV-14 ·4.3Mbps 备
+http://221.13.235.44:9901/tsfile/live/0014_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="CCTV-15" group-title="央视",CCTV-15 ·4.6Mbps 备
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CCTV-15/1.m3u8
+#EXTINF:-1 tvg-name="CCTV-16" group-title="央视",CCTV-16 ·5.4Mbps 备
+http://121.19.134.202:808/tsfile/live/0016_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="CCTV-17" group-title="央视",CCTV-17 ·5.7Mbps 备
+http://121.19.134.202:808/tsfile/live/0017_1.m3u8?key=txiptv&playlive=1&authid=0
+
+# --- 卫视（31 台）---
+#EXTINF:-1 tvg-name="山东卫视" group-title="卫视",山东卫视 ·9.9Mbps
+http://101.66.199.13:9901/tsfile/live/0131_1.m3u8?key=txiptv&playlive=0&authid=0
+#EXTINF:-1 tvg-name="北京卫视" group-title="卫视",北京卫视 ·8.8Mbps
+http://101.66.198.121:9901/tsfile/live/0016_1.m3u8?key=txiptv&playlive=0&authid=0
+#EXTINF:-1 tvg-name="辽宁卫视" group-title="卫视",辽宁卫视 ·8.7Mbps
+http://101.66.194.121:9901/tsfile/live/0121_1.m3u8?key=txiptv&playlive=0&authid=0
+#EXTINF:-1 tvg-name="湖北卫视" group-title="卫视",湖北卫视 ·8.0Mbps
+http://101.66.194.121:9901/tsfile/live/0117_1.m3u8?key=txiptv&playlive=0&authid=0
+#EXTINF:-1 tvg-name="浙江卫视" group-title="卫视",浙江卫视 ·7.2Mbps
+http://101.66.199.13:9901/tsfile/live/0124_1.m3u8?key=txiptv&playlive=0&authid=0
+#EXTINF:-1 tvg-name="黑龙江卫视" group-title="卫视",黑龙江卫视 ·7.0Mbps
+http://101.66.199.13:9901/tsfile/live/0143_1.m3u8?key=txiptv&playlive=0&authid=0
+#EXTINF:-1 tvg-name="东方卫视" group-title="卫视",东方卫视 ·6.6Mbps
+http://121.19.134.202:808/tsfile/live/1026_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="宁夏卫视" group-title="卫视",宁夏卫视 ·6.1Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_NINGXIA/G_NINGXIA.m3u8
+#EXTINF:-1 tvg-name="安徽卫视" group-title="卫视",安徽卫视 ·5.9Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/AHWS/1.m3u8
+#EXTINF:-1 tvg-name="江西卫视" group-title="卫视",江西卫视 ·5.7Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/JXWS/1.m3u8
+#EXTINF:-1 tvg-name="天津卫视" group-title="卫视",天津卫视 ·5.7Mbps
+http://121.19.134.202:808/tsfile/live/1016_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="广东卫视" group-title="卫视",广东卫视 ·5.4Mbps
+http://101.66.199.13:9901/tsfile/live/0125_1.m3u8?key=txiptv&playlive=0&authid=0
+#EXTINF:-1 tvg-name="青海卫视" group-title="卫视",青海卫视 ·5.4Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_QINGHAI/G_QINGHAI.m3u8
+#EXTINF:-1 tvg-name="广西卫视" group-title="卫视",广西卫视 ·4.8Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/GXWS/1.m3u8
+#EXTINF:-1 tvg-name="河南卫视" group-title="卫视",河南卫视 ·4.6Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/HENAN/HENAN.m3u8
+#EXTINF:-1 tvg-name="东南卫视" group-title="卫视",东南卫视 ·4.4Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/dongnanstv/1.m3u8
+#EXTINF:-1 tvg-name="西藏卫视" group-title="卫视",西藏卫视 ·4.3Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/xizangstv/1.m3u8
+#EXTINF:-1 tvg-name="江苏卫视" group-title="卫视",江苏卫视 ·4.3Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jiangsustv/1.m3u8
+#EXTINF:-1 tvg-name="吉林卫视" group-title="卫视",吉林卫视 ·4.1Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_JILIN/G_JILIN.m3u8
+#EXTINF:-1 tvg-name="新疆卫视" group-title="卫视",新疆卫视 ·4.0Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_XINJIANG/G_XINJIANG.m3u8
+#EXTINF:-1 tvg-name="甘肃卫视" group-title="卫视",甘肃卫视 ·3.9Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_GANSU/G_GANSU.m3u8
+#EXTINF:-1 tvg-name="陕西卫视" group-title="卫视",陕西卫视 ·3.8Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/shanxi1stv/1.m3u8
+#EXTINF:-1 tvg-name="四川卫视" group-title="卫视",四川卫视 ·3.8Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/SCWS/1.m3u8
+#EXTINF:-1 tvg-name="云南卫视" group-title="卫视",云南卫视 ·3.5Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_YUNNAN/G_YUNNAN.m3u8
+#EXTINF:-1 tvg-name="山西卫视" group-title="卫视",山西卫视 ·3.5Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/SXWS/SXWS.m3u8
+#EXTINF:-1 tvg-name="重庆卫视" group-title="卫视",重庆卫视 ·3.3Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CHONGQING/G_CHONGQING.m3u8
+#EXTINF:-1 tvg-name="深圳卫视" group-title="卫视",深圳卫视 ·3.3Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/shenzhenstv/1.m3u8
+#EXTINF:-1 tvg-name="内蒙古卫视" group-title="卫视",内蒙古卫视 ·3.2Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_NEIMENGGU/G_NEIMENGGU.m3u8
+#EXTINF:-1 tvg-name="贵州卫视" group-title="卫视",贵州卫视 ·3.1Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_GUIZHOU/G_GUIZHOU.m3u8
+#EXTINF:-1 tvg-name="湖南卫视" group-title="卫视",湖南卫视 ·3.0Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/hunanstv/1.m3u8
+#EXTINF:-1 tvg-name="旅游卫视" group-title="卫视",旅游卫视 ·2.7Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/LYWS/1.m3u8
+#EXTINF:-1 tvg-name="浙江卫视" group-title="卫视",浙江卫视 ·6.6Mbps 备
+http://101.66.195.33:9901/tsfile/live/0124_1.m3u8?key=txiptv&playlive=0&authid=0
+#EXTINF:-1 tvg-name="山东卫视" group-title="卫视",山东卫视 ·4.6Mbps 备
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/shandongstv/1.m3u8
+#EXTINF:-1 tvg-name="天津卫视" group-title="卫视",天津卫视 ·4.3Mbps 备
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/tianjinstv/1.m3u8
+#EXTINF:-1 tvg-name="黑龙江卫视" group-title="卫视",黑龙江卫视 ·4.2Mbps 备
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_HEILONGJIANG-CQ/G_HEILONGJIANG-CQ.m3u8
+#EXTINF:-1 tvg-name="北京卫视" group-title="卫视",北京卫视 ·4.0Mbps 备
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/beijingstv/1.m3u8
+#EXTINF:-1 tvg-name="广东卫视" group-title="卫视",广东卫视 ·3.9Mbps 备
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/guangdongstv/1.m3u8
+#EXTINF:-1 tvg-name="东方卫视" group-title="卫视",东方卫视 ·3.9Mbps 备
+http://101.66.199.13:9901/tsfile/live/0018_1.m3u8?key=txiptv&playlive=0&authid=0
+#EXTINF:-1 tvg-name="湖北卫视" group-title="卫视",湖北卫视 ·3.6Mbps 备
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_HUBEI/1.m3u8
+#EXTINF:-1 tvg-name="辽宁卫视" group-title="卫视",辽宁卫视 ·3.4Mbps 备
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/LNWS/LNWS.m3u8
+#EXTINF:-1 tvg-name="江苏卫视" group-title="卫视",江苏卫视 ·2.6Mbps 备
+http://101.66.194.121:9901/tsfile/live/0017_1.m3u8?key=txiptv&playlive=0&authid=0
+#EXTINF:-1 tvg-name="安徽卫视" group-title="卫视",安徽卫视 ·2.0Mbps 备
+http://121.19.134.202:808/tsfile/live/1013_1.m3u8?key=txiptv&playlive=1&authid=0
+
+# --- 影视·专题（44 台）---
+#EXTINF:-1 tvg-name="精品综合" group-title="影视·专题",精品综合 ·5.8Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/mingxingdp/1.m3u8
+#EXTINF:-1 tvg-name="营养饮食" group-title="影视·专题",营养饮食 ·5.7Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-huanqiugw/1.m3u8
+#EXTINF:-1 tvg-name="精品体育" group-title="影视·专题",精品体育 ·5.7Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jtiyu/1.m3u8
+#EXTINF:-1 tvg-name="万人推荐" group-title="影视·专题",万人推荐 ·5.6Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-kuailegw/1.m3u8
+#EXTINF:-1 tvg-name="中国教育4套" group-title="影视·专题",中国教育4套 ·5.5Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-4000k-576P-jiaoyutv4/1.m3u8
+#EXTINF:-1 tvg-name="烽烟剧场" group-title="影视·专题",烽烟剧场 ·5.4Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jingpinjl/1.m3u8
+#EXTINF:-1 tvg-name="黑莓电影" group-title="影视·专题",黑莓电影 ·5.3Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jdianying/1.m3u8
+#EXTINF:-1 tvg-name="优漫卡通" group-title="影视·专题",优漫卡通 ·5.3Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/youmankaton/1.m3u8
+#EXTINF:-1 tvg-name="凤凰中文" group-title="影视·专题",凤凰中文 ·4.9Mbps
+http://183.10.180.81:9901/tsfile/live/1003_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="怡伴健康" group-title="影视·专题",怡伴健康 ·4.9Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/ljiankangyouyue/1.m3u8
+#EXTINF:-1 tvg-name="康养保健" group-title="影视·专题",康养保健 ·4.8Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-jiayougw/1.m3u8
+#EXTINF:-1 tvg-name="军事评论" group-title="影视·专题",军事评论 ·4.8Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/junshipl/1.m3u8
+#EXTINF:-1 tvg-name="炫舞未来" group-title="影视·专题",炫舞未来 ·4.8Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-xwwl/1.m3u8
+#EXTINF:-1 tvg-name="军旅剧场" group-title="影视·专题",军旅剧场 ·4.7Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/junlvjc/1.m3u8
+#EXTINF:-1 tvg-name="哒啵电竞" group-title="影视·专题",哒啵电竞 ·4.7Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/dabodj/1.m3u8
+#EXTINF:-1 tvg-name="精品家居" group-title="影视·专题",精品家居 ·4.7Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-haoxianggw/1.m3u8
+#EXTINF:-1 tvg-name="中国教育-1" group-title="影视·专题",中国教育-1 ·4.7Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jiaoyutv/1.m3u8
+#EXTINF:-1 tvg-name="卡酷少儿" group-title="影视·专题",卡酷少儿 ·4.6Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/kakukaton/1.m3u8
+#EXTINF:-1 tvg-name="银发生活" group-title="影视·专题",银发生活 ·4.6Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/fengshanggw/1.m3u8
+#EXTINF:-1 tvg-name="古装剧场" group-title="影视·专题",古装剧场 ·4.6Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/guzhuangjc/1.m3u8
+#EXTINF:-1 tvg-name="哒啵赛事" group-title="影视·专题",哒啵赛事 ·4.5Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/wmyx/1.m3u8
+#EXTINF:-1 tvg-name="金鹰卡通" group-title="影视·专题",金鹰卡通 ·4.5Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jinyingkaton/1.m3u8
+#EXTINF:-1 tvg-name="动作电影" group-title="影视·专题",动作电影 ·4.4Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/dongzuody/1.m3u8
+#EXTINF:-1 tvg-name="潮妈辣婆" group-title="影视·专题",潮妈辣婆 ·4.4Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-1500k-720P-cmlapo/1.m3u8
+#EXTINF:-1 tvg-name="睛彩篮球" group-title="影视·专题",睛彩篮球 ·4.3Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-8000k-1080P-miguaoyun1/1.m3u8
+#EXTINF:-1 tvg-name="农业致富" group-title="影视·专题",农业致富 ·4.3Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/nongyezf/1.m3u8
+#EXTINF:-1 tvg-name="精品大剧" group-title="影视·专题",精品大剧 ·4.3Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jdaju/1.m3u8
+#EXTINF:-1 tvg-name="运动文旅" group-title="影视·专题",运动文旅 ·4.2Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-yanxuangw/1.m3u8
+#EXTINF:-1 tvg-name="爱情喜剧" group-title="影视·专题",爱情喜剧 ·4.2Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/aiqingxj/1.m3u8
+#EXTINF:-1 tvg-name="山东教育" group-title="影视·专题",山东教育 ·4.1Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/shandongjy/1.m3u8
+#EXTINF:-1 tvg-name="中国功夫" group-title="影视·专题",中国功夫 ·4.0Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-gzkongfu/1.m3u8
+#EXTINF:-1 tvg-name="北京纪实" group-title="影视·专题",北京纪实 ·4.0Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-beijingjishi/1.m3u8
+#EXTINF:-1 tvg-name="睛彩竞技" group-title="影视·专题",睛彩竞技 ·4.0Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-8000k-1080P-miguaoyun2/1.m3u8
+#EXTINF:-1 tvg-name="谍战大剧" group-title="影视·专题",谍战大剧 ·3.9Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/saishijx/1.m3u8
+#EXTINF:-1 tvg-name="黑莓动画" group-title="影视·专题",黑莓动画 ·3.7Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/donghuawg/1.m3u8
+#EXTINF:-1 tvg-name="热播精选" group-title="影视·专题",热播精选 ·3.7Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/xiqumd/1.m3u8
+#EXTINF:-1 tvg-name="炫动卡通" group-title="影视·专题",炫动卡通 ·3.5Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/xuandongkaton/1.m3u8
+#EXTINF:-1 tvg-name="第一剧场" group-title="影视·专题",第一剧场 ·3.5Mbps
+http://183.10.180.81:9901/tsfile/live/1082_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="惊悚悬疑" group-title="影视·专题",惊悚悬疑 ·3.4Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jingsongxy/1.m3u8
+#EXTINF:-1 tvg-name="睛彩青少" group-title="影视·专题",睛彩青少 ·3.4Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-8000k-1080P-quanminrl/1.m3u8
+#EXTINF:-1 tvg-name="家庭剧场" group-title="影视·专题",家庭剧场 ·3.3Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jiatingjc/1.m3u8
+#EXTINF:-1 tvg-name="精品萌宠" group-title="影视·专题",精品萌宠 ·3.0Mbps
+http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jingpinmc/1.m3u8
+#EXTINF:-1 tvg-name="风云剧场" group-title="影视·专题",风云剧场 ·2.4Mbps
+http://183.10.180.81:9901/tsfile/live/1032_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 tvg-name="世界地理" group-title="影视·专题",世界地理 ·1.6Mbps
+http://183.10.180.81:9901/tsfile/live/1008_1.m3u8?key=txiptv&playlive=1&authid=0
+
+# 合计: 93 频道 / 121 条URL（含热备）

@@ -1,0 +1,1682 @@
+[
+ {
+  "tgt": "CCTV-1",
+  "src": "aptv_iptv2",
+  "name": "CCTV1",
+  "url": "http://101.35.240.114:88/live.php?id=CCTV1",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-3",
+  "src": "aptv_iptv2",
+  "name": "CCTV3",
+  "url": "http://101.35.240.114:88/live.php?id=CCTV3",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-2",
+  "src": "aptv_iptv2",
+  "name": "CCTV2",
+  "url": "http://101.35.240.114:88/live.php?id=CCTV2",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-1",
+  "src": "itvlist",
+  "name": "CCTV1",
+  "url": "http://121.19.134.202:808/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4269,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-1",
+  "src": "itvlist",
+  "name": "CCTV1",
+  "url": "http://221.13.234.13:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 2965,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-4",
+  "src": "aptv_iptv2",
+  "name": "CCTV4",
+  "url": "http://101.35.240.114:88/live.php?id=CCTV4",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-2",
+  "src": "itvlist",
+  "name": "CCTV2",
+  "url": "http://121.19.134.202:808/tsfile/live/0002_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 2818,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-4",
+  "src": "itvlist",
+  "name": "CCTV4",
+  "url": "http://221.13.235.151:9901/tsfile/live/0004_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 7899,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-3",
+  "src": "itvlist",
+  "name": "CCTV3",
+  "url": "http://221.13.234.13:9901/tsfile/live/0003_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 8695,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-5",
+  "src": "aptv_iptv2",
+  "name": "CCTV5",
+  "url": "http://101.35.240.114:88/live.php?id=CCTV5",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-3",
+  "src": "itvlist",
+  "name": "CCTV3",
+  "url": "http://121.19.134.202:808/tsfile/live/0003_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 1282,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-1",
+  "src": "itvlist",
+  "name": "CCTV1",
+  "url": "http://101.66.199.210:9901/tsfile/live/0001_1.m3u8?key=txiptv&playlive=0&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 1571,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-4",
+  "src": "itvlist",
+  "name": "CCTV4",
+  "url": "http://124.228.160.112:9901/tsfile/live/0004_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 2610,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-5",
+  "src": "itvlist",
+  "name": "CCTV5",
+  "url": "http://221.13.234.13:9901/tsfile/live/0005_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 6775,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-6",
+  "src": "aptv_iptv2",
+  "name": "CCTV6",
+  "url": "http://101.35.240.114:88/live.php?id=CCTV6",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-5",
+  "src": "itvlist",
+  "name": "CCTV5",
+  "url": "http://121.19.134.202:808/tsfile/live/0005_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 3475,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-4",
+  "src": "itvlist",
+  "name": "CCTV4",
+  "url": "http://221.13.234.13:9901/tsfile/live/0004_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 3004,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-6",
+  "src": "itvlist",
+  "name": "CCTV6",
+  "url": "http://221.13.235.44:9901/tsfile/live/0006_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 6872,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-6",
+  "src": "itvlist",
+  "name": "CCTV6",
+  "url": "http://121.19.134.202:808/tsfile/live/0006_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4015,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-7",
+  "src": "aptv_iptv2",
+  "name": "CCTV7",
+  "url": "http://101.35.240.114:88/live.php?id=CCTV7",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-2",
+  "src": "itvlist",
+  "name": "CCTV2",
+  "url": "http://221.13.234.13:9901/tsfile/live/0002_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 634,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-7",
+  "src": "itvlist",
+  "name": "CCTV7",
+  "url": "http://221.13.235.151:9901/tsfile/live/0007_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 6955,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-2",
+  "src": "itvlist",
+  "name": "CCTV2",
+  "url": "http://124.228.160.112:9901/tsfile/live/0018_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 556,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-7",
+  "src": "itvlist",
+  "name": "CCTV7",
+  "url": "http://121.19.134.202:808/tsfile/live/0007_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 3744,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-8",
+  "src": "aptv_iptv2",
+  "name": "CCTV8",
+  "url": "http://101.35.240.114:88/live.php?id=CCTV8",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-7",
+  "src": "itvlist",
+  "name": "CCTV7",
+  "url": "http://221.13.235.44:9901/tsfile/live/0007_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4213,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-6",
+  "src": "itvlist",
+  "name": "CCTV6",
+  "url": "http://221.13.234.13:9901/tsfile/live/0006_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 1487,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-8",
+  "src": "itvlist",
+  "name": "CCTV8",
+  "url": "http://221.13.235.151:9901/tsfile/live/0008_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 6538,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-3",
+  "src": "itvlist",
+  "name": "CCTV3",
+  "url": "http://221.13.235.151:9901/tsfile/live/0003_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 3454,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-9",
+  "src": "aptv_iptv2",
+  "name": "CCTV9",
+  "url": "http://101.35.240.114:88/live.php?id=CCTV9",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-8",
+  "src": "itvlist",
+  "name": "CCTV8",
+  "url": "http://121.19.134.202:808/tsfile/live/0008_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 3236,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-9",
+  "src": "itvlist",
+  "name": "CCTV9",
+  "url": "http://121.19.134.202:808/tsfile/live/0009_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4245,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-9",
+  "src": "itvlist",
+  "name": "CCTV9",
+  "url": "http://221.13.234.13:9901/tsfile/live/0009_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 9036,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-9",
+  "src": "itvlist",
+  "name": "CCTV9",
+  "url": "http://221.13.235.151:9901/tsfile/live/0009_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 8918,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-10",
+  "src": "aptv_iptv2",
+  "name": "CCTV10",
+  "url": "http://101.35.240.114:88/live.php?id=CCTV10",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-5",
+  "src": "itvlist",
+  "name": "CCTV5",
+  "url": "http://182.114.48.241:9901/tsfile/live/0005_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "<urlopen error timed out>"
+ },
+ {
+  "tgt": "CCTV-10",
+  "src": "itvlist",
+  "name": "CCTV10",
+  "url": "http://221.13.235.151:9901/tsfile/live/0010_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 5315,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-10",
+  "src": "itvlist",
+  "name": "CCTV10",
+  "url": "http://221.13.235.44:9901/tsfile/live/0010_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 7341,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-10",
+  "src": "itvlist",
+  "name": "CCTV10",
+  "url": "http://121.19.134.202:808/tsfile/live/0010_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4178,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-11",
+  "src": "aptv_iptv2",
+  "name": "CCTV11",
+  "url": "http://101.35.240.114:88/live.php?id=CCTV11",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-8",
+  "src": "itvlist",
+  "name": "CCTV8",
+  "url": "http://182.114.48.241:9901/tsfile/live/0008_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "<urlopen error timed out>"
+ },
+ {
+  "tgt": "CCTV-11",
+  "src": "itvlist",
+  "name": "CCTV11",
+  "url": "http://121.19.134.202:808/tsfile/live/0011_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 3001,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-11",
+  "src": "itvlist",
+  "name": "CCTV11",
+  "url": "http://221.13.234.13:9901/tsfile/live/0011_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 7421,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-11",
+  "src": "itvlist",
+  "name": "CCTV11",
+  "url": "http://221.13.235.151:9901/tsfile/live/0011_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4851,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-12",
+  "src": "aptv_iptv2",
+  "name": "CCTV12",
+  "url": "http://101.35.240.114:88/live.php?id=CCTV12",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-2",
+  "src": "itvlist",
+  "name": "CCTV2",
+  "url": "http://121.19.134.6:808/tsfile/live/0002_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 112,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-12",
+  "src": "itvlist",
+  "name": "CCTV12",
+  "url": "http://221.13.235.151:9901/tsfile/live/0012_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 7592,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-1",
+  "src": "itvlist",
+  "name": "CCTV1",
+  "url": "http://121.19.134.6:808/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 105,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-12",
+  "src": "itvlist",
+  "name": "CCTV12",
+  "url": "http://221.13.234.13:9901/tsfile/live/0012_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 2057,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-13",
+  "src": "aptv_iptv2",
+  "name": "CCTV13",
+  "url": "http://101.35.240.114:88/live.php?id=CCTV13",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-3",
+  "src": "itvlist",
+  "name": "CCTV3",
+  "url": "http://121.19.134.6:808/tsfile/live/0003_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": false,
+  "code": 200,
+  "kbps": 0,
+  "err": "timed out"
+ },
+ {
+  "tgt": "CCTV-12",
+  "src": "itvlist",
+  "name": "CCTV12",
+  "url": "http://125.43.244.2:9901/tsfile/live/1015_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 6201,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-8",
+  "src": "itvlist",
+  "name": "CCTV8",
+  "url": "http://121.19.134.6:808/tsfile/live/0008_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 126,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-13",
+  "src": "itvlist",
+  "name": "CCTV13",
+  "url": "http://121.19.134.202:808/tsfile/live/0013_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 3600,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-14",
+  "src": "aptv_iptv2",
+  "name": "CCTV14",
+  "url": "http://101.35.240.114:88/live.php?id=CCTV14",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-13",
+  "src": "itvlist",
+  "name": "CCTV13",
+  "url": "http://221.13.234.13:9901/tsfile/live/0013_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 2492,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-13",
+  "src": "itvlist",
+  "name": "CCTV13",
+  "url": "http://221.13.235.151:9901/tsfile/live/0013_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 2589,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-7",
+  "src": "itvlist",
+  "name": "CCTV7",
+  "url": "http://121.19.134.6:808/tsfile/live/0007_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 118,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-14",
+  "src": "itvlist",
+  "name": "CCTV14",
+  "url": "http://221.13.235.44:9901/tsfile/live/0014_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 7013,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-15",
+  "src": "aptv_iptv2",
+  "name": "CCTV15",
+  "url": "http://101.35.240.114:88/live.php?id=CCTV15",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-14",
+  "src": "itvlist",
+  "name": "CCTV14",
+  "url": "http://221.13.235.151:9901/tsfile/live/0014_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 2300,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-14",
+  "src": "itvlist",
+  "name": "CCTV14",
+  "url": "http://121.19.134.202:808/tsfile/live/0014_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 1506,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-5",
+  "src": "itvlist",
+  "name": "CCTV5+",
+  "url": "http://121.19.134.6:808/tsfile/live/0018_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 96,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-6",
+  "src": "itvlist",
+  "name": "CCTV6",
+  "url": "http://121.19.134.6:808/tsfile/live/0006_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 100,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-16",
+  "src": "aptv_iptv2",
+  "name": "CCTV16",
+  "url": "http://101.35.240.114:88/live.php?id=CCTV16",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-15",
+  "src": "itvlist",
+  "name": "CCTV15",
+  "url": "http://101.66.199.13:9901/tsfile/live/0015_1.m3u8?key=txiptv&playlive=0&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 2356,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-15",
+  "src": "itvlist",
+  "name": "CCTV15",
+  "url": "http://221.13.234.13:9901/tsfile/live/0015_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 1491,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-16",
+  "src": "itvlist",
+  "name": "CCTV16",
+  "url": "http://121.19.134.202:808/tsfile/live/0016_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 3866,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-16",
+  "src": "suxuang",
+  "name": "CCTV16",
+  "url": "http://p.ytelc.com/169l/0/cctv.php?id=cctv16",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "<urlopen error [Errno 11004] getaddrinfo failed>"
+ },
+ {
+  "tgt": "CCTV-17",
+  "src": "aptv_iptv2",
+  "name": "CCTV17",
+  "url": "http://101.35.240.114:88/live.php?id=CCTV17",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-4",
+  "src": "itvlist",
+  "name": "CCTV4",
+  "url": "http://121.19.134.6:808/tsfile/live/0004_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 85,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-17",
+  "src": "itvlist",
+  "name": "CCTV17",
+  "url": "http://121.19.134.202:808/tsfile/live/0017_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4397,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-16",
+  "src": "itvlist",
+  "name": "CCTV16",
+  "url": "http://183.10.180.81:9901/tsfile/live/1065_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 1564,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-15",
+  "src": "itvlist",
+  "name": "CCTV15",
+  "url": "http://221.13.235.151:9901/tsfile/live/0015_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 852,
+  "err": ""
+ },
+ {
+  "tgt": "凤凰资讯",
+  "src": "aptv_iptv2",
+  "name": "凤凰资讯",
+  "url": "http://101.35.240.114:88/phenix.php?id=fhzx",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "CCTV-17",
+  "src": "itvlist",
+  "name": "CCTV17",
+  "url": "http://183.10.180.81:9901/tsfile/live/1001_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 3955,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-9",
+  "src": "itvlist",
+  "name": "CCTV9",
+  "url": "http://121.19.134.6:808/tsfile/live/0009_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 95,
+  "err": ""
+ },
+ {
+  "tgt": "凤凰资讯",
+  "src": "itvlist",
+  "name": "凤凰资讯",
+  "url": "http://120.198.95.220:9901/tsfile/live/1037_1.m3u8?key=txiptv&playlive=1&down=1",
+  "ok": true,
+  "code": 200,
+  "kbps": 2133,
+  "err": ""
+ },
+ {
+  "tgt": "凤凰资讯",
+  "src": "suxuang",
+  "name": "凤凰资讯",
+  "url": "http://43.152.224.209/qctv.fengshows.cn/live/0701pin72.flv",
+  "ok": false,
+  "code": 200,
+  "kbps": 649,
+  "err": ""
+ },
+ {
+  "tgt": "凤凰中文",
+  "src": "aptv_iptv2",
+  "name": "凤凰中文",
+  "url": "http://101.35.240.114:88/phenix.php?id=fhzw",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "HTTP Error 404: Not Found"
+ },
+ {
+  "tgt": "凤凰中文",
+  "src": "itvlist",
+  "name": "凤凰中文",
+  "url": "http://183.10.180.81:9901/tsfile/live/1003_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 3796,
+  "err": ""
+ },
+ {
+  "tgt": "凤凰资讯",
+  "src": "suxuang",
+  "name": "凤凰资讯",
+  "url": "http://api.kkitv.itv888.vip:8080/streams/wzt3qbit80m/index.m3u8",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "<urlopen error [Errno 11001] getaddrinfo failed>"
+ },
+ {
+  "tgt": "CCTV-10",
+  "src": "itvlist",
+  "name": "CCTV10",
+  "url": "http://121.19.134.6:808/tsfile/live/0010_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 95,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-11",
+  "src": "itvlist",
+  "name": "CCTV11",
+  "url": "http://121.19.134.6:808/tsfile/live/0011_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 109,
+  "err": ""
+ },
+ {
+  "tgt": "湖南卫视",
+  "src": "aptv_iptv2",
+  "name": "湖南卫视",
+  "url": "http://101.35.240.114:88/live.php?id=湖南卫视",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "'ascii' codec can't encode characters in position 17-20: ordinal not in range(12"
+ },
+ {
+  "tgt": "凤凰中文",
+  "src": "suxuang",
+  "name": "凤凰中文",
+  "url": "http://43.152.224.209/qctv.fengshows.cn/live/0701pcc72.flv",
+  "ok": false,
+  "code": 200,
+  "kbps": 341,
+  "err": ""
+ },
+ {
+  "tgt": "凤凰中文",
+  "src": "itvlist",
+  "name": "凤凰中文",
+  "url": "http://120.198.95.220:9901/tsfile/live/1036_1.m3u8?key=txiptv&playlive=1&down=1",
+  "ok": true,
+  "code": 200,
+  "kbps": 1743,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-12",
+  "src": "itvlist",
+  "name": "CCTV12",
+  "url": "http://121.19.134.6:808/tsfile/live/0012_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 126,
+  "err": ""
+ },
+ {
+  "tgt": "湖南卫视",
+  "src": "itvlist",
+  "name": "湖南卫视",
+  "url": "http://1.197.249.105:9901/tsfile/live/0128_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 3025,
+  "err": ""
+ },
+ {
+  "tgt": "北京卫视",
+  "src": "aptv_iptv2",
+  "name": "北京卫视",
+  "url": "http://101.35.240.114:88/live.php?id=北京卫视",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "'ascii' codec can't encode characters in position 17-20: ordinal not in range(12"
+ },
+ {
+  "tgt": "CCTV-15",
+  "src": "itvlist",
+  "name": "CCTV15",
+  "url": "http://121.19.134.6:808/tsfile/live/0015_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 209,
+  "err": ""
+ },
+ {
+  "tgt": "湖南卫视",
+  "src": "itvlist",
+  "name": "湖南卫视",
+  "url": "http://125.43.244.2:9901/tsfile/live/1021_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 1527,
+  "err": ""
+ },
+ {
+  "tgt": "北京卫视",
+  "src": "itvlist",
+  "name": "北京卫视",
+  "url": "http://125.43.244.2:9901/tsfile/live/1020_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 3457,
+  "err": ""
+ },
+ {
+  "tgt": "北京卫视",
+  "src": "itvlist",
+  "name": "北京卫视",
+  "url": "http://101.66.198.121:9901/tsfile/live/0016_1.m3u8?key=txiptv&playlive=0&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4842,
+  "err": ""
+ },
+ {
+  "tgt": "深圳卫视",
+  "src": "aptv_iptv2",
+  "name": "深圳卫视",
+  "url": "http://101.35.240.114:88/live.php?id=深圳卫视",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "'ascii' codec can't encode characters in position 17-20: ordinal not in range(12"
+ },
+ {
+  "tgt": "CCTV-14",
+  "src": "itvlist",
+  "name": "CCTV14",
+  "url": "http://121.19.134.6:808/tsfile/live/0014_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 172,
+  "err": ""
+ },
+ {
+  "tgt": "深圳卫视",
+  "src": "itvlist",
+  "name": "深圳卫视",
+  "url": "http://121.19.134.202:808/tsfile/live/1024_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4456,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-16",
+  "src": "itvlist",
+  "name": "CCTV16",
+  "url": "http://121.19.134.6:808/tsfile/live/0016_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 194,
+  "err": ""
+ },
+ {
+  "tgt": "CCTV-13",
+  "src": "itvlist",
+  "name": "CCTV13",
+  "url": "http://121.19.134.6:808/tsfile/live/0013_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 113,
+  "err": ""
+ },
+ {
+  "tgt": "浙江卫视",
+  "src": "aptv_iptv2",
+  "name": "浙江卫视",
+  "url": "http://101.35.240.114:88/live.php?id=浙江卫视",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "'ascii' codec can't encode characters in position 17-20: ordinal not in range(12"
+ },
+ {
+  "tgt": "湖南卫视",
+  "src": "itvlist",
+  "name": "湖南卫视",
+  "url": "http://182.114.48.241:9901/tsfile/live/0128_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "<urlopen error timed out>"
+ },
+ {
+  "tgt": "CCTV-17",
+  "src": "itvlist",
+  "name": "CCTV17",
+  "url": "http://218.13.170.98:9901/tsfile/live/0016_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 149,
+  "err": ""
+ },
+ {
+  "tgt": "浙江卫视",
+  "src": "itvlist",
+  "name": "浙江卫视",
+  "url": "http://121.19.134.202:808/tsfile/live/1011_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 3602,
+  "err": ""
+ },
+ {
+  "tgt": "浙江卫视",
+  "src": "itvlist",
+  "name": "浙江卫视",
+  "url": "http://101.66.199.13:9901/tsfile/live/0124_1.m3u8?key=txiptv&playlive=0&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 5116,
+  "err": ""
+ },
+ {
+  "tgt": "江苏卫视",
+  "src": "aptv_iptv2",
+  "name": "江苏卫视",
+  "url": "http://101.35.240.114:88/live.php?id=江苏卫视",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "'ascii' codec can't encode characters in position 17-20: ordinal not in range(12"
+ },
+ {
+  "tgt": "北京卫视",
+  "src": "itvlist",
+  "name": "北京卫视",
+  "url": "http://182.114.48.241:9901/tsfile/live/0122_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "<urlopen error timed out>"
+ },
+ {
+  "tgt": "浙江卫视",
+  "src": "itvlist",
+  "name": "浙江卫视",
+  "url": "http://101.66.195.33:9901/tsfile/live/0124_1.m3u8?key=txiptv&playlive=0&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 2883,
+  "err": ""
+ },
+ {
+  "tgt": "江苏卫视",
+  "src": "itvlist",
+  "name": "江苏卫视",
+  "url": "http://121.19.134.202:808/tsfile/live/1012_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4408,
+  "err": ""
+ },
+ {
+  "tgt": "深圳卫视",
+  "src": "itvlist",
+  "name": "深圳卫视",
+  "url": "http://182.114.48.241:9901/tsfile/live/0126_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "<urlopen error timed out>"
+ },
+ {
+  "tgt": "湖北卫视",
+  "src": "aptv_iptv2",
+  "name": "湖北卫视",
+  "url": "http://101.35.240.114:88/live.php?id=湖北卫视",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "'ascii' codec can't encode characters in position 17-20: ordinal not in range(12"
+ },
+ {
+  "tgt": "凤凰资讯",
+  "src": "suxuang",
+  "name": "凤凰资讯",
+  "url": "http://r.jdshipin.com/0Rp07",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "<urlopen error timed out>"
+ },
+ {
+  "tgt": "江苏卫视",
+  "src": "itvlist",
+  "name": "江苏卫视",
+  "url": "http://101.66.194.121:9901/tsfile/live/0017_1.m3u8?key=txiptv&playlive=0&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 1572,
+  "err": ""
+ },
+ {
+  "tgt": "湖北卫视",
+  "src": "itvlist",
+  "name": "湖北卫视",
+  "url": "http://101.66.194.121:9901/tsfile/live/0132_1.m3u8?key=txiptv&playlive=0&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 6514,
+  "err": ""
+ },
+ {
+  "tgt": "湖北卫视",
+  "src": "itvlist",
+  "name": "湖北卫视",
+  "url": "http://121.19.134.202:808/tsfile/live/1025_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4127,
+  "err": ""
+ },
+ {
+  "tgt": "广东卫视",
+  "src": "aptv_iptv2",
+  "name": "广东卫视",
+  "url": "http://101.35.240.114:88/live.php?id=广东卫视",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "'ascii' codec can't encode characters in position 17-20: ordinal not in range(12"
+ },
+ {
+  "tgt": "CCTV-17",
+  "src": "itvlist",
+  "name": "CCTV17",
+  "url": "http://121.19.134.6:808/tsfile/live/0019_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 113,
+  "err": ""
+ },
+ {
+  "tgt": "广东卫视",
+  "src": "itvlist",
+  "name": "广东卫视",
+  "url": "http://121.19.134.202:808/tsfile/live/1028_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4156,
+  "err": ""
+ },
+ {
+  "tgt": "凤凰中文",
+  "src": "suxuang",
+  "name": "凤凰中文",
+  "url": "http://r.jdshipin.com/cCCzW",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "<urlopen error timed out>"
+ },
+ {
+  "tgt": "广东卫视",
+  "src": "itvlist",
+  "name": "广东卫视",
+  "url": "http://101.66.199.13:9901/tsfile/live/0125_1.m3u8?key=txiptv&playlive=0&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 5994,
+  "err": ""
+ },
+ {
+  "tgt": "东方卫视",
+  "src": "aptv_iptv2",
+  "name": "东方卫视",
+  "url": "http://101.35.240.114:88/live.php?id=东方卫视",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "'ascii' codec can't encode characters in position 17-20: ordinal not in range(12"
+ },
+ {
+  "tgt": "深圳卫视",
+  "src": "itvlist",
+  "name": "深圳卫视",
+  "url": "http://121.19.134.6:808/tsfile/live/1014_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 147,
+  "err": ""
+ },
+ {
+  "tgt": "东方卫视",
+  "src": "itvlist",
+  "name": "东方卫视",
+  "url": "http://121.19.134.202:808/tsfile/live/1026_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4050,
+  "err": ""
+ },
+ {
+  "tgt": "江苏卫视",
+  "src": "itvlist",
+  "name": "江苏卫视",
+  "url": "http://182.114.48.241:9901/tsfile/live/0127_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "<urlopen error timed out>"
+ },
+ {
+  "tgt": "东方卫视",
+  "src": "itvlist",
+  "name": "东方卫视",
+  "url": "http://101.66.199.13:9901/tsfile/live/0018_1.m3u8?key=txiptv&playlive=0&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 6860,
+  "err": ""
+ },
+ {
+  "tgt": "天津卫视",
+  "src": "aptv_iptv2",
+  "name": "天津卫视",
+  "url": "http://101.35.240.114:88/live.php?id=天津卫视",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "'ascii' codec can't encode characters in position 17-20: ordinal not in range(12"
+ },
+ {
+  "tgt": "浙江卫视",
+  "src": "itvlist",
+  "name": "浙江卫视",
+  "url": "http://121.19.134.6:808/tsfile/live/1017_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 188,
+  "err": ""
+ },
+ {
+  "tgt": "北京卫视",
+  "src": "itvlist",
+  "name": "北京卫视",
+  "url": "http://121.19.134.6:808/tsfile/live/1011_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 108,
+  "err": ""
+ },
+ {
+  "tgt": "天津卫视",
+  "src": "itvlist",
+  "name": "天津卫视",
+  "url": "http://121.19.134.202:808/tsfile/live/1016_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 1430,
+  "err": ""
+ },
+ {
+  "tgt": "湖北卫视",
+  "src": "itvlist",
+  "name": "湖北卫视",
+  "url": "http://182.114.48.241:9901/tsfile/live/0132_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "<urlopen error timed out>"
+ },
+ {
+  "tgt": "安徽卫视",
+  "src": "aptv_iptv2",
+  "name": "安徽卫视",
+  "url": "http://101.35.240.114:88/live.php?id=安徽卫视",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "'ascii' codec can't encode characters in position 17-20: ordinal not in range(12"
+ },
+ {
+  "tgt": "江苏卫视",
+  "src": "itvlist",
+  "name": "江苏卫视",
+  "url": "http://121.19.134.6:808/tsfile/live/1015_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 184,
+  "err": ""
+ },
+ {
+  "tgt": "安徽卫视",
+  "src": "itvlist",
+  "name": "安徽卫视",
+  "url": "http://125.43.244.2:9901/tsfile/live/1037_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 7449,
+  "err": ""
+ },
+ {
+  "tgt": "天津卫视",
+  "src": "itvlist",
+  "name": "天津卫视",
+  "url": "http://183.10.180.81:9901/tsfile/live/0135_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 1685,
+  "err": ""
+ },
+ {
+  "tgt": "安徽卫视",
+  "src": "itvlist",
+  "name": "安徽卫视",
+  "url": "http://121.19.134.202:808/tsfile/live/1013_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 3540,
+  "err": ""
+ },
+ {
+  "tgt": "山东卫视",
+  "src": "aptv_iptv2",
+  "name": "山东卫视",
+  "url": "http://101.35.240.114:88/live.php?id=山东卫视",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "'ascii' codec can't encode characters in position 17-20: ordinal not in range(12"
+ },
+ {
+  "tgt": "天津卫视",
+  "src": "itvlist",
+  "name": "天津卫视",
+  "url": "http://120.198.95.220:9901/tsfile/live/1067_1.m3u8?key=txiptv&playlive=1&down=1",
+  "ok": true,
+  "code": 200,
+  "kbps": 897,
+  "err": ""
+ },
+ {
+  "tgt": "深圳卫视",
+  "src": "itvlist",
+  "name": "深圳卫视",
+  "url": "http://61.136.172.236:9901/tsfile/live/0126_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 128,
+  "err": ""
+ },
+ {
+  "tgt": "山东卫视",
+  "src": "itvlist",
+  "name": "山东卫视",
+  "url": "http://101.66.199.13:9901/tsfile/live/0131_1.m3u8?key=txiptv&playlive=0&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 6294,
+  "err": ""
+ },
+ {
+  "tgt": "山东卫视",
+  "src": "itvlist",
+  "name": "山东卫视",
+  "url": "http://1.197.249.105:9901/tsfile/live/0131_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 2673,
+  "err": ""
+ },
+ {
+  "tgt": "河北卫视",
+  "src": "aptv_iptv2",
+  "name": "河北卫视",
+  "url": "http://101.35.240.114:88/live.php?id=河北卫视",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "'ascii' codec can't encode characters in position 17-20: ordinal not in range(12"
+ },
+ {
+  "tgt": "河北卫视",
+  "src": "itvlist",
+  "name": "河北卫视",
+  "url": "http://121.19.134.202:808/tsfile/live/1006_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4569,
+  "err": ""
+ },
+ {
+  "tgt": "东方卫视",
+  "src": "itvlist",
+  "name": "东方卫视",
+  "url": "http://182.114.48.241:9901/tsfile/live/0107_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "<urlopen error timed out>"
+ },
+ {
+  "tgt": "湖北卫视",
+  "src": "itvlist",
+  "name": "湖北卫视",
+  "url": "http://121.19.134.6:808/tsfile/live/1024_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 146,
+  "err": ""
+ },
+ {
+  "tgt": "河北卫视",
+  "src": "itvlist",
+  "name": "河北卫视",
+  "url": "http://1.197.249.105:9901/tsfile/live/0117_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 2775,
+  "err": ""
+ },
+ {
+  "tgt": "辽宁卫视",
+  "src": "aptv_iptv2",
+  "name": "辽宁卫视",
+  "url": "http://101.35.240.114:88/live.php?id=辽宁卫视",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "'ascii' codec can't encode characters in position 17-20: ordinal not in range(12"
+ },
+ {
+  "tgt": "河北卫视",
+  "src": "itvlist",
+  "name": "河北卫视",
+  "url": "http://101.66.194.121:9901/tsfile/live/0117_1.m3u8?key=txiptv&playlive=0&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 5464,
+  "err": ""
+ },
+ {
+  "tgt": "安徽卫视",
+  "src": "itvlist",
+  "name": "安徽卫视",
+  "url": "http://121.19.134.6:808/tsfile/live/1023_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 319,
+  "err": ""
+ },
+ {
+  "tgt": "辽宁卫视",
+  "src": "itvlist",
+  "name": "辽宁卫视",
+  "url": "http://121.19.134.202:808/tsfile/live/1017_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4328,
+  "err": ""
+ },
+ {
+  "tgt": "辽宁卫视",
+  "src": "itvlist",
+  "name": "辽宁卫视",
+  "url": "http://101.66.194.121:9901/tsfile/live/0121_1.m3u8?key=txiptv&playlive=0&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 5944,
+  "err": ""
+ },
+ {
+  "tgt": "黑龙江卫视",
+  "src": "aptv_iptv2",
+  "name": "黑龙江卫视",
+  "url": "http://101.35.240.114:88/live.php?id=黑龙江卫视",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "'ascii' codec can't encode characters in position 17-21: ordinal not in range(12"
+ },
+ {
+  "tgt": "东方卫视",
+  "src": "itvlist",
+  "name": "东方卫视",
+  "url": "http://121.19.134.6:808/tsfile/live/1016_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 137,
+  "err": ""
+ },
+ {
+  "tgt": "湖南卫视",
+  "src": "itvlist",
+  "name": "湖南卫视",
+  "url": "http://61.136.172.236:9901/tsfile/live/0128_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 70,
+  "err": ""
+ },
+ {
+  "tgt": "广东卫视",
+  "src": "itvlist",
+  "name": "广东卫视",
+  "url": "http://121.19.134.6:808/tsfile/live/1020_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 112,
+  "err": ""
+ },
+ {
+  "tgt": "山东卫视",
+  "src": "itvlist",
+  "name": "山东卫视",
+  "url": "http://61.136.172.236:9901/tsfile/live/0131_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 282,
+  "err": ""
+ },
+ {
+  "tgt": "黑龙江卫视",
+  "src": "itvlist",
+  "name": "黑龙江卫视",
+  "url": "http://121.19.134.202:808/tsfile/live/1020_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4523,
+  "err": ""
+ },
+ {
+  "tgt": "黑龙江卫视",
+  "src": "itvlist",
+  "name": "黑龙江卫视",
+  "url": "http://101.66.199.13:9901/tsfile/live/0143_1.m3u8?key=txiptv&playlive=0&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4846,
+  "err": ""
+ },
+ {
+  "tgt": "黑龙江卫视",
+  "src": "itvlist",
+  "name": "黑龙江卫视",
+  "url": "http://101.66.198.62:9901/tsfile/live/0143_1.m3u8?key=txiptv&playlive=0&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 4817,
+  "err": ""
+ },
+ {
+  "tgt": "山东卫视",
+  "src": "itvlist",
+  "name": "山东卫视",
+  "url": "http://121.19.134.6:808/tsfile/live/1019_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 211,
+  "err": ""
+ },
+ {
+  "tgt": "天津卫视",
+  "src": "itvlist",
+  "name": "天津卫视",
+  "url": "http://61.136.172.236:9901/tsfile/live/0135_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": false,
+  "code": 200,
+  "kbps": 0,
+  "err": "timed out"
+ },
+ {
+  "tgt": "第一剧场",
+  "src": "itvlist",
+  "name": "第一剧场",
+  "url": "http://183.10.180.81:9901/tsfile/live/1082_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 828,
+  "err": ""
+ },
+ {
+  "tgt": "辽宁卫视",
+  "src": "itvlist",
+  "name": "辽宁卫视",
+  "url": "http://182.114.48.241:9901/tsfile/live/0121_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": false,
+  "code": 0,
+  "kbps": 0,
+  "err": "<urlopen error timed out>"
+ },
+ {
+  "tgt": "世界地理",
+  "src": "itvlist",
+  "name": "世界地理",
+  "url": "http://183.10.180.81:9901/tsfile/live/1008_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 1572,
+  "err": ""
+ },
+ {
+  "tgt": "风云剧场",
+  "src": "itvlist",
+  "name": "风云剧场",
+  "url": "http://183.10.180.81:9901/tsfile/live/1032_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 773,
+  "err": ""
+ },
+ {
+  "tgt": "河北卫视",
+  "src": "itvlist",
+  "name": "河北卫视",
+  "url": "http://121.19.134.6:808/tsfile/live/0019_2.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 209,
+  "err": ""
+ },
+ {
+  "tgt": "辽宁卫视",
+  "src": "itvlist",
+  "name": "辽宁卫视",
+  "url": "http://121.19.134.6:808/tsfile/live/1021_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 183,
+  "err": ""
+ },
+ {
+  "tgt": "黑龙江卫视",
+  "src": "itvlist",
+  "name": "黑龙江卫视",
+  "url": "http://121.19.134.6:808/tsfile/live/1013_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 194,
+  "err": ""
+ },
+ {
+  "tgt": "广东卫视",
+  "src": "itvlist",
+  "name": "广东卫视",
+  "url": "http://61.136.172.236:9901/tsfile/live/0125_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 54,
+  "err": ""
+ },
+ {
+  "tgt": "安徽卫视",
+  "src": "itvlist",
+  "name": "安徽卫视",
+  "url": "http://61.136.172.236:9901/tsfile/live/0130_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "ok": true,
+  "code": 200,
+  "kbps": 59,
+  "err": ""
+ }
+]
