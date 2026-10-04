@@ -1,24 +1,25 @@
 # -*- coding: utf-8 -*-
-"""离线重建多网页面：移动读当日快照，其余各网读本地缓存（首次或 --fresh 时采集）。
+"""离线重建多网页面：默认四网全取仓库快照（与线上同源），--fresh 才重采。
 
 **为什么需要它**（而不是直接跑 `tariff_monitor.py`）：
 完整 `main()` 会写快照、写 `changes/<今天>.md`、覆盖 `state.json`。
 云端每天 06:00 已经跑过一轮，本地为了「看一眼效果」再补跑一次，会以
 **本地那份基准**生成一份不一样的变更报告，把云端的真实结果盖掉。
 
-**它和 `--render-only` 的区别**：
-`--render-only` 从现有页面容器里抽数据重渲染（数据是死的，已归档的那一刻）；
-本脚本**真的去采**（但**不落快照**）—— 改了适配器的归一化 / 字段映射之后，
-要验证效果就必须重新采，那时用它。
+**数据来源（2026-10-04 重定）**：
+GitHub 每日巡检落库的快照是**四网都有**的（不只移动），且与线上页面同源。
+所以默认路径改成：四网全部 `load_prev()` 取仓库最新快照 —— 本地预览看到
+的就是线上那份数据，而不是某台机器上停在任意旧日期的本地缓存。
+本地缓存（`.unicom_cache.json` 等）降级为快照缺失时的兑底。
 
-⚠️ `--render-only` 还**只对页面里已有数据的网有意义**：新接入一网时页面里
-   根本没有它，只能走本脚本；反过来，用 `--render-only` 重建反而会把
-   新接的那网**从页面里弄丢**（它按现有容器重建）。
+`--fresh` 保留原语义：真的去采（但不落快照）—— 改了**适配器**的归一化 /
+字段映射后要验证效果就必须重新采；只改构建层（rows_of / 页面）则
+完全不需要它，快照重建即可。
 
 ```bash
-python rebuild_offline.py              # 全部用缓存重建（秒级）
-python rebuild_offline.py --fresh      # 强制重采「非移动」的全部网并更新缓存
-python rebuild_offline.py --fresh cbn  # 只重采广电，其余仍用缓存（改了一个适配器时最省事）
+python rebuild_offline.py              # 四网全取仓库最新快照（秒级，与线上同源）
+python rebuild_offline.py --fresh      # 强制重采全部非移动网并更新缓存
+python rebuild_offline.py --fresh cbn  # 只重采广电，其余仍取快照（改了一个适配器时最省事）
 ```
 
 ⚠️ 缓存只是**迭代便利**，不是真相来源：正式发布与每日巡检仍走
@@ -60,6 +61,8 @@ print("移动快照:", os.path.basename(p or ""), "·",
       sum(len(g["entries"]) for g in mv["groups"]), "条")
 
 srcs = {"move": mv}
+# 每网数据实际来源：提示条逐网写明（中文名 + 来源 + 条数，见下面 nets 处）。
+origin = {"move": "快照 " + (T.data_day(mv) or "?")[5:]}
 for code, (mod_name, cn, _tag) in T.NET_RUN.items():
     path = cache_path(code)
     # ★ 适配器若是**纯本地转换**（电信：读浏览器采集产物，不发网络请求），
@@ -69,11 +72,19 @@ for code, (mod_name, cn, _tag) in T.NET_RUN.items():
     # 只要列了网名就只重采列出来的；没列（--fresh 单独用）就全部重采
     want_fresh = fresh and (not only or code in only)
     d = None
-    if nocache:
-        print(f"{cn}：纯本地转换网，跳过缓存直读适配器（{path} 已废弃，可删）")
-    elif not want_fresh and os.path.exists(path):
+    if not want_fresh:
+        # ★ 默认：仓库快照优先 —— CI 每日巡检**四网**都会落库，与线上页面同源。
+        #   本地缓存可能停在任意旧日期，拿它预览会看到「假旧数据」还以为是效果。
+        #   快照缺失（新网还没跑过 CI 等）才退回缓存 / 采集。
+        d, _sp = T.load_prev("99999999", T.SNAP_PREFIX[code])
+        if d:
+            origin[code] = "快照 " + (T.data_day(d) or "?")[5:]
+            print(f"{cn}快照:", len(d.get("entries") or []), "条 ·", T.data_day(d))
+    if d is None and not want_fresh and not nocache and os.path.exists(path):
+        # 兑底：本地缓存（快照缺失时才有用；迭代中不想落仓库的中间数据）。
         try:
             d = json.load(io.open(path, encoding="utf-8"))
+            origin[code] = "本地缓存"
             print(f"{cn}缓存:", len(d.get("entries") or []), "条 ·", d.get("fetchedAt"))
         except Exception as e:
             print(f"{cn}缓存不可用（{type(e).__name__}: {e}），改为采集")
@@ -88,6 +99,7 @@ for code, (mod_name, cn, _tag) in T.NET_RUN.items():
              else mod.fetch_all())
         if not d:
             sys.exit(f"!! {cn}采集失败")
+        origin[code] = "实时采集"
         if not nocache:
             io.open(path, "w", encoding="utf-8").write(json.dumps(d, ensure_ascii=False))
         print(f"{cn}采集: {len(d['entries'])} 条 · {time.time() - t0:.0f}s"
@@ -107,12 +119,18 @@ def count_of(code, o):
     return sum(len(g.get("entries") or []) for g in o.get("groups") or [])
 
 
-nets = " · ".join("%s %d 条" % (c, count_of(c, srcs.get(c)))
+# 提示条逐网写「中文名（来源）条数」：
+# · 运营商必须用中文名 —— 早期版本直接印机器码（move/unicom/cbn/telecom），
+#   页面读者不看仓库根本不知道那是谁；短名从注册表取，别另写第二份映射。
+# · 来源逐网按实际写（origin），不用「本地缓存或实时采集」一句话概括 ——
+#   概括句永远追不上真实路径，哪种来源一限就能在页面上对出来。
+nets = " · ".join("%s（%s）%d 条" % (T.NETS[c].sh, origin.get(c, "?"),
+                                     count_of(c, srcs.get(c)))
                   for c in ("move",) + tuple(T.NET_RUN))
 # 🔴 archive=False：**绝不覆盖入库的官方归档** page/index.html.gz。
 #   本脚本的数据来自本地采集缓存（不入库），而归档进 git 的那一份必须与
 #   snapshots/ 同源 —— 否则归档无法自证，而改动是静默的（只表现为 git 里一个二进制变化）。
 n = T.build_html(srcs,
-                 f"本机重建：移动取当日快照 · 其余各网为本地缓存或实时采集（{nets}）", None,
+                 f"本机预览（数据与线上同源，不入库、不影响官方归档）：{nets}", None,
                  archive=False)
 print("已完成，合计 %d 条（%s）" % (n, nets))
