@@ -63,6 +63,16 @@ try:
     _N_ERR = None
 except Exception as _e:  # noqa: E402
     NOTIFY, _N_ERR = None, _e
+# ⑥ 采样噪声护栏（2026-10-04 接线）：change_guard 管「总数掉没掉」，
+#    noise_guard 管「总数没掉但整批换人」—— 两个判据互补，缺一不可。
+#    它的 docstring 从落库第一天就写着「要接入巡检」，此前只有 CI 的只读
+#    体检在调它 —— 等于护栏造好了没装到门上（recheck-20261004 #2）。
+#    同样允许导入失败继续跑（不是采集必需件），但 _NG_ERR 会吼出来。
+try:
+    import noise_guard as NG  # noqa: E402
+    _NG_ERR = None
+except Exception as _e:  # noqa: E402
+    NG, _NG_ERR = None, _e
 
 SNAP = os.path.join(BASE, "snapshots")
 CHG = os.path.join(BASE, "changes")
@@ -1343,6 +1353,43 @@ def diff_round(code, cn, tag, data, old_o, prev_p, today, fname=None):
             out["note"] = "rebound"
             a, r, c = [], [], []
 
+    # ⑥ 采样噪声护栏（2026-10-04 接线，recheck-20261004 #2）：
+    #    放在 change_guard 核验**之后** —— 护栏摘掉假下架/补回真条目后，
+    #    剩下的才是「真要放行」的变化量，拿它判噪声才不会双重误伤。
+    #    命中 ⇒ 与回弹同路径：本轮不计变化、不推送，报告与 history 留痕。
+    #    判不出来（模块缺失）就保留 —— 与全仓库「护栏判不出来就不拦」同一条原则。
+    if G and NG and not out["note"] and \
+            NG.is_sampling_noise(len(a), len(r), len(idx_old)):
+        out["note"] = "noise"
+        a_orig, r_orig = len(a), len(r)
+        a, r, c = [], [], []
+        fname2 = fname or f"{tag}-{today[:4]}-{today[4:6]}-{today[6:]}.md"
+        rp2 = os.path.join(CHG, fname2)
+        txt = (f"# {cn}本轮判定为采样噪声 · {data.get('fetchedAt', '')[:10]}\n\n"
+               f"- 变化量达到「整批换人」级别（新增 {a_orig} / 下线 {r_orig}，"
+               f"基线 {len(idx_old)} 条）—— 上游疑似按随机子集轮换返回，"
+               f"「本轮没采到」与「业务下架」此时长得一模一样\n"
+               f"- 按护栏设计**本轮不计变化、不推送**；基线快照照常落库，"
+               f"下一轮若恢复正常即自动跟进\n"
+               f"- 若连续多轮命中，说明上游在持续轮换子集，需要人工核对采集口径"
+               f"（可调 NOISE_RATIO / NOISE_MIN_ABS 环境变量放宽阈值）\n")
+        if G:
+            G.atomic_write_text(rp2, txt, newline="\n")
+        else:
+            with open(rp2, "w", encoding="utf-8") as f:
+                f.write(txt)
+        # history 必须自己记（write_report 没走）：a/r 记 0（本轮确实没记入变化），
+        # note=noise 让页面时间线亮「⚠ 采样噪声」徽标 —— 静默抹掉几百条假变化
+        # 而时间线上毫无痕迹，等于把「护栏拦截」伪装成「天下太平」。
+        hist_append({"ts": str(data.get("fetchedAt") or "")[:19],
+                     "d": str(data.get("fetchedAt") or "")[:10],
+                     "code": code, "net": cn, "n": len(idx_new),
+                     "a": 0, "r": 0, "c": 0, "note": "noise", "smp": []})
+        log(f"!! {cn} 判定为采样噪声（新增 {a_orig} / 下线 {r_orig} / 基线 "
+            f"{len(idx_old)}），本轮不计变化、不推送")
+        out["report"] = rp2
+        return out
+
     rp, _ = write_report(old_o, data, a, r, c, net=cn,
                          fname=fname or f"{tag}-{today[:4]}-{today[4:6]}-{today[6:]}.md",
                          guard=guard)
@@ -1702,6 +1749,58 @@ def state_of(code, e, g, base_day):
     return ns.stopped_of(e, g, base_day) if ns else False
 
 
+def classify_entry(raw_l1, e, code):
+    """条目的分类归档：返回 ``(cat_src, sub, raw_l2)``。
+
+    从 rows_of 里提出的具名函数（recheck-20261004 #11）—— 原先这段
+    「停售还原 → 三分支取档 → 联通细分规整」约 40 行嵌在双层数据循环里，
+    下次有人改 rows_of 很容易误伤它（它有自己的对账判据：audit_data 的
+    oracle 按这里的语义重算）。提出来的额外收益：可以**单独**构造
+    ``{"type3Name": ...}`` 做单元验证，不用拼一整个 groups 对象。
+
+    ══ 联通：把「停售套餐(99)」还原成真实分类 ════════════════════
+    🔴 实测（2026-09-24，全量 8041 条）：联通把**停售**这件事编码成了一级
+      栏目 99「停售套餐」，而那批条目的**真实分类写在二级栏目里** ——
+      二级的取值域 {套餐, 加装包, 营销活动, 港澳台/国际资费, 标准资费}
+      恰好就是一级栏目那 5 个分类（二级码 1/2/3/4/5 与一级码同号，可自证）。
+      照字面把它当分类的后果是**静默错归类 3177 条**（= 联通全部已下架条目）：
+      其中 1220 条其实是加装包、581 条标准资费、303 条营销活动、
+      42 条港澳台/国际，却全被归成「套餐」；用户按「加装包」筛时
+      这 1220 条一个都不会出现，而页面上没有任何异常。
+      ★ 「停售」这个语义**已经由「已下架」页签表达**（构建期 st，
+        联通判据 = type2 == 99，与这里逐字同源），不必也不该再占一个分类。
+      ⇒ 还原规则：停售桶取二级栏目当分类、细分留空（它的二级被分类占用了，
+        本就没有更细的信息 —— 留空是诚实的，编一个出来才是错的）。
+
+    ══ 联通细分规整（2026-10-03 重设计）═════════════════════════
+    三条规则（只动联通，映射表见 UC_TY_NORM 处注释）：
+      ① 与大类同名 → 留空：「标准资费」的二级还是「标准资费」，
+        2481 条写两遍同样的词没有信息量，细分下拉也少一个假档；
+      ② 港澳台前缀剥离：「国际/港澳台加装包」→「加装包」等，
+        大类已表达归属，细分全网取值域规整成两两不重名；
+      ③ 「其他」→「其他加装」：避免与「未映射兜底大类」同名混淆。
+    停售条目不在此列：上游只有「原一级」这一层（见上），细分留空是诚实的；
+    页面在「已下架」页签把细分维度整体停用（dimOff.ty，见模板 condOf）。
+    """
+    raw_l2 = str(e.get("type3Name") or "").strip()
+    if raw_l1 == STOPPED_L1:
+        cat_src, sub = (raw_l2 or raw_l1), ""
+    elif raw_l2:
+        # 上游真有二级栏目（联通在售）⇒ 细分就用它，这才是有信息量的两级。
+        cat_src, sub = raw_l1, raw_l2
+    else:
+        # 本网上游**没有**二级栏目（移动 / 电信 / 广电：条目里连 type3Name
+        # 这个键都不存在）⇒ 细分退回一级栏目名，与改动前逐字一致。
+        # 🔴 别把「没有二级」当成「二级为空」：那会让这三网的「细分」下拉
+        #    整层变成只有一个空档 —— 一个看着还在、实则筛不出东西的控件。
+        cat_src, sub = raw_l1, raw_l1
+    if code == "unicom":
+        if sub == cat_src:
+            sub = ""
+        sub = UC_TY_NORM.get(sub, sub)
+    return cat_src, sub, raw_l2
+
+
 def rows_of(o, diff=None, code=""):
     """把**某一家**的数据源对象构造成页面行。
 
@@ -1742,44 +1841,9 @@ def rows_of(o, diff=None, code=""):
         raw_l1 = str(g.get("type2Name") or ZFLX.get(str(g.get("type2")), "?") or "").strip()
         attr = g.get("tariffAttr")
         for e in g["entries"]:
-            # ══ 联通：把「停售套餐(99)」还原成真实分类 ════════════════════
-            # 🔴 实测（2026-09-24，全量 8041 条）：联通把**停售**这件事编码成了一级
-            #   栏目 99「停售套餐」，而那批条目的**真实分类写在二级栏目里** ——
-            #   二级的取值域 {套餐, 加装包, 营销活动, 港澳台/国际资费, 标准资费}
-            #   恰好就是一级栏目那 5 个分类（二级码 1/2/3/4/5 与一级码同号，可自证）。
-            #   照字面把它当分类的后果是**静默错归类 3177 条**（= 联通全部已下架条目）：
-            #   其中 1220 条其实是加装包、581 条标准资费、303 条营销活动、
-            #   42 条港澳台/国际，却全被归成「套餐」；用户按「加装包」筛时
-            #   这 1220 条一个都不会出现，而页面上没有任何异常。
-            #   ★ 「停售」这个语义**已经由「已下架」页签表达**（构建期 st，
-            #     联通判据 = type2 == 99，与这里逐字同源），不必也不该再占一个分类。
-            #   ⇒ 还原规则：停售桶取二级栏目当分类、细分留空（它的二级被分类占用了，
-            #     本就没有更细的信息 —— 留空是诚实的，编一个出来才是错的）。
-            raw_l2 = str(e.get("type3Name") or "").strip()
-            if raw_l1 == STOPPED_L1:
-                cat_src, sub = (raw_l2 or raw_l1), ""
-            elif raw_l2:
-                # 上游真有二级栏目（联通在售）⇒ 细分就用它，这才是有信息量的两级。
-                cat_src, sub = raw_l1, raw_l2
-            else:
-                # 本网上游**没有**二级栏目（移动 / 电信 / 广电：条目里连 type3Name
-                # 这个键都不存在）⇒ 细分退回一级栏目名，与改动前逐字一致。
-                # 🔴 别把「没有二级」当成「二级为空」：那会让这三网的「细分」下拉
-                #    整层变成只有一个空档 —— 一个看着还在、实则筛不出东西的控件。
-                cat_src, sub = raw_l1, raw_l1
-            # ══ 联通细分规整（2026-10-03 重设计）═════════════════════════
-            # 三条规则（只动联通，映射表见 UC_TY_NORM 处注释）：
-            #   ① 与大类同名 → 留空：「标准资费」的二级还是「标准资费」，
-            #     2481 条写两遍同样的词没有信息量，细分下拉也少一个假档；
-            #   ② 港澳台前缀剥离：「国际/港澳台加装包」→「加装包」等，
-            #     大类已表达归属，细分全网取值域规整成两两不重名；
-            #   ③ 「其他」→「其他加装」：避免与「未映射兜底大类」同名混淆。
-            # 停售条目不在此列：上游只有「原一级」这一层（见上），细分留空是诚实的；
-            # 页面在「已下架」页签把细分维度整体停用（dimOff.ty，见模板 condOf）。
-            if code == "unicom":
-                if sub == cat_src:
-                    sub = ""
-                sub = UC_TY_NORM.get(sub, sub)
+            # 分类归档（停售还原 / 三分支取档 / 联通细分规整）已提具名函数
+            # classify_entry —— 判据说明见该函数 docstring，此处不再重复。
+            cat_src, sub, raw_l2 = classify_entry(raw_l1, e, code)
             sc, cty = where_of(code, e) if code else ("hb", [])
             # ★ 需求：只要「河北 + 全国」。与河北无关的（其他省份专属）**丢弃**。
             #   这条过滤用归档快照离线验过：四网现有数据一条都不会被它丢掉（只放过未知网）。
@@ -1945,6 +2009,88 @@ def fill_template(tpl, vals):
     return tpl
 
 
+FEED_PATH = os.path.join(DOCS, "feed.xml")
+FEED_KEEP = 60            # feed 只留最近 60 条「真变化」（约一个月的量）
+
+
+def _rfc822(ts, d):
+    """抓取时刻（``2026-10-04 06:05:00``）→ RSS pubDate 要求的 RFC822。
+    ts 缺失/非法时退回日期当天零点 —— 宁可时间不精确，不能格式非法
+    （非法 pubDate 会被一部分阅读器整条拒收）。"""
+    import datetime as _dt
+    from email.utils import format_datetime
+    tz = _dt.timezone(_dt.timedelta(hours=8))     # fetchedAt 本就是北京时间
+    try:
+        t = _dt.datetime.strptime(ts, "%Y-%m-%d %H:%M:%S").replace(tzinfo=tz)
+    except Exception:
+        try:
+            t = _dt.datetime.strptime(d, "%Y-%m-%d").replace(tzinfo=tz)
+        except Exception:
+            t = _dt.datetime.now(tz)
+    return format_datetime(t)
+
+
+def write_feed():
+    """生成 docs/feed.xml（RSS 2.0）—— 变更事件的机器友好出口（recheck-20261004 #10）。
+
+    changes/*.md 在 GitHub 上可读、页面时间线给人看，但「监控」场景缺一个
+    零成本订阅口：RSS 阅读器、n8n、十几行的小脚本都能直接吃。数据源**只**是
+    history.json —— 它自带 (日期,网) 去重与 HIST_KEEP 上限，feed 跟着它走，
+    不另立第二份事实（同一判据多份副本必然漂移，本仓库已吃过两次亏）。
+
+    · 只收「真变化」（a/r/c 至少一个 >0）：基线/回弹/噪声/降级这类
+      「没有业务变化」的记录进 feed 只会训练订阅者忽略整个频道。
+    · pubDate 取抓取时刻 —— 它是数据自己的属性，重复构建字节稳定
+      （feed 不带 lastBuildDate 也是同一个理由：内容不随构建时钟漂）。
+    · link 指向 GitHub 上该网当天的变更报告（约定文件名 {tag}-日期.md）。
+    """
+    import xml.sax.saxutils as _xu
+    items = [x for x in load_history().get("items") or []
+             if (x.get("a") or 0) > 0 or (x.get("r") or 0) > 0
+             or (x.get("c") or 0) > 0][-FEED_KEEP:][::-1]   # RSS 惯例：最新在前
+    L = ['<?xml version="1.0" encoding="UTF-8"?>',
+         '<rss version="2.0"><channel>',
+         '<title>河北四网资费每日监控 · 变更</title>',
+         f'<link>https://github.com/{REPO}</link>',
+         '<description>河北移动/联通/电信/广电资费目录每日巡检捕获的业务变更'
+         '（新增 / 下线 / 字段变更）</description>',
+         '<language>zh-CN</language>']
+    for x in items:
+        d = x.get("d") or ""
+        tag = getattr(NETS.get(x.get("code")), "tag", "")
+        fname = (tag + "-" if tag else "") + d + ".md"
+        link = f"https://github.com/{REPO}/blob/main/cloud/tariff/changes/{fname}"
+        parts = []
+        if x.get("a"):
+            parts.append(f"新增 {x['a']}")
+        if x.get("r"):
+            parts.append(f"下线 {x['r']}")
+        if x.get("c"):
+            parts.append(f"变更 {x['c']}")
+        title = f"{d} {x.get('net') or x.get('code')}：{' · '.join(parts)}"
+        desc = [title]
+        for s in (x.get("smp") or [])[:5]:
+            mark = {"a": "＋", "r": "－", "c": "±"}.get(s.get("k"), "·")
+            if s.get("n"):
+                desc.append(f"{mark} {s['n']}")
+        L += ["<item>",
+              f"<title>{_xu.escape(title)}</title>",
+              f"<link>{_xu.escape(link)}</link>",
+              '<guid isPermaLink="false">'
+              f"{_xu.escape(d + '-' + str(x.get('code') or ''))}</guid>",
+              f"<pubDate>{_rfc822(str(x.get('ts') or '')[:19], d)}</pubDate>",
+              f"<description>{_xu.escape(chr(10).join(desc))}</description>",
+              "</item>"]
+    L.append("</channel></rss>")
+    txt = "\n".join(L) + "\n"
+    if G:
+        G.atomic_write_text(FEED_PATH, txt, newline="\n")
+    else:
+        with open(FEED_PATH, "w", encoding="utf-8") as f:
+            f.write(txt)
+    log(f"已更新订阅源（{os.path.relpath(FEED_PATH, BASE)}，{len(items)} 条真变化）")
+
+
 def build_html(sources, notice="", diffs=None, archive=True):
     """重建查询页（多网）。
 
@@ -1992,7 +2138,11 @@ def build_html(sources, notice="", diffs=None, archive=True):
                 "%s×%d" % (k, v) for k, v in sorted(unmapped.items()))
                 + " —— 请在 TYPE_CAT 里补映射（CI 会因此硬失败）")
         payloads[code] = {"rows": rows, "src": SRC_OF.get(code, ""),
-                          "base": data_day(o, time.strftime("%Y-%m-%d")),
+                          # 🔴 2026-10-04 修：兜底不能用 today —— data_day() 自己的
+                          #   docstring 写明「fallback 必须稳定，用 today 归档逐字节
+                          #   去重就废了」。render_only() 早已改用 prev_day()，
+                          #   这处是漏网之鱼（仅在移动外某网 fetchedAt 非法时触发）。
+                          "base": data_day(o, prev_day()),
                           # 抓取时刻（分钟级）—— 页面「更新于」显示用，见 net_payload
                           "ts": str((o.get("fetchedAt") or ""))[:16]}
         total += len(rows)
@@ -2007,7 +2157,7 @@ def build_html(sources, notice="", diffs=None, archive=True):
     #   由 JS 按当前网渲染（原来写死成移动的，切到联通会显示错的来源与条数），
     #   这个占位符只留作无 JS 时的后备文本，取移动的 base 最不容易误导。
     date = (payloads.get("move") or {}).get("base") or data_day(
-        sources.get("move") or {}, time.strftime("%Y-%m-%d"))
+        sources.get("move") or {}, prev_day())
     payload = js_json(net_payload(payloads))
     out = fill_template(html, {
         "__NETS__": payload, "__N__": str(total), "__DATE__": date,
@@ -2035,6 +2185,9 @@ def build_html(sources, notice="", diffs=None, archive=True):
     if not ok:
         log(f"!! 页面未替换（{why}）—— 上一版页面继续可用，请检查模板/占位符")
         return 0
+    # 机器友好出口：history 在本轮 diff 时已落库，这里顺手把 RSS 刷新
+    # （放 write_page 成功之后 —— 页面都出不来时没必要产出 feed）。
+    write_feed()
     # gz 才是用户实际要下载的字节数：原始 2.5 MB 的页面 gz 后只有 245 KB，
     # 只看原始大小会高估一个数量级。多网接入后这个数字会翻几倍，所以要盯着。
     gz = len(gzip.compress(out.encode("utf-8"), 6))
@@ -2296,6 +2449,9 @@ def emit_summary(new_o, added, removed, changed, report_path, has_prev,
 _NOTE_CN = {"degraded": "数据量异常，已冻结上一版（等下一轮复采）",
             "rebound": "检测到基线回弹，本轮不计入变化",
             "schema": "字段结构变更，仅重建基线、不通知",
+            # 2026-10-04 noise_guard 接线：凡能产出的 note 这里必须有对照
+            # （selftest 的覆盖断言盯着）。漏了 → 英文码原样印到中文界面。
+            "noise": "疑似上游整批轮换子集（采样噪声），本轮不计变化",
             "baseline": "首版基线建立",
             "resync": "连续偏低后重同步基线",
             "collect-error": "本轮采集失败，沿用上一版快照",
@@ -2521,6 +2677,55 @@ def other_nets(today):
     return sources, diffs, tails, summaries
 
 
+def build_notice(move_sm, tails, special_notice=None):
+    """页面顶部提示条的组装 —— main() 的集成缝提为纯函数（recheck-20261004 #8）。
+
+    main() 全流程离线走不了（要采集、写快照、发推送），而 2026-09-26 的
+    summaries NameError 与 2026-10-04 的 move_quiet 覆盖 bug 都出在这一段 ——
+    「函数级自测全绿、main() 没人走」的病灶。提出来之后 selftest 直接喂桩
+    数据就能断言两个方向：全网安静 ⇒ 空串（隐藏提示条）；特殊路径 ⇒ 警告
+    永不隐藏。今后这段再改坏，离线单测当场炸，不用等 CI 跑真巡检才暴露。
+
+    ``special_notice``：降级冻结 / 首版基线 / 重同步三条路径的提示语。
+      非 None ⇒ 直接返回它拼 tails —— 这些警告本身就必须显示，绝不能被
+      「全网安静就隐藏」的逻辑误伤（所以 quiet 只在常规分支算）。
+    ``move_sm``：常规路径是 diff_round 的 summary；特殊路径调用方传 None。
+    ``tails``：other_nets 拼好的其余各网提示（每条自带 " · " 前缀）。
+    """
+    if special_notice is not None or move_sm is None:
+        return (special_notice or "") + "".join(tails)
+    # 常规 diff 分支才算得出「quiet」：零新增/下线/变更，护栏也没摘过、补过任何东西。
+    # 注意排除降级/回弹 —— 那几种 situation 走 _hold()，根本到不了这里。
+    # 🔴 2026-10-04 复查修：quiet 的计算曾被挪到 if/else 之后用
+    #    ``move_quiet = False`` 一刀切覆盖，「全网安静隐藏提示条」变成死逻辑，
+    #    页面天天挂着「本次巡检未检测到任何变化 · 联通无变化 · …」。
+    #    现在整段收进本函数：quiet 的算与用待在同一个作用域里，想覆盖也够不着。
+    quiet = not (move_sm["added"] or move_sm["removed"] or move_sm["changed"]
+                 or move_sm["relocated"] or move_sm["fake_removed"]
+                 or move_sm["restored"])
+    # 「变更了多少条」是一句话能说完的，「哪几条、变了什么」说不完 ——
+    # 明细细在 changes/<日期>.md 里，别让用户自己翻仓库找当天那份。
+    rel = repo_rel(move_sm["report"])
+    tail = (f' · <a href="https://github.com/{REPO}/blob/main/{rel}"'
+            f' target="_blank" rel="noopener">查看变更明细 →</a>')
+    if quiet:
+        notice = "本次巡检未检测到任何变化" + tail
+    else:
+        notice = (f"本次巡检：新增 {move_sm['added']} 条 · 下线 {move_sm['removed']} 条"
+                  f" · 字段变更 {move_sm['changed']} 条" + tail)
+    if move_sm["relocated"] or move_sm["fake_removed"] or move_sm["restored"]:
+        notice += (f" · 🛡 护栏另摘除 {move_sm['relocated'] + move_sm['fake_removed']}"
+                   f" 条假变化、识别 {move_sm['restored']} 条补录")
+    # 全网（含移动）都零变化 → 顶部提示条整个不显示：
+    # 「本次无变化 · 联通无变化 · 广电无变化 · 电信无变化」对读者零信息量，
+    # 天天挂着只会把真正需要看的提示（降级/沿用快照/真变化）淹没。
+    # 判据是「tail 以『无变化』结尾」：降级/沿用快照那几种 tail 的文案不同，
+    # 天然不会被误判成安静 —— 该显示的提示一条都不会被藏。
+    if quiet and all(t.endswith("无变化") for t in tails):
+        return ""
+    return notice + "".join(tails)
+
+
 def main():
     argv = sys.argv[1:]
     no_html = "--no-html" in argv
@@ -2568,23 +2773,19 @@ def main():
         save_snapshot(data, today)
         prune_snapshots()
 
-    # move_quiet 在这里先给默认值（False）：下面三条特殊路径（降级冻结 / 首版基线 /
-    # 重同步）的提示语本身就是必须显示的警告（数据量异常、基线建立），
-    # 绝不能被「全网安静就隐藏提示条」的逻辑误判为 quiet。
-    # 只有常规 diff 分支才真正算得出「quiet」（见 else 分支里的赋值）。
-    # 🔴 2026-10-04 复查修：初始化曾被放在 if/else **之后**（为了修三条路径的
-    #    NameError），结果把常规分支算出的值无条件覆盖成 False ——
-    #    「全网零变化 → 隐藏提示条」从此永不触发，页面天天挂着
-    #    「本次巡检未检测到任何变化 · 联通无变化 · …」。正确做法是
-    #    初始化在分支**之前**、计算留在分支之内，两件事一次到位。
-    move_quiet = False
+    # special_notice：三条特殊路径（降级冻结 / 首版基线 / 重同步）的提示语。
+    # None = 常规 diff 分支，提示条由 build_notice() 组装（quiet 在函数内算）。
+    # 🔴 2026-10-04 复查修：原先 move_quiet 的初始化放错位置被无条件覆盖，
+    #    「全网安静隐藏提示条」永不触发。现在 quiet 的算与用全部收进
+    #    build_notice()（recheck-20261004 #8），main() 里不再出现第二个副本。
+    special_notice = None
     if old_o is None or act == "accept" or frozen:
         if frozen:
             move_sm = _summary_skip("move", "河北移动", old_o, "degraded")
             move_sm["report"] = os.path.join(CHG, f"{day10}.md")
             rp = move_sm["report"]
-            notice = (f"⚠️ 本轮数据量异常（{n} 条 < 上一版 {n_old} 条），"
-                      f"已冻结上一版数据、未记入变更")
+            special_notice = (f"⚠️ 本轮数据量异常（{n} 条 < 上一版 {n_old} 条），"
+                              f"已冻结上一版数据、未记入变更")
             has_prev = True
         else:
             log(f"无历史快照，本次为首版基线（{n} 条）"
@@ -2615,8 +2816,9 @@ def main():
                              "code": "move", "net": "河北移动",
                              "n": n, "a": 0, "r": 0, "c": 0, "note": "baseline",
                              "smp": []})
-            notice = (f"首版基线建立（{n} 条），自次日起开始检测资费上下线变更"
-                      if old_o is None else f"数据量连续偏低后重同步基线（{n} 条）")
+            special_notice = (f"首版基线建立（{n} 条），自次日起开始检测资费上下线变更"
+                              if old_o is None
+                              else f"数据量连续偏低后重同步基线（{n} 条）")
             has_prev = False
         _clear_degrade("move")
         emit_summary(data, [], [], [], rp, has_prev, summary=move_sm)
@@ -2659,26 +2861,10 @@ def main():
         move_diffs = None if move_sm["note"] else {
             "added": set(move_sm["_added_keys"]),
             "changed": set(move_sm["_changed_keys"])}
-        # 页面顶部提示：三个数字 + 「查看变更明细」直达链接。
-        # 「变更了多少条」是一句话能说完的，「哪几条、变了什么」说不完 ——
-        # 明细细在 changes/<日期>.md 里，别让用户自己翻仓库找当天那份。
-        rel = repo_rel(rp)
-        tail = (f' · <a href="https://github.com/{REPO}/blob/main/{rel}"'
-                f' target="_blank" rel="noopener">查看变更明细 →</a>')
-        # 常规 diff 分支才算得出「quiet」：零新增/下线/变更，护栏也没摘过、补过任何东西。
-        # 注意排除降级/回弹 —— 那几种 situation 走 _hold()，根本到不了这里。
-        move_quiet = not (move_sm["added"] or move_sm["removed"] or move_sm["changed"]
-                          or move_sm["relocated"] or move_sm["fake_removed"]
-                          or move_sm["restored"])
-        notice = ((f"本次巡检：新增 {move_sm['added']} 条 · 下线 {move_sm['removed']} 条"
-                   f" · 字段变更 {move_sm['changed']} 条" + tail)
-                  if not move_quiet
-                  else ("本次巡检未检测到任何变化" + tail))
-        if move_sm["relocated"] or move_sm["fake_removed"] or move_sm["restored"]:
-            notice += (f" · 🛡 护栏另摘除 {move_sm['relocated'] + move_sm['fake_removed']}"
-                       f" 条假变化、识别 {move_sm['restored']} 条补录")
+        # 提示条组装已提纯为 build_notice()（见函数 docstring 与 recheck-20261004 #8）：
+        # 常规分支只传 move_sm，quiet 与文案都在函数内算 —— main() 里不再有第二份副本。
 
-    # ── 其余三网 + 页面 ────────────────────────────────────────────────
+    # ── 其余三网 + 页面 ───────────────────────────────────────────────
     # 页面每次都重建（本地那份必须是当天最新），但归档只在内容真变了时才写。
     # 「页面显示的时间停住」曾是个坑：所以页面主体显示的是「数据基线日期」；
     # 2026-10-03 起横栏「更新于」另显示各网快照的抓取时刻（net_payload 的 ts）——
@@ -2686,30 +2872,16 @@ def main():
     # 代价：同一天重跑（fetchedAt 变了、rows 没变）归档字节也会变、会多写一次 ——
     # 刻意接受（用户要求看到更新时刻），约 1 MB/次，频率很低。
     # 想知道巡检有没有在跑，看 state.json（view_page 会读）。
-    # ★ move_quiet：移动这网本轮是否「完全没事」。**三条路径都要有定义** ——
-    #   它在下面 not no_html 分支被引用，而这里只有常规 diff 分支算得出「quiet」；
-    #   降级冻结 / 首版基线 / 重同步三条路径的提示语本身就是必须显示的警告
-    #   （数据量异常、基线建立），绝不能被「全网安静就隐藏提示条」的逻辑误判。
-    #   ★ move_quiet 的初始化已上移到 if/else 之前（三条特殊路径 False、
-    #     常规 diff 分支才真正计算）—— 这里不再重复赋值。
-    #     🔴 2026-10-04 复查修：原先「初始化」写在这里（if/else 之后），
-    #        把常规分支算出的 quiet 无条件覆盖成 False，「全网安静隐藏提示条」
-    #        永不触发。与 other_nets 那次 summaries NameError（2026-09-26，CI 炸
-    #        第 8 步）是同一类「函数级自测全绿、集成缝没人走」的病 —— 症状轻得多
-    #        （只是提示条常驻），但成因相同，修法也同类。
+    # ★ 提示条组装（含 quiet 判定）已全部收进 build_notice()：三条特殊路径的
+    #   special_notice 直接拼接（警告永不隐藏），quiet 只在常规分支内算 ——
+    #   「算与用」待在同一个作用域里，覆盖类 bug 无处安放（recheck-20261004 #8）。
     summaries = [move_sm]
     if not no_html:
         extra, xdiff, tails, xsum = other_nets(today)
         summaries += xsum
-        # 全网（含移动）都零变化 → 顶部提示条整个不显示：
-        # 「本次无变化 · 联通无变化 · 广电无变化 · 电信无变化」对读者零信息量，
-        # 天天挂着只会把真正需要看的提示（降级/沿用快照/真变化）淹没。
-        # 判据是「tail 以『无变化』结尾」：降级/沿用快照那几种 tail 的文案不同，
-        # 天然不会被误判成安静 —— 该显示的提示一条都不会被藏。
-        if move_quiet and all(t.endswith("无变化") for t in tails):
-            notice = ""
-        else:
-            notice += "".join(tails)
+        # 提示条整条的组装与「全网安静⇒隐藏」判定都在 build_notice() 里
+        # （纯函数、selftest 喂桩可测）。这里只负责喂数据。
+        notice = build_notice(move_sm, tails, special_notice)
         diffs = {"move": move_diffs} if move_diffs else {}
         diffs.update(xdiff)
         # 「结构变更 ⇒ 重建基线不通知」的收尾：结构变了但页面照常重建

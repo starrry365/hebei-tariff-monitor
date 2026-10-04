@@ -752,6 +752,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
             <option value="90">90 天内上架</option>
             <option value="180">半年内上架</option>
             <option value="365">一年内上架</option>
+            <option value="future">待上架（未来生效）</option>
             <option value="none">无上架日期</option>
           </select></label>
         <label class="f"><span class="fl">下线时间</span>
@@ -945,7 +946,10 @@ function toDate(s){
   return t;
 }
 function fmtD(s){s=String(s==null?"":s);return /^\d{8}$/.test(s)?s.slice(0,4)+"-"+s.slice(4,6)+"-"+s.slice(6,8):""}
-function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+/* 🔴 2026-10-04 补单引号：本页所有生成属性都用双引号包裹，所以原版是安全的；
+   但 esc 是全页唯一的 HTML 转义单点 —— 未来任何人写出单引号属性就开洞。
+   转义单引号是一行的事，防御性封死比「记得永远用双引号」可靠。 */
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 /* 流量显示分档：≥1TB → TB；≥100GB → 整数 GB；≥1GB → 一位小数（整数不带
    「.0」）；<1GB → MB；<1MB → 「<1MB」。
    🔴 不能无脑 toFixed(1) —— 上游 1049MB 归一成 1.024GB，显示「1.0GB」看着
@@ -1589,6 +1593,30 @@ function saveObj(k,o){try{localStorage.setItem(k,JSON.stringify(o))}catch(e){}}
 let fav=loadObj(FAV_KEY);
 let onlyFav=false;
 try{onlyFav=localStorage.getItem(ONLY_KEY)==="1"}catch(e){}
+/* ★ 键 v2 一次性迁移（2026-10-04）：v1 键「网|名称」→ v2 键「网|细分|名称」。
+   判别方式：按 "|" 切开，长度 2 = v1（v2 的细分段允许空串但仍是三段）。
+   找回方式：在该网**全量**条目里按名称匹配（收藏时用户看到的就是名字），
+   命中几条就把几条的 v2 键都点亮；一条没命中则保留旧键 —— 条目可能只是
+   本轮不在数据里（已下架移除等），删了就永远找不回来了。 */
+function migrateFav(){
+  let changed=false;
+  Object.keys(fav).forEach(k=>{
+    const parts=k.split("|");
+    if(parts.length!==2)return;
+    const netC=parts[0],name=parts[1];
+    let hit=0;
+    rowsOf(netC).forEach(d=>{
+      if((d.n||d.t||"")===name){
+        const k2=netC+"|"+(d.ty||"")+"|"+name;
+        if(!fav[k2])fav[k2]=1;
+        hit++;
+      }
+    });
+    if(hit){delete fav[k];changed=true}
+  });
+  if(changed)saveObj(FAV_KEY,fav);
+}
+migrateFav();   /* 数据（NETS）在第 873 行已就绪，这里同步迁移即可 */
 /* 星标：注入到名称单元格最前面（render() 每次重建表格后调用） */
 function decorateFav(){
   const tb=$("#tb");if(!tb)return;
@@ -1714,6 +1742,7 @@ function favInject(){
             });
           }
           if(!total){toast("导入失败：文件里没有可识别的收藏");return}
+          migrateFav();   /* 导入旧版（v1 键）导出文件也自动迁移 */
           saveObj(FAV_KEY,fav);
           favUpdateStars();favRefresh();
           toast("导入 "+total+" 条收藏（本机新增 "+added+" 条）");
@@ -1843,6 +1872,9 @@ function render(){
   $("#prev").disabled=pg===0;$("#first").disabled=pg===0;
   $("#next").disabled=st+PAGE>=view.length;$("#last").disabled=st+PAGE>=view.length;
   if(!view.length){
+    ROWS=[];  /* 2026-10-04：模块级变量不跨渲染残留 —— 空结果页没有 tr.row，
+                 委托器当前不会经 data-i 回取，但「上一页的数据还挂在全局」
+                 是坏味道，且未来任何新交互都可能踩中它。 */
     tb.innerHTML='<tr><td colspan="10" class="empty"><div>没有匹配的资费</div>'
       +diagEmpty()
       +'<div style="margin-top:10px"><a href="#" id="clr">重置全部筛选</a></div></td></tr>';
@@ -1862,8 +1894,11 @@ function render(){
     const agNew=BASE_OK?(ago(toDate(d.o))??9e9):9e9;
     const isNew=agNew>=0&&agNew<=30;
     /* data-i：委托器回取行数据的下标；data-k：收藏键（原样写入 dataset，
-       esc 只是属性层转义，浏览器读回 dataset 时会解码回原文）。 */
-    buf.push('<tr class="row'+(isNew?" isnew":"")+(d.st?" stopped":"")+'" data-i="'+i+'" data-k="'+esc(NET+"|"+(d.n||d.t||""))+'" tabindex="0" title="点击展开详情 / 复制" aria-expanded="false">'
+       esc 只是属性层转义，浏览器读回 dataset 时会解码回原文）。
+       ★ 键 v2（2026-10-04）＝「网|细分|名称」：v1「网|名称」会让同网同名的
+         不同细分条目共享收藏状态。上游改名仍会失联 —— 那是键里没有稳定 id
+         可用的设计限制（见 recheck-20261004 #7）。 */
+    buf.push('<tr class="row'+(isNew?" isnew":"")+(d.st?" stopped":"")+'" data-i="'+i+'" data-k="'+esc(NET+"|"+(d.ty||"")+"|"+(d.n||d.t||""))+'" tabindex="0" title="点击展开详情 / 复制" aria-expanded="false">'
       +'<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元":"—")+'</td>'
       +'<td>'+fmtGb(d.g)+'</td>'
       +'<td>'+(d.c&&d.c!=="0"?'<span style="white-space:nowrap">'+esc(d.c)+" 分钟</span>":"—")+'</td>'
@@ -1970,6 +2005,12 @@ function match(d,c){
     if(on){
       const dt=toDate(d.o);
       if(on==="none"){if(dt)return false}
+      else if(on==="future"){
+        /* 「待上架」＝ 还没到上架日的（ag<0，与 onCell 的徽标同口径）。
+           上游开始批量预挂资费时这是唯一入口；缺基准日照样不通过。 */
+        if(!BASE_OK||dt==null)return false;
+        if(ago(dt)>=0)return false;
+      }
       else{
         if(!BASE_OK||dt==null)return false;   // 缺基准日 ⇒ 不通过，绝不静默全通过
         const ag=ago(dt);
@@ -2670,7 +2711,12 @@ const CSV_COLS=[
    （权益说明尤其），不转义就会把一行拆成好几行、整张表错位。 */
 function csvCell(v){
   const s=String(v==null?"":v).replace(/\r?\n/g," ");
-  return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+  /* 2026-10-04 防公式注入：以 = + - @ 开头的单元格会被 Excel/WPS 当公式执行
+     （CSV 是数据/文案原样落盘的，运营商文案里出现这些开头并非不可能）。
+     惯例防御是加单引号前缀，Excel 视其为文本。原「-」开头也被拦 —— 负号
+     开头的合法文本（如「-元」）极罕见，误伤成本远低于漏放。 */
+  const t=/^[=+\-@]/.test(s)?"'"+s:s;
+  return /[",\n\r]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;
 }
 function download(name,text,mime){
   const blob=new Blob([text],{type:mime});
@@ -2684,7 +2730,7 @@ function exportCSV(){
   /* 「只看收藏」是 DOM 层显隐、不在 view 里 —— 导出若无视它，用户看着
      几条收藏、导出的却是全量筛选结果，口径就劈了。按同一口径过滤；
      收藏键与表格行的 dataset.k 同一构造（NET|名称）。 */
-  const rows=onlyFav?view.filter(d=>fav[NET+"|"+(d.n||d.t||"")]):view;
+  const rows=onlyFav?view.filter(d=>fav[NET+"|"+(d.ty||"")+"|"+(d.n||d.t||"")]):view;
   const L=[CSV_COLS.map(c=>csvCell(c[0])).join(",")];
   rows.forEach(d=>L.push(CSV_COLS.map(c=>csvCell(c[1](d))).join(",")));
   /* BOM 不能省：不加的话 Excel 会按本地代码页解读 UTF-8，中文全是乱码。
@@ -2865,7 +2911,8 @@ function renderHistory(){
        只显示「本次无变化」会把后者伪装成前者，而后者是**需要人看一眼**的。
        表在这里而不是在构建脚本里注入：它只是文案，改动不需要动数据。 */
   const NOTE_CN={"degraded":"数据异常·已冻结上一版","rebound":"基线回弹·不计变化",
-    "schema":"字段结构变更·仅重建基线","baseline":"首版基线","resync":"重同步基线",
+    "schema":"字段结构变更·仅重建基线","noise":"采样噪声·疑似整批轮换，不计变化",
+    "baseline":"首版基线","resync":"重同步基线",
     "collect-error":"采集失败·沿用上一版","snapshot-fallback":"沿用快照"};
   if(!items.length){
     box.innerHTML='<div class="empty">还没有可展示的变更记录 —— 自本次部署起开始累积，'

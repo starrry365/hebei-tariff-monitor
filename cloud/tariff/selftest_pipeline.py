@@ -22,6 +22,7 @@
 覆盖：
   · ``other_nets`` 四个分支（全采到 / 兜底 / 采集失败 / 混跑）与返回契约
   · ``_NOTE_CN`` 覆盖全部 note 取值（漏一项 ⇒ 英文码印到中文界面上）
+  · ``build_notice`` 两个方向（全网安静⇒隐藏 / 特殊路径⇒警告永不隐藏）
   · 四网注册表自洽（tag / snap_prefix 不撞车、NET_RUN 与注册表一致、未知网不炸）
 
 用法:
@@ -122,7 +123,7 @@ def main():
 
         # ── note 覆盖：能产出的 note 必须都有中文对照 ────────────────
         need = {"baseline", "resync", "collect-error", "snapshot-fallback",
-                "degraded", "rebound", "schema"}
+                "degraded", "rebound", "schema", "noise"}
         ck("_NOTE_CN 覆盖全部 note 取值", sorted(need - set(T._NOTE_CN)), [])
 
         # ── _verify_notes：只把**需要人看一眼**的 note 挑出来 ─────────
@@ -130,6 +131,37 @@ def main():
                               _sm("unicom", "联通", "baseline"),
                               _sm("cbn", "广电")])
         ck("_verify_notes 挑出 degraded、放过 baseline 与空", len(vn), 1)
+
+        # ── build_notice：main() 提示条组装段的离线单测（recheck-20261004 #8）──
+        # 🔴 这一段在 main() 里埋过两次雷（summaries NameError、move_quiet 覆盖），
+        #    病因都是「main() 全流程离线走不了」。提纯成纯函数后在这里补测：
+        #    改提示条文案 / 改 quiet 判定的人，跑一次自测就能当场炸出来。
+        _rp = os.path.join(T.BASE, "changes", "selftest.md")
+        mv_quiet = dict(_sm("move", "河北移动"), report=_rp)
+        mv_hit = dict(_sm("move", "河北移动", None), added=2, removed=1, changed=3,
+                      report=_rp)
+        mv_guard = dict(_sm("move", "河北移动", None), relocated=5, restored=2,
+                        report=_rp)
+        tails_quiet = [" · 联通无变化", " · 广电无变化", " · 电信无变化"]
+        # 方向 ①：全网安静 ⇒ 空串（隐藏提示条 —— 曾经被 move_quiet 覆盖 bug 弄成死逻辑）
+        ck("build_notice 全网安静 ⇒ 隐藏提示条",
+           T.build_notice(mv_quiet, tails_quiet), "")
+        # 方向 ②：move 有变化 ⇒ 三个数字 + 其余网提示拼接
+        n2 = T.build_notice(mv_hit, tails_quiet)
+        ck("build_notice 有变化带数字",
+           ("新增 2" in n2 and "下线 1" in n2 and "字段变更 3" in n2), True)
+        ck("build_notice 拼其余网提示", ("联通无变化" in n2), True)
+        # 方向 ③：护栏动过手 ⇒ 即便数字为零也不是安静（护栏结果必须露面）
+        n3 = T.build_notice(mv_guard, tails_quiet)
+        ck("build_notice 护栏摘除时不隐藏",
+           ("护栏另摘除" in n3 and n3 != ""), True)
+        # 方向 ④：move 安静但别网有警告 ⇒ 不隐藏（「无变化」结尾判据的互补面）
+        n4 = T.build_notice(mv_quiet, [" · 联通采集失败，沿用上一版快照"])
+        ck("build_notice 别网警告不隐藏", ("未检测到任何变化" in n4), True)
+        # 方向 ⑤：特殊路径（降级/基线/重同步）⇒ 警告永不隐藏，quiet 不参与判定
+        n5 = T.build_notice(None, tails_quiet, special_notice="⚠️ 数据量异常")
+        ck("build_notice 特殊路径警告保留", n5.startswith("⚠️ 数据量异常"), True)
+        ck("build_notice 特殊路径也拼其余网提示", ("电信无变化" in n5), True)
 
         # ── 四网注册表自洽（2026-09-26 模块化后加）─────────────────────
         # ★ 这里只查**内部自洽**，不查具体值（值由 check_nets_refactor.py 现场对拍）。
