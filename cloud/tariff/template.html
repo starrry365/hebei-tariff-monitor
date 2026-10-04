@@ -225,6 +225,10 @@ input,select{padding:7px 10px;border:1px solid var(--bd2);border-radius:9px;font
 input:focus,select:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2)}
 option,select optgroup{background:var(--card2);color:var(--tx)}
 button{font-family:inherit}
+/* 键盘可达性（U3，2026-10-04）：Tab 聚焦给统一焦点环；:focus-visible 只在
+   键盘聚焦时出现，鼠标点击不显示 —— 不破坏视觉，补的是纯键盘用户的定位能力。 */
+button:focus-visible,select:focus-visible,input:focus-visible,[tabindex]:focus-visible{
+  outline:2px solid var(--ac);outline-offset:1px}
 
 /* ── 筛选区：按语义分区（范围 / 分类 / 资费 / 办理 / 时效）──────────
    每段是一个浅玻璃小面板，左侧竖排组标签（细字重 + 右侧渐变细线），
@@ -854,6 +858,20 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 </div>
 <div id="toast"></div>
 <script>
+/* ══════════════════════════════════════════════════════════════════
+   目录（按出现顺序；写区块名不写行号 —— 行号必腐，区块名找得到）
+   ────────────────────────────────────────────────────────────────
+   [样式] 品牌色与图层变量(:root) · 吸顶/表头 · chips · 时间线
+   [数据] 四网数据容器 NETS · CAT_ORDER/OW_ORDER/HIST 注入 · rowsOf/rowName/DIM_KEY
+   [徽标] 城市专属 · 有效期 · 宽带判定(bwInfo/bwMbps/bwDetail)
+   [常量] 数据基线与相对天数 · 档位常量 FEE_TIERS/AGE_TIERS · 排序键 F
+   [筛选] 两级主轴页签 · 大类↔细分联动 · condOf(唯一判据) · 三级联动与档位条数
+          筛选标签(chips) · 空结果诊断(diagEmpty)
+   [呈现] render(单次拼串) · 目标客户列 · 详情展开 detHTML · 同价位更优 · 斑马纹
+   [视图] 页签同步 · 网别导航 · 切网 · 按网刷新 · 地市下拉/控件状态 · 细分停用 · 未接入占位
+   [工具] rowText 摘要 · 剪贴板 · CSV 导出 · 单文件离线副本 · 收藏(键v2/迁移/跨网聚合)
+   [交互] 初始化 · 主轴页签回写 · 筛选区折叠 · 标签×摘条件 · 键盘快捷键 · 表格事件委托
+   ══════════════════════════════════════════════════════════════════ */
 /* —— 四网数据容器 ——
    骨架阶段：只有「移动」接了真实数据，其余三家的 rows 为空、src/base 待补。
    刻意做成**对称结构**（每网都含 sh/nm/src/base/rows），而不是「移动特殊、
@@ -878,6 +896,22 @@ const DIMS=["sb","sc","ow","cat","ty","ct","pf","gf","cf","bw","chx","on","off",
 function clearDims(){DIMS.forEach(k=>{const e=document.getElementById(k);if(e)e.value=""})}
 const NET_LS=["move","unicom","telecom","cbn"];      // 顺序即导航条顺序
 const rowsOf=n=>((NETS[n]||{}).rows)||[];
+/* 行显示名的唯一取用处（S2，2026-10-04 工程审查）：n=名称（列表展示，120 字上限）、
+   t=套餐名（详情行展示，80 字上限），两键 80% 相同、20% 不同 —— 不是冗余，
+   但「n 空退 t」的回退曾在 8 处各写一遍（排序键/收藏键/CSV/相似套餐…），
+   改优先级要记得改 8 处 —— 又是「同一判据多份副本」的病。收拢成一行。
+   ★ 收藏键 v2 的名称段用它取值：改实现**不得改变返回值**，否则存量收藏全部失联。 */
+const rowName=d=>d.n||d.t||"";
+/* 维度 id ↔ 条件键映射（M2，2026-10-04）：全表只有 #off → offv 一处不一致，
+   但 condOf（读值）与 diagEmpty（反查键复位）各硬编码过一次字符串 ——
+   哪天改名只改一处，另一处就静默断线。映射对象只此一份，两处都来查表。
+   方向：**键 = 控件 id，值 = 条件键**（diagEmpty 手里是 id，直接查；
+   condOf 手里是条件键，走 dimIdOf 反查到控件 id）。
+   🔴 第一版曾把方向写反（condOf 里 g(DIM_KEY.off)=g("offv")，元素不存在），
+      g 的空安全让它静默返回空串 → 下线筛选整层失效且 walk/e2e 全绿
+      （自洽的错）—— 只有对 oracle 的 conformance 抓得住，四网全红。 */
+const DIM_KEY={off:"offv"};
+const dimIdOf=ck=>{for(const k in DIM_KEY)if(DIM_KEY[k]===ck)return k;return ck};
 const online=n=>rowsOf(n).length>0;                  // 是否已接入数据
 /* 默认网：取第一个**已接入**的（而不是硬编码 move）—— 万一哪天移动那网抓挂了，
    页面会自动落到别的有数据的网，而不是一进来就是一片空白。 */
@@ -1213,7 +1247,7 @@ const F={
   gb  :{lb:"流量",    def:-1,get:d=>(d.g==null?null:d.g)},
   call:{lb:"通话",    def:-1,get:d=>num(d.c)},
   per :{lb:"每元流量",def:-1,get:d=>perVal(d)},
-  name:{lb:"名称",    def: 1,get:d=>d.n||d.t||""},
+  name:{lb:"名称",    def: 1,get:rowName},
   /* 排序键名沿用 "ty"（老的 #s=ty 深链不作废），但**取值换成大类** ——
      表格那一列显示的就是大类，按细分排会让同一大类被拆散在多处，观感很碎。
      兜底保留 d.ty：万一某行没有 cat（不该发生），也不至于整批沉到空值尾部。 */
@@ -1363,7 +1397,7 @@ function condOf(){
   return {kw:kwTerms,
           sb:g("sb"),sc:g("sc"),ow:g("ow"),cat:g("cat"),ty:g("ty"),ct:g("ct"),
           pf:rg("pf"),gf:rg("gf"),cf:rg("cf"),bw:g("bw"),chx:g("chx"),
-          on:g("on"),offv:g("off"),chg:g("chg"),sta:STA,dimOff:dm};
+          on:g("on"),offv:g(dimIdOf("offv")),chg:g("chg"),sta:STA,dimOff:dm};
 }
 
 /* —— 板块 → 类型 → 细分：三级联动 + 档位条数 ——
@@ -1639,7 +1673,7 @@ function migrateFav(){
     const netC=parts[0],name=parts[1];
     let hit=0;
     rowsOf(netC).forEach(d=>{
-      if((d.n||d.t||"")===name){
+      if(rowName(d)===name){
         const k2=netC+"|"+(d.ty||"")+"|"+name;
         if(!fav[k2])fav[k2]=1;
         hit++;
@@ -1710,7 +1744,7 @@ function favRefresh(){
          收藏数悄悄缩水。这里对**本网全量数据**核对收藏键（不是当前筛选结果 ——
          被筛选挡住的收藏不算失效），零命中的提示出来。 */
       const hit={};
-      rowsOf(NET).forEach(d=>{hit[NET+"|"+(d.ty||"")+"|"+(d.n||d.t||"")]=1});
+      rowsOf(NET).forEach(d=>{hit[NET+"|"+(d.ty||"")+"|"+rowName(d)]=1});
       const miss=Object.keys(fav).filter(k=>k.indexOf(NET+"|")===0&&!hit[k]).length;
       note.textContent="★ 仅显示收藏（本页 "+shown+" 条）· 分页与筛选不受影响，翻页后仍然只显示收藏"
         +(miss?" · 另有 "+miss+" 个收藏条目已不在本网数据中（可能已下架）":"")
@@ -1831,7 +1865,7 @@ function openFavAll(){
     const keys=Object.keys(fav).filter(k=>k.indexOf(nc+"|")===0);
     if(!keys.length)return;
     const hit={};
-    rowsOf(nc).forEach(d=>{hit[nc+"|"+(d.ty||"")+"|"+(d.n||d.t||"")]=d});
+    rowsOf(nc).forEach(d=>{hit[nc+"|"+(d.ty||"")+"|"+rowName(d)]=d});
     keys.sort();
     rows.push('<tr><td colspan="7" style="font-weight:700;padding:8px 6px 4px;border-bottom:2px solid var(--bd2)">'
       +esc((NETS[nc]||{}).nm||nc)+"（"+keys.length+"）</td></tr>");
@@ -1950,9 +1984,9 @@ function diagEmpty(){
     if(c.k==="kw")one.kw=[];
     else if(c.k==="st")one.sta="";
     else{
-      /* 维度 id → 条件键只有一处不一致：#off 控件在条件里叫 offv。
-         区间型（月费/流量/通话）复位成 null（= 不筛），其余复位空串。 */
-      const ck=(c.k==="off")?"offv":c.k;
+      /* 维度 id → 条件键查 DIM_KEY（唯一映射表）：区间型（月费/流量/通话）
+         复位成 null（= 不筛），其余复位空串。 */
+      const ck=DIM_KEY[c.k]||c.k;
       one[ck]=(c.k==="pf"||c.k==="gf"||c.k==="cf")?null:"";
     }
     return {k:c.k,lab:c.lab,n:rowsOf(NET).filter(d=>match(d,one)).length};
@@ -2025,11 +2059,11 @@ function render(){
        ★ 键 v2（2026-10-04）＝「网|细分|名称」：v1「网|名称」会让同网同名的
          不同细分条目共享收藏状态。上游改名仍会失联 —— 那是键里没有稳定 id
          可用的设计限制（见 recheck-20261004 #7）。 */
-    buf.push('<tr class="row'+(isNew?" isnew":"")+(d.st?" stopped":"")+'" data-i="'+i+'" data-k="'+esc(NET+"|"+(d.ty||"")+"|"+(d.n||d.t||""))+'" tabindex="0" title="点击展开详情 / 复制" aria-expanded="false">'
+    buf.push('<tr class="row'+(isNew?" isnew":"")+(d.st?" stopped":"")+'" data-i="'+i+'" data-k="'+esc(NET+"|"+(d.ty||"")+"|"+rowName(d))+'" tabindex="0" title="点击展开详情 / 复制" aria-expanded="false">'
       +'<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元":"—")+'</td>'
       +'<td>'+fmtGb(d.g)+'</td>'
       +'<td>'+(d.c&&d.c!=="0"?'<span style="white-space:nowrap">'+esc(d.c)+" 分钟</span>":"—")+'</td>'
-      +'<td class="nm">'+scTag(d)+cityTag(d)+hl(d.n||d.t,terms)+chgTag(d)
+      +'<td class="nm">'+scTag(d)+cityTag(d)+hl(rowName(d),terms)+chgTag(d)
         /* L1（2026-10-04）：「已下架」页签下整页每行都挂同一枚徽标 ——
            页签标题已声明状态，这里是纯冗余（联通 3177 行 × 1 枚）；
            「全部」页签下它才有区分度，保留。 */
@@ -2782,7 +2816,7 @@ function resetAll(){
 function rowText(d){
   const bi=bwInfo(d),mb=bwMbps(d);
   return [
-    (d.n||d.t||"").trim(),
+    rowName(d).trim(),
     "类型："+(d.cat||"—")+(d.ty&&d.ty!==d.cat?" / "+d.ty:""),
     (d.ow?"归属："+d.ow:""),
     "月费："+(d.f!==""&&d.f!=null?d.f+" 元":"—"),
@@ -2873,7 +2907,7 @@ function exportCSV(){
   /* 「只看收藏」是 DOM 层显隐、不在 view 里 —— 导出若无视它，用户看着
      几条收藏、导出的却是全量筛选结果，口径就劈了。按同一口径过滤；
      收藏键与表格行的 dataset.k 同一构造（NET|细分|名称，v2）。 */
-  const rows=onlyFav?view.filter(d=>fav[NET+"|"+(d.ty||"")+"|"+(d.n||d.t||"")]):view;
+  const rows=onlyFav?view.filter(d=>fav[NET+"|"+(d.ty||"")+"|"+rowName(d)]):view;
   const L=[CSV_COLS.map(c=>csvCell(c[0])).join(",")];
   rows.forEach(d=>L.push(CSV_COLS.map(c=>csvCell(c[1](d))).join(",")));
   /* BOM 不能省：不加的话 Excel 会按本地代码页解读 UTF-8，中文全是乱码。

@@ -235,6 +235,24 @@ def main():
         for p in probs[:6]:
             print("       ! %s" % p)
 
+    # ── 5b. 首屏性能仪表（★ 2026-10-04 工程审查 P1）─────────────────
+    #   首屏是唯一随数据量线性恶化的环节（交互层实测 9ms/8096 行）。
+    #   这里不挡回归（软阈值只警示），职责是**每次回归都留一个数**：
+    #   DCL 持续上涨到 1500ms 以上，就该按 eng-review P1 预案拆分了。
+    print("\n[5b] 首屏性能仪表 page_startup_check.py")
+    p, out = run("startup：DCL / JSON.parse 基线",
+                 [sys.executable, os.path.join(BASE, "page_startup_check.py")],
+                 quiet_tail=8)
+    if not p.returncode:
+        import re
+        m = re.search(r'\{"dcl".*\}', out)
+        if m:
+            d = json.loads(m.group(0))
+            tag = "" if d["dcl"] <= 1500 else " ⚠ 超软阈值"
+            results[-1] = (results[-1][0], True,
+                           "DCL %dms · parse %dms · blob %.1fMB%s"
+                           % (d["dcl"], d["parseMs"], d["blobMB"], tag))
+
     # ── 6. 筛选口径对账（三网）───────────────────────────────────────
     print("\n[6] 筛选口径对账 run_conformance.py")
     for n in NETS_CONF:
