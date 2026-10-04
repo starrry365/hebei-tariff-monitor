@@ -1543,8 +1543,11 @@ NET_STOPPED = {c for c in _RUN_ORDER if NETS[c].stopped}
 #   .telecom_cache.json 停在 09-22，重跑采集也不会被用上）。
 #   直读适配器是毫秒级往返，缓存它没有任何收益。
 NET_NOCACHE = {c for c in _RUN_ORDER if NETS[c].nocache}
-# 页面顶部那行「来源」在各网切换时要跟着变，所以它不能是静态文本（模板里改成由 JS 渲染）
-UP_N = 0        # 由 build_html 回填：四网总条数（供 __N__ 占位符）
+# 🔴 2026-10-04 复查修：这里曾有全局变量 UP_N（注释称「由 build_html 回填、
+#   供 __N__ 占位符」）—— 但 __N__ 在 build_html 里直接用局部 total 替换，
+#   UP_N 写了从没有任何一处读（全仓 grep 仅 3 处且全在本文件）。
+#   死代码留着会误导人以为「条数另有全局出口」，删。
+
 
 # 页面里的「查看变更明细」链接指向仓库里的 changes/<日期>.md（网页版可直接看）。
 # 与 view_page.py 的 DEFAULT_REPO 同值 —— 两个脚本各有独立入口，不互相 import。
@@ -1956,7 +1959,6 @@ def build_html(sources, notice="", diffs=None, archive=True):
        既无法自证，也没人会注意到（2026-09-23 实测：跑一次本机重建，
        ``page/index.html.gz`` 就从 867218 字节变成 862474 字节，静默入库级别的改动）。
     """
-    global UP_N
     payloads, total = {}, 0
     for code, o in (sources or {}).items():
         if not o:
@@ -1997,7 +1999,6 @@ def build_html(sources, notice="", diffs=None, archive=True):
     if not payloads:
         log("!! 没有任何一网的数据，放弃重建页面")
         return 0
-    UP_N = total
     html = open(os.path.join(BASE, "template.html"), encoding="utf-8").read()
     # __DATE__ 只取「日期」部分，不取到秒（抓取时刻走 net_payload 的 ts，只进横栏）。
     # ★ 归档去重依赖「页面字节随数据走」：__DATE__/base 只随日期变，ts 随抓取变 ——
@@ -2567,6 +2568,16 @@ def main():
         save_snapshot(data, today)
         prune_snapshots()
 
+    # move_quiet 在这里先给默认值（False）：下面三条特殊路径（降级冻结 / 首版基线 /
+    # 重同步）的提示语本身就是必须显示的警告（数据量异常、基线建立），
+    # 绝不能被「全网安静就隐藏提示条」的逻辑误判为 quiet。
+    # 只有常规 diff 分支才真正算得出「quiet」（见 else 分支里的赋值）。
+    # 🔴 2026-10-04 复查修：初始化曾被放在 if/else **之后**（为了修三条路径的
+    #    NameError），结果把常规分支算出的值无条件覆盖成 False ——
+    #    「全网零变化 → 隐藏提示条」从此永不触发，页面天天挂着
+    #    「本次巡检未检测到任何变化 · 联通无变化 · …」。正确做法是
+    #    初始化在分支**之前**、计算留在分支之内，两件事一次到位。
+    move_quiet = False
     if old_o is None or act == "accept" or frozen:
         if frozen:
             move_sm = _summary_skip("move", "河北移动", old_o, "degraded")
@@ -2679,11 +2690,13 @@ def main():
     #   它在下面 not no_html 分支被引用，而这里只有常规 diff 分支算得出「quiet」；
     #   降级冻结 / 首版基线 / 重同步三条路径的提示语本身就是必须显示的警告
     #   （数据量异常、基线建立），绝不能被「全网安静就隐藏提示条」的逻辑误判。
-    #   🔴 2026-10-04 审查修：原先只在上面的 else 分支赋值，走降级/首版分支时
-    #      这里直接 NameError —— 整轮巡检在页面重建前崩掉，页面不更新。
-    #      与 other_nets 那次 summaries NameError（2026-09-26，CI 炸第 8 步）
-    #      是同一类「函数级自测全绿、集成缝没人走」的病，修法也同类。
-    move_quiet = False
+    #   ★ move_quiet 的初始化已上移到 if/else 之前（三条特殊路径 False、
+    #     常规 diff 分支才真正计算）—— 这里不再重复赋值。
+    #     🔴 2026-10-04 复查修：原先「初始化」写在这里（if/else 之后），
+    #        把常规分支算出的 quiet 无条件覆盖成 False，「全网安静隐藏提示条」
+    #        永不触发。与 other_nets 那次 summaries NameError（2026-09-26，CI 炸
+    #        第 8 步）是同一类「函数级自测全绿、集成缝没人走」的病 —— 症状轻得多
+    #        （只是提示条常驻），但成因相同，修法也同类。
     summaries = [move_sm]
     if not no_html:
         extra, xdiff, tails, xsum = other_nets(today)
