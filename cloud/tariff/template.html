@@ -601,7 +601,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
     <nav class="netnav" id="netnav"></nav>
     <div class="tb-right">
       <div class="upd"><span class="dot"></span><span id="updTxt">加载中…</span></div>
-      <div class="tb-cnt">在架 <b id="navCnt">—</b></div>
+      <div class="tb-cnt">在售 <b id="navCnt">—</b></div>
       <div class="tb-cnt">已下架 <b id="navStop">—</b></div>
       <div class="tb-cnt">本次变更 <b id="navChg">—</b></div>
       <button type="button" id="themeBtn" title="切换深色 / 浅色主题（记住选择）" aria-label="切换主题">
@@ -630,7 +630,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       </div>
       <div class="kwwrap">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
-        <input id="kw" placeholder="搜索名称 / 套餐 / 客户 / 渠道 / 报备编号 / 权益 / 宽带速率…">
+        <input id="kw" placeholder="搜索名称 / 套餐名 / 客户 / 渠道 / 报备编号 / 权益 / 宽带速率…">
       </div>
       <button type="button" id="ftog" aria-expanded="true"
               title="展开 / 收起下方筛选区">筛选<i id="fbadge" hidden></i></button>
@@ -667,7 +667,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
           <span class="axlab">资费范围</span>
           <div class="axseg" id="segSb" role="group" aria-label="资费范围"></div>
           <select id="sb" class="axsel" tabindex="-1" aria-hidden="true"
-                  title="资费范围：全网资费＝全国/跨省目录，河北资费＝本省目录，集团公示＝电信集团公示目录">
+                  title="资费范围：全网资费即全国/跨省目录，河北资费即本省目录，集团公示即电信集团公示目录">
             <option value="">全部</option>
             <option value="全国资费">全网资费</option>
             <option value="本省资费">河北资费</option>
@@ -678,7 +678,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       <div class="fsec"><span class="glab">范围</span>
         <label class="f w2"><span class="fl">地域</span>
           <select id="sc" title="地域范围：河北省（含各地市专属与全省通用）/ 全国">
-            <option value="">全部地域（河北 + 全国）</option>
+            <option value="">全部地域（河北+全国）</option>
             <option value="hb">仅河北省</option>
             <option value="cn">仅全国</option>
           </select></label>
@@ -734,7 +734,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       </div>
       <div class="fsec"><span class="glab">办理</span>
         <label class="f"><span class="fl">渠道</span>
-          <select id="chx" title="办理渠道。线上＝APP/网站/热线/短信，线下＝营业厅/门店/校园/代理">
+          <select id="chx" title="办理渠道。线上即 APP/网站/热线/短信，线下即营业厅/门店/校园/代理">
             <option value="">不限渠道</option>
             <option value="线上">线上</option>
             <option value="线下">线下</option>
@@ -751,9 +751,9 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
         <label class="f"><span class="fl">下线时间</span>
           <select id="off">
             <option value="">全部下线时间</option>
-            <option value="30">30 天内下线/已下线</option>
-            <option value="60">60 天内下线/已下线</option>
-            <option value="90">90 天内下线/已下线</option>
+            <option value="30">30 天内下线/已下架</option>
+            <option value="60">60 天内下线/已下架</option>
+            <option value="90">90 天内下线/已下架</option>
           </select></label>
         <label class="f"><span class="fl">变更</span>
           <select id="chg">
@@ -768,7 +768,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       <button data-p="new30">🆕 30 天内上架</button>
       <button data-p="new90">🆕 90 天内上架</button>
       <button data-p="future">⏰ 待上架</button>
-      <button data-p="exp60">⏳ 60 天内下线/已下线</button>
+      <button data-p="exp60">⏳ 60 天内下线/已下架</button>
       <button data-p="free">0 元</button>
       <button data-p="bw">含宽带</button>
       <button data-p="g100">≥ 100GB 流量</button>
@@ -1026,7 +1026,7 @@ function cityTag(d){
   const c=d.cty||[];
   if(!c.length)return"";
   const lb=c.length<=3?c.join("/"):c[0]+"等"+c.length+"城";
-  return ' <span class="bg bg-city" title="城市专属：上游只在这些城市的目录上架（'
+  return ' <span class="bg bg-city" title="地市专属：上游只在这些地市的目录上架（'
     +esc(c.join("、"))+'）">'+esc(lb)+'</span>';
 }
 
@@ -1069,7 +1069,7 @@ function vpTag(d){
   const rn=i.renew?' <span class="vptg vptg-rn" title="到期后双方无异议则自动顺延/续约">自动续</span>':"";
   if(i.date!=null&&BASE_OK){
     const lf=left(i.date),ds=fmtT(i.date);
-    if(lf<=0)return ' <span class="vptg vptg-soon" title="资费标称有效期已过（'+ds+'）；上下架状态以上线/下线日期为准">'+ds+' 已过</span>'+rn;
+    if(lf<=0)return ' <span class="vptg vptg-soon" title="资费标称有效期已过（'+ds+'）；上下架状态以上架/下线日期为准">'+ds+' 已过</span>'+rn;
     if(lf<=90)return ' <span class="vptg vptg-soon" title="距标称有效期（'+ds+'）还有 '+lf+' 天">至 '+ds+'</span>'+rn;
     if(lf<=365)return ' <span class="vptg vptg-mid" title="标称有效期至 '+ds+'">至 '+ds+'</span>'+rn;
     return ' <span class="vptg vptg-far" title="标称有效期至 '+ds+'">至 '+ds+'</span>'+rn;
@@ -1415,7 +1415,7 @@ function syncDims(){
     /* 空网（未接入 / 快照缺失）早退前，先把静态下拉里可能残留的**上一个网**
        的档位条数与置灰清掉 —— 不清的话切到空网，月费/流量下拉还挂着
        别网的数字，纯误导。分类两下拉由 renderNet 重建，不在此列。 */
-    const empt=[["sc","全部地域（河北 + 全国）"],["pf","全部月费"],["gf","不限流量"],
+    const empt=[["sc","全部地域（河北+全国）"],["pf","全部月费"],["gf","不限流量"],
                 ["cf","不限通话"],["bw","不限宽带"],["chx","不限渠道"],
                 ["on","全部上架时间"],["off","全部下线时间"]];
     empt.forEach(p=>{
@@ -1546,7 +1546,7 @@ function syncDims(){
       o.disabled=!n;
     });
   };
-  fillLbl($("#sc"),n2.sc,"全部地域（河北 + 全国）");
+  fillLbl($("#sc"),n2.sc,"全部地域（河北+全国）");
   if(dimVisible("ow"))fillLbl($("#ow"),n2.ow,"全部");
   fillLbl($("#pf"),n2.pf,"全部月费");
   fillLbl($("#gf"),n2.gf,"不限流量");
@@ -2194,7 +2194,7 @@ function match(d,c){
     if(off){
       const dt=toDate(d.e);
       if(!BASE_OK||dt==null)return false;
-      /* 「N 天内下线/已下线」＝ 下线日落在基线前后 N 天内。
+      /* 「N 天内下线/已下架」＝ 下线日落在基线前后 N 天内。
          🔴 早先只算 left>=0（还没下线的），「已下架」页签和「全部」页签里
          选这一档会**恒为 0 条** —— 已下线的条目 left 全是负数，全被挡掉。
          改成 |left|<=N：在售页签匹配「即将下线」，已下架页签匹配「刚下线」，
@@ -2426,7 +2426,7 @@ function renderNav(){
     b.className="netbtn"+(c===NET?" on":"");
     b.innerHTML="<span>"+esc(n.nm||c)+"</span>"
       +(has?'<span class="nc">'+rowsOf(c).length+" 条</span>"
-           :'<span class="nb">未接入</span>');
+           :'<span class="nb">尚未接入</span>');
     b.onclick=()=>switchNet(c);
     inn.appendChild(b);
   });
@@ -2502,7 +2502,7 @@ function renderNet(){
   $("#sub").innerHTML=has
     ?"来源："+esc(n.src||"—")+" · 数据基线 "+esc(n.base||"—")+" · 共 "+rs.length+" 条"
       +(scTxt?"（"+scTxt+"）":"")
-    :"来源：待接入";
+    :"来源：尚未接入";
   /* —— 类型两级：先建大类，再建细分 ——
      · 大类按 CAT_ORDER 的**固定顺序**生成（不是按条数或拼音）：顺序稳定，
        逐日看的时候才知道「今天冒出来的是哪一类」。
@@ -2731,7 +2731,7 @@ function renderDims(){
     if(wsb)wsb.style.display=hasSb?"":"none";
     if(!hasSb)sbSel.value="";      // 切网时把别网带过来的值清掉，否则筛选恒空
     sbSel.title=hasSb
-      ?"板块：全国资费＝全国/跨省目录，本省资费＝河北本省目录，集团公示＝电信集团公示目录（0 条的档置灰）"
+      ?"板块：全国资费即全国/跨省目录，本省资费即河北本省目录，集团公示即电信集团公示目录（0 条的档置灰）"
       :"本网官方页面只有一个板块，该维度不提供";
     [...sbSel.options].forEach(o=>{
       if(!o.value){o.disabled=false;return}
@@ -2763,7 +2763,7 @@ function renderBaseWarn(){
   if(BASE_OK||!online(NET)){w.style.display="none";w.textContent="";return}
   w.style.display="";
   w.textContent="⚠️ 本网（"+(net().nm||NET)+"）的基线日期读取失败（当前值："
-    +String(net().base||"（空）")+"）⇒ 上架 / 下线的时间筛选与相对天数已停用，"
+    +String(net().base||"（空）")+"），因此上架 / 下线的时间筛选与相对天数已停用，"
     +"以免给出看似正常的错误结果。";
 }
 
@@ -2795,7 +2795,7 @@ function renderEmptyState(){
   }
   const n=net();
   ph.innerHTML="<h2>"+esc(n.nm||NET)+" · 资费数据尚未接入</h2>"
-    +"<p>该运营商的资费数据暂未采集到，先看看其它三网。</p>";
+    +"<p>该运营商的资费数据尚未接入，先看看其他三网。</p>";
   fixBarh();
 }
 
@@ -2870,13 +2870,13 @@ const CSV_COLS=[
   ["地域",d=>SC_LB[d.sc]||""],["状态",d=>d.st?"已下架":"在售"],["归属",d=>d.ow||""],
   ["月费(元)",d=>d.f],["流量(GB)",d=>d.g],["流量原文",d=>d.d],["流量单位",d=>d.du],
   ["每元流量(GB)",d=>{const v=perVal(d);return v==null?"":+v.toFixed(3)}],
-  ["通话(分)",d=>d.c],["名称",d=>d.n],["套餐名",d=>d.t],
+  ["通话(分钟)",d=>d.c],["名称",d=>d.n],["套餐名",d=>d.t],
   /* 大类在前、细分在后：大类是四网可比的横轴，细分是上游各自的说法。
      两个都留着 —— 只给大类会丢掉「流量包还是语音包」这种关键差别。 */
   ["类型大类",d=>d.cat],["类型细分",d=>d.ty],
   ["宽带字段",d=>d.bw],
   ["宽带判定",d=>{const i=bwInfo(d);return i?"含宽带":"不含宽带"}],
-  ["城市",d=>cityTags(d).join("/")],["目标客户",d=>d.ap],
+  ["地市",d=>cityTags(d).join("/")],["目标客户",d=>d.ap],
   ["渠道档",d=>d.chx],["办理渠道原文",d=>d.ch],
   ["报备编号",d=>d.r],["上架日",d=>fmtD(d.o)],["下线日",d=>fmtD(d.e)],
   ["本次变更",d=>(d.ca?"新增":"")+(d.ca&&d.ck?"/":"")+(d.ck?"字段变更":"")],
@@ -3002,10 +3002,10 @@ function renderOverview(){
   const live=rs.filter(d=>!d.st);
   /* ── KPI 卡 ── O1（2026-10-04）：可点 —— 总览是「发现问题」的入口，
      明细是「看清单」的出口，原来中间断了一步。x[4] 是点击动作，
-     空串 = 无动作（在架资费即全量，不提供点击）。 */
+     空串 = 无动作（在售资费即全量，不提供点击）。 */
   const gq=rs.filter(d=>d.ow==="政企").length;
   const k=[];
-  k.push(["🗂️","在架资费",live.length,"本网当前在售 + 未标下架的全部条目",""]);
+  k.push(["🗂️","在售资费",live.length,"本网当前在售+未标下架的全部条目",""]);
   k.push(["📍","河北",live.filter(d=>d.sc==="hb").length,"适用地域为河北省","sc:hb"]);
   k.push(["🌐","全国",live.filter(d=>d.sc==="cn").length,"适用地域为全国","sc:cn"]);
   if(rs.some(d=>d.ow))k.push(["🏢","政企资费",gq,"官方标注为「政企」的条目（仅移动提供归属分类）","ow:政企"]);
@@ -3143,7 +3143,7 @@ function renderHistory(){
         :((A?'<span class="tcap a">新增 '+A+'</span>':"")
           +(R?'<span class="tcap r">下架 '+R+'</span>':"")
           +(C?'<span class="tcap c">字段变更 '+C+'</span>':"")))
-      +(notas.length?'<span class="tcap w" title="'+esc(notas.map(n=>NOTE_CN[n]||n).join("；"))+'">⚠ 有抑制 '+notas.length+'</span>':"")
+      +(notas.length?'<span class="tcap w" title="'+esc(notas.map(n=>NOTE_CN[n]||n).join("；"))+'">⚠️ 有抑制 '+notas.length+'</span>':"")
       +'<span class="tm">'+ns.length+' 个网</span></div>'
       +'<div class="tbd">'+ns.map(x=>{
           const caps=[];
