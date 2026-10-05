@@ -1,0 +1,482 @@
+[
+ {
+  "name": "CCTV-1",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CCTV-1/1.m3u8",
+  "kbps": 20943
+ },
+ {
+  "name": "CCTV-2 ·现场16.7M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CCTV-2/1.m3u8",
+  "kbps": 17933
+ },
+ {
+  "name": "CCTV-3 ·现场19.8M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-3/1.m3u8",
+  "kbps": 17917
+ },
+ {
+  "name": "CCTV-4 ·现场19.7M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/CCTV-4/CCTV-4.m3u8",
+  "kbps": 17749
+ },
+ {
+  "name": "CCTV-5 ·现场10.7M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-5/1.m3u8",
+  "kbps": 16368
+ },
+ {
+  "name": "CCTV5+ ·现场12.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/hdcctv05plus/1.m3u8",
+  "kbps": 16484
+ },
+ {
+  "name": "CCTV-6 ·现场15.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-6/1.m3u8",
+  "kbps": 18794
+ },
+ {
+  "name": "CCTV-7 ·现场17.8M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/CCTV-7/1.m3u8",
+  "kbps": 15292
+ },
+ {
+  "name": "CCTV-8 ·现场18.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-8/1.m3u8",
+  "kbps": 13557
+ },
+ {
+  "name": "CCTV-9 ·现场14.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CCTV-9/1.m3u8",
+  "kbps": 15605
+ },
+ {
+  "name": "CCTV-10",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/CCTV-10/CCTV-10.m3u8",
+  "kbps": 22215
+ },
+ {
+  "name": "CCTV-11 ·现场17.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/CCTV-11/1.m3u8",
+  "kbps": 22568
+ },
+ {
+  "name": "CCTV-12 ·现场12.0M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/CCTV-12/CCTV-12.m3u8",
+  "kbps": 22862
+ },
+ {
+  "name": "CCTV-13 ·现场22.1M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/CCTV-13/CCTV-13.m3u8",
+  "kbps": 21923
+ },
+ {
+  "name": "CCTV-14 ·现场20.1M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CCTV-14/1.m3u8",
+  "kbps": 24186
+ },
+ {
+  "name": "CCTV-15",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CCTV-15/1.m3u8",
+  "kbps": 16241
+ },
+ {
+  "name": "CCTV-16 ·现场15.6M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-cctv16/1.m3u8",
+  "kbps": 25808
+ },
+ {
+  "name": "CCTV-17 ·现场17.8M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-cctv17/1.m3u8",
+  "kbps": 22508
+ },
+ {
+  "name": "东方卫视 ·现场25.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/dongfangstv/1.m3u8",
+  "kbps": 23369
+ },
+ {
+  "name": "东南卫视 ·现场20.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/dongnanstv/1.m3u8",
+  "kbps": 25119
+ },
+ {
+  "name": "山东卫视 ·现场20.1M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/shandongstv/1.m3u8",
+  "kbps": 21272
+ },
+ {
+  "name": "湖北卫视 ·现场18.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_HUBEI/1.m3u8",
+  "kbps": 18645
+ },
+ {
+  "name": "内蒙古卫视 ·现场17.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_NEIMENGGU/G_NEIMENGGU.m3u8",
+  "kbps": 22518
+ },
+ {
+  "name": "广东卫视 ·现场17.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/guangdongstv/1.m3u8",
+  "kbps": 20116
+ },
+ {
+  "name": "黑龙江卫视 ·现场16.0M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_HEILONGJIANG-CQ/G_HEILONGJIANG-CQ.m3u8",
+  "kbps": 23589
+ },
+ {
+  "name": "深圳卫视 ·现场15.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/shenzhenstv/1.m3u8",
+  "kbps": 24514
+ },
+ {
+  "name": "云南卫视 ·现场15.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_YUNNAN/G_YUNNAN.m3u8",
+  "kbps": 21471
+ },
+ {
+  "name": "江苏卫视 ·现场14.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jiangsustv/1.m3u8",
+  "kbps": 20930
+ },
+ {
+  "name": "吉林卫视 ·现场14.1M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_JILIN/G_JILIN.m3u8",
+  "kbps": 23128
+ },
+ {
+  "name": "青海卫视 ·现场13.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_QINGHAI/G_QINGHAI.m3u8",
+  "kbps": 26906
+ },
+ {
+  "name": "山西卫视 ·现场13.8M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/SXWS/SXWS.m3u8",
+  "kbps": 24487
+ },
+ {
+  "name": "广西卫视 ·现场13.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/GXWS/1.m3u8",
+  "kbps": 24895
+ },
+ {
+  "name": "北京卫视 ·现场13.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/beijingstv/1.m3u8",
+  "kbps": 19248
+ },
+ {
+  "name": "重庆卫视 ·现场12.6M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CHONGQING/G_CHONGQING.m3u8",
+  "kbps": 19061
+ },
+ {
+  "name": "西藏卫视 ·现场12.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/xizangstv/1.m3u8",
+  "kbps": 22835
+ },
+ {
+  "name": "旅游卫视 ·现场11.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/LYWS/1.m3u8",
+  "kbps": 18501
+ },
+ {
+  "name": "新疆卫视 ·现场10.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_XINJIANG/G_XINJIANG.m3u8",
+  "kbps": 25406
+ },
+ {
+  "name": "安徽卫视 ·现场10.1M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/AHWS/1.m3u8",
+  "kbps": 20520
+ },
+ {
+  "name": "浙江卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_ZHEJIANG/G_ZHEJIANG.m3u8",
+  "kbps": 16209
+ },
+ {
+  "name": "甘肃卫视 ·现场9.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_GANSU/G_GANSU.m3u8",
+  "kbps": 22220
+ },
+ {
+  "name": "宁夏卫视 ·现场8.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_NINGXIA/G_NINGXIA.m3u8",
+  "kbps": 25212
+ },
+ {
+  "name": "江西卫视 ·现场7.7M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/JXWS/1.m3u8",
+  "kbps": 24051
+ },
+ {
+  "name": "湖南卫视 ·现场7.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/hunanstv/1.m3u8",
+  "kbps": 19817
+ },
+ {
+  "name": "四川卫视 ·现场7.0M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/SCWS/1.m3u8",
+  "kbps": 25418
+ },
+ {
+  "name": "河南卫视 ·现场6.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/HENAN/HENAN.m3u8",
+  "kbps": 17849
+ },
+ {
+  "name": "陕西卫视 ·现场6.8M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/shanxi1stv/1.m3u8",
+  "kbps": 21411
+ },
+ {
+  "name": "天津卫视",
+  "url": "http://111.63.117.13:6060/030000001000/TJWS/TJWS.m3u8",
+  "kbps": 19128
+ },
+ {
+  "name": "辽宁卫视 ·现场6.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/LNWS/LNWS.m3u8",
+  "kbps": 23666
+ },
+ {
+  "name": "贵州卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_GUIZHOU/G_GUIZHOU.m3u8",
+  "kbps": 22489
+ },
+ {
+  "name": "河北卫视 ·7.2M(全网新挖)",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/hebeistv/1.m3u8",
+  "kbps": 3904
+ },
+ {
+  "name": "海南卫视",
+  "url": "http://111.63.117.13:6060/030000001000/LYWS/LYWS.m3u8",
+  "kbps": 16594
+ },
+ {
+  "name": "北京KAKU少儿 ·8.0M(全网新挖)",
+  "url": "http://111.63.117.13:6060/030000001000/G_KAKU/G_KAKU.m3u8",
+  "kbps": 17655
+ },
+ {
+  "name": "农业致富 ·现场19.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/nongyezf/1.m3u8",
+  "kbps": 23366
+ },
+ {
+  "name": "中国功夫 ·现场19.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-gzkongfu/1.m3u8",
+  "kbps": 25453
+ },
+ {
+  "name": "军事评论 ·现场17.8M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/junshipl/1.m3u8",
+  "kbps": 23153
+ },
+ {
+  "name": "优漫卡通 ·现场17.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/youmankaton/1.m3u8",
+  "kbps": 21553
+ },
+ {
+  "name": "古装剧场 ·现场16.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/guzhuangjc/1.m3u8",
+  "kbps": 22376
+ },
+ {
+  "name": "中国教育4套 ·现场16.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-4000k-576P-jiaoyutv4/1.m3u8",
+  "kbps": 19357
+ },
+ {
+  "name": "万人推荐 ·现场15.6M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-kuailegw/1.m3u8",
+  "kbps": 20303
+ },
+ {
+  "name": "哒啵赛事 ·现场15.6M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/wmyx/1.m3u8",
+  "kbps": 19063
+ },
+ {
+  "name": "中国教育-1 ·现场15.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jiaoyutv/1.m3u8",
+  "kbps": 23240
+ },
+ {
+  "name": "军旅剧场 ·现场15.1M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/junlvjc/1.m3u8",
+  "kbps": 18990
+ },
+ {
+  "name": "炫舞未来 ·现场14.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-xwwl/1.m3u8",
+  "kbps": 20692
+ },
+ {
+  "name": "卡酷少儿 ·现场13.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/kakukaton/1.m3u8",
+  "kbps": 21536
+ },
+ {
+  "name": "动作电影 ·现场13.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/dongzuody/1.m3u8",
+  "kbps": 18053
+ },
+ {
+  "name": "黑莓动画 ·现场12.0M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/donghuawg/1.m3u8",
+  "kbps": 19571
+ },
+ {
+  "name": "精品大剧 ·现场11.6M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jdaju/1.m3u8",
+  "kbps": 20910
+ },
+ {
+  "name": "睛彩篮球 ·现场11.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-8000k-1080P-miguaoyun1/1.m3u8",
+  "kbps": 19026
+ },
+ {
+  "name": "金鹰卡通 ·现场11.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jinyingkaton/1.m3u8",
+  "kbps": 22977
+ },
+ {
+  "name": "黑莓电影 ·现场11.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jdianying/1.m3u8",
+  "kbps": 20172
+ },
+ {
+  "name": "精品体育 ·现场11.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jtiyu/1.m3u8",
+  "kbps": 19164
+ },
+ {
+  "name": "康养保健 ·现场11.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-jiayougw/1.m3u8",
+  "kbps": 24689
+ },
+ {
+  "name": "潮妈辣婆 ·现场11.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-1500k-720P-cmlapo/1.m3u8",
+  "kbps": 22471
+ },
+ {
+  "name": "哒啵电竞 ·现场11.0M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/dabodj/1.m3u8",
+  "kbps": 20485
+ },
+ {
+  "name": "怡伴健康 ·现场10.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/ljiankangyouyue/1.m3u8",
+  "kbps": 26216
+ },
+ {
+  "name": "山东教育 ·现场10.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/shandongjy/1.m3u8",
+  "kbps": 20879
+ },
+ {
+  "name": "精品萌宠 ·现场10.7M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jingpinmc/1.m3u8",
+  "kbps": 19556
+ },
+ {
+  "name": "银发生活 ·现场10.6M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/fengshanggw/1.m3u8",
+  "kbps": 23389
+ },
+ {
+  "name": "烽烟剧场 ·现场10.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jingpinjl/1.m3u8",
+  "kbps": 25166
+ },
+ {
+  "name": "精品综合 ·现场10.0M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/mingxingdp/1.m3u8",
+  "kbps": 17995
+ },
+ {
+  "name": "热播精选 ·现场9.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/xiqumd/1.m3u8",
+  "kbps": 20595
+ },
+ {
+  "name": "惊悚悬疑 ·现场9.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jingsongxy/1.m3u8",
+  "kbps": 23782
+ },
+ {
+  "name": "营养饮食 ·现场8.8M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-huanqiugw/1.m3u8",
+  "kbps": 23510
+ },
+ {
+  "name": "家庭剧场 ·现场8.7M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jiatingjc/1.m3u8",
+  "kbps": 19739
+ },
+ {
+  "name": "北京纪实 ·现场8.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-beijingjishi/1.m3u8",
+  "kbps": 25943
+ },
+ {
+  "name": "运动文旅 ·现场7.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-yanxuangw/1.m3u8",
+  "kbps": 17761
+ },
+ {
+  "name": "睛彩竞技 ·现场7.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-8000k-1080P-miguaoyun2/1.m3u8",
+  "kbps": 27114
+ },
+ {
+  "name": "睛彩青少 ·现场7.0M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-8000k-1080P-quanminrl/1.m3u8",
+  "kbps": 20308
+ },
+ {
+  "name": "精品家居 ·现场6.7M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-haoxianggw/1.m3u8",
+  "kbps": 19372
+ },
+ {
+  "name": "谍战大剧 ·现场6.1M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/saishijx/1.m3u8",
+  "kbps": 20437
+ },
+ {
+  "name": "爱情喜剧 ·现场6.1M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/aiqingxj/1.m3u8",
+  "kbps": 14934
+ },
+ {
+  "name": "炫动卡通 ·现场4.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/xuandongkaton/1.m3u8",
+  "kbps": 3698
+ },
+ {
+  "name": "世界地理",
+  "url": "http://183.10.180.81:9901/tsfile/live/1008_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "kbps": 6318
+ },
+ {
+  "name": "凤凰中文",
+  "url": "http://183.10.180.81:9901/tsfile/live/1003_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "kbps": 9198
+ },
+ {
+  "name": "第一剧场",
+  "url": "http://183.10.180.81:9901/tsfile/live/1082_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "kbps": 3060
+ },
+ {
+  "name": "风云剧场",
+  "url": "http://183.10.180.81:9901/tsfile/live/1032_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "kbps": 11436
+ }
+]
