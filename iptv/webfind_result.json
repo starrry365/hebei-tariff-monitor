@@ -1,0 +1,1274 @@
+[
+ {
+  "name": "CCTV1",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-1/1.m3u8?channel-id=ystenlive&Contentid=cctv-1&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9177
+ },
+ {
+  "name": "CCTV2",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-2/1.m3u8?channel-id=ystenlive&Contentid=cctv-2&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9165
+ },
+ {
+  "name": "CCTV1",
+  "url": "http://111.63.117.13:6060/030000001000/CCTV-1-HD/CCTV-1-HD.m3u8",
+  "src": "111新CDN",
+  "kbps": 7134
+ },
+ {
+  "name": "CCTV3",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-3/1.m3u8?channel-id=ystenlive&Contentid=cctv-3&livemode=1",
+  "src": "OTT域名",
+  "kbps": 16483
+ },
+ {
+  "name": "CCTV2",
+  "url": "http://111.63.117.13:6060/030000001000/G_CCTV-2/G_CCTV-2.m3u8",
+  "src": "111新CDN",
+  "kbps": 9994
+ },
+ {
+  "name": "CCTV3",
+  "url": "http://111.63.117.13:6060/030000001000/CCTV-3/CCTV-3.m3u8",
+  "src": "111新CDN",
+  "kbps": 8872
+ },
+ {
+  "name": "CCTV4",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-4/1.m3u8?channel-id=ystenlive&Contentid=cctv-4&livemode=1",
+  "src": "OTT域名",
+  "kbps": 10391
+ },
+ {
+  "name": "CCTV4",
+  "url": "http://111.63.117.13:6060/030000001000/CCTV-4/CCTV-4.m3u8",
+  "src": "111新CDN",
+  "kbps": 7100
+ },
+ {
+  "name": "CCTV5",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-5/1.m3u8?channel-id=ystenlive&Contentid=cctv-5&livemode=1",
+  "src": "OTT域名",
+  "kbps": 10578
+ },
+ {
+  "name": "CCTV5",
+  "url": "http://111.63.117.13:6060/030000001000/CCTV-5/CCTV-5.m3u8",
+  "src": "111新CDN",
+  "kbps": 10375
+ },
+ {
+  "name": "CCTV5+",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/hdcctv05plus/1.m3u8?channel-id=ystenlive&Contentid=hdcctv05plus&livemode=1",
+  "src": "OTT域名",
+  "kbps": 19062
+ },
+ {
+  "name": "CCTV6",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-6/1.m3u8?channel-id=ystenlive&Contentid=cctv-6&livemode=1",
+  "src": "OTT域名",
+  "kbps": 14896
+ },
+ {
+  "name": "CCTV5+",
+  "url": "http://111.63.117.13:6060/030000001000/G_CCTV-5PLUS/G_CCTV-5PLUS.m3u8",
+  "src": "111新CDN",
+  "kbps": 5878
+ },
+ {
+  "name": "CCTV6",
+  "url": "http://111.63.117.13:6060/030000001000/CCTV-6/CCTV-6.m3u8",
+  "src": "111新CDN",
+  "kbps": 10051
+ },
+ {
+  "name": "CCTV7",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-7/1.m3u8?channel-id=ystenlive&Contentid=cctv-7&livemode=1",
+  "src": "OTT域名",
+  "kbps": 11848
+ },
+ {
+  "name": "CCTV7",
+  "url": "http://111.63.117.13:6060/030000001000/CCTV-7/CCTV-7.m3u8",
+  "src": "111新CDN",
+  "kbps": 13001
+ },
+ {
+  "name": "CCTV8",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-8/1.m3u8?channel-id=ystenlive&Contentid=cctv-8&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9046
+ },
+ {
+  "name": "CCTV8",
+  "url": "http://111.63.117.13:6060/030000001000/G_CCTV-8/G_CCTV-8.m3u8",
+  "src": "111新CDN",
+  "kbps": 5339
+ },
+ {
+  "name": "CCTV9",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-news/1.m3u8?channel-id=ystenlive&Contentid=cctv-news&livemode=1",
+  "src": "OTT域名",
+  "kbps": 11716
+ },
+ {
+  "name": "CCTV9",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-9/1.m3u8?channel-id=ystenlive&Contentid=cctv-9&livemode=1",
+  "src": "OTT域名",
+  "kbps": 10716
+ },
+ {
+  "name": "CCTV10",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-10/1.m3u8?channel-id=ystenlive&Contentid=cctv-10&livemode=1",
+  "src": "OTT域名",
+  "kbps": 10491
+ },
+ {
+  "name": "CCTV9",
+  "url": "http://111.63.117.13:6060/030000001000/G_CCTV-9/G_CCTV-9.m3u8",
+  "src": "111新CDN",
+  "kbps": 8218
+ },
+ {
+  "name": "CCTV10",
+  "url": "http://111.63.117.13:6060/030000001000/CCTV-10/CCTV-10.m3u8",
+  "src": "111新CDN",
+  "kbps": 8264
+ },
+ {
+  "name": "CCTV12",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-12/1.m3u8?channel-id=ystenlive&Contentid=cctv-12&livemode=1",
+  "src": "OTT域名",
+  "kbps": 16343
+ },
+ {
+  "name": "CCTV11",
+  "url": "http://111.63.117.13:6060/030000001000/CCTV-11/CCTV-11.m3u8",
+  "src": "111新CDN",
+  "kbps": 11651
+ },
+ {
+  "name": "CCTV11",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-11/1.m3u8?channel-id=ystenlive&Contentid=cctv-11&livemode=1",
+  "src": "OTT域名",
+  "kbps": 4679
+ },
+ {
+  "name": "CCTV13",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-13/1.m3u8?channel-id=ystenlive&Contentid=cctv-13&livemode=1",
+  "src": "OTT域名",
+  "kbps": 12803
+ },
+ {
+  "name": "CCTV14",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-14/1.m3u8?channel-id=ystenlive&Contentid=cctv-14&livemode=1",
+  "src": "OTT域名",
+  "kbps": 15611
+ },
+ {
+  "name": "CCTV13",
+  "url": "http://111.63.117.13:6060/030000001000/CCTV-13/CCTV_13.m3u8",
+  "src": "111新CDN",
+  "kbps": 8702
+ },
+ {
+  "name": "CCTV12",
+  "url": "http://111.63.117.13:6060/030000001000/CCTV-12/CCTV-12.m3u8",
+  "src": "111新CDN",
+  "kbps": 4595
+ },
+ {
+  "name": "CCTV14",
+  "url": "http://111.63.117.13:6060/030000001000/G_CCTV-14/G_CCTV_14.m3u8",
+  "src": "111新CDN",
+  "kbps": 11783
+ },
+ {
+  "name": "CCTV15",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-15/1.m3u8?channel-id=ystenlive&Contentid=cctv-15&livemode=1",
+  "src": "OTT域名",
+  "kbps": 10329
+ },
+ {
+  "name": "CCTV15",
+  "url": "http://111.63.117.13:6060/030000001000/G_CCTV-15/G_CCTV-15.m3u8",
+  "src": "111新CDN",
+  "kbps": 8209
+ },
+ {
+  "name": "CCTV16",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-cctv16/1.m3u8?channel-id=ystenlive&Contentid=HD-4000k-1080P-cctv16&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9790
+ },
+ {
+  "name": "CCTV15",
+  "url": "http://111.63.117.13:6060/030000001000/G_CCTV-15/G_CCTV15.m3u8",
+  "src": "111新CDN",
+  "kbps": 5721
+ },
+ {
+  "name": "CCTV17",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-cctv17/1.m3u8?channel-id=ystenlive&Contentid=HD-4000k-1080P-cctv17&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9441
+ },
+ {
+  "name": "CCTV17",
+  "url": "http://111.63.117.13:6060/030000001000/G_CCTV-17/G_CCTV-17.m3u8",
+  "src": "111新CDN",
+  "kbps": 9514
+ },
+ {
+  "name": "CCTV17",
+  "url": "http://111.63.117.13:6060/030000001000/G_CCTV-17/G_CCTV17.m3u8",
+  "src": "111新CDN",
+  "kbps": 9116
+ },
+ {
+  "name": "安徽卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/anhuistv/1.m3u8?channel-id=ystenlive&Contentid=anhuistv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 7405
+ },
+ {
+  "name": "安徽卫视",
+  "url": "http://111.63.117.13:6060/030000001000/AHWS/AHWS.m3u8",
+  "src": "111新CDN",
+  "kbps": 9042
+ },
+ {
+  "name": "北京卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/beijingstv/1.m3u8?channel-id=ystenlive&Contentid=beijingstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9381
+ },
+ {
+  "name": "北京卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_BEIJING/G_BEIJING.m3u8",
+  "src": "111新CDN",
+  "kbps": 10108
+ },
+ {
+  "name": "重庆卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/chongqingstv/1.m3u8?channel-id=ystenlive&Contentid=chongqingstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 8509
+ },
+ {
+  "name": "重庆卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_CHONGQING/G_CHONGQING.m3u8",
+  "src": "111新CDN",
+  "kbps": 8370
+ },
+ {
+  "name": "东方卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/dongfangstv/1.m3u8?channel-id=ystenlive&Contentid=dongfangstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9714
+ },
+ {
+  "name": "东方卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_DONGFANG/G_DONGFANG.m3u8",
+  "src": "111新CDN",
+  "kbps": 9972
+ },
+ {
+  "name": "甘肃卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/gansustv/1.m3u8?channel-id=ystenlive&Contentid=gansustv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9026
+ },
+ {
+  "name": "甘肃卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_GANSU/G_GANSU.m3u8",
+  "src": "111新CDN",
+  "kbps": 7569
+ },
+ {
+  "name": "广东卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/guangdongstv/1.m3u8?channel-id=ystenlive&Contentid=guangdongstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 10822
+ },
+ {
+  "name": "广东卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_GUANGDONG/G_GUANGDONG.m3u8",
+  "src": "111新CDN",
+  "kbps": 9405
+ },
+ {
+  "name": "广西卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/guangxistv/1.m3u8?channel-id=ystenlive&Contentid=guangxistv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9271
+ },
+ {
+  "name": "广西卫视",
+  "url": "http://111.63.117.13:6060/030000001000/GXWS/GXWS.m3u8",
+  "src": "111新CDN",
+  "kbps": 7906
+ },
+ {
+  "name": "贵州卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/guizhoustv/1.m3u8?channel-id=ystenlive&Contentid=guizhoustv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9707
+ },
+ {
+  "name": "海南卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/lvyoustv/1.m3u8?channel-id=ystenlive&Contentid=lvyoustv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 18520
+ },
+ {
+  "name": "海南卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_HAINAN/G_HAINAN.m3u8",
+  "src": "111新CDN",
+  "kbps": null
+ },
+ {
+  "name": "贵州卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_GUIZHOU/G_GUIZHOU.m3u8",
+  "src": "111新CDN",
+  "kbps": 7871
+ },
+ {
+  "name": "海南卫视",
+  "url": "http://111.63.117.13:6060/030000001000/LYWS/LYWS.m3u8",
+  "src": "111新CDN",
+  "kbps": 8145
+ },
+ {
+  "name": "河北卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/hebeistv/1.m3u8?channel-id=ystenlive&Contentid=hebeistv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 7231
+ },
+ {
+  "name": "河南卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/henanstv/1.m3u8?channel-id=ystenlive&Contentid=henanstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9932
+ },
+ {
+  "name": "河北卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_HEBEI/G_HEBEI.m3u8",
+  "src": "111新CDN",
+  "kbps": 5668
+ },
+ {
+  "name": "黑龙江卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-2500k-1080P-heilongjiangstv/1.m3u8?channel-id=ystenlive&Contentid=HD-2500k-1080P-heilongjiangstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 12155
+ },
+ {
+  "name": "黑龙江卫视",
+  "url": "http://111.63.117.13:6060/030000001000/HEILONGJIANG-CQ/HEILONGJIANG-CQ.m3u8",
+  "src": "111新CDN",
+  "kbps": null
+ },
+ {
+  "name": "河南卫视",
+  "url": "http://111.63.117.13:6060/030000001000/HENAN/HENAN.m3u8",
+  "src": "111新CDN",
+  "kbps": 6276
+ },
+ {
+  "name": "湖北卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-2500k-1080P-hubeistv/1.m3u8?channel-id=ystenlive&Contentid=HD-2500k-1080P-hubeistv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 14347
+ },
+ {
+  "name": "湖南卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/hunanstv/1.m3u8?channel-id=ystenlive&Contentid=hunanstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 13012
+ },
+ {
+  "name": "湖南卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_HUNAN/G_HUNAN.m3u8",
+  "src": "111新CDN",
+  "kbps": 8016
+ },
+ {
+  "name": "湖北卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_HUBEI/G_HUBEI.m3u8",
+  "src": "111新CDN",
+  "kbps": 6223
+ },
+ {
+  "name": "吉林卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jilinstv/1.m3u8?channel-id=ystenlive&Contentid=jilinstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 7586
+ },
+ {
+  "name": "吉林卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_JILIN/G_JILIN.m3u8",
+  "src": "111新CDN",
+  "kbps": 8023
+ },
+ {
+  "name": "江苏卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_JIANGSU-HQ/G_JIANGSU-HQ.m3u8",
+  "src": "111新CDN",
+  "kbps": null
+ },
+ {
+  "name": "江苏卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jiangsustv/1.m3u8?channel-id=ystenlive&Contentid=jiangsustv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 7908
+ },
+ {
+  "name": "江西卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-2500k-1080P-jiangxistv/1.m3u8?channel-id=ystenlive&Contentid=HD-2500k-1080P-jiangxistv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 19298
+ },
+ {
+  "name": "江西卫视",
+  "url": "http://111.63.117.13:6060/030000001000/JXWS/JXWS.m3u8",
+  "src": "111新CDN",
+  "kbps": 8555
+ },
+ {
+  "name": "辽宁卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/liaoningstv/1.m3u8?channel-id=ystenlive&Contentid=liaoningstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 5793
+ },
+ {
+  "name": "辽宁卫视",
+  "url": "http://111.63.117.13:6060/030000001000/LNWS/LNWS.m3u8",
+  "src": "111新CDN",
+  "kbps": 8806
+ },
+ {
+  "name": "内蒙古卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/neimenggustv/1.m3u8?channel-id=ystenlive&Contentid=neimenggustv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 12379
+ },
+ {
+  "name": "内蒙古卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_NEIMENGGU/G_NEIMENGGU.m3u8",
+  "src": "111新CDN",
+  "kbps": 7380
+ },
+ {
+  "name": "宁夏卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/ningxiastv/1.m3u8?channel-id=ystenlive&Contentid=ningxiastv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 7774
+ },
+ {
+  "name": "宁夏卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_NINGXIA/G_NINGXIA.m3u8",
+  "src": "111新CDN",
+  "kbps": 8194
+ },
+ {
+  "name": "青海卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/qinghaistv/1.m3u8?channel-id=ystenlive&Contentid=qinghaistv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 12148
+ },
+ {
+  "name": "青海卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_QINGHAI/G_QINGHAI.m3u8",
+  "src": "111新CDN",
+  "kbps": 6854
+ },
+ {
+  "name": "山东卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/shandongstv/1.m3u8?channel-id=ystenlive&Contentid=shandongstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9183
+ },
+ {
+  "name": "山东卫视",
+  "url": "http://111.63.117.13:6060/030000001000/SDWS/SDWS.m3u8",
+  "src": "111新CDN",
+  "kbps": 9040
+ },
+ {
+  "name": "山西卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/shanxistv/1.m3u8?channel-id=ystenlive&Contentid=shanxistv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 13800
+ },
+ {
+  "name": "山西卫视",
+  "url": "http://111.63.117.13:6060/030000001000/SXWS/SXWS.m3u8",
+  "src": "111新CDN",
+  "kbps": 7670
+ },
+ {
+  "name": "陕西卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/shanxi1stv/1.m3u8?channel-id=ystenlive&Contentid=shanxi1stv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 8201
+ },
+ {
+  "name": "深圳卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/shenzhenstv/1.m3u8?channel-id=ystenlive&Contentid=shenzhenstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 7277
+ },
+ {
+  "name": "深圳卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_SHENZHEN/G_SHENZHEN.m3u8",
+  "src": "111新CDN",
+  "kbps": 9811
+ },
+ {
+  "name": "四川卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/sichuanstv/1.m3u8?channel-id=ystenlive&Contentid=sichuanstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 8517
+ },
+ {
+  "name": "四川卫视",
+  "url": "http://111.63.117.13:6060/030000001000/SCWS/SCWS.m3u8",
+  "src": "111新CDN",
+  "kbps": 10713
+ },
+ {
+  "name": "天津卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/tianjinstv/1.m3u8?channel-id=ystenlive&Contentid=tianjinstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9548
+ },
+ {
+  "name": "西藏卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_XIZANG/G_XIZANG.m3u8",
+  "src": "111新CDN",
+  "kbps": null
+ },
+ {
+  "name": "西藏卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/xizangstv/1.m3u8?channel-id=ystenlive&Contentid=xizangstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 10074
+ },
+ {
+  "name": "天津卫视",
+  "url": "http://111.63.117.13:6060/030000001000/TJWS/TJWS.m3u8",
+  "src": "111新CDN",
+  "kbps": 7611
+ },
+ {
+  "name": "新疆卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/xinjiangstv/1.m3u8?channel-id=ystenlive&Contentid=xinjiangstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 13243
+ },
+ {
+  "name": "云南卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/yunnanstv/1.m3u8?channel-id=ystenlive&Contentid=yunnanstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 11479
+ },
+ {
+  "name": "云南卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_YUNNAN/G_YUNNAN.m3u8",
+  "src": "111新CDN",
+  "kbps": 11237
+ },
+ {
+  "name": "浙江卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/zhejiangstv/1.m3u8?channel-id=ystenlive&Contentid=zhejiangstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 12448
+ },
+ {
+  "name": "新疆卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_XINJIANG/G_XINJIANG.m3u8",
+  "src": "111新CDN",
+  "kbps": 3371
+ },
+ {
+  "name": "浙江卫视",
+  "url": "http://111.63.117.13:6060/030000001000/G_ZHEJIANG/G_ZHEJIANG.m3u8",
+  "src": "111新CDN",
+  "kbps": 8101
+ },
+ {
+  "name": "北京纪实科教",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-beijingjishi/1.m3u8?channel-id=ystenlive&Contentid=HD-4000k-1080P-beijingjishi&livemode=1",
+  "src": "OTT域名",
+  "kbps": 8892
+ },
+ {
+  "name": "哈哈炫动",
+  "url": "http://111.63.117.13:6060/030000001000/G_XUANDONG/G_XUANDONG.m3u8",
+  "src": "111新CDN",
+  "kbps": null
+ },
+ {
+  "name": "北京KAKU少儿",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/kakukaton/1.m3u8?channel-id=ystenlive&Contentid=kakukaton&livemode=1",
+  "src": "OTT域名",
+  "kbps": 19287
+ },
+ {
+  "name": "北京KAKU少儿",
+  "url": "http://111.63.117.13:6060/030000001000/G_KAKU/G_KAKU.m3u8",
+  "src": "111新CDN",
+  "kbps": 8040
+ },
+ {
+  "name": "纪实人文",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-shanghaijishi/1.m3u8?channel-id=ystenlive&Contentid=HD-4000k-1080P-shanghaijishi&livemode=1",
+  "src": "OTT域名",
+  "kbps": 7297
+ },
+ {
+  "name": "东南卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/dongnanstv/1.m3u8?channel-id=ystenlive&Contentid=dongnanstv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 6624
+ },
+ {
+  "name": "嘉佳卡通",
+  "url": "http://111.63.117.13:6060/030000001000/G_JIAJIA/G_JIAJIA.m3u8",
+  "src": "111新CDN",
+  "kbps": null
+ },
+ {
+  "name": "东南卫视",
+  "url": "http://111.63.117.13:6060/030000001000/DNWS/DNWS.m3u8",
+  "src": "111新CDN",
+  "kbps": 11025
+ },
+ {
+  "name": "金鹰卡通",
+  "url": "http://111.63.117.13:6060/030000001000/G_JINYING/G_JINYING.m3u8",
+  "src": "111新CDN",
+  "kbps": 8676
+ },
+ {
+  "name": "CETV1",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jiaoyutv/1.m3u8?channel-id=ystenlive&Contentid=jiaoyutv&livemode=1",
+  "src": "OTT域名",
+  "kbps": 10383
+ },
+ {
+  "name": "金鹰卡通",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jinyingkaton/1.m3u8?channel-id=ystenlive&Contentid=jinyingkaton&livemode=1",
+  "src": "OTT域名",
+  "kbps": 4681
+ },
+ {
+  "name": "CETV4",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-4000k-576P-jiaoyutv4/1.m3u8?channel-id=ystenlive&Contentid=SD-4000k-576P-jiaoyutv4&livemode=1",
+  "src": "OTT域名",
+  "kbps": 12422
+ },
+ {
+  "name": "山东教育卫视",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/shandongjy/1.m3u8?channel-id=ystenlive&Contentid=shandongjy&livemode=1",
+  "src": "OTT域名",
+  "kbps": 16080
+ },
+ {
+  "name": "潮妈辣婆",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-1500k-720P-cmlapo/1.m3u8?channel-id=ystenlive&Contentid=HD-1500k-720P-cmlapo&livemode=1",
+  "src": "OTT域名",
+  "kbps": 12813
+ },
+ {
+  "name": "爱情喜剧",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/aiqingxj/1.m3u8?channel-id=ystenlive&Contentid=aiqingxj&livemode=1",
+  "src": "OTT域名",
+  "kbps": 8983
+ },
+ {
+  "name": "哒啵电竞",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/dabodj/1.m3u8?channel-id=ystenlive&Contentid=dabodj&livemode=1",
+  "src": "OTT域名",
+  "kbps": 14285
+ },
+ {
+  "name": "哒啵赛事",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/wmyx/1.m3u8?channel-id=ystenlive&Contentid=wmyx&livemode=1",
+  "src": "OTT域名",
+  "kbps": 10066
+ },
+ {
+  "name": "动作电影",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/dongzuody/1.m3u8?channel-id=ystenlive&Contentid=dongzuody&livemode=1",
+  "src": "OTT域名",
+  "kbps": 11587
+ },
+ {
+  "name": "放心购",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-kuailegw/1.m3u8?channel-id=ystenlive&Contentid=HD-4000k-1080P-kuailegw&livemode=1",
+  "src": "OTT域名",
+  "kbps": 7518
+ },
+ {
+  "name": "风尚购物",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/fengshanggw/1.m3u8?channel-id=ystenlive&Contentid=fengshanggw&livemode=1",
+  "src": "OTT域名",
+  "kbps": 8421
+ },
+ {
+  "name": "古装剧场",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/guzhuangjc/1.m3u8?channel-id=ystenlive&Contentid=guzhuangjc&livemode=1",
+  "src": "OTT域名",
+  "kbps": 7551
+ },
+ {
+  "name": "好享购物",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-haoxianggw/1.m3u8?channel-id=ystenlive&Contentid=SD-1500k-576P-haoxianggw&livemode=1",
+  "src": "OTT域名",
+  "kbps": 13179
+ },
+ {
+  "name": "黑莓电影",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jdianying/1.m3u8?channel-id=ystenlive&Contentid=jdianying&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9828
+ },
+ {
+  "name": "黑莓动画",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/donghuawg/1.m3u8?channel-id=ystenlive&Contentid=donghuawg&livemode=1",
+  "src": "OTT域名",
+  "kbps": 6695
+ },
+ {
+  "name": "环球购物",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-huanqiugw/1.m3u8?channel-id=ystenlive&Contentid=SD-1500k-576P-huanqiugw&livemode=1",
+  "src": "OTT域名",
+  "kbps": 8118
+ },
+ {
+  "name": "家庭剧场",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jiatingjc/1.m3u8?channel-id=ystenlive&Contentid=jiatingjc&livemode=1",
+  "src": "OTT域名",
+  "kbps": 13733
+ },
+ {
+  "name": "家有购物",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-jiayougw/1.m3u8?channel-id=ystenlive&Contentid=SD-1500k-576P-jiayougw&livemode=1",
+  "src": "OTT域名",
+  "kbps": 17432
+ },
+ {
+  "name": "金牌综艺",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/saishijx/1.m3u8?channel-id=ystenlive&Contentid=saishijx&livemode=1",
+  "src": "OTT域名",
+  "kbps": 7750
+ },
+ {
+  "name": "惊悚悬疑",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jingsongxy/1.m3u8?channel-id=ystenlive&Contentid=jingsongxy&livemode=1",
+  "src": "OTT域名",
+  "kbps": 7606
+ },
+ {
+  "name": "精品大剧",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jdaju/1.m3u8?channel-id=ystenlive&Contentid=jdaju&livemode=1",
+  "src": "OTT域名",
+  "kbps": 7562
+ },
+ {
+  "name": "精品萌宠",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jingpinmc/1.m3u8?channel-id=ystenlive&Contentid=jingpinmc&livemode=1",
+  "src": "OTT域名",
+  "kbps": 11136
+ },
+ {
+  "name": "精品纪录",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jingpinjl/1.m3u8?channel-id=ystenlive&Contentid=jingpinjl&livemode=1",
+  "src": "OTT域名",
+  "kbps": 8629
+ },
+ {
+  "name": "精品体育",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jtiyu/1.m3u8?channel-id=ystenlive&Contentid=jtiyu&livemode=1",
+  "src": "OTT域名",
+  "kbps": 16874
+ },
+ {
+  "name": "精品综合",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/mingxingdp/1.m3u8?channel-id=ystenlive&Contentid=mingxingdp&livemode=1",
+  "src": "OTT域名",
+  "kbps": 12837
+ },
+ {
+  "name": "军旅剧场",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/junlvjc/1.m3u8?channel-id=ystenlive&Contentid=junlvjc&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9004
+ },
+ {
+  "name": "军事评论",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/junshipl/1.m3u8?channel-id=ystenlive&Contentid=junshipl&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9332
+ },
+ {
+  "name": "咪咕精彩足球",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-8000k-1080P-miguaoyun1/1.m3u8?channel-id=ystenlive&Contentid=HD-8000k-1080P-miguaoyun1&livemode=1",
+  "src": "OTT域名",
+  "kbps": 8188
+ },
+ {
+  "name": "咪咕全民热练",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-8000k-1080P-quanminrl/1.m3u8?channel-id=ystenlive&Contentid=HD-8000k-1080P-quanminrl&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9255
+ },
+ {
+  "name": "咪咕综合体育",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-8000k-1080P-miguaoyun2/1.m3u8?channel-id=ystenlive&Contentid=HD-8000k-1080P-miguaoyun2&livemode=1",
+  "src": "OTT域名",
+  "kbps": 8646
+ },
+ {
+  "name": "农业致富",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/nongyezf/1.m3u8?channel-id=ystenlive&Contentid=nongyezf&livemode=1",
+  "src": "OTT域名",
+  "kbps": 13867
+ },
+ {
+  "name": "武搏世界",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-bokesen/1.m3u8?channel-id=ystenlive&Contentid=SD-1500k-576P-bokesen&livemode=1",
+  "src": "OTT域名",
+  "kbps": null
+ },
+ {
+  "name": "热播精选",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/xiqumd/1.m3u8?channel-id=ystenlive&Contentid=xiqumd&livemode=1",
+  "src": "OTT域名",
+  "kbps": 8891
+ },
+ {
+  "name": "炫舞未来",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-xwwl/1.m3u8?channel-id=ystenlive&Contentid=HD-4000k-1080P-xwwl&livemode=1",
+  "src": "OTT域名",
+  "kbps": 10882
+ },
+ {
+  "name": "严选购物",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-yanxuangw/1.m3u8?channel-id=ystenlive&Contentid=HD-4000k-1080P-yanxuangw&livemode=1",
+  "src": "OTT域名",
+  "kbps": 13370
+ },
+ {
+  "name": "怡伴健康",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/ljiankangyouyue/1.m3u8?channel-id=ystenlive&Contentid=ljiankangyouyue&livemode=1",
+  "src": "OTT域名",
+  "kbps": 9528
+ },
+ {
+  "name": "炫动卡通",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/xuandongkaton/1.m3u8?channel-id=ystenlive&Contentid=xuandongkaton&livemode=1",
+  "src": "OTT域名",
+  "kbps": 4104
+ },
+ {
+  "name": "优漫卡通",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/youmankaton/1.m3u8?channel-id=ystenlive&Contentid=youmankaton&livemode=1",
+  "src": "OTT域名",
+  "kbps": 15342
+ },
+ {
+  "name": "中国功夫",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-gzkongfu/1.m3u8?channel-id=ystenlive&Contentid=SD-1500k-576P-gzkongfu&livemode=1",
+  "src": "OTT域名",
+  "kbps": 16701
+ },
+ {
+  "name": "优漫卡通",
+  "url": "http://111.63.117.13:6060/030000001000/G_YOUMAN/G_YOUMAN.m3u8",
+  "src": "111新CDN",
+  "kbps": 7484
+ },
+ {
+  "name": "东方卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/dfws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "东南卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/dnws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "广东卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/gdws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "甘肃卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/gsws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "广西卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/gxws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "贵州卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/gzws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "河南卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/haws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "湖北卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/hbws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "河北卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/hews.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "河北卫视B",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/hebs.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "黑龙江卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/hljws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "吉林卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/jlws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "湖南卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/hnws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "江苏卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/jsws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "内蒙古卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/nmgws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "辽宁卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/lnws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "青海卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/qhws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "宁夏卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/nxws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "江西卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/jxws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "四川卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/scws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "山东卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/sdws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "山西卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/sxws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "深圳卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/szws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "陕西卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/snws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "新疆卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/xjws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "天津卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/tjws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "云南卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/ynws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "浙江卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/zjws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "西藏卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/xzws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "安徽卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/ahws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "北京卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/bjws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "重庆卫视",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/cqws.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "东方卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/dfwshd8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "北京卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/bjwshd8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "天津卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/tjwshd8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "辽宁卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/lnwshd8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "黑龙江卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/hljwshd8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "吉林卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/jlwshd8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "山东卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/sdws8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "甘肃卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/gswshd8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "重庆卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/cqws8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "浙江卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/zjwshd8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "江苏卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/jswshd8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "湖南卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/hnwshd8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "安徽卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/ahwshd8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "湖北卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/hbwshd8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "河北卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/hewshd8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "广东卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/gdwshd8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "深圳卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/szwshd8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "江西卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/jxwshd8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "山西卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/sxwshd8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "河南卫视",
+  "url": "http://aliyun-qhbu-live.bestvcdn.com.cn/live/program/live/hnws8m/8000000/mnf.m3u8",
+  "src": "bestv8M",
+  "kbps": null
+ },
+ {
+  "name": "CCTV-1",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/cctv1.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "CCTV-5",
+  "url": "http://bztv.tvbus.cc:8081/cdnlive/cctv5.m3u8",
+  "src": "bztv",
+  "kbps": null
+ },
+ {
+  "name": "河北卫视官方",
+  "url": "http://weblive.hebtv.com/live/hbws_bq/index.m3u8",
+  "src": "河北广电官方",
+  "kbps": null
+ },
+ {
+  "name": "HLJ源-央视",
+  "url": "http://ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226474/index.m3u8",
+  "src": "黑龙江移动",
+  "kbps": null
+ },
+ {
+  "name": "HLJ源-河北卫视",
+  "url": "http://ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226406/index.m3u8",
+  "src": "黑龙江移动",
+  "kbps": null
+ },
+ {
+  "name": "HLJ源-黑龙江",
+  "url": "http://ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226327/index.m3u8",
+  "src": "黑龙江移动",
+  "kbps": null
+ },
+ {
+  "name": "HLJ源-河南",
+  "url": "http://ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226480/index.m3u8",
+  "src": "黑龙江移动",
+  "kbps": null
+ },
+ {
+  "name": "HLJ源-湖北",
+  "url": "http://ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221225627/index.m3u8",
+  "src": "黑龙江移动",
+  "kbps": null
+ },
+ {
+  "name": "HLJ源-湖南",
+  "url": "http://ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221225610/index.m3u8",
+  "src": "黑龙江移动",
+  "kbps": null
+ },
+ {
+  "name": "HLJ源-江苏",
+  "url": "http://ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221225613/index.m3u8",
+  "src": "黑龙江移动",
+  "kbps": null
+ },
+ {
+  "name": "HLJ源-江西",
+  "url": "http://ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221226344/index.m3u8",
+  "src": "黑龙江移动",
+  "kbps": null
+ }
+]
