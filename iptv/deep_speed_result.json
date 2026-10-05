@@ -1,0 +1,1346 @@
+[
+ {
+  "name": "CCTV-1 ·20.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CCTV-1/1.m3u8",
+  "rounds": [
+   23373,
+   23890,
+   4838
+  ],
+  "ok_n": 3,
+  "median": 23373,
+  "min": 4838,
+  "max": 23890,
+  "jitter": 0.82
+ },
+ {
+  "name": "CCTV-2 ·17.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CCTV-2/1.m3u8",
+  "rounds": [
+   22369,
+   22894,
+   27201
+  ],
+  "ok_n": 3,
+  "median": 22894,
+  "min": 22369,
+  "max": 27201,
+  "jitter": 0.21
+ },
+ {
+  "name": "CCTV-3 ·17.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-3/1.m3u8",
+  "rounds": [
+   23391,
+   22705,
+   8320
+  ],
+  "ok_n": 3,
+  "median": 22705,
+  "min": 8320,
+  "max": 23391,
+  "jitter": 0.66
+ },
+ {
+  "name": "CCTV-4 ·17.7M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/CCTV-4/CCTV-4.m3u8",
+  "rounds": [
+   27465,
+   27731,
+   24246
+  ],
+  "ok_n": 3,
+  "median": 27465,
+  "min": 24246,
+  "max": 27731,
+  "jitter": 0.13
+ },
+ {
+  "name": "CCTV-5 ·16.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-5/1.m3u8",
+  "rounds": [
+   25256,
+   20021,
+   23823
+  ],
+  "ok_n": 3,
+  "median": 23823,
+  "min": 20021,
+  "max": 25256,
+  "jitter": 0.22
+ },
+ {
+  "name": "CCTV5+ ·16.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/hdcctv05plus/1.m3u8",
+  "rounds": [
+   24808,
+   21820,
+   25665
+  ],
+  "ok_n": 3,
+  "median": 24808,
+  "min": 21820,
+  "max": 25665,
+  "jitter": 0.15
+ },
+ {
+  "name": "CCTV-6 ·18.8M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-6/1.m3u8",
+  "rounds": [
+   32308,
+   25145,
+   29640
+  ],
+  "ok_n": 3,
+  "median": 29640,
+  "min": 25145,
+  "max": 32308,
+  "jitter": 0.24
+ },
+ {
+  "name": "CCTV-7 ·15.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/CCTV-7/1.m3u8",
+  "rounds": [
+   24498,
+   28209,
+   27677
+  ],
+  "ok_n": 3,
+  "median": 27677,
+  "min": 24498,
+  "max": 28209,
+  "jitter": 0.13
+ },
+ {
+  "name": "CCTV-8 ·13.6M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-8/1.m3u8",
+  "rounds": [
+   8196,
+   30258,
+   26194
+  ],
+  "ok_n": 3,
+  "median": 26194,
+  "min": 8196,
+  "max": 30258,
+  "jitter": 0.84
+ },
+ {
+  "name": "CCTV-9 ·15.6M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CCTV-9/1.m3u8",
+  "rounds": [
+   24265,
+   27596,
+   25613
+  ],
+  "ok_n": 3,
+  "median": 25613,
+  "min": 24265,
+  "max": 27596,
+  "jitter": 0.13
+ },
+ {
+  "name": "CCTV-10 ·22.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/CCTV-10/CCTV-10.m3u8",
+  "rounds": [
+   32110,
+   23001,
+   4805
+  ],
+  "ok_n": 3,
+  "median": 23001,
+  "min": 4805,
+  "max": 32110,
+  "jitter": 1.19
+ },
+ {
+  "name": "CCTV-11 ·22.6M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/cctv-11/1.m3u8",
+  "rounds": [
+   28040,
+   23802,
+   25192
+  ],
+  "ok_n": 3,
+  "median": 25192,
+  "min": 23802,
+  "max": 28040,
+  "jitter": 0.17
+ },
+ {
+  "name": "CCTV-12 ·22.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/CCTV-12/CCTV-12.m3u8",
+  "rounds": [
+   32953,
+   25431,
+   4790
+  ],
+  "ok_n": 3,
+  "median": 25431,
+  "min": 4790,
+  "max": 32953,
+  "jitter": 1.11
+ },
+ {
+  "name": "CCTV-13 ·21.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/CCTV-13/CCTV-13.m3u8",
+  "rounds": [
+   33511,
+   29445,
+   29550
+  ],
+  "ok_n": 3,
+  "median": 29550,
+  "min": 29445,
+  "max": 33511,
+  "jitter": 0.14
+ },
+ {
+  "name": "CCTV-14 ·24.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CCTV-14/1.m3u8",
+  "rounds": [
+   29944,
+   27532,
+   26940
+  ],
+  "ok_n": 3,
+  "median": 27532,
+  "min": 26940,
+  "max": 29944,
+  "jitter": 0.11
+ },
+ {
+  "name": "CCTV-15 ·16.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CCTV-15/1.m3u8",
+  "rounds": [
+   23250,
+   4812,
+   25857
+  ],
+  "ok_n": 3,
+  "median": 23250,
+  "min": 4812,
+  "max": 25857,
+  "jitter": 0.91
+ },
+ {
+  "name": "CCTV-16 ·25.8M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-cctv16/1.m3u8",
+  "rounds": [
+   25450,
+   24883,
+   27663
+  ],
+  "ok_n": 3,
+  "median": 25450,
+  "min": 24883,
+  "max": 27663,
+  "jitter": 0.11
+ },
+ {
+  "name": "CCTV-17 ·22.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-cctv17/1.m3u8",
+  "rounds": [
+   22565,
+   28361,
+   27684
+  ],
+  "ok_n": 3,
+  "median": 27684,
+  "min": 22565,
+  "max": 28361,
+  "jitter": 0.21
+ },
+ {
+  "name": "睛彩竞技 ·27.1M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-8000k-1080P-miguaoyun2/1.m3u8",
+  "rounds": [
+   27570,
+   27166,
+   25309
+  ],
+  "ok_n": 3,
+  "median": 27166,
+  "min": 25309,
+  "max": 27570,
+  "jitter": 0.08
+ },
+ {
+  "name": "青海卫视 ·26.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_QINGHAI/G_QINGHAI.m3u8",
+  "rounds": [
+   21598,
+   22678,
+   20109
+  ],
+  "ok_n": 3,
+  "median": 21598,
+  "min": 20109,
+  "max": 22678,
+  "jitter": 0.12
+ },
+ {
+  "name": "怡伴健康 ·26.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/ljiankangyouyue/1.m3u8",
+  "rounds": [
+   22316,
+   23520,
+   22146
+  ],
+  "ok_n": 3,
+  "median": 22316,
+  "min": 22146,
+  "max": 23520,
+  "jitter": 0.06
+ },
+ {
+  "name": "北京纪实 ·25.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-beijingjishi/1.m3u8",
+  "rounds": [
+   20332,
+   18009,
+   17947
+  ],
+  "ok_n": 3,
+  "median": 18009,
+  "min": 17947,
+  "max": 20332,
+  "jitter": 0.13
+ },
+ {
+  "name": "中国功夫 ·25.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-gzkongfu/1.m3u8",
+  "rounds": [
+   20420,
+   22745,
+   26256
+  ],
+  "ok_n": 3,
+  "median": 22745,
+  "min": 20420,
+  "max": 26256,
+  "jitter": 0.26
+ },
+ {
+  "name": "四川卫视 ·25.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/SCWS/1.m3u8",
+  "rounds": [
+   28730,
+   23123,
+   27900
+  ],
+  "ok_n": 3,
+  "median": 27900,
+  "min": 23123,
+  "max": 28730,
+  "jitter": 0.2
+ },
+ {
+  "name": "新疆卫视 ·25.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_XINJIANG/G_XINJIANG.m3u8",
+  "rounds": [
+   20776,
+   23329,
+   24882
+  ],
+  "ok_n": 3,
+  "median": 23329,
+  "min": 20776,
+  "max": 24882,
+  "jitter": 0.18
+ },
+ {
+  "name": "宁夏卫视 ·25.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_NINGXIA/G_NINGXIA.m3u8",
+  "rounds": [
+   25794,
+   26655,
+   26014
+  ],
+  "ok_n": 3,
+  "median": 26014,
+  "min": 25794,
+  "max": 26655,
+  "jitter": 0.03
+ },
+ {
+  "name": "烽烟剧场 ·25.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jingpinjl/1.m3u8",
+  "rounds": [
+   23229,
+   24957,
+   24524
+  ],
+  "ok_n": 3,
+  "median": 24524,
+  "min": 23229,
+  "max": 24957,
+  "jitter": 0.07
+ },
+ {
+  "name": "东南卫视 ·25.1M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/dongnanstv/1.m3u8",
+  "rounds": [
+   21823,
+   25345,
+   26742
+  ],
+  "ok_n": 3,
+  "median": 25345,
+  "min": 21823,
+  "max": 26742,
+  "jitter": 0.19
+ },
+ {
+  "name": "广西卫视 ·24.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/GXWS/1.m3u8",
+  "rounds": [
+   24805,
+   24912,
+   27306
+  ],
+  "ok_n": 3,
+  "median": 24912,
+  "min": 24805,
+  "max": 27306,
+  "jitter": 0.1
+ },
+ {
+  "name": "康养保健 ·24.7M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-jiayougw/1.m3u8",
+  "rounds": [
+   26231,
+   22964,
+   25884
+  ],
+  "ok_n": 3,
+  "median": 25884,
+  "min": 22964,
+  "max": 26231,
+  "jitter": 0.13
+ },
+ {
+  "name": "深圳卫视 ·24.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/shenzhenstv/1.m3u8",
+  "rounds": [
+   25752,
+   26707,
+   25296
+  ],
+  "ok_n": 3,
+  "median": 25752,
+  "min": 25296,
+  "max": 26707,
+  "jitter": 0.05
+ },
+ {
+  "name": "山西卫视 ·24.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/SXWS/SXWS.m3u8",
+  "rounds": [
+   22001,
+   23798,
+   25785
+  ],
+  "ok_n": 3,
+  "median": 23798,
+  "min": 22001,
+  "max": 25785,
+  "jitter": 0.16
+ },
+ {
+  "name": "江西卫视 ·24.1M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/JXWS/1.m3u8",
+  "rounds": [
+   27969,
+   27709,
+   24363
+  ],
+  "ok_n": 3,
+  "median": 27709,
+  "min": 24363,
+  "max": 27969,
+  "jitter": 0.13
+ },
+ {
+  "name": "惊悚悬疑 ·23.8M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jingsongxy/1.m3u8",
+  "rounds": [
+   24666,
+   22187,
+   22438
+  ],
+  "ok_n": 3,
+  "median": 22438,
+  "min": 22187,
+  "max": 24666,
+  "jitter": 0.11
+ },
+ {
+  "name": "辽宁卫视 ·23.7M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/LNWS/LNWS.m3u8",
+  "rounds": [
+   23499,
+   27945,
+   23178
+  ],
+  "ok_n": 3,
+  "median": 23499,
+  "min": 23178,
+  "max": 27945,
+  "jitter": 0.2
+ },
+ {
+  "name": "黑龙江卫视 ·23.6M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_HEILONGJIANG-CQ/G_HEILONGJIANG-CQ.m3u8",
+  "rounds": [
+   27107,
+   22765,
+   25084
+  ],
+  "ok_n": 3,
+  "median": 25084,
+  "min": 22765,
+  "max": 27107,
+  "jitter": 0.17
+ },
+ {
+  "name": "营养饮食 ·23.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-huanqiugw/1.m3u8",
+  "rounds": [
+   26426,
+   25301,
+   23347
+  ],
+  "ok_n": 3,
+  "median": 25301,
+  "min": 23347,
+  "max": 26426,
+  "jitter": 0.12
+ },
+ {
+  "name": "银发生活 ·23.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/fengshanggw/1.m3u8",
+  "rounds": [
+   26012,
+   26843,
+   25751
+  ],
+  "ok_n": 3,
+  "median": 26012,
+  "min": 25751,
+  "max": 26843,
+  "jitter": 0.04
+ },
+ {
+  "name": "东方卫视 ·23.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/dongfangstv/1.m3u8",
+  "rounds": [
+   18062,
+   26934,
+   26093
+  ],
+  "ok_n": 3,
+  "median": 26093,
+  "min": 18062,
+  "max": 26934,
+  "jitter": 0.34
+ },
+ {
+  "name": "农业致富 ·23.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/nongyezf/1.m3u8",
+  "rounds": [
+   24984,
+   23731,
+   23893
+  ],
+  "ok_n": 3,
+  "median": 23893,
+  "min": 23731,
+  "max": 24984,
+  "jitter": 0.05
+ },
+ {
+  "name": "中国教育-1 ·23.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jiaoyutv/1.m3u8",
+  "rounds": [
+   26032,
+   24565,
+   23245
+  ],
+  "ok_n": 3,
+  "median": 24565,
+  "min": 23245,
+  "max": 26032,
+  "jitter": 0.11
+ },
+ {
+  "name": "军事评论 ·23.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/junshipl/1.m3u8",
+  "rounds": [
+   24705,
+   26152,
+   24820
+  ],
+  "ok_n": 3,
+  "median": 24820,
+  "min": 24705,
+  "max": 26152,
+  "jitter": 0.06
+ },
+ {
+  "name": "吉林卫视 ·23.1M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_JILIN/G_JILIN.m3u8",
+  "rounds": [
+   26165,
+   20410,
+   22791
+  ],
+  "ok_n": 3,
+  "median": 22791,
+  "min": 20410,
+  "max": 26165,
+  "jitter": 0.25
+ },
+ {
+  "name": "金鹰卡通 ·23.0M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jinyingkaton/1.m3u8",
+  "rounds": [
+   3754,
+   26182,
+   17929
+  ],
+  "ok_n": 3,
+  "median": 17929,
+  "min": 3754,
+  "max": 26182,
+  "jitter": 1.25
+ },
+ {
+  "name": "西藏卫视 ·22.8M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/xizangstv/1.m3u8",
+  "rounds": [
+   26748,
+   23610,
+   23157
+  ],
+  "ok_n": 3,
+  "median": 23610,
+  "min": 23157,
+  "max": 26748,
+  "jitter": 0.15
+ },
+ {
+  "name": "内蒙古卫视 ·22.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_NEIMENGGU/G_NEIMENGGU.m3u8",
+  "rounds": [
+   21288,
+   27197,
+   28181
+  ],
+  "ok_n": 3,
+  "median": 27197,
+  "min": 21288,
+  "max": 28181,
+  "jitter": 0.25
+ },
+ {
+  "name": "贵州卫视 ·22.5M",
+  "url": "http://111.63.117.13:6060/030000001000/G_GUIZHOU/G_GUIZHOU.m3u8",
+  "rounds": [
+   28055,
+   29310,
+   27508
+  ],
+  "ok_n": 3,
+  "median": 28055,
+  "min": 27508,
+  "max": 29310,
+  "jitter": 0.06
+ },
+ {
+  "name": "潮妈辣婆 ·22.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-1500k-720P-cmlapo/1.m3u8",
+  "rounds": [
+   26883,
+   25885,
+   25572
+  ],
+  "ok_n": 3,
+  "median": 25885,
+  "min": 25572,
+  "max": 26883,
+  "jitter": 0.05
+ },
+ {
+  "name": "古装剧场 ·22.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/guzhuangjc/1.m3u8",
+  "rounds": [
+   25464,
+   26445,
+   26894
+  ],
+  "ok_n": 3,
+  "median": 26445,
+  "min": 25464,
+  "max": 26894,
+  "jitter": 0.05
+ },
+ {
+  "name": "甘肃卫视 ·22.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_GANSU/G_GANSU.m3u8",
+  "rounds": [
+   22479,
+   28326,
+   29485
+  ],
+  "ok_n": 3,
+  "median": 28326,
+  "min": 22479,
+  "max": 29485,
+  "jitter": 0.25
+ },
+ {
+  "name": "优漫卡通 ·21.6M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/youmankaton/1.m3u8",
+  "rounds": [
+   26350,
+   26615,
+   28504
+  ],
+  "ok_n": 3,
+  "median": 26615,
+  "min": 26350,
+  "max": 28504,
+  "jitter": 0.08
+ },
+ {
+  "name": "卡酷少儿 ·21.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/kakukaton/1.m3u8",
+  "rounds": [
+   26950,
+   25893,
+   25378
+  ],
+  "ok_n": 3,
+  "median": 25893,
+  "min": 25378,
+  "max": 26950,
+  "jitter": 0.06
+ },
+ {
+  "name": "云南卫视 ·21.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_YUNNAN/G_YUNNAN.m3u8",
+  "rounds": [
+   24321,
+   26703,
+   26247
+  ],
+  "ok_n": 3,
+  "median": 26247,
+  "min": 24321,
+  "max": 26703,
+  "jitter": 0.09
+ },
+ {
+  "name": "陕西卫视 ·21.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/shanxi1stv/1.m3u8",
+  "rounds": [
+   29538,
+   28594,
+   25460
+  ],
+  "ok_n": 3,
+  "median": 28594,
+  "min": 25460,
+  "max": 29538,
+  "jitter": 0.14
+ },
+ {
+  "name": "山东卫视 ·21.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/shandongstv/1.m3u8",
+  "rounds": [
+   28433,
+   26080,
+   27311
+  ],
+  "ok_n": 3,
+  "median": 27311,
+  "min": 26080,
+  "max": 28433,
+  "jitter": 0.09
+ },
+ {
+  "name": "江苏卫视 ·20.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jiangsustv/1.m3u8",
+  "rounds": [
+   25631,
+   26207,
+   24222
+  ],
+  "ok_n": 3,
+  "median": 25631,
+  "min": 24222,
+  "max": 26207,
+  "jitter": 0.08
+ },
+ {
+  "name": "精品大剧 ·20.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jdaju/1.m3u8",
+  "rounds": [
+   25980,
+   26464,
+   28444
+  ],
+  "ok_n": 3,
+  "median": 26464,
+  "min": 25980,
+  "max": 28444,
+  "jitter": 0.09
+ },
+ {
+  "name": "山东教育 ·20.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/shandongjy/1.m3u8",
+  "rounds": [
+   13812,
+   29848,
+   23102
+  ],
+  "ok_n": 3,
+  "median": 23102,
+  "min": 13812,
+  "max": 29848,
+  "jitter": 0.69
+ },
+ {
+  "name": "炫舞未来 ·20.7M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-xwwl/1.m3u8",
+  "rounds": [
+   27712,
+   26592,
+   26019
+  ],
+  "ok_n": 3,
+  "median": 26592,
+  "min": 26019,
+  "max": 27712,
+  "jitter": 0.06
+ },
+ {
+  "name": "热播精选 ·20.6M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/xiqumd/1.m3u8",
+  "rounds": [
+   25521,
+   27623,
+   25659
+  ],
+  "ok_n": 3,
+  "median": 25659,
+  "min": 25521,
+  "max": 27623,
+  "jitter": 0.08
+ },
+ {
+  "name": "安徽卫视 ·20.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/AHWS/1.m3u8",
+  "rounds": [
+   26411,
+   26359,
+   22912
+  ],
+  "ok_n": 3,
+  "median": 26359,
+  "min": 22912,
+  "max": 26411,
+  "jitter": 0.13
+ },
+ {
+  "name": "哒啵电竞 ·20.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/dabodj/1.m3u8",
+  "rounds": [
+   23561,
+   23364,
+   26554
+  ],
+  "ok_n": 3,
+  "median": 23561,
+  "min": 23364,
+  "max": 26554,
+  "jitter": 0.14
+ },
+ {
+  "name": "谍战大剧 ·20.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/saishijx/1.m3u8",
+  "rounds": [
+   26671,
+   24951,
+   26272
+  ],
+  "ok_n": 3,
+  "median": 26272,
+  "min": 24951,
+  "max": 26671,
+  "jitter": 0.07
+ },
+ {
+  "name": "睛彩青少 ·20.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-8000k-1080P-quanminrl/1.m3u8",
+  "rounds": [
+   26802,
+   27143,
+   25207
+  ],
+  "ok_n": 3,
+  "median": 26802,
+  "min": 25207,
+  "max": 27143,
+  "jitter": 0.07
+ },
+ {
+  "name": "万人推荐 ·20.3M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-kuailegw/1.m3u8",
+  "rounds": [
+   22748,
+   26262,
+   26971
+  ],
+  "ok_n": 3,
+  "median": 26262,
+  "min": 22748,
+  "max": 26971,
+  "jitter": 0.16
+ },
+ {
+  "name": "黑莓电影 ·20.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jdianying/1.m3u8",
+  "rounds": [
+   25068,
+   23152,
+   22977
+  ],
+  "ok_n": 3,
+  "median": 23152,
+  "min": 22977,
+  "max": 25068,
+  "jitter": 0.09
+ },
+ {
+  "name": "广东卫视 ·20.1M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/guangdongstv/1.m3u8",
+  "rounds": [
+   28482,
+   25470,
+   23475
+  ],
+  "ok_n": 3,
+  "median": 25470,
+  "min": 23475,
+  "max": 28482,
+  "jitter": 0.2
+ },
+ {
+  "name": "湖南卫视 ·19.8M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/hunanstv/1.m3u8",
+  "rounds": [
+   26500,
+   25554,
+   26739
+  ],
+  "ok_n": 3,
+  "median": 26500,
+  "min": 25554,
+  "max": 26739,
+  "jitter": 0.04
+ },
+ {
+  "name": "家庭剧场 ·19.7M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jiatingjc/1.m3u8",
+  "rounds": [
+   24900,
+   25353,
+   25523
+  ],
+  "ok_n": 3,
+  "median": 25353,
+  "min": 24900,
+  "max": 25523,
+  "jitter": 0.02
+ },
+ {
+  "name": "黑莓动画 ·19.6M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/donghuawg/1.m3u8",
+  "rounds": [
+   24951,
+   24616,
+   24558
+  ],
+  "ok_n": 3,
+  "median": 24616,
+  "min": 24558,
+  "max": 24951,
+  "jitter": 0.02
+ },
+ {
+  "name": "精品萌宠 ·19.6M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jingpinmc/1.m3u8",
+  "rounds": [
+   25774,
+   24425,
+   22648
+  ],
+  "ok_n": 3,
+  "median": 24425,
+  "min": 22648,
+  "max": 25774,
+  "jitter": 0.13
+ },
+ {
+  "name": "精品家居 ·19.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-haoxianggw/1.m3u8",
+  "rounds": [
+   22621,
+   25655,
+   25893
+  ],
+  "ok_n": 3,
+  "median": 25655,
+  "min": 22621,
+  "max": 25893,
+  "jitter": 0.13
+ },
+ {
+  "name": "中国教育4套 ·19.4M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-4000k-576P-jiaoyutv4/1.m3u8",
+  "rounds": [
+   23624,
+   28323,
+   24523
+  ],
+  "ok_n": 3,
+  "median": 24523,
+  "min": 23624,
+  "max": 28323,
+  "jitter": 0.19
+ },
+ {
+  "name": "北京卫视 ·19.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/beijingstv/1.m3u8",
+  "rounds": [
+   26866,
+   24772,
+   26439
+  ],
+  "ok_n": 3,
+  "median": 26439,
+  "min": 24772,
+  "max": 26866,
+  "jitter": 0.08
+ },
+ {
+  "name": "精品体育 ·19.2M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jtiyu/1.m3u8",
+  "rounds": [
+   22699,
+   24865,
+   27053
+  ],
+  "ok_n": 3,
+  "median": 24865,
+  "min": 22699,
+  "max": 27053,
+  "jitter": 0.18
+ },
+ {
+  "name": "天津卫视 ·19.1M",
+  "url": "http://111.63.117.13:6060/030000001000/TJWS/TJWS.m3u8",
+  "rounds": [
+   26599,
+   27228,
+   28147
+  ],
+  "ok_n": 3,
+  "median": 27228,
+  "min": 26599,
+  "max": 28147,
+  "jitter": 0.06
+ },
+ {
+  "name": "哒啵赛事 ·19.1M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/wmyx/1.m3u8",
+  "rounds": [
+   27155,
+   26741,
+   22909
+  ],
+  "ok_n": 3,
+  "median": 26741,
+  "min": 22909,
+  "max": 27155,
+  "jitter": 0.16
+ },
+ {
+  "name": "重庆卫视 ·19.1M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CHONGQING/G_CHONGQING.m3u8",
+  "rounds": [
+   27656,
+   24906,
+   23217
+  ],
+  "ok_n": 3,
+  "median": 24906,
+  "min": 23217,
+  "max": 27656,
+  "jitter": 0.18
+ },
+ {
+  "name": "睛彩篮球 ·19.0M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-8000k-1080P-miguaoyun1/1.m3u8",
+  "rounds": [
+   27388,
+   26681,
+   25867
+  ],
+  "ok_n": 3,
+  "median": 26681,
+  "min": 25867,
+  "max": 27388,
+  "jitter": 0.06
+ },
+ {
+  "name": "军旅剧场 ·19.0M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/junlvjc/1.m3u8",
+  "rounds": [
+   27473,
+   28193,
+   27385
+  ],
+  "ok_n": 3,
+  "median": 27473,
+  "min": 27385,
+  "max": 28193,
+  "jitter": 0.03
+ },
+ {
+  "name": "湖北卫视 ·18.6M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_HUBEI/1.m3u8",
+  "rounds": [
+   24764,
+   28732,
+   23601
+  ],
+  "ok_n": 3,
+  "median": 24764,
+  "min": 23601,
+  "max": 28732,
+  "jitter": 0.21
+ },
+ {
+  "name": "旅游卫视 ·18.5M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/LYWS/1.m3u8",
+  "rounds": [
+   29418,
+   22449,
+   28923
+  ],
+  "ok_n": 3,
+  "median": 28923,
+  "min": 22449,
+  "max": 29418,
+  "jitter": 0.24
+ },
+ {
+  "name": "动作电影 ·18.1M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/dongzuody/1.m3u8",
+  "rounds": [
+   25432,
+   25209,
+   25680
+  ],
+  "ok_n": 3,
+  "median": 25432,
+  "min": 25209,
+  "max": 25680,
+  "jitter": 0.02
+ },
+ {
+  "name": "精品综合 ·18.0M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/mingxingdp/1.m3u8",
+  "rounds": [
+   25539,
+   26167,
+   26231
+  ],
+  "ok_n": 3,
+  "median": 26167,
+  "min": 25539,
+  "max": 26231,
+  "jitter": 0.03
+ },
+ {
+  "name": "河南卫视 ·17.8M",
+  "url": "http://111.63.117.13:6060/030000001000/HENAN/HENAN.m3u8",
+  "rounds": [
+   28923,
+   29011,
+   25479
+  ],
+  "ok_n": 3,
+  "median": 28923,
+  "min": 25479,
+  "max": 29011,
+  "jitter": 0.12
+ },
+ {
+  "name": "运动文旅 ·17.8M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-yanxuangw/1.m3u8",
+  "rounds": [
+   25664,
+   25759,
+   25194
+  ],
+  "ok_n": 3,
+  "median": 25664,
+  "min": 25194,
+  "max": 25759,
+  "jitter": 0.02
+ },
+ {
+  "name": "北京KAKU少儿 ·17.7M",
+  "url": "http://111.63.117.13:6060/030000001000/G_KAKU/G_KAKU.m3u8",
+  "rounds": [
+   28652,
+   24105,
+   27164
+  ],
+  "ok_n": 3,
+  "median": 27164,
+  "min": 24105,
+  "max": 28652,
+  "jitter": 0.17
+ },
+ {
+  "name": "海南卫视 ·16.6M",
+  "url": "http://111.63.117.13:6060/030000001000/LYWS/LYWS.m3u8",
+  "rounds": [
+   27325,
+   24910,
+   24967
+  ],
+  "ok_n": 3,
+  "median": 24967,
+  "min": 24910,
+  "max": 27325,
+  "jitter": 0.1
+ },
+ {
+  "name": "浙江卫视 ·16.2M",
+  "url": "http://111.63.117.13:6060/030000001000/G_ZHEJIANG/G_ZHEJIANG.m3u8",
+  "rounds": [
+   20329,
+   10796,
+   12895
+  ],
+  "ok_n": 3,
+  "median": 12895,
+  "min": 10796,
+  "max": 20329,
+  "jitter": 0.74
+ },
+ {
+  "name": "爱情喜剧 ·14.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/aiqingxj/1.m3u8",
+  "rounds": [
+   24965,
+   26832,
+   25728
+  ],
+  "ok_n": 3,
+  "median": 25728,
+  "min": 24965,
+  "max": 26832,
+  "jitter": 0.07
+ },
+ {
+  "name": "风云剧场 ·11.4M",
+  "url": "http://183.10.180.81:9901/tsfile/live/1032_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "rounds": [
+   5415,
+   15029,
+   2674
+  ],
+  "ok_n": 3,
+  "median": 5415,
+  "min": 2674,
+  "max": 15029,
+  "jitter": 2.28
+ },
+ {
+  "name": "凤凰中文 ·9.2M",
+  "url": "http://183.10.180.81:9901/tsfile/live/1003_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "rounds": [
+   4661,
+   9706,
+   8355
+  ],
+  "ok_n": 3,
+  "median": 8355,
+  "min": 4661,
+  "max": 9706,
+  "jitter": 0.6
+ },
+ {
+  "name": "世界地理 ·6.3M",
+  "url": "http://183.10.180.81:9901/tsfile/live/1008_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "rounds": [
+   9495,
+   9687,
+   2721
+  ],
+  "ok_n": 3,
+  "median": 9495,
+  "min": 2721,
+  "max": 9687,
+  "jitter": 0.73
+ },
+ {
+  "name": "河北卫视 ·3.9M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/hebeistv/1.m3u8",
+  "rounds": [
+   24905,
+   22511,
+   4036
+  ],
+  "ok_n": 3,
+  "median": 22511,
+  "min": 4036,
+  "max": 24905,
+  "jitter": 0.93
+ },
+ {
+  "name": "炫动卡通 ·3.7M",
+  "url": "http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/xuandongkaton/1.m3u8",
+  "rounds": [
+   3901,
+   3972,
+   4019
+  ],
+  "ok_n": 3,
+  "median": 3972,
+  "min": 3901,
+  "max": 4019,
+  "jitter": 0.03
+ },
+ {
+  "name": "第一剧场 ·3.1M",
+  "url": "http://183.10.180.81:9901/tsfile/live/1082_1.m3u8?key=txiptv&playlive=1&authid=0",
+  "rounds": [
+   9190,
+   10658,
+   1772
+  ],
+  "ok_n": 3,
+  "median": 9190,
+  "min": 1772,
+  "max": 10658,
+  "jitter": 0.97
+ }
+]
