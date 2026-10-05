@@ -38,6 +38,12 @@ http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_CCTV-15/1.m3u8
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-cctv16/1.m3u8
 #EXTINF:-1 tvg-name="CCTV-17" group-title="01-央视",CCTV-17 ·27.7M
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-cctv17/1.m3u8
+#EXTINF:-1 tvg-name="延边卫视" group-title="02-卫视",延边卫视 ·29.3M(xixitv挖)
+https://srs.iyb983.cn/video/CYS/index.m3u8
+#EXTINF:-1 tvg-name="东方卫视4K" group-title="02-卫视",东方卫视4K ·20.9M(xixitv挖)
+https://bp-resource-dfl.bestv.cn/148/3/video.m3u8
+#EXTINF:-1 tvg-name="安多卫视" group-title="02-卫视",安多卫视 ·9.1M(xixitv挖)
+https://liveout.xntv.tv/a65jur/96iln2.m3u8
 #EXTINF:-1 tvg-name="旅游卫视" group-title="02-卫视",旅游卫视 ·28.9M
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/LYWS/1.m3u8
 #EXTINF:-1 tvg-name="河南卫视" group-title="02-卫视",河南卫视 ·28.9M
@@ -74,8 +80,8 @@ http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-8000k-1080P-migu
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/youmankaton/1.m3u8
 #EXTINF:-1 tvg-name="炫舞未来" group-title="03-影视专题",炫舞未来 ·26.6M
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-4000k-1080P-xwwl/1.m3u8
-#EXTINF:-1 tvg-name="湖南卫视" group-title="02-卫视",湖南卫视 ·26.5M
-http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/hunanstv/1.m3u8
+#EXTINF:-1 tvg-name="湖南卫视" group-title="02-卫视",湖南卫视 ·28.3M(快手CDN,xixitv挖)
+https://txmov2.a.kwimgs.com/bs3/video-hls/5199687338554291078_hlsb.m3u8
 #EXTINF:-1 tvg-name="精品大剧" group-title="03-影视专题",精品大剧 ·26.5M
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/jdaju/1.m3u8
 #EXTINF:-1 tvg-name="古装剧场" group-title="03-影视专题",古装剧场 ·26.4M
