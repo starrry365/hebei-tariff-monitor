@@ -198,5 +198,5 @@ http://183.10.180.81:9901/tsfile/live/1082_1.m3u8?key=txiptv&playlive=1&authid=0
 http://183.10.180.81:9901/tsfile/live/1003_1.m3u8?key=txiptv&playlive=1&authid=0
 #EXTINF:-1 tvg-name="风云剧场" group-title="03-影视专题",风云剧场 ·5.4M ⚠不稳
 http://183.10.180.81:9901/tsfile/live/1032_1.m3u8?key=txiptv&playlive=1&authid=0
-#EXTINF:-1 tvg-name="炫动卡通" group-title="03-影视专题",炫动卡通 ·4.0M
+#EXTINF:-1 tvg-name="CCTV-14" group-title="03-影视专题",CCTV-14少儿(备源) ·4.0M(实播少儿,服务器原错标炫动)
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/xuandongkaton/1.m3u8
