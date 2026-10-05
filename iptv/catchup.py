@@ -7,7 +7,7 @@
   python catchup.py                         # 列出可回看频道
   python catchup.py CCTV-1 30               # 30分钟前开始, 默认回看10分钟
   python catchup.py CCTV-1 30 20            # 30分钟前开始, 回看20分钟
-  python catchup.py 湖南卫视 12:00 30       # 今天12:00开始(超过24h会按深度拒绝)
+  python catchup.py 湖南卫视 12:00 30       # 今天12:00开始(超过深度会拒绝)
   python catchup.py CCTV-5 -30 -list        # 只生成不打开PotPlayer
 """
 import re, sys, io, ssl, os, json, subprocess, urllib.request
@@ -18,10 +18,10 @@ ssl._create_default_https_context = ssl._create_unverified_context
 UA = "Mozilla/5.0"
 HOST = "hbgslbserv.taipan.jda.bcs.ottcn.com:6060"
 CST = timezone(timedelta(hours=8))
-SUPER = r"D:\Work\WorkBuddy\_aptv_probe\catchup_channels.json"
-DEPTH = r"D:\Work\WorkBuddy\iptv-test\deep4_depth91.json"
-OUT = r"D:\Work\WorkBuddy\_aptv_probe\_catchup.m3u8"
-POT = r"D:\PotPlayer\PotPlayerMini64.exe"
+_HERE = os.path.dirname(os.path.abspath(__file__))
+SUPER = os.path.join(_HERE, "catchup_channels.json")
+OUT = os.path.join(_HERE, "_catchup.m3u8")
+POT = os.environ.get("POTPLAYER", r"D:\PotPlayer\PotPlayerMini64.exe")
 
 
 def get(u, t=15, rng=None):
@@ -39,10 +39,11 @@ def channels():
 
 
 def depths():
-    try:
-        return json.load(open(DEPTH, encoding="utf-8"))
-    except Exception:
-        return {}
+    """深度直接来自 catchup_channels.json 的 depth_days 字段（单位: 天）"""
+    out = {}
+    for name, v in json.load(open(SUPER, encoding="utf-8")).items():
+        out[name] = {"depth": float(v.get("depth_days", 0)) * 86400}
+    return out
 
 
 def live_tpl(d, c):
@@ -119,8 +120,10 @@ def main():
     print("已生成: %s 从 %s 回看 %d 分钟 (%s/%s)" %
           (name, t0.astimezone(CST).strftime("%m-%d %H:%M"), dur, d, c))
     print("文件:", OUT)
-    if open_pot:
+    if open_pot and os.path.exists(POT):
         subprocess.Popen(["cmd", "/c", "start", "", POT, OUT])
+    elif open_pot:
+        print("PotPlayer 不在 %s，请手动打开上面的文件（或设环境变量 POTPLAYER 指向播放器）" % POT)
 
 
 if __name__ == "__main__":
