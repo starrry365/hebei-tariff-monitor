@@ -44,7 +44,7 @@ https://srs.iyb983.cn/video/CYS/index.m3u8
 https://bp-resource-dfl.bestv.cn/148/3/video.m3u8
 #EXTINF:-1 tvg-name="安多卫视" group-title="02-卫视",安多卫视 ·9.1M(xixitv挖)
 https://liveout.xntv.tv/a65jur/96iln2.m3u8
-#EXTINF:-1 tvg-name="旅游卫视" group-title="02-卫视",旅游卫视 ·28.9M
+#EXTINF:-1 tvg-name="旅游卫视" group-title="02-卫视",海南卫视(原旅游卫视) ·28.9M
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/LYWS/1.m3u8
 #EXTINF:-1 tvg-name="河南卫视" group-title="02-卫视",河南卫视 ·28.9M
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/HENAN/HENAN.m3u8
@@ -68,7 +68,7 @@ http://111.63.117.13:6060/030000001000/TJWS/TJWS.m3u8
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_NEIMENGGU/G_NEIMENGGU.m3u8
 #EXTINF:-1 tvg-name="睛彩竞技" group-title="03-影视专题",睛彩竞技 ·27.2M
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-8000k-1080P-miguaoyun2/1.m3u8
-#EXTINF:-1 tvg-name="北京KAKU少儿" group-title="03-影视专题",北京KAKU少儿 ·27.2M
+#EXTINF:-1 tvg-name="北京KAKU少儿" group-title="03-影视专题",卡酷少儿(北京) ·27.2M
 http://111.63.117.13:6060/030000001000/G_KAKU/G_KAKU.m3u8
 #EXTINF:-1 tvg-name="睛彩青少" group-title="03-影视专题",睛彩青少 ·26.8M
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-8000k-1080P-quanminrl/1.m3u8
@@ -104,8 +104,6 @@ http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/dongfangstv/1.m3u8
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_NINGXIA/G_NINGXIA.m3u8
 #EXTINF:-1 tvg-name="银发生活" group-title="03-影视专题",银发生活 ·26.0M
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/fengshanggw/1.m3u8
-#EXTINF:-1 tvg-name="卡酷少儿" group-title="03-影视专题",卡酷少儿 ·25.9M
-http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/kakukaton/1.m3u8
 #EXTINF:-1 tvg-name="潮妈辣婆" group-title="03-影视专题",潮妈辣婆 ·25.9M
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/HD-1500k-720P-cmlapo/1.m3u8
 #EXTINF:-1 tvg-name="康养保健" group-title="03-影视专题",康养保健 ·25.9M
@@ -134,8 +132,6 @@ http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/dongnanstv/1.m3u8
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/SD-1500k-576P-huanqiugw/1.m3u8
 #EXTINF:-1 tvg-name="黑龙江卫视" group-title="02-卫视",黑龙江卫视 ·25.1M
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/G_HEILONGJIANG-CQ/G_HEILONGJIANG-CQ.m3u8
-#EXTINF:-1 tvg-name="海南卫视" group-title="02-卫视",海南卫视 ·25.0M
-http://111.63.117.13:6060/030000001000/LYWS/LYWS.m3u8
 #EXTINF:-1 tvg-name="广西卫视" group-title="02-卫视",广西卫视 ·24.9M
 http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001000/GXWS/1.m3u8
 #EXTINF:-1 tvg-name="重庆卫视" group-title="02-卫视",重庆卫视 ·24.9M
@@ -198,5 +194,3 @@ http://183.10.180.81:9901/tsfile/live/1082_1.m3u8?key=txiptv&playlive=1&authid=0
 http://183.10.180.81:9901/tsfile/live/1003_1.m3u8?key=txiptv&playlive=1&authid=0
 #EXTINF:-1 tvg-name="风云剧场" group-title="03-影视专题",风云剧场 ·5.4M ⚠不稳
 http://183.10.180.81:9901/tsfile/live/1032_1.m3u8?key=txiptv&playlive=1&authid=0
-#EXTINF:-1 tvg-name="CCTV-14" group-title="03-影视专题",CCTV-14少儿(备源) ·4.0M(实播少儿,服务器原错标炫动)
-http://hbgslbserv.taipan.jda.bcs.ottcn.com:6060/030000001001/xuandongkaton/1.m3u8
