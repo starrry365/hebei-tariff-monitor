@@ -416,6 +416,9 @@ jobs:
           #   出过这个错：同一个市被当成两个）。
           sys.path.insert(0, 'cloud/tariff')
           import tariff_monitor as T
+          # 2026-10-07 页面数据改列式编码（encode_rows_compact）：校验前统一解回
+          # rows 形态 —— 下面所有断言只认 rows 契约，不该感知编码。
+          nets = T.decode_nets_from_page(nets)
           CITY_ALL = set(T.CITY_ALL)
           assert len(CITY_ALL) >= 12, '构建脚本的地市清单过短（%d 项）' % len(CITY_ALL)
 
@@ -448,7 +451,14 @@ jobs:
               # 行的字段形态也要看一眼：少一个 o/e/f，页面排序与时间筛选会**静默**失效
               # （NaN 参与比较恒为 false ⇒ 筛选返回全部），而上面每一步都不会报错。
               #   少 cat/chx ⇒ 大类与渠道筛选恒空或恒落「其他」，页面同样不报错。
-              miss = [k for k in ('n', 'o', 'e', 'f', 'ty', 'cat', 'chx') if k not in rows[0]]
+              #   ⚠️ 2026-10-07 数据瘦身：n（列表名）与 t 相同时不再带 n 键（n||t
+              #      回退），且 None 值统一归一成缺键 —— 所以「必备字段」必须查
+              #      **前 100 行的键并集**（单看 rows[0] 会被合法缺键误伤），t 必备、
+              #      n 不再必备。
+              have = set()
+              for r in rows[:100]:
+                  have.update(r)
+              miss = [k for k in ('t', 'o', 'e', 'f', 'ty', 'cat', 'chx') if k not in have]
               assert not miss, '%s 的行缺少字段 %s（页面排序/时间筛选会静默失效）' % (code, miss)
 
               # ★ 地域标（sc）与下架标（st）也要卡 —— 这两个漏了同样是**静默**故障：
