@@ -53,6 +53,7 @@ def note(msg):
 # ── 1. 载入页面 NETS 与常量 ──────────────────────────────────────────
 h = io.open(DOCS, encoding="utf-8").read()
 nets = json.loads(h[h.index("const NETS=") + 11:h.index(";\n", h.index("const NETS="))])
+nets = tm.decode_nets_from_page(nets)   # 2026-10-06 页面数据列式编码：解回 rows 再审计
 cat_order = json.loads(re.search(r"const CAT_ORDER=(\[[^\]]*\])", h).group(1))
 NET_LS = ["move", "unicom", "telecom", "cbn"]
 print("== 1. 行级不变量（全量穷举 %d 行）=="
@@ -238,8 +239,10 @@ if a == b:
 else:
     # 本机 rebuild_offline 是「预览态」（不覆盖官方归档），与官方 gz 差异属预期；
     # 只有当「行数结构都不同」时才值得报——数一下各自行数给结论
-    na = len(json.loads(a).get("move", {}).get("rows") or []) + len(json.loads(a).get("unicom", {}).get("rows") or [])
-    nb = len(json.loads(b).get("move", {}).get("rows") or []) + len(json.loads(b).get("unicom", {}).get("rows") or [])
+    # （2026-10-06 起页面 NETS 是列式编码，行数要走 decode_nets_from_page 数）
+    _na, _nb = tm.decode_nets_from_page(json.loads(a)), tm.decode_nets_from_page(json.loads(b))
+    na = len(_na.get("move", {}).get("rows") or []) + len(_na.get("unicom", {}).get("rows") or [])
+    nb = len(_nb.get("move", {}).get("rows") or []) + len(_nb.get("unicom", {}).get("rows") or [])
     note("NETS blob docs↔gz 不一致：docs 总行 %d vs 官方 gz 总行 %d"
          % (na, nb) + "（本机预览态 vs 官方归档，预期内；CI 构建后应一致）")
 hist = json.load(io.open(HIST_PATH, encoding="utf-8"))

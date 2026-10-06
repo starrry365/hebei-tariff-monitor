@@ -25,6 +25,7 @@ sys.path.insert(0, os.path.join(TARIFF))
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 import audit_data as AD  # noqa: E402  复用与页面同步的 bw_info / city_tags
+import tariff_monitor as T  # noqa: E402  页面 NETS 列式编码的解码器（单一来源）
 from openpyxl import Workbook  # noqa: E402
 from openpyxl.styles import Alignment, Font, PatternFill  # noqa: E402
 from openpyxl.utils import get_column_letter  # noqa: E402
@@ -80,7 +81,7 @@ def row_out(net, d):
         d.get("du") or "",
         "" if pv is None else ("∞" if pv == float("inf") else round(pv, 3)),
         d.get("c") or "",
-        d.get("n") or "",
+        d.get("n") or d.get("t") or "",   # 2026-10-06 起 n==t 的行不带 n（数据瘦身），回退 t
         d.get("t") or "",
         d.get("cat") or "",
         d.get("ty") or "",
@@ -107,6 +108,7 @@ def load_nets():
     if not m:
         sys.exit("页面里找不到 const NETS= —— 先跑 tariff_monitor.py")
     nets, _ = json.JSONDecoder().raw_decode(raw[m.end():])
+    nets = T.decode_nets_from_page(nets)   # 2026-10-06 页面数据列式编码：解回 rows
     # 页面上的「数据基线日期」：所有网共用同一天
     dm = re.search(r"数据基线\s*(\d{4}-\d{2}-\d{2})", raw)
     date = dm.group(1) if dm else ""

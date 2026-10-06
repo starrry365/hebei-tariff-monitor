@@ -107,6 +107,7 @@ def load_rows(net=None):
     if not m:
         sys.exit("页面里找不到 `const NETS=`")
     nets, _ = json.JSONDecoder().raw_decode(raw[m.end():])
+    nets = T.decode_nets_from_page(nets)   # 2026-10-06 页面数据列式编码：解回 rows
     live_net = (nets or {}).get(net) or {}
     rows = live_net.get("rows") or []
     if not rows:
@@ -136,7 +137,8 @@ def bw_info(x):
          宽带才算，「提到」不算（弱提及「…含宽带权益…」这类挡掉）。
     """
     v = str(x.get("bw") or "").strip()
-    n = x.get("n") or ""
+    # 2026-10-06 起 n 与 t 相同的行不再带 n（页面数据瘦身），页面读名称一律 n||t
+    n = x.get("n") or x.get("t") or ""
     if v and not BADVAL_RE.match(v) and not NOTLINE_RE.search(v):
         return ("field", v)
     if "宽带" in n and not NOTLINE_RE.search(n) and ASSERT_RE.search(n):

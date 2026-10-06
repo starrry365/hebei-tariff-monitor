@@ -141,7 +141,7 @@ def load_page(path):
     html = op(path, "rt", encoding="utf-8").read()
     i = html.index("const NETS=") + len("const NETS=")
     nets, _ = json.JSONDecoder().raw_decode(html[i:])
-    return nets
+    return T.decode_nets_from_page(nets)   # 2026-10-06 页面数据列式编码：解回 rows
 
 
 def load_snap(prefix):

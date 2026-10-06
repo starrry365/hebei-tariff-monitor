@@ -80,6 +80,7 @@ def page_rows():
     if not m:
         return None, "页面里找不到 `const NETS=`"
     nets, _ = json.JSONDecoder().raw_decode(s[m.end():])
+    nets = T.decode_nets_from_page(nets)   # 2026-10-06 页面数据列式编码：解回 rows
     return {k: ((v or {}).get("rows") or []) for k, v in (nets or {}).items()}, os.path.basename(p)
 
 

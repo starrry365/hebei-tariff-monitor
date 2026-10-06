@@ -58,6 +58,7 @@ html = opener(ARCHIVE, "rt", encoding="utf-8").read()
 key = "const NETS="
 i = html.index(key) + len(key)
 nets, _end = json.JSONDecoder().raw_decode(html[i:])
+nets = T.decode_nets_from_page(nets)   # 2026-10-06 页面数据列式编码：解回 rows
 log("面板归档解包：四网 %s" % {k: len(v.get("rows") or []) for k, v in nets.items()})
 
 fails = []

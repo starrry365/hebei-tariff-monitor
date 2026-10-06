@@ -92,7 +92,8 @@ def to_date(s):
 
 
 def bw_speed(d):
-    return bool(BW_SPEED.search((d.get("n") or "") + " " + (d.get("x") or "")))
+    # 2026-10-06 起 n 与 t 相同的行不再带 n（页面数据瘦身），页面读名称一律 n||t
+    return bool(BW_SPEED.search((d.get("n") or d.get("t") or "") + " " + (d.get("x") or "")))
 
 
 def build_oracle(rows, base):

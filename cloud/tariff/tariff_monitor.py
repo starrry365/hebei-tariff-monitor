@@ -2096,6 +2096,191 @@ def fill_template(tpl, vals):
     return tpl
 
 
+# ══ 页面数据紧凑编码（2026-10-06 页面体积治理）════════════════════
+# 背景：页面 gz 1082KB 超过 900KB 预警线，且 95% 体积是注入的行数据 ——
+#   15014 行每行都带全套键名（20+ × 4 字符 × 行数 ≈ 1.1MB 纯键名），
+#   高重复字符串（ty 36 种 / cat 6 种 / ap 2492 种 / x 说明 46% 重复）反复写全称。
+# 方案：**列式 + 逐列字典编码**（实测：数据块 gz 842KB → 731KB，原始 12.0MB → 6.4MB，
+#   JSON.parse 量近减半；页面侧 rowsOf() 按网**懒解码**，首屏只解当前一网）。
+# 契约：**进程内一切照旧**（net_payload 进出都是 rows 对象数组），编码只发生在
+#   「注入页面」那一刻（encode_nets_for_page），解码只发生在「从页面读回」
+#   （decode_nets_from_page，render_only 用）。这样编码对管线完全透明，
+#   不会出现「半路某处拿到 cols 当 rows 用」的静默炸裂。
+# 一致性：编码后**全量回解码比对**（encode 时做，不靠事后抽查）——
+#   这个容器坏掉＝全站数据错，宁可构建失败也不能带病上线。
+
+COL_DICT_RATIO = 0.85    # 字符串列重复率高于此才字典化（唯一列字典化反而费字节）
+
+
+def _norm_row(r):
+    """归一（编码前逐行做）：
+
+    ① 丢掉值为 None 的键。页面 JS 的语义里「字段为空」一直是 ``d.k === undefined``
+       （undefined 与 null 在所有判空写法下等价，但键集合少一个可以让列式回解码
+       与原行**逐键相等**，一致性好验证）。
+    ② 丢掉 ``n``（列表名）：n 与 t（套餐名）80% 逐字相同（15014 行实测 12086 行），
+       相同时页面一律 ``n||t`` 回退显示（rowName/bwInfo/CSV 已同步适配）——
+       重复的那份纯属白背。实测 NETS 段 gz 771KB → 688KB。检索/排序/收藏键全走
+       rowName（同样 n||t），语义零变化；n 与 t **不同**的行照常保留 n。
+    """
+    out = {}
+    for k, v in r.items():
+        if v is None:
+            continue
+        if k == "n" and r.get("n") is not None and r.get("n") == r.get("t"):
+            continue
+        out[k] = v
+    return out
+
+
+def encode_rows_compact(rows):
+    """rows（对象数组）→ 列式容器 ``{"k": [列名…], "c": {列: 值数组 | {"d": 索引, "D": 字典}}}``。
+
+    先做 None→缺键 归一（见 _norm_row）；列名按首现顺序排列（与 rows_of 的
+    构造顺序一致，diff 友好）；字符串列重复率超阈值才字典化（唯一列字典化
+    反而费字节）。列数组里的 None 表示「该行没有这个键」，解码时跳过。
+    """
+    rows = [_norm_row(r) for r in rows]
+    keys, seen = [], set()
+    for r in rows:
+        for k in r:
+            if k not in seen:
+                seen.add(k)
+                keys.append(k)
+    cols = {}
+    for k in keys:
+        vals = [r.get(k) for r in rows]
+        strs = [v for v in vals if isinstance(v, str)]
+        if strs and len(set(strs)) < COL_DICT_RATIO * len(strs):
+            dic = sorted(set(strs))
+            idx = {s: i for i, s in enumerate(dic)}
+            cols[k] = {"d": [idx[v] if isinstance(v, str) else v for v in vals],
+                       "D": dic}
+        else:
+            cols[k] = vals
+    return {"k": keys, "c": cols}
+
+
+def decode_rows_compact(container):
+    """encode_rows_compact 的逆变换（Python 侧，供 render_only 读回页面时用）。
+
+    值为 None 的格位跳过（不还原键）—— 与编码侧的 None→缺键 归一互为镜像，
+    回解码结果与归一后的原行**逐键相等**（encode_nets_for_page 的比对依据）。
+    """
+    if not isinstance(container, dict) or "c" not in container:
+        raise ValueError("列式容器缺 c 键（不是 encode_rows_compact 的产物？）")
+    cols = container["c"]
+    keys = container.get("k") or list(cols.keys())
+    if not keys:
+        return []
+    # 行数取「首列的值数组长度」—— 首列若是字典列（{"d":…,"D":…}），
+    # len(容器) 恒为 2，直接 len 会把整网行数错成 2（cbn 实测踩中）。
+    first = cols.get(keys[0])
+    n = len(first["d"]) if isinstance(first, dict) and "D" in first else len(first)
+    vals = {}
+    for k in keys:
+        v = cols.get(k)
+        if isinstance(v, dict) and "D" in v:
+            vals[k] = [None if i is None else v["D"][i] for i in v["d"]]
+        else:
+            vals[k] = v
+    out = []
+    for i in range(n):
+        out.append({k: vals[k][i] for k in keys if vals[k][i] is not None})
+    return out
+
+
+def encode_nets_for_page(nets):
+    """四网容器 → 页面注入形态（每网 rows 换成列式 cols）。
+
+    编码后逐网回解码**逐行比对**：不一致就抛异常终止构建 —— 带错数据的页面
+    比没有页面更糟（用户会拿错数字去办业务）。
+    """
+    out = {}
+    for code, p in nets.items():
+        rows = p.get("rows") or []
+        q = {k: v for k, v in p.items() if k != "rows"}
+        q["cols"] = encode_rows_compact(rows)
+        back = decode_rows_compact(q["cols"])
+        want = [_norm_row(r) for r in rows]
+        if len(back) != len(want) or any(
+                back[i] != want[i] for i in range(len(want))):
+            raise RuntimeError("列式编码回解码不一致（%s）—— 终止构建" % code)
+        out[code] = q
+    return out
+
+
+def decode_nets_from_page(nets):
+    """页面读回的四网容器 → 进程内形态（cols 解回 rows；纯 rows 的旧页面原样返回）。"""
+    out = {}
+    for code, p in (nets or {}).items():
+        if isinstance(p, dict) and "rows" not in p and "cols" in p:
+            q = dict(p)
+            q["rows"] = decode_rows_compact(p["cols"])
+            out[code] = q
+        else:
+            out[code] = p
+    return out
+
+
+HIST_SMP_KEEP = 30       # 页面注入：近 7 天轮次每轮最多保留的样本条数
+HIST_SMP_KEEP_OLD = 12   # 7 天前的旧轮次样本上限（旧轮次很少回看，完整明细在 changes/*.md）
+HIST_RECENT_DAYS = 7     # 「近期」窗口（相对 history 里最新一轮的日期）
+                         # history.json 磁盘上仍是全量；页面只带裁剪后的样本 ——
+                         # 裁断必须可见：模板按 {"k":"more","n":N} 渲染「…还有 N 条明细」。
+
+
+def _dnum(s):
+    """'2026-10-06' → 20261006（非法输入退 0，让坏日期落进「旧轮次」一侧）。"""
+    try:
+        return int(str(s).replace("-", ""))
+    except (ValueError, TypeError):
+        return 0
+
+
+def hist_for_page(items):
+    """history items → 页面注入形态：样本条数按轮次新旧分档截断。
+
+    - 近 HIST_RECENT_DAYS 天的轮次：每轮最多 HIST_SMP_KEEP 条；
+    - 更早的轮次：每轮最多 HIST_SMP_KEEP_OLD 条，且字段变更对照卡只留
+      **变更字段**行（未变字段只是展示上下文，7 天前的「当时长什么样」
+      去仓库 changes/<日期>.md 看全量）。
+    裁掉的以 ``{"k":"more","n":N}`` 收尾，模板据此渲染「…还有 N 条明细」
+    —— 截断必须**可见**，静默截断会让「样本里没有」被误读成「当时没有变化」。
+    """
+    items = list(items or [])
+    maxd = max((_dnum(x.get("d")) for x in items), default=0)
+    out = []
+    for x in items:
+        smp = x.get("smp") or []
+        recent = maxd - _dnum(x.get("d")) <= HIST_RECENT_DAYS
+        keep = HIST_SMP_KEEP if recent else HIST_SMP_KEEP_OLD
+        kept = smp[:max(0, keep)]
+        if not recent:
+            kept = [_strip_unchanged(e) for e in kept]
+        q = dict(x)
+        q["smp"] = kept + ([{"k": "more", "n": len(smp) - len(kept)}]
+                           if len(smp) > len(kept) else [])
+        out.append(q)
+    return out
+
+
+def _strip_unchanged(e):
+    """旧轮次的字段变更样本：对照卡只留**变更**行（r[3]==1）。
+
+    全部行都未变更（理论不该有）时保留原样 —— 一行不留的对照卡没有信息量，
+    还不如整卡退回 chip 形态（模板对空 rows 的 c 类样本就是这么降级的）。
+    """
+    if e.get("k") != "c" or not isinstance(e.get("rows"), list):
+        return e
+    chg = [r for r in e["rows"] if r[3]]
+    if not chg or len(chg) == len(e["rows"]):
+        return e
+    q = dict(e)
+    q["rows"] = chg
+    return q
+
+
 FEED_PATH = os.path.join(DOCS, "feed.xml")
 FEED_KEEP = 60            # feed 只留最近 60 条「真变化」（约一个月的量）
 
@@ -2248,7 +2433,7 @@ def build_html(sources, notice="", diffs=None, archive=True):
     #   这个占位符只留作无 JS 时的后备文本，取移动的 base 最不容易误导。
     date = (payloads.get("move") or {}).get("base") or data_day(
         sources.get("move") or {}, prev_day())
-    payload = js_json(net_payload(payloads))
+    payload = js_json(encode_nets_for_page(net_payload(payloads)))
     out = fill_template(html, {
         "__NETS__": payload, "__N__": str(total), "__DATE__": date,
         # 大类顺序（不是数据）注入页面：页面按它生成下拉，顺序才和构建日志一致。
@@ -2265,7 +2450,9 @@ def build_html(sources, notice="", diffs=None, archive=True):
         "__CITY_ORDER__": js_json(list(CITY_ORDER)),
         "__CITY_EXTRA__": js_json(list(CITY_EXTRA)),
         # 变更历史（页面时间线）。走紧凑序列化 —— 它一年年涨，白空格也是体积。
-        "__HIST__": js_json(load_history().get("items") or []),
+        # smp 样本超 HIST_SMP_KEEP 截断（hist_for_page）：磁盘 history.json 全量，
+        # 页面只带每轮前 30 条 + 「还有 N 条」标记 —— 全量明细在 changes/*.md。
+        "__HIST__": js_json(hist_for_page(load_history().get("items") or [])),
         # notice=None → 用兜底文案；notice="" → 页面把提示条整个藏掉
         # （main() 在四网全部零变化时传空串 —— 「本次无变化」没有信息量）。
         "__NOTICE__": notice if notice is not None else "本次巡检未检测到变化"})
@@ -2320,6 +2507,9 @@ def render_only():
         if not isinstance(nets, dict) or not nets:
             log("!! 页面数据容器不是对象，放弃重建")
             return 3
+        # 2026-10-06 页面数据改列式编码（encode_nets_for_page）：读回的第一步
+        # 统一解回 rows 形态 —— 本函数后半段全部按 rows 契约工作，不该感知编码。
+        nets = decode_nets_from_page(nets)
     else:
         # 兼容四网改造**之前**的页面（容器还是 `const DATA=[...]`）。
         # 没有这段就是死锁：想重建页面得先有 NETS，而 NETS 只有重建才写得出来。
@@ -2366,7 +2556,7 @@ def render_only():
     mv["rows"] = rows
 
     # 同 build_html：内联进 <script> 的 JSON 必须走 js_json 转义（防 </script 提前闭合）
-    payload = js_json(nets)
+    payload = js_json(encode_nets_for_page(nets))
     tpl = open(os.path.join(BASE, "template.html"), encoding="utf-8").read()
     try:
         out = fill_template(tpl, {
@@ -2375,7 +2565,7 @@ def render_only():
             "__OW_ORDER__": js_json(list(OW_ORDER)),
             "__CITY_ORDER__": js_json(list(CITY_ORDER)),
             "__CITY_EXTRA__": js_json(list(CITY_EXTRA)),
-            "__HIST__": js_json(load_history().get("items") or []),
+            "__HIST__": js_json(hist_for_page(load_history().get("items") or [])),
             "__NOTICE__": notice})
     except RuntimeError as e:
         log(f"!! {e}，中止（否则会留下未替换的标记把页面搞坏）")

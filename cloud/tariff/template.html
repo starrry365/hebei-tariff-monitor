@@ -929,8 +929,11 @@ const CAT_ORDER=__CAT_ORDER__;
 /* 归属档位顺序。同 CAT_ORDER 的理由：顺序只留一份权威，页面不另写常量。 */
 const OW_ORDER=__OW_ORDER__;
 /* 变更历史 —— 页面时间线的**唯一**数据源，由构建脚本从 history.json 注入。
-   空数组是正常状态（首次部署时还没有任何一次带变更的巡检），不是错误。 */
+   空数组是正常状态（首次部署时还没有任何一次带变更的巡检），不是错误。
+   HIST_SMP_KEEP 必须与 tariff_monitor.py 里的同名常量一致（页面时间线的截断
+   阈值只在「注入侧」生效，这里只是给「…还有 N 条」提示文案引用一个数字）。 */
 const HIST=__HIST__;
+const HIST_SMP_KEEP=30;
 /* 所有「枚举型筛选维度」的控件 id —— 全页只此一份。
    清空筛选 / 切网复位 / 深链读写本来都要遍历同一批控件，而原先是**每处各写一遍字面量**
    （5 处），加一个维度就得记得改 5 个地方。漏一处的后果是「切网后这个维度没被清掉」：
@@ -938,7 +941,44 @@ const HIST=__HIST__;
 const DIMS=["sb","sc","ow","cat","ty","ct","pf","gf","cf","bw","chx","on","off","chg"];
 function clearDims(){DIMS.forEach(k=>{const e=document.getElementById(k);if(e)e.value=""})}
 const NET_LS=["move","unicom","telecom","cbn"];      // 顺序即导航条顺序
-const rowsOf=n=>((NETS[n]||{}).rows)||[];
+/* rowsOf：行数据的**唯一**入口（2026-10-06 起带懒解码）。
+   注入的行数据是「列式 + 字典编码」形态（encode_rows_compact，页面体积治理：
+   原始 12.0MB→6.4MB，gz 842KB→731KB），首访某网时解回对象数组并缓存，
+   之后与旧的全量对象形态完全同构 —— 调用方无感。
+   ★ 懒解码的意义：首屏只解**当前一网**（~8K 行），不是四网 1.5 万行全解；
+   解完把 cols 置空，双重存储的内存立刻还给 GC。
+   ★ 空网（未接入）返回同一个冻结空数组：语义是「没有数据」，
+   每次新建数组会让依赖引用比较的调用方产生错觉。 */
+const _NO_ROWS=(Object.freeze&&Object.freeze([]))||[];
+function _decRows(C){
+  const ks=C.k, cols=C.c, out=[];
+  if(!ks.length)return out;
+  /* 行数取首列的**值数组**长度 —— 首列若是字典列（{d:…,D:…}），容器的 .length
+     是 undefined，new Array(undefined) 会造出长度 1 的 [undefined]（Python 侧
+     decode_rows_compact 同款坑，两边必须同防）。 */
+  const c0=cols[ks[0]];
+  const n=(c0&&c0.d)?c0.d.length:c0.length;
+  const vals={};
+  for(const k of ks){
+    const v=cols[k];
+    vals[k]=(v&&v.D)?v.d.map(i=>v.D[i]):v;   // 字典列还原；普通列直取
+  }
+  for(let i=0;i<n;i++){
+    const o={};
+    for(const k of ks)o[k]=vals[k][i];
+    out.push(o);
+  }
+  return out;
+}
+function rowsOf(n){
+  const N=NETS[n];
+  if(!N)return _NO_ROWS;
+  if(!N.rows){
+    N.rows=N.cols?_decRows(N.cols):[];
+    N.cols=null;
+  }
+  return N.rows.length?N.rows:_NO_ROWS;
+}
 /* 行显示名的唯一取用处（S2，2026-10-04 工程审查）：n=名称（列表展示，120 字上限）、
    t=套餐名（详情行展示，80 字上限），两键 80% 相同、20% 不同 —— 不是冗余，
    但「n 空退 t」的回退曾在 8 处各写一遍（排序键/收藏键/CSV/相似套餐…），
@@ -1163,12 +1203,13 @@ function bwInfo(d){
   /* 字段给了肯定值（含「宽带」「M」「光纤」之类）→ 采信；
      字段自己在说提速 / 电视这类附加动作的不算（见上 ②）；空 / 「无」→ 落名称 */
   if(v&&!BW_BADVAL.test(v)&&!BW_NOTLINE.test(v))return{t:v,src:"field"};
-  /* 名称只在**明确说有**宽带时才算线路（见上 ③），只是「提到」不算 */
-  const n=d.n||"";
+  /* 名称只在**明确说有**宽带时才算线路（见上 ③），只是「提到」不算。
+     2026-10-06 起 n 与 t 相同的行不再带 n 键（数据瘦身），读名称一律 n||t。 */
+  const n=d.n||d.t||"";
   if(/宽带/.test(n)&&!BW_NOTLINE.test(n)&&BW_ASSERT.test(n))return{t:"含宽带",src:"name"};
   return null;
 }
-function bwSpeed(d){return BW_SPEED.test((d.n||"")+" "+(d.x||""))}
+function bwSpeed(d){return BW_SPEED.test((d.n||d.t||"")+" "+(d.x||""))}
 function bwMbps(d){
   const i=bwInfo(d);if(!i)return null;
   /* 数字带 M（300M / 500M / 1000M）→ 取最大那个数。千兆写法杂（1000M / 1G / 千兆），
@@ -1177,9 +1218,9 @@ function bwMbps(d){
     const ms=String(i.t).match(/\d{3,4}/g);
     if(ms)return Math.max.apply(null,ms.map(Number));
   }
-  const ms=String(d.n||"").match(/(\d{3,4})\s*M/g);
+  const ms=String(d.n||d.t||"").match(/(\d{3,4})\s*M/g);
   if(ms)return Math.max.apply(null,ms.map(m=>parseInt(m,10)));
-  if(/千兆|1\s*G/i.test((d.n||"")+" "+(d.x||"")))return 1000;
+  if(/千兆|1\s*G/i.test((d.n||d.t||"")+" "+(d.x||"")))return 1000;
   return null;
 }
 function bwDetail(d){
@@ -3123,7 +3164,7 @@ const CSV_COLS=[
   ["地域",d=>SC_LB[d.sc]||""],["状态",d=>d.st?"已下架":"在售"],["归属",d=>d.ow||""],
   ["月费(元)",d=>d.f],["流量(GB)",d=>d.g],["流量原文",d=>d.d],["流量单位",d=>d.du],
   ["每元流量(GB)",d=>{const v=perVal(d);return v==null?"":+v.toFixed(3)}],
-  ["通话(分钟)",d=>d.c],["名称",d=>d.n],["套餐名",d=>d.t],
+  ["通话(分钟)",d=>d.c],["名称",d=>d.n||d.t||""],["套餐名",d=>d.t],
   /* 大类在前、细分在后：大类是四网可比的横轴，细分是上游各自的说法。
      两个都留着 —— 只给大类会丢掉「流量包还是语音包」这种关键差别。 */
   ["类型大类",d=>d.cat],["类型细分",d=>d.ty],
@@ -3418,6 +3459,7 @@ function renderHistory(){
              不全改成卡：新增/下架没有「新旧」可对照，塞进同一布局只是空壳。 */
           const chips=[],diffs=[];
           (x.smp||[]).forEach(s=>{
+            if(s.k==="more")return;   // 截断标记，循环后单独渲染（见 forEach 之后的 more 分支）
             if(s.k==="c"&&((s.rows&&s.rows.length)||(s.ch&&s.ch.length))){
               /* rows = 整行对照 [字段名, 旧, 新, 是否变更0/1]（新格式）：
                  未变字段（上线/下线日等）也显示 —— 用户要看「这个套餐长什么样」，
@@ -3449,6 +3491,12 @@ function renderHistory(){
             chips.push('<span class="tcap'+(s.k==="a"?" a":s.k==="r"?" r":" c")+'" title="'
               +esc((s.ty||"")+fb)+'">'+mark+esc(s.n||"")+'</span>');
           });
+          /* 截断标记（hist_for_page 注入的 {"k":"more","n":N}）：截断必须可见，
+             否则「样本列表里没有」会被读成「当时没有变化」。完整明细在
+             仓库 changes/<日期>.md 归档 —— 页面不带全量是体积取舍，不是数据丢了。 */
+          const more=(x.smp||[]).find(s=>s.k==="more");
+          if(more&&more.n)chips.push('<span class="tcap" title="为控制页面体积，本轮样本只保留近期全量 / 旧轮次摘要；完整明细见仓库 changes/ 归档">…还有 '
+            +more.n+' 条明细</span>');
           return '<div class="tnet"><div class="nh"><span>'+esc(x.net||x.code||"")
             +'</span><span class="nn">'+(x.n==null?"":x.n+" 条")+'</span></div>'
             +'<div class="tcaps">'+caps.join("")+'</div>'

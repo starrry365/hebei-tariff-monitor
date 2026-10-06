@@ -157,7 +157,18 @@ def summarize(raw):
     if mi:
         try:
             nets, _ = json.JSONDecoder().raw_decode(t[mi.end():])
-            n = len(((nets.get("move") or {}).get("rows")) or [])
+            # 2026-10-06 起页面 NETS 是列式编码：优先走解码器数 rows（单一来源），
+            # 解码器不可用再退回旧口径（rows 直取 / 列式取首列长度）。
+            try:
+                import tariff_monitor as _tm
+                n = len(((_tm.decode_nets_from_page(nets).get("move")) or {}).get("rows") or [])
+            except Exception:
+                mv = nets.get("move") or {}
+                rows = mv.get("rows")
+                if rows is None and isinstance(mv.get("cols"), dict):
+                    ks = mv["cols"].get("k") or []
+                    rows = mv["cols"].get(ks[0]) if ks else []
+                n = len(rows or [])
         except Exception:
             n = -1
     return (mt.group(1) if mt else "?"), n, len(raw)
