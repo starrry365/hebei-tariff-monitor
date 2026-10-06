@@ -125,7 +125,12 @@ jobs:
 
   tariff:
     needs: gate
-    if: needs.gate.outputs.go == 'true' || github.event_name == 'workflow_dispatch'
+    # 🔴 必须显式 always()：job 级 if 不含状态函数时会被隐式叠加 success()，
+    #    而手动 dispatch 时 gate 本身被 skip ⇒ success()=false ⇒ 整条短路，
+    #    「手动触发必真跑」就成了空话（run #54 实测被 skip）。
+    #    fail-open：gate 崩溃（go 为空）也算真跑 —— 闸门只是省钱的优化，
+    #    不是安全装置；它坏掉的代价应该是多采一轮，而不是丢一整天的数据。
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.gate.outputs.go != 'false')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
