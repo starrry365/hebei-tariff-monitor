@@ -19,6 +19,8 @@
  *     以及大类 → 细分的**联动置灰**（否则能选出「加装包 + 5G套餐」这种不存在的组合）
  *   · 渠道 #chx、流量 #gf、通话 #cf 三档筛选真的生效
  *   · 生效筛选被渲染成**可点掉的标签**，且点 × 真的摘掉那一个条件
+ *   · 列筛选（Excel 式多选，2026-10-06）：勾一个真实细分值 ⇒ 条数筛准、
+ *     可摘标签出现、清空后复原
  *
  * 🔴 每次测量前**必须自己重置全部筛选维度**（resetAll）：
  *   页面在多次 eval 之间**保留状态**（上一次把某个维度留成非空，下一次 eval 的
@@ -281,6 +283,35 @@
     }) };
     resetAll();
 
+    /* ══ 列筛选（Excel 式多选，2026-10-06）══
+       勾一个真实存在的细分值 ⇒ 条数必须恰好等于该值行数、chip 必须出现、
+       清空后必须复原。挑条数最多的值（数据使然必 >0，与「≤5GB」同一取舍）。 */
+    o.colfProbe = null;
+    try {
+      if (typeof cfSet === "function" && typeof COLF_DEF !== "undefined") {
+        var tyCnt = {};
+        rowsOf(NET).forEach(function (d) { var v = d.ty || ""; tyCnt[v] = (tyCnt[v] || 0) + 1; });
+        var pk = Object.keys(tyCnt).filter(function (v) { return v; })
+          .sort(function (a, b) { return tyCnt[b] - tyCnt[a]; })[0];
+      if (pk) {
+        var cfBase = view.length;               // 复原基准 = 本探针开始前的干净在售数
+        /* want 必须用 wantBy（页签内口径）：cbn 等网的停售行也带细分值，
+           按「全量行」数会把停售那批算进去，页面上永远对不上（实测 97 ≠ 166） */
+        cfSet("ty", [pk]);
+        apply();
+        var cfGot = view.length;
+        var cfChip = [].some.call(document.querySelectorAll("#stat .fchip"),
+          function (b) { return (b.dataset.d || "").indexOf("col:") === 0; });
+        cfSet("ty", null);
+        apply();
+        o.colfProbe = { pick: pk,
+                        want: wantBy(function (d) { return (d.ty || "") === pk; }),
+                        got: cfGot,
+                        chip: cfChip, restored: view.length === cfBase };
+        }
+      }
+    } catch (e) { o.colfErr = String(e && e.message || e); }
+
     /* ══ 可点掉的筛选标签 ══
        不能只验「渲染出来了」—— 真正的功能是**点 × 能摘掉那一个条件**，
        所以点完之后必须看到结果变大、且标签数减一。 */
@@ -403,6 +434,17 @@
     var g = o.gfSample || {}, c = o.cfSample || {};
     if (g.rows !== g.want) { bad.push("流量「≤5GB」条数不符：" + g.rows + " ≠ " + g.want); }
     if (c.rows !== c.want) { bad.push("通话「无通话」条数不符：" + c.rows + " ≠ " + c.want); }
+
+    // 列筛选（Excel 式多选）
+    if (o.colfErr) { bad.push("列筛选操作异常: " + o.colfErr); }
+    else if (o.colfProbe) {
+      var fp = o.colfProbe;
+      if (fp.got !== fp.want) {
+        bad.push("列筛「细分=" + fp.pick + "」条数不符：页面 " + fp.got + " ≠ 数据 " + fp.want);
+      }
+      if (!fp.chip) { bad.push("列筛激活后没有渲染出可摘标签"); }
+      if (!fp.restored) { bad.push("列筛清空后条数没复原"); }
+    }
 
     // 可点掉的筛选标签
     if (!(o.fchipCount > 0)) { bad.push("未渲染出筛选标签"); }

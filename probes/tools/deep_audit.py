@@ -259,8 +259,15 @@ for x in items:
         break
 note("feed items=%d, 最新有变更日 %s 在 feed 中: %s"
      % (n_item, latest_change_day or "(无)", "OK" if (latest_change_day in feed or latest_change_day == "") else "❌"))
-if n_item != 30:
-    bad("T2feed条数", "-", str(n_item))
+# T2 判据与构建同源：feed 是 history 里「真变化」条目按 FEED_KEEP 截断的镜像，
+# 条数必须**精确等于** min(真变化数, FEED_KEEP)。曾写死 ==30：FEED_KEEP 后来
+# 调到 60，feed 涨过 30 的那天审计就误红（2026-10-06 实测）—— 硬编码二手
+# 常量必然腐烂，判据要么 import 权威，要么别写。
+_expect_n = min(len([x for x in items
+                     if (x.get("a") or 0) > 0 or (x.get("r") or 0) > 0
+                     or (x.get("c") or 0) > 0]), tm.FEED_KEEP)
+if n_item != _expect_n:
+    bad("T2feed条数", "-", "%d≠%d（history真变化×FEED_KEEP上限）" % (n_item, _expect_n))
 if latest_change_day and latest_change_day not in feed:
     bad("T3feed缺变更日", "-", latest_change_day)
 

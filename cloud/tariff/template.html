@@ -342,6 +342,33 @@ th[data-k]:hover{color:var(--ac)}
 th .ar{opacity:.3;margin-left:3px;font-size:10px}
 th.act{color:var(--ac)}
 th.act .ar{opacity:1}
+/* ── 列筛选（Excel 式多选，2026-10-06）────────────────────────────
+   th 里的 ▽ 漏斗 + body 级单例面板 #cfpop。面板用 position:fixed
+   而不是塞进 th：.tblwrap 是横向滚动容器（overflow 裁剪），下拉放在
+   表头里会被削掉一半 —— 固定定位 + 按 getBoundingClientRect 落点绕开。 */
+.cfx{margin-left:4px;padding:0 4px;border:1px solid var(--bd2);border-radius:4px;
+     background:transparent;color:inherit;font:inherit;font-size:10px;line-height:15px;
+     cursor:pointer;vertical-align:1px;opacity:.55}
+.cfx:hover{opacity:1;border-color:var(--ac);color:var(--ac)}
+.cfx.on{opacity:1;background:var(--ac);border-color:var(--ac);color:#fff}
+#cfpop{position:fixed;z-index:95;width:280px;max-width:92vw;display:none;flex-direction:column;
+       max-height:min(480px,70vh);background:var(--card);color:inherit;
+       border:1px solid var(--bd2);border-radius:10px;box-shadow:0 14px 36px rgba(0,0,0,.35)}
+#cfpop.open{display:flex}
+#cfpop .cfph{padding:8px;border-bottom:1px solid var(--bd2)}
+#cfpop .cfph input{width:100%;box-sizing:border-box;padding:5px 8px;font:inherit;font-size:12px;
+       border:1px solid var(--bd2);border-radius:6px;background:var(--card2);color:inherit}
+#cfpop .cfa{display:flex;gap:6px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--bd2)}
+#cfpop .cfa button{padding:2px 8px;font:inherit;font-size:11px;border:1px solid var(--bd2);
+       border-radius:6px;background:var(--card2);color:inherit;cursor:pointer}
+#cfpop .cfa button:hover{border-color:var(--ac);color:var(--ac)}
+#cfpop .cfa .cfn{margin-left:auto;color:var(--mut,inherit);opacity:.7;font-size:11px}
+#cfpop .cfl{overflow:auto;padding:3px 0;min-height:36px}
+#cfpop label.cfi{display:flex;gap:7px;align-items:center;padding:4px 10px;cursor:pointer;font-size:12px}
+#cfpop label.cfi:hover{background:var(--card2)}
+#cfpop .cft{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#cfpop label.cfi .cfn{margin-left:auto;opacity:.6;font-size:11px}
+#cfpop .cfmore{padding:6px 10px;font-size:11px;opacity:.65}
 td{padding:10px;border-bottom:1px solid var(--bd2);vertical-align:top}
 tbody tr:last-child td{border-bottom:0}
 /* 斑马纹走 JS 打的 .zeb 类而不是 nth-child：行与详情行成对插入 tbody，
@@ -819,10 +846,10 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   <th data-k="gb">流量<span class="ar"></span></th>
   <th data-k="call">通话<span class="ar"></span></th>
   <th data-k="name">名称<span class="ar"></span></th>
-  <th data-k="ty" title="资费大类；点列头排序，官方原始分类见展开详情">类型<span class="ar"></span></th>
-  <th title="归属：个人资费 / 政企资费（官方标注；仅移动提供）">归属</th>
-  <th data-k="bw">宽带<span class="ar"></span></th>
-  <th>目标客户</th>
+  <th data-k="ty" title="资费大类；点列头排序，官方原始分类见展开详情">类型<span class="ar"></span><button type="button" class="cfx" data-cf="ty" title="列筛选：勾选要保留的取值">▽</button></th>
+  <th title="归属：个人资费 / 政企资费（官方标注；仅移动提供）">归属<button type="button" class="cfx" data-cf="ow" title="列筛选：勾选要保留的取值">▽</button></th>
+  <th data-k="bw">宽带<span class="ar"></span><button type="button" class="cfx" data-cf="bw" title="列筛选：勾选要保留的取值">▽</button></th>
+  <th>目标客户<button type="button" class="cfx" data-cf="ap" title="列筛选：勾选要保留的取值">▽</button></th>
   <th data-k="on">上架<span class="ar"></span></th>
   <th data-k="off">下线<span class="ar"></span></th>
 </tr></thead>
@@ -866,7 +893,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
    [徽标] 城市专属 · 有效期 · 宽带判定(bwInfo/bwMbps/bwDetail)
    [常量] 数据基线与相对天数 · 档位常量 FEE_TIERS/AGE_TIERS · 排序键 F
    [筛选] 两级主轴页签 · 大类↔细分联动 · condOf(唯一判据) · 三级联动与档位条数
-          筛选标签(chips) · 空结果诊断(diagEmpty)
+          筛选标签(chips) · 列筛选(COLF_DEF/面板/漏斗,Excel式多选) · 空结果诊断(diagEmpty)
    [呈现] render(单次拼串) · 目标客户列 · 详情展开 detHTML · 同价位更优 · 斑马纹
    [视图] 页签同步 · 网别导航 · 切网 · 按网刷新 · 地市下拉/控件状态 · 细分停用 · 未接入占位
    [工具] rowText 摘要 · 剪贴板 · CSV 导出 · 单文件离线副本 · 收藏(键v2/迁移/跨网聚合)
@@ -1400,10 +1427,14 @@ function condOf(){
   /* 关键词按空白拆成词数组（match 里做多词 AND）；
      空串拆出来是 [""]，先滤掉。高亮（render 侧）用同一份词表，口径一致。 */
   const kwTerms=$("#kw").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  /* 列筛选快照：只收「非空勾选」的列（空数组 = 不筛，不进快照）。
+     match 只读这份快照、不读全局 COLF —— 空结果诊断的反事实
+     （摘掉某条件能找回几条）才有算对的可能。 */
+  const colf={};for(const k in COLF)if(COLF[k]&&COLF[k].length)colf[k]=COLF[k].slice();
   return {kw:kwTerms,
           sb:g("sb"),sc:g("sc"),ow:g("ow"),cat:g("cat"),ty:g("ty"),ct:g("ct"),
           pf:rg("pf"),gf:rg("gf"),cf:rg("cf"),bw:g("bw"),chx:g("chx"),
-          on:g("on"),offv:g(dimIdOf("offv")),chg:g("chg"),sta:STA,dimOff:dm};
+          on:g("on"),offv:g(dimIdOf("offv")),chg:g("chg"),sta:STA,dimOff:dm,colf:colf};
 }
 
 /* —— 板块 → 类型 → 细分：三级联动 + 档位条数 ——
@@ -1589,6 +1620,7 @@ function chipsHtml(){
   const kw=$("#kw").value.trim();
   if(kw)a.push(["kw","关键词「"+kw+"」"]);
   DIMS.forEach(k=>{if($("#"+k).value)a.push([k,(DIM_PRE[k]||"")+optText(k)])});
+  cfActive().forEach(k=>a.push(["col:"+k,cfChipLab(k)]));
   if(!a.length)return '<span class="mut">无筛选</span>';
   return '<span class="fchips">'+a.map(p=>
     '<button type="button" class="fchip" data-d="'+esc(p[0])+'" title="点掉这一个条件">'
@@ -1596,6 +1628,151 @@ function chipsHtml(){
 }
 /* 纯文本版条件说明（condText）已删除：它曾与 chipsHtml 各维护一份口径且
    无人调用 —— 死代码留着的下场就是改一处忘一处。 */
+
+/* —— 列筛选（Excel 式多选，2026-10-06）——
+   列头 ▽ 漏斗点开「取值清单 + 勾选」面板：清单 = 当前网在该列的去重取值
+   （带条数），勾选即筛、即点即生效；「筛选：」区出可摘标签，空结果诊断可建议摘掉。
+   ★ 取值函数是**唯一权威**：面板清单与 match() 的判据读同一个 COLF_DEF.get，
+     两处口径不存在漂移的可能（与 FEE_TIERS「档位单一来源」同一哲学）。
+   ★ 宽带列筛的是**展示分档**不是字段原文：原文是权益长文本（去重几百个），
+     当筛选值没法用；分档与 bwCell 展示的 token 同源，且是 partition ——
+     mb 有值判 mb 档（ Mbps 数字），无 mb 而提速判「提速/组网」，
+     其余含宽带判「含宽带」，三者互斥；不含宽带 = （空白）。
+   ★ 归属（ow）只有移动带值：其余三网该列清单只有（空白）一项，筛了等于没筛，
+     面板自然可用，不需要保险丝（与 dimOff 保险丝不同：这里不存在「假 0 条」——
+     （空白）是真实取值，勾它出全部行是正确答案）。
+   ★ 会话级状态，不进 hash：多值参数会把分享链接撑爆，且主维度（下拉们）
+     已可分享；列筛定位是「当场切片」工具，切网即清（值域随网变，留着必错）。
+   ★ 面板条数 = facet 口径：「把这一格的勾选换成 X 会有几条」—— 打开面板
+     那一刻摘掉**本列**勾选、其余条件照常去数；本列勾选变化不重算清单
+     （syncDims 同一取舍：组内不设限换一遍扫描的性能）。
+   ★ ap（目标客户）基数高（移动 879 / 联通 1088 去重）：清单带搜索框，
+     超 400 项只渲染前 400 条 + 提示输入关键词缩小；勾选状态始终全量保存。 */
+const COLF_DEF={
+  ty:{lab:"细分",get:d=>d.ty||""},
+  ow:{lab:"归属",get:d=>d.ow||""},
+  bw:{lab:"宽带",get:d=>{
+    if(!bwInfo(d))return"";
+    const mb=bwMbps(d);
+    return mb?mb+"M":(bwSpeed(d)?"提速/组网":"含宽带");}},
+  ap:{lab:"目标客户",get:d=>d.ap||""}
+};
+const COLF_MAX=400;              // 清单 DOM 渲染上限（搜索可缩小）
+let COLF={};                     // 列 key → 已勾选值数组；无键 = 该列不筛
+function cfActive(){return Object.keys(COLF).filter(k=>COLF[k]&&COLF[k].length)}
+/* 供面板 / 探针共用的设值入口：vals 空数组或 null = 该列不筛 */
+function cfSet(k,vals){
+  if(vals&&vals.length)COLF[k]=vals.slice();else delete COLF[k];
+  syncCfx();
+}
+function cfClear(){COLF={};syncCfx()}
+/* 列头漏斗点亮态：每次 apply 都重刷 —— 深链恢复、切网清空、标签摘除
+   都改 COLF 而不经过面板，靠 apply 收口才不会「灯亮着条件却不在」。 */
+function syncCfx(){
+  document.querySelectorAll(".cfx").forEach(b=>{
+    const k=b.dataset.cf,n=(COLF[k]||[]).length;
+    b.classList.toggle("on",n>0);
+    b.title=COLF_DEF[k].lab+"列筛选"+(n?"（已勾 "+n+" 项）":"：勾选要保留的取值（Excel 式多选）");
+  });
+}
+/* facet 计数：摘掉本列勾选、其余条件照常。condOf() 的快照里 colf 是
+   全量勾选，这里换成本列以外的 —— match() 只认快照里的 colf，全局 COLF 不参与。 */
+function cfValues(k){
+  const c=condOf(),others={};
+  for(const x in COLF)if(x!==k&&COLF[x]&&COLF[x].length)others[x]=COLF[x];
+  c.colf=others;
+  const mp={},get=COLF_DEF[k].get;
+  rowsOf(NET).forEach(d=>{if(match(d,c)){const v=get(d);mp[v]=(mp[v]||0)+1}});
+  return mp;
+}
+/* —— 单例面板 —— 首次点击时建，常驻 body（不进 thead：滚动容器会裁剪，见 CSS 注） */
+let _cfKey=null,_cfItems=[],_cfMp=null;
+function buildCfPop(){
+  const pop=document.createElement("div");pop.id="cfpop";
+  pop.innerHTML='<div class="cfph"><input type="text" placeholder="搜索取值…"></div>'
+    +'<div class="cfa"><button type="button" data-a="all" title="清掉本列全部勾选 = 该列不筛">全选（不筛）</button>'
+    +'<button type="button" data-a="invert" title="勾选状态取反">反选</button>'
+    +'<span class="cfn"></span></div><div class="cfl"></div>';
+  document.body.appendChild(pop);
+  pop.querySelector("input").oninput=()=>cfRenderList();
+  pop.querySelector('[data-a="all"]').onclick=()=>{cfSet(_cfKey,null);apply();cfRenderList()};
+  pop.querySelector('[data-a="invert"]').onclick=()=>{
+    const sel=new Set(COLF[_cfKey]||[]);
+    cfSet(_cfKey,_cfItems.filter(v=>!sel.has(v)));
+    apply();cfRenderList();
+  };
+  /* 面板内的点击不许冒泡到 document（外面点的关闭逻辑），否则点一下清单就没了 */
+  pop.addEventListener("click",e=>e.stopPropagation());
+  document.addEventListener("click",e=>{
+    if(!pop.classList.contains("open"))return;
+    if(pop.contains(e.target))return;
+    const b=e.target.closest?e.target.closest(".cfx"):null;
+    if(b)return;                       // 漏斗自己关自己（cfOpen 里有 toggle），不在这里抢
+    cfClose();
+  });
+  document.addEventListener("scroll",()=>cfClose(),true);   // 捕获段：表内滚动也算
+  window.addEventListener("resize",cfClose);
+  document.addEventListener("keydown",e=>{
+    if(e.key==="Escape"&&pop.classList.contains("open")){e.stopPropagation();cfClose()}
+  });
+  return pop;
+}
+function cfRenderList(){
+  const pop=$("#cfpop");if(!_cfKey||!pop)return;
+  const q=pop.querySelector("input").value.trim().toLowerCase();
+  const sel=new Set(COLF[_cfKey]||[]);
+  const hit=_cfItems.filter(v=>!q||(v===""?"（空白）":v).toLowerCase().indexOf(q)>=0);
+  const show=hit.slice(0,COLF_MAX);
+  pop.querySelector(".cfl").innerHTML=
+    show.map(v=>{
+      const lb=v===""?"（空白）":v;
+      return '<label class="cfi"><input type="checkbox"'
+        +(sel.has(v)?" checked":"")+' data-v="'+esc(v)+'">'
+        +'<span class="cft" title="'+esc(lb)+'">'+esc(lb)+'</span>'
+        +'<span class="cfn">'+_cfMp[v]+'</span></label>';
+    }).join("")
+    +(hit.length>COLF_MAX?'<div class="cfmore">共 '+hit.length+" 项，只列前 "+COLF_MAX
+      +" 项 —— 输入关键词缩小范围（勾选状态不受影响）</div>":"")
+    +(hit.length?"":'<div class="cfmore">无匹配取值</div>');
+  pop.querySelector(".cfa .cfn").textContent="已勾 "+sel.size+" / "+_cfItems.length+" 项";
+  pop.querySelectorAll(".cfl input").forEach(cb=>{
+    cb.onchange=()=>{
+      const s=new Set(COLF[_cfKey]||[]);
+      if(cb.checked)s.add(cb.dataset.v);else s.delete(cb.dataset.v);
+      cfSet(_cfKey,[...s]);apply();
+      /* 刻意不重渲染清单：facet 口径下本列的勾选不影响本列条数，
+         重渲染反而把用户滚动到的位置抖没了。徽标与计数由 syncCfx/上面那行覆盖。 */
+    };
+  });
+}
+function cfOpen(k,btn){
+  const pop=$("#cfpop")||buildCfPop();
+  if(_cfKey===k&&pop.classList.contains("open")){cfClose();return}   // 再点同一漏斗 = 收起
+  _cfKey=k;
+  _cfMp=cfValues(k);
+  /* 排序：条数降序，（空白）沉底，同条数按取值字典序 —— 确定性，两次打开同一份 */
+  _cfItems=Object.keys(_cfMp).sort((a,b)=>{
+    if((a==="")!==(b===""))return a===""?1:-1;
+    return _cfMp[b]-_cfMp[a]||(a<b?-1:1);
+  });
+  pop.querySelector("input").value="";
+  pop.querySelector("input").placeholder=COLF_DEF[k].lab+"：搜索取值…";
+  cfRenderList();
+  pop.classList.add("open");
+  /* 先 open 再量尺寸；视口右/下溢出往回收 */
+  const r=btn.getBoundingClientRect();
+  let x=r.left,y=r.bottom+4;
+  x=Math.max(8,Math.min(x,window.innerWidth-pop.offsetWidth-8));
+  if(y+pop.offsetHeight>window.innerHeight-8)y=Math.max(8,r.top-pop.offsetHeight-4);
+  pop.style.left=x+"px";pop.style.top=y+"px";
+}
+function cfClose(){const p=$("#cfpop");if(p)p.classList.remove("open");_cfKey=null}
+/* 列筛 chip 文案：首个值 + 「等 N 项」；（空白）值要有名有姓 */
+function cfChipLab(k){
+  const v=COLF[k]||[];
+  const first=v[0]===""?"（空白）":v[0];
+  return COLF_DEF[k].lab+"："+first+(v.length>1?" 等 "+v.length+" 项":"");
+}
 
 function onCell(d){
   const dt=toDate(d.o);
@@ -1974,11 +2151,14 @@ function activeConds(){
   if(kw)a.push({k:"kw",lab:"关键词「"+kw+"」"});
   if(STA!=="")a.push({k:"st",lab:"状态："+(STA==="1"?"已下架":"在售")});
   DIMS.forEach(k=>{if($("#"+k).value)a.push({k:k,lab:(DIM_PRE[k]||"")+optText(k)})});
+  /* 列筛选也进「摘条件」候选：摘掉后是 cfClear 单列，不是控件清值 */
+  cfActive().forEach(k=>a.push({k:"col:"+k,lab:cfChipLab(k)}));
   return a;
 }
 function removeCond(k){
   if(k==="kw"){$("#kw").value="";apply();return}
   if(k==="st"){STA="";syncTabs();apply();return}
+  if(k.indexOf("col:")===0){delete COLF[k.slice(4)];syncCfx();apply();return}
   const el=$("#"+k);if(el)el.value="";
   if(k==="cat")syncDims();          // 摘掉大类 ⇒ 细分置灰复原（同标签 × 那条路）
   apply();
@@ -1989,6 +2169,12 @@ function diagEmpty(){
     const one=Object.assign({},base);
     if(c.k==="kw")one.kw=[];
     else if(c.k==="st")one.sta="";
+    else if(c.k.indexOf("col:")===0){
+      /* 列筛选的反事实：摘掉的是快照 colf 里那一键，不是某个控件 ——
+         键名带 "col:" 前缀，绝不能落进下面的 DIM_KEY 查表（会查空造出假键） */
+      const o2={};for(const x in base.colf)if(x!==c.k.slice(4))o2[x]=base.colf[x];
+      one.colf=o2;
+    }
     else{
       /* 维度 id → 条件键查 DIM_KEY（唯一映射表）：区间型（月费/流量/通话）
          复位成 null（= 不筛），其余复位空串。 */
@@ -2182,6 +2368,11 @@ function match(d,c){
     /* 渠道：上游原文已由构建脚本归一到三档（+其他）写在 d.chx 上，这里直接比对。
        按原文 ch 筛没有意义 —— 光移动一家就有 8 种写法表达同一件事。 */
     if(chx&&d.chx!==chx)return false;
+    /* 列筛选（Excel 式多选）：每列的取值函数与面板清单同源（COLF_DEF），
+       这里只认 condOf 快照里的 colf，全局 COLF 不参与 —— 反事实诊断的前提。 */
+    for(const cfk in c.colf){
+      if(c.colf[cfk].indexOf(COLF_DEF[cfk].get(d))<0)return false;
+    }
     if(on){
       const dt=toDate(d.o);
       if(on==="none"){if(dt)return false}
@@ -2208,8 +2399,7 @@ function match(d,c){
       const lf=left(dt);
       if(Math.abs(lf)>+off)return false;
     }
-    if(bw==="line"&&!bwInfo(d))return false;
-    /* 反向档：只想要纯流量 / 纯语音套餐的人此前没有任何入口 ——
+    if(bw==="line"&&!bwInfo(d))return false;    /* 反向档：只想要纯流量 / 纯语音套餐的人此前没有任何入口 ——
        「不限宽带」是「不管」，不是「不含」。与 line 恰好互补且无缝（bwInfo 是
        单一判据，一条资费要么有线路要么没有，不存在第三态）。 */
     if(bw==="noline"&&bwInfo(d))return false;
@@ -2257,6 +2447,8 @@ function apply(){
   /* 快捷 chip 高亮跟维度值对齐：深链 / 标签 × / 切网清空都改值而不经过 chips 点击，
      每轮 apply 都重推一次选中态，chip 就永远不会「亮着、条件却不在」。 */
   syncChips();
+  /* 列头漏斗的点亮态同 chip 一样收口在这里：任何路径改了 COLF，apply 一律重刷 */
+  syncCfx();
   /* 折叠开关上的徽标：生效条件数（含关键词与状态页签） */
   updateFbadge();
   /* 警告条在这里统一求值（而不是挂在 renderNet() 上）：renderNet 只在「换了网」
@@ -2447,6 +2639,7 @@ function switchNet(c){
   if(c!==NET){
     NET=c;
     $("#kw").value="";clearDims();
+    cfClear();                     // 列筛的取值域随网变（细分名/客户文案每网不同），换网必须清
     clearChips();
   }
   /* 点当前网也照常走一遍刷新（但**不清筛选**，所以是幂等的）：
@@ -2808,6 +3001,7 @@ function renderEmptyState(){
 function clearChips(){document.querySelectorAll("#chips button").forEach(b=>b.classList.remove("on"))}
 function resetAll(){
   $("#kw").value="";clearDims();syncDims();
+  cfClear();                       // 列筛选也是「全部条件」之一（面板若开着，syncCfx 会熄灯）
   sortK="on";sortD=-1;$("#sort").value=sortK;
   /* 「重置」是**全部**条件回默认：状态页签与「只看收藏」也是条件 ——
      只清下拉会留下「点了重置、结果还是少一截」的迷惑；空结果页那个
@@ -3362,6 +3556,7 @@ $("#stat").addEventListener("click",e=>{
   const k=b.dataset.d;
   if(k==="kw"){$("#kw").value=""}
   else if(k==="st"){STA="";syncTabs()}
+  else if(k.indexOf("col:")===0){delete COLF[k.slice(4)];syncCfx()}
   else{
     const el=$("#"+k);if(el)el.value="";
     if(k==="cat")syncDims();     // 大类被摘掉 ⇒ 细分的置灰要复原
@@ -3460,6 +3655,15 @@ document.querySelectorAll("th[data-k]").forEach(th=>{
     if(sortK===k)sortD=-sortD;
     else{sortK=k;sortD=F[k].def}
     $("#sort").value=sortK;clearChips();apply();
+  };
+});
+
+/* 列筛选漏斗：click 必须 stopPropagation —— 漏斗长在 th 里，冒泡会连带触发
+   排序（ty/bw 列的 th 正好有 data-k），点一下筛选却把排序也改了是惊吓行为 */
+document.querySelectorAll(".cfx").forEach(b=>{
+  b.onclick=e=>{
+    e.preventDefault();e.stopPropagation();
+    cfOpen(b.dataset.cf,b);
   };
 });
 
