@@ -133,18 +133,28 @@ body{min-height:100vh;background:var(--bg1);color:var(--tx);
   text-overflow:ellipsis;max-width:50vw}
 #sub{font-size:11px;color:var(--tx3);margin-top:1px;white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis;max-width:54vw}
-/* 四网分段控件：居中，选中项为品牌渐变胶囊 */
+/* 四网分段控件：居中。2026-10-06 重设计 —— 每网一颗品牌色渐变小方点做身份锚点，
+   选中项整颗按钮染成**该网自己的**品牌渐变（此前四家共用一个 accent 蓝，
+   切到联通/电信/广电时选中态与品牌对不上号）；计数做成小胶囊沉右侧。
+   色值只写在 NET_BRAND（renderNav 内联 --b1/--b2），CSS 只认变量。 */
 .netnav{flex:1 1 auto;display:flex;justify-content:center;min-width:0}
-.netnav-in{display:flex;gap:3px;padding:3.5px;border-radius:13px;
+.netnav-in{display:flex;gap:3px;padding:4px;border-radius:14px;
   background:var(--glass2);border:1px solid var(--bd2);max-width:100%;overflow-x:auto;scrollbar-width:none}
 .netnav-in::-webkit-scrollbar{display:none}
-.netbtn{display:inline-flex;align-items:center;gap:6px;padding:6.5px 13px;border:0;border-radius:10px;
+.netbtn{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border:0;border-radius:11px;
   background:transparent;cursor:pointer;font-size:13px;color:var(--tx2);
   font-family:inherit;transition:.16s;white-space:nowrap}
-.netbtn:hover{color:var(--ac);background:var(--hover)}
-.netbtn.on{background:linear-gradient(135deg,var(--op1),var(--op2));color:#fff;font-weight:650;
-  box-shadow:0 4px 12px rgba(0,0,0,.18)}
-.netbtn .nc{font-size:10.5px;opacity:.85;font-variant-numeric:tabular-nums}
+.netbtn:hover{color:var(--tx);background:var(--hover)}
+.netbtn .ndot{width:9px;height:9px;border-radius:3px;flex:none;
+  background:linear-gradient(135deg,var(--b1),var(--b2));
+  box-shadow:0 1px 3px color-mix(in srgb,var(--b1) 45%,transparent)}
+.netbtn.on{background:linear-gradient(135deg,var(--b1),var(--b2));color:#fff;font-weight:650;
+  box-shadow:0 4px 14px color-mix(in srgb,var(--b1) 38%,transparent)}
+.netbtn.on:hover{color:#fff}
+.netbtn .nc{font-size:10.5px;color:var(--tx3);font-variant-numeric:tabular-nums;
+  padding:1px 7px;border-radius:999px;background:var(--card);border:1px solid var(--bd2)}
+.netbtn:hover .nc{color:var(--tx2)}
+.netbtn.on .nc{color:#fff;background:rgba(255,255,255,.20);border-color:transparent;opacity:.95}
 .netbtn .nb{font-size:10px;padding:1px 7px;border-radius:999px;background:var(--warnbg);color:var(--warn);font-weight:600}
 .netbtn.on .nb{background:rgba(255,255,255,.22);color:#fff}
 /* 右侧：更新指示 + 三组计数 + 主题切换 */
@@ -161,6 +171,11 @@ body{min-height:100vh;background:var(--bg1);color:var(--tx);
 #themeBtn .ic{width:17px;height:17px;display:none}
 [data-theme="light"] #themeBtn .ic-moon{display:block}
 [data-theme="dark"] #themeBtn .ic-sun{display:block}
+/* 隐秘小入口（自用）：主题按钮右侧一颗 6px 圆点，颜色贴着背景走，
+   不看说明根本发现不了；悬停/聚焦时才微微显形。链到 docs/sh.html（上海电信小页）。 */
+#shdoor{width:6px;height:6px;border-radius:50%;background:var(--bd2);opacity:.5;flex:none;
+  transition:.2s}
+#shdoor:hover,#shdoor:focus{opacity:1;background:var(--ac);box-shadow:0 0 0 4px color-mix(in srgb,var(--ac) 22%,transparent)}
 .noticebar{display:flex;flex-direction:column;gap:6px;align-items:flex-start;padding:0 14px 10px}
 .notice{padding:7px 12px;border-radius:10px;background:var(--ac2);color:var(--ac);
   font-size:12.5px;font-weight:500;display:inline-block}
@@ -635,6 +650,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
         <svg class="ic ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
         <svg class="ic ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></svg>
       </button>
+      <a id="shdoor" href="sh.html" aria-label="S" tabindex="-1"></a>
     </div>
   </div>
   <div class="noticebar">
@@ -842,16 +858,16 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 <div class="tblwrap">
 <table>
 <thead><tr>
-  <th data-k="fee">月费<span class="ar"></span></th>
-  <th data-k="gb">流量<span class="ar"></span></th>
-  <th data-k="call">通话<span class="ar"></span></th>
-  <th data-k="name">名称<span class="ar"></span></th>
+  <th data-k="fee">月费<span class="ar"></span><button type="button" class="cfx" data-cf="fee" title="列筛选：勾选要保留的取值">▽</button></th>
+  <th data-k="gb">流量<span class="ar"></span><button type="button" class="cfx" data-cf="gb" title="列筛选：勾选要保留的取值">▽</button></th>
+  <th data-k="call">通话<span class="ar"></span><button type="button" class="cfx" data-cf="call" title="列筛选：勾选要保留的取值">▽</button></th>
+  <th data-k="name">名称<span class="ar"></span><button type="button" class="cfx" data-cf="name" title="列筛选：勾选要保留的取值（名称取值多，面板里可搜）">▽</button></th>
   <th data-k="ty" title="资费大类；点列头排序，官方原始分类见展开详情">类型<span class="ar"></span><button type="button" class="cfx" data-cf="ty" title="列筛选：勾选要保留的取值">▽</button></th>
   <th title="归属：个人资费 / 政企资费（官方标注；仅移动提供）">归属<button type="button" class="cfx" data-cf="ow" title="列筛选：勾选要保留的取值">▽</button></th>
   <th data-k="bw">宽带<span class="ar"></span><button type="button" class="cfx" data-cf="bw" title="列筛选：勾选要保留的取值">▽</button></th>
   <th>目标客户<button type="button" class="cfx" data-cf="ap" title="列筛选：勾选要保留的取值">▽</button></th>
-  <th data-k="on">上架<span class="ar"></span></th>
-  <th data-k="off">下线<span class="ar"></span></th>
+  <th data-k="on">上架<span class="ar"></span><button type="button" class="cfx" data-cf="on" title="列筛选：按上架状态分档（待上架 / 今天 / 30 天内 / 30 天前）">▽</button></th>
+  <th data-k="off">下线<span class="ar"></span><button type="button" class="cfx" data-cf="off" title="列筛选：按下线状态分档（已过期 / 60 天内到期 / 60 天以上 / 长期）">▽</button></th>
 </tr></thead>
 <tbody id="tb"></tbody>
 </table>
@@ -1655,7 +1671,33 @@ const COLF_DEF={
     if(!bwInfo(d))return"";
     const mb=bwMbps(d);
     return mb?mb+"M":(bwSpeed(d)?"提速/组网":"含宽带");}},
-  ap:{lab:"目标客户",get:d=>d.ap||""}
+  ap:{lab:"目标客户",get:d=>d.ap||""},
+  /* 2026-10-06 晚：全列补齐（用户要求「这一行都加上筛选」）。
+     月费/流量/通话按**展示口径**取值（「29 元」「30GB」与单元格所见一致，
+     面板清单即所见即所筛）；（空白）= 该行此字段为空 / 无 —— 与（空白）徽标同义。 */
+  fee:{lab:"月费",get:d=>(d.f!==""&&d.f!=null)?d.f+" 元":""},
+  gb:{lab:"流量",get:d=>(d.g!=null&&d.g!==0)?fmtGb(d.g):""},
+  call:{lab:"通话",get:d=>(d.c&&d.c!=="0")?d.c+" 分钟":""},
+  name:{lab:"名称",get:d=>rowName(d)},
+  /* 上架/下线筛**状态分档**不筛日期原文（同宽带列「展示分档」哲学）：
+     几百个日期去重当筛选值没法用；分档与 onCell/offCell 渲染的徽标同源同口径。
+     缺基准日（BASE_OK=false）时退回日期原文 —— 宁可清单变长也不给假档位。 */
+  on:{lab:"上架",get:d=>{
+    const dt=toDate(d.o);
+    if(dt==null)return"";
+    if(!BASE_OK)return fmtD(d.o);
+    const ag=ago(dt);
+    if(ag<0)return"待上架";
+    if(ag===0)return"今天上架";
+    return ag<=30?"30 天内":"30 天前";}},
+  off:{lab:"下线",get:d=>{
+    const dt=toDate(d.e);
+    if(dt==null)return"";
+    if(!BASE_OK)return fmtD(d.e);
+    const lf=left(dt);
+    if(lf>FAR)return"长期";
+    if(lf<0)return"已过期";
+    return lf<=60?"60 天内到期":"60 天以上";}}
 };
 const COLF_MAX=400;              // 清单 DOM 渲染上限（搜索可缩小）
 let COLF={};                     // 列 key → 已勾选值数组；无键 = 该列不筛
@@ -2613,16 +2655,27 @@ function readHash(){
 }
 
 /* —— 网别导航 —— */
+/* 每网品牌渐变（--b1 高光 → --b2 主色）：取各运营商官方主色，
+   高光端略提亮让渐变可感知；不在表内（将来新增的网）→ 中性灰兜底。 */
+const NET_BRAND={
+  move   :["#00A0E9","#0069B7"],   // 中国移动 蓝（官标 #0086d0）
+  unicom :["#FF4D3A","#D4000F"],   // 中国联通 红（中国结红，往橙提一档与广电区分）
+  telecom:["#2F8AF5","#0A4FB0"],   // 中国电信 蓝（官标 #04489e）
+  cbn    :["#D6001C","#7A0012"]    // 中国广电 深红
+};
 function renderNav(){
   const nav=$("#netnav");
   nav.innerHTML='<div class="netnav-in"></div>';
   const inn=nav.firstChild;
   NET_LS.forEach(c=>{
-    const n=NETS[c]||{},has=online(c);
+    const n=NETS[c]||{},has=online(c),br=NET_BRAND[c]||["#8a97a8","#5b6a7d"];
     const b=document.createElement("button");
     b.type="button";
     b.className="netbtn"+(c===NET?" on":"");
-    b.innerHTML="<span>"+esc(n.nm||c)+"</span>"
+    b.style.setProperty("--b1",br[0]);
+    b.style.setProperty("--b2",br[1]);
+    b.innerHTML='<span class="ndot" aria-hidden="true"></span>'
+      +"<span>"+esc(n.nm||c)+"</span>"
       +(has?'<span class="nc">'+rowsOf(c).length+" 条</span>"
            :'<span class="nb">尚未接入</span>');
     b.onclick=()=>switchNet(c);

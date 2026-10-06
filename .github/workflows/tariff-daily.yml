@@ -230,8 +230,16 @@ jobs:
             /tmp/ct_shot.png
             /tmp/ct-chrome.log
             cloud/tariff/.ct_raw.json
+            cloud/tariff/.shct_raw.json
           if-no-files-found: ignore
           retention-days: 14
+
+      - name: 构建上海电信小页（自用隐秘源，失败不阻断）
+        run: |
+          # docs/sh.html 跟着 Pages 整目录一起上线；入口是主页顶栏那颗 6px 圆点。
+          # raw 缺席时自动退 snapshots/shct_latest.json（上一次成功采集的存档）。
+          python cloud/tariff/build_sh.py \
+            || echo "::warning title=上海小页构建失败::docs/sh.html 未更新（自用源，不影响主链路）"
 
       - name: 抓取 + 对比 + 生成并归档页面
         run: |

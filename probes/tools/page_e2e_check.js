@@ -312,6 +312,37 @@
       }
     } catch (e) { o.colfErr = String(e && e.message || e); }
 
+    /* ══ 列筛选·全列覆盖（2026-10-06 晚）══
+       ① DOM：表头 10 列每列都必须有漏斗按钮（「这一行都加上筛选」的硬断言）；
+       ② 功能：月费列按展示口径（「29 元」）取值 —— 挑条数最多的费用值，
+          cfSet 后条数必须恰好等于该值行数，清空复原。 */
+    o.colfAllProbe = null;
+    try {
+      if (typeof cfSet === "function") {
+        var ths = document.querySelectorAll("thead th");
+        var thNo = 0;
+        [].forEach.call(ths, function (th) { if (!th.querySelector(".cfx")) thNo++; });
+        var feeCnt = {};
+        rowsOf(NET).forEach(function (d) {
+          var v = (d.f !== "" && d.f != null) ? d.f + " 元" : "";
+          feeCnt[v] = (feeCnt[v] || 0) + 1;
+        });
+        var fk = Object.keys(feeCnt).filter(function (v) { return v; })
+          .sort(function (a, b) { return feeCnt[b] - feeCnt[a]; })[0];
+        var feeBase = view.length, feeGot = -1, feeWant = -1;
+        if (fk) {
+          cfSet("fee", [fk]); apply();
+          feeGot = view.length;
+          feeWant = wantBy(function (d) {
+            return (d.f !== "" && d.f != null ? d.f + " 元" : "") === fk;
+          });
+          cfSet("fee", null); apply();
+        }
+        o.colfAllProbe = { thMissing: thNo, feePick: fk,
+                           want: feeWant, got: feeGot, restored: view.length === feeBase };
+      }
+    } catch (e) { o.colfAllErr = String(e && e.message || e); }
+
     /* ══ 可点掉的筛选标签 ══
        不能只验「渲染出来了」—— 真正的功能是**点 × 能摘掉那一个条件**，
        所以点完之后必须看到结果变大、且标签数减一。 */
@@ -444,6 +475,17 @@
       }
       if (!fp.chip) { bad.push("列筛激活后没有渲染出可摘标签"); }
       if (!fp.restored) { bad.push("列筛清空后条数没复原"); }
+    }
+
+    // 列筛选·全列覆盖（10 列漏斗 + 月费列功能）
+    if (o.colfAllErr) { bad.push("全列筛选操作异常: " + o.colfAllErr); }
+    else if (o.colfAllProbe) {
+      var fa = o.colfAllProbe;
+      if (fa.thMissing > 0) { bad.push("表头有 " + fa.thMissing + " 列缺筛选漏斗"); }
+      if (fa.feePick && fa.got !== fa.want) {
+        bad.push("列筛「月费=" + fa.feePick + "」条数不符：页面 " + fa.got + " ≠ 数据 " + fa.want);
+      }
+      if (!fa.restored) { bad.push("月费列筛清空后条数没复原"); }
     }
 
     // 可点掉的筛选标签

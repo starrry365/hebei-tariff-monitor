@@ -54,3 +54,10 @@ cloud/tariff/docs/*.new
 chrome-prof/
 # 本地 CDP Chrome 的临时 profile（cdp_launch.py 用；几十 MB，绝不入库）
 probes/tools/cdp_prof/
+# 本地兜底快照（raw 缺失时 build_sh.py 的回退数据，不入库）
+cloud/tariff/snapshots/shct_latest.json
+# ── 上海电信隐秘小源（自用，2026-10-06）───────────────────────
+# 原始采集产物（harvest_sh.js 产出，shct_monitor.fetch_all 的输入）
+cloud/tariff/.shct_raw.json
+# 小页是 CI/本机现场生成的（不上传 git），gzip 归档走 page/sh.html.gz 入库
+cloud/tariff/docs/sh.html

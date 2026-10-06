@@ -130,8 +130,12 @@ def _fee(v, unit):
     return str(int(f)) if f == int(f) else ("%.2f" % f).rstrip("0").rstrip(".")
 
 
-def _normalize(e, lable1_name, lable1_id):
-    """zoneTitleList 条目 → 移动那套 entry 字段名（rows_of 的消费契约）。"""
+def _normalize(e, lable1_name, lable1_id, prov_name=PROV_NAME):
+    """zoneTitleList 条目 → 移动那套 entry 字段名（rows_of 的消费契约）。
+
+    ★ prov_name 可参数化（2026-10-06）：同一 tariffSection.do 接口全国通用，
+      上海（600102）的适配器 shct_monitor 直接 import 本函数复用归一逻辑，
+      只有「适用人群兜底文案」的省份前缀不同。默认值=河北，本网调用零变化。"""
     fees = _fee(e.get("fees"), e.get("feesUnit"))
     data, du = _gb(e.get("data"), e.get("dataUnit"))
     x = str(e.get("otherContent") or "").strip()
@@ -151,7 +155,7 @@ def _normalize(e, lable1_name, lable1_id):
         "dataUnit": du,
         "call": str(e.get("call") or "0").strip() or "0",
         "applicablePeople": str(e.get("applicablePeople") or "").strip()
-                            or (PROV_NAME + "电信用户"),
+                            or (prov_name + "电信用户"),
         "channel": str(e.get("channel") or "").strip(),
         "onlineDay": _day(e.get("onlineDay")),
         # 🔴 键名是 offineDay（没有 f）—— rows_of 用的就是这拼写，改了就断

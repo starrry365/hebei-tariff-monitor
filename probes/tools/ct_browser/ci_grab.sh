@@ -174,4 +174,35 @@ if jtot < 400:
 PY
 
 echo "[ct-grab] 完成，产物 $OUT"
+
+# ── 6) 上海电信顺手同会话采集（provCode=600102，2026-10-06）──────────
+#    挑战已过、会话已热，换个省码再采一轮的边际成本≈0；失败只发 warning，
+#    绝不连累河北产物（上海是自用隐秘源，build_sh.py 会退快照）。
+OUT_SH="${2:-$ROOT/cloud/tariff/.shct_raw.json}"
+info "采集上海（同一会话，provCode=600102）"
+if python "$STEP" eval "$HERE/harvest_sh.js" "$OUT_SH"; then
+  python - "$OUT_SH" <<'PY'
+import json, sys
+p = sys.argv[1]
+try:
+    d = json.load(open(p, encoding="utf-8"))
+except Exception as e:
+    print("::warning title=上海采集产物不可解析::%s: %s" % (type(e).__name__, e)); raise SystemExit(0)
+if "raw" in d and len(d) == 1:
+    print("::warning title=上海采集返回未解析字符串::前 300 字：%s" % d["raw"][:300]); raise SystemExit(0)
+tot = 0
+for k, v in (d.get("sections") or {}).items():
+    n = len(v.get("zoneTitleList") or [])
+    tot += n
+    c = v.get("count")
+    if c is not None and int(c) != n:
+        print("::warning title=上海采集被截断::分类「%s」count=%s 但只收到 %s 条" % (k, c, n))
+print("[ct-grab] 上海 provCode=%s codes=%s 合计 %d 条" % (d.get("provCode"), d.get("codes"), tot))
+if tot < 400:
+    print("::warning title=上海采集条数异常::只拿到 %d 条（2026-10-06 基准 508）" % tot)
+PY
+else
+  warn "上海采集 JS 执行失败（不影响河北产物）"
+fi
+
 exit 0
