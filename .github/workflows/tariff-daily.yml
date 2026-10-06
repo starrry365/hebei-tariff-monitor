@@ -749,6 +749,12 @@ jobs:
   #    拆出去后主 job 提速一半以上。
   post-checks:
     needs: tariff
+    # 🔴 必须显式 always()（与 tariff job 同一坑，2026-10-06 深挖实锤）：
+    #    dispatch 触发时 gate 被 skip，GitHub 对 needs 链的判定会怪异地把
+    #    「无 if 的下游」连带 skip（run #55/#57/#58 三连：tariff success
+    #    但 post-checks/deploy skipped）⇒ 部署静默不发生，线上停在旧版。
+    #    schedule 班车 gate 真跑所以从来没暴露。写法：tariff 真成功就跑。
+    if: always() && needs.tariff.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -855,6 +861,9 @@ jobs:
   # 也让「抓取失败」和「部署失败」在 Actions 页面上一眼可分。
   deploy:
     needs: tariff
+    # 🔴 与 post-checks 同一坑（见其注释）：dispatch 下必须显式条件，
+    #    否则 gate skip ⇒ 部署静默跳过 ⇒ 线上停在旧版（run #55-#58 实锤）。
+    if: always() && needs.tariff.result == 'success'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
