@@ -469,11 +469,58 @@ def send_all(title, md, dedup=True):
 # ════════════════════════════════════════════════════════════════════════
 #  变更正文：把各网的核验结果拼成一条消息
 # ════════════════════════════════════════════════════════════════════════
+def _short_val(v, n=24):
+    """把字段值压成短串 —— 通知里放不下完整值，超长还会把整条消息撑爆。"""
+    t = str(v or "").strip().replace("\n", " ")
+    return t if len(t) <= n else t[:n] + "…"
+
+
+def batch_same_change(changed, field_cn=None, min_items=5, min_ratio=0.6,
+                      max_notes=3):
+    """「批量同改」提炼：同一字段、同一种改法（旧值→新值完全一致）改了一大批时，
+    把三位数的 modified 提炼成一句人话，不然用户分不清是真调价还是又出 bug。
+
+    参考同类项目的实测案例：广东 113 条「下线日期」统一顺延，通知只报
+    「修改 113」，用户看不出改了什么，还得挨个点开看。
+
+    🔴 判据（两条**同时**满足才提炼，缺一条都会误伤）：
+      · 绝对数：同 ``(字段, 旧值, 新值)`` 的条数 ≥ ``min_items``(5)
+        —— 基线 3 条动 2 条也是 100% 同改，但那是真变化，该逐条看；
+      · 占比：该字段**全部**变更里同改占比 ≥ ``min_ratio``(0.6)
+        —— 大网里同改 5 条、散改 60 条时，一句「5 条同改」只会误导。
+
+    只产句子、不动数据（与 noise_guard 同原则）。返回 ``[]`` 表示无批量同改。
+    ``changed``：``[(键, {字段: (旧值, 新值)})]``，即 ``diff_rows`` 的第三返回值。
+    """
+    if not changed:
+        return []
+    tri, fld_tot = {}, {}
+    for _k, dd in changed:
+        if not isinstance(dd, dict):
+            continue
+        for f, pair in dd.items():
+            if not (isinstance(pair, (list, tuple)) and len(pair) == 2):
+                continue
+            fld_tot[f] = fld_tot.get(f, 0) + 1
+            key = (f, str(pair[0] or ""), str(pair[1] or ""))
+            tri[key] = tri.get(key, 0) + 1
+    notes = []
+    for (f, old, new), cnt in sorted(tri.items(), key=lambda t: -t[1]):
+        if cnt >= min_items and fld_tot.get(f, 0) and cnt >= min_ratio * fld_tot[f]:
+            cn = (field_cn or {}).get(f, f)
+            notes.append(f"{cnt} 条均为『{cn}』{_short_val(old)} → {_short_val(new)}")
+            if len(notes) >= max_notes:
+                break
+    return notes
+
+
 def build_body(day, rounds, extra_notes=None, repo="", max_items=12):
     """拼推送正文。
 
     ``rounds``：``[{code, net, n, added, removed, changed, restored,
-                   fake_removed, relocated, note, samples}]``
+                   fake_removed, relocated, note, batches, samples}]``
+      ``batches``：``["113 条均为『下线日』A → B"]`` —— 批量同改提炼句
+      （``batch_same_change`` 产出；通知层只渲染不计算，全量明细不出采集层）。
       ``samples``：``[{"n":名称, "ty":分类, "k":"a"/"r"/"c"}]``
     ``note`` 非空表示这一网本轮**没有记变更**（``degraded`` / ``rebound`` / ``schema``），
     正文里必须显式写出来 —— 否则「本轮无变化」与「本轮数据异常已冻结」长得一模一样，
@@ -496,6 +543,10 @@ def build_body(day, rounds, extra_notes=None, repo="", max_items=12):
             if r.get(k):
                 bits.append(f"{cn} {r[k]}")
         L.append(f"- **{r['net']}** {r['n']} 条 · " + " · ".join(bits))
+        # 批量同改提炼句紧跟在本网汇总行下 —— 「下线 113」旁边就是
+        # 「113 条均为『下线日』A → B」，用户不用点开就知道是统一顺延
+        for b in (r.get("batches") or []):
+            L.append(f"  - ⚡ {b}")
     L.append("")
     if not (tot_a or tot_r or tot_c):
         L.append("本次巡检未记入任何变化。")
@@ -635,12 +686,27 @@ def _selftest():
     ck("字节截断·无乱码", "\ufffd" not in cut, True)
     ck("字节截断·短文本不动", _trunc_bytes("短", 3800), "短")
 
+    # ⑧ 批量同改提炼：绝对数 ≥5 **且** 同字段占比 ≥60%，两条同时成立才产句
+    F = {"offineDay": "下线日", "fees": "月费"}
+    batch = [(f"b{i}", {"offineDay": ("2026-09-30", "2026-12-31")}) for i in range(113)]
+    scatter = [(f"s{i}", {"fees": (str(i), str(i + 1))}) for i in range(40)]
+    notes = batch_same_change(batch + scatter, F)
+    ck("批量同改·命中", len(notes), 1)
+    ck("批量同改·内容", ("113 条均为『下线日』2026-09-30 → 2026-12-31" in notes[0]) if notes else False, True)
+    ck("批量同改·条数不足不提炼", batch_same_change(batch[:4], F), [])
+    ck("批量同改·占比不足不提炼",
+       batch_same_change(batch[:5] + [(f"o{i}", {"offineDay": (str(i), "x")}) for i in range(20)], F), [])
+    ck("批量同改·空输入", batch_same_change([], F), [])
+    body_b = build_body("2026-10-06", [R(added=0, removed=0, changed=113,
+                                        batches=["113 条均为『下线日』A → B"])])
+    ck("批量同改·渲染", "⚡ 113 条均为" in body_b, True)
+
     if fails:
         print("推送自测失败 %d 项：" % len(fails))
         for x in fails:
             print("  ✗", x)
         return 1
-    print("推送自测通过（零变化闸门 / 异常态必推 / 安静态 / 标题 / 转义 / 加签 / 字节截断）")
+    print("推送自测通过（零变化闸门 / 异常态必推 / 安静态 / 标题 / 转义 / 加签 / 字节截断 / 批量同改）")
     return 0
 
 

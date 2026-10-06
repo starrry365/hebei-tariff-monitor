@@ -97,6 +97,53 @@ REF = ("https://h.app.coc.10086.cn/cmcc-app/uni-pages/tariffZonePers.html"
 UA = ("Mozilla/5.0 (Linux; Android 16; 23113RKC6C Build/BP2A.250605.031.A3; wv) "
       "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/151.0.7922.199 "
       "Mobile Safari/537.36 leadeon/12.5.4/CMCCIT")
+
+# ── UA 指纹池（2026-10-06，参考同类项目实测）─────────────────────────────
+# 源站网关按「IP + UA 指纹」**隔离**限流配额：同一 UA 的总配额有限，耗尽后
+# **不报错而是返回确定性子集** —— 表现为整批假下架/假新增，正是假变化的上游
+# 源头（我们的 noise_guard 在下游拦它，这里从源头少触发）。
+# 对策：每个分类组合分配一个独立 UA = 独立配额池，互不挤占。
+# 构造方式：保持移动 App WebView 指纹自洽 —— ``leadeon/CMCCIT`` 后缀与
+# ``x-requested-with``（App 包名）头**都不动**，只轮换设备型号 / Android 版本 /
+# Chrome 版本。换成纯 Chrome UA 反而和 App 伪装头对不上，画蛇添足。
+# 分配是**确定性**的（按组合序号取模）：同一分类每轮都拿到同一个 UA，
+# 配额池身份稳定 —— 若换成随机轮换，同一分类每轮换 UA，配额池身份就散了。
+UA_POOL = (
+    UA,
+    "Mozilla/5.0 (Linux; Android 15; 24129PN5CC Build/AP4A.250105.002; wv) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/150.0.7050.72 "
+    "Mobile Safari/537.36 leadeon/12.5.4/CMCCIT",
+    "Mozilla/5.0 (Linux; Android 15; SM-S9310 Build/AP3A.240905.015; wv) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/149.0.7034.85 "
+    "Mobile Safari/537.36 leadeon/12.5.4/CMCCIT",
+    "Mozilla/5.0 (Linux; Android 14; SM-S9110 Build/UP1A.231005.007; wv) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/130.0.6723.86 "
+    "Mobile Safari/537.36 leadeon/12.5.4/CMCCIT",
+    "Mozilla/5.0 (Linux; Android 14; V2312A Build/UP1A.231005.007; wv) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/128.0.6613.127 "
+    "Mobile Safari/537.36 leadeon/12.5.4/CMCCIT",
+    "Mozilla/5.0 (Linux; Android 14; PGT-AN10 Build/UP1A.231005.007; wv) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/126.0.6478.122 "
+    "Mobile Safari/537.36 leadeon/12.5.4/CMCCIT",
+    "Mozilla/5.0 (Linux; Android 13; ELE-AL00 Build/HUAWEIELE-AL00; wv) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0.6099.43 "
+    "Mobile Safari/537.36 leadeon/12.5.4/CMCCIT",
+    "Mozilla/5.0 (Linux; Android 13; 2201123C Build/TKQ1.220829.002; wv) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/119.0.6045.66 "
+    "Mobile Safari/537.36 leadeon/12.5.4/CMCCIT",
+    "Mozilla/5.0 (Linux; Android 13; V2141A Build/RP1A.200720.012; wv) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/115.0.5790.136 "
+    "Mobile Safari/537.36 leadeon/12.5.4/CMCCIT",
+    "Mozilla/5.0 (Linux; Android 12; 21091116AC Build/SP1A.210812.016; wv) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/110.0.5481.153 "
+    "Mobile Safari/537.36 leadeon/12.5.4/CMCCIT",
+    "Mozilla/5.0 (Linux; Android 12; M2012K11AC Build/RKQ1.211001.001; wv) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/107.0.5304.141 "
+    "Mobile Safari/537.36 leadeon/12.5.4/CMCCIT",
+    "Mozilla/5.0 (Linux; Android 11; PDEM-AN00 Build/HUAWEIPDEM-AN00; wv) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/106.0.5249.126 "
+    "Mobile Safari/537.36 leadeon/12.5.4/CMCCIT",
+)
 PROV = "311"   # 河北
 ZFLX = {"1": "套餐", "2": "加装包", "3": "营销活动", "4": "港澳台/国际资费",
         "5": "标准资费", "6": "国际及港澳台标准资费", "7": "其他"}
@@ -735,8 +782,11 @@ def _unwrap_payload(j):
     return j
 
 
-def call(path, body, retry=2, cap=8.0):
+def call(path, body, retry=2, cap=8.0, ua=None):
     """调网关：POST 明文 JSON -> 若响应是 {"body": "<密文>"} 则本地解密 -> dict
+
+    ``ua``：本轮请求的 UA 覆写（UA 指纹池轮换用，见 ``UA_POOL``）；
+    ``None`` = 用模块级 ``HEADERS`` 的默认 UA（探针等既有调用方零改动）。
 
     🔴 失败契约：打不通时返回 ``{"_err": "<分类前缀>: 详情"}``，**绝不抛异常**
        —— 调用方（fetch_group / 各探针）靠 ``_err`` 区分「没问到」和「没数据」
@@ -756,8 +806,9 @@ def call(path, body, retry=2, cap=8.0):
     last = None
     for i in range(retry + 1):
         try:
+            headers = HEADERS if ua is None else {**HEADERS, "User-Agent": ua}
             req = urllib.request.Request(ROOT + path, data=data,
-                                         headers=HEADERS, method="POST")
+                                         headers=headers, method="POST")
             with _OPENER.open(req, timeout=25) as r:
                 # 读上限兜底：单页响应正常 < 几 MB，超过 64MB 必是异常（坏网关把
                 # 错误页/重定向流吐回来），别真往内存里塞（2026-10-02 审查项）。
@@ -801,7 +852,12 @@ def _declared(b):
         return None
 
 
-def fetch_group(c):
+def fetch_group(c, ua=None, ua_i=None):
+    """抓一个分类组合（含分页与系列对账）。
+
+    ``ua`` / ``ua_i``：UA 指纹池轮换（见 ``UA_POOL``）—— 每个组合固定拿一个
+    UA = 独立限流配额池；日志带上 ``ua#N`` 便于排查「哪一栏触发了限流子集」。
+    """
     a, t1, t2v = str(c.get("tariffAttr")), str(c.get("type1")), str(c.get("type2"))
     entries, beans_all, page, total, fails = [], [], 1, None, 0
     short, miss_eg = 0, []
@@ -814,7 +870,7 @@ def fetch_group(c):
         lst = call("nrtariff/new/Tariff/getTariffListInfo",
                    {"cellNum": "", "province": PROV, "isPublic": "1", "linkScn": "2",
                     "tariffAttr": a, "type1": t1, "type2": t2v,
-                    "page": page, "limit": 100, "fistLimit": 5000})
+                    "page": page, "limit": 100, "fistLimit": 5000}, ua=ua)
         d = lst.get("data") if isinstance(lst, dict) else None
         if not isinstance(d, dict):
             fails += 1
@@ -860,6 +916,7 @@ def fetch_group(c):
     n_mod_all = sum(b.get("module") or 0 for b in beans_all)
     log(f"  attr={a} t1={t1} t2={t2v} total={total} series={len(beans_all)} "
         f"entries={len(entries)} (其中 moduleList={n_mod_all}) fails={fails}"
+        + (f" ua#{ua_i}" if ua_i is not None else "")
         + (f"  ⚠️ 缺 {short} 条 例 {miss_eg}" if short else ""))
     return {"tariffAttr": a, "type1": t1, "type2": t2v, "total": total,
             "series": beans_all, "entries": entries, "short": short}
@@ -889,9 +946,15 @@ def fetch_all(workers=4):
     if not combos:
         log(f"分类列表获取失败: {str(t2)[:200]}")
         return None
-    log(f"分类组合 {len(combos)} 个，并发 {workers}")
+    log(f"分类组合 {len(combos)} 个，并发 {workers}，UA 指纹池 {len(UA_POOL)} 个")
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        groups = list(ex.map(fetch_group, combos))
+        # 确定性分配：组合序号 → UA_POOL[i % len]（同一分类每轮同一 UA，
+        # 配额池身份稳定 —— 随机轮换会让配额池身份散掉，见 UA_POOL 注释）
+        def _one(t):
+            i, c = t
+            u = UA_POOL[i % len(UA_POOL)]
+            return fetch_group(c, ua=u, ua_i=i % len(UA_POOL))
+        groups = list(ex.map(_one, enumerate(combos)))
     n = sum(len(g["entries"]) for g in groups)
     # 空栏目自检：上游说有数据（系列数 > 0）而我们一条都没取到 ⇒ 一定是容器/参数没对上，
     # 不能当「这个栏目本来就没内容」放过去（2026-09-23：全网·港澳台国际专区就是这么丢的）。
@@ -1294,15 +1357,16 @@ def diff_round(code, cn, tag, data, old_o, prev_p, today, fname=None):
     返回 summary dict（供推送、页面提示、CI 汇总使用）：
       ``n`` ``added`` ``removed`` ``changed`` 计数
       ``restored`` ``fake_removed`` ``relocated`` 被护栏摘掉的条数
-      ``samples`` 供推送用的样例 · ``report`` 报告路径 · ``note`` 抑制原因
-      ``guard`` 原始护栏结果（供报告用）
+      ``samples`` 供推送用的样例 · ``batches`` 批量同改提炼句（≤3 句）
+      ``report`` 报告路径 · ``note`` 抑制原因 · ``guard`` 原始护栏结果（供报告用）
     """
     prefix = SNAP_PREFIX[code]
     base_day = (old_o or {}).get("fetchedAt", "")[:10]
     idx_old, idx_new = index_rows(old_o), index_rows(data)
     out = {"code": code, "net": cn, "n": len(idx_new), "added": 0, "removed": 0,
            "changed": 0, "restored": 0, "fake_removed": 0, "relocated": 0,
-           "state_moved": 0, "samples": [], "report": "", "note": "", "guard": None,
+           "state_moved": 0, "samples": [], "batches": [], "report": "",
+           "note": "", "guard": None,
            "_added_keys": [], "_removed_keys": [], "_changed_keys": []}
 
     if not G:
@@ -1408,7 +1472,10 @@ def diff_round(code, cn, tag, data, old_o, prev_p, today, fname=None):
                 # 推送只该拿到「几条 + 几个样例」，不是全量键。
                 "_added_keys": list(a), "_removed_keys": list(r),
                 "_changed_keys": [k for k, _ in c],
-                "samples": _samples(a, r, c, idx_new, idx_old)})
+                "samples": _samples(a, r, c, idx_new, idx_old),
+                # 批量同改提炼句（≤3 句）：在**这一侧**算好、只把句子下放 ——
+                # 通知层不该拿到全量 changed 明细（同上「不是全量键」的原则）。
+                "batches": (NOTIFY.batch_same_change(c, FIELD_CN) if NOTIFY else [])})
     return out
 
 
