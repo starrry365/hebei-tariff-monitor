@@ -180,6 +180,13 @@ def main():
         print("  !!   缺 websocket-client —— 请用 .tools/venv_gui/Scripts/python.exe 跑本脚本")
         return finish()
     run("cdp_launch.py", [sys.executable, os.path.join(BASE, "cdp_launch.py")])
+    # ★ 先去 about:blank 再进页面（2026-10-06 第 5 轮体检加固）：tab 里若残留
+    #   同文件带 hash 的旧状态（人工调试 / 上一轮探针），直接 nav 会变成
+    #   **同文档导航**——脚本不重跑、控件不重置，walk/e2e 全部在旧状态上跑，
+    #   断言对着上一轮的 view 报错（本次实测：e2e 报「页面 5280 ≠ 数据 81」，
+    #   5280 是上一轮 move 的全量行数；unicom 轮看到的甚至是 move 的页面）。
+    #   手动复测页面本身深链/hot-switch 全对 —— 纯测试环境残留，非代码回归。
+    run("nav 清场（about:blank）", [sys.executable, STEP, "nav", "about:blank"])
     run("nav 到本地页面", [sys.executable, STEP, "nav",
                            "file:///" + HTML.replace("\\", "/")])
 
@@ -252,6 +259,18 @@ def main():
             results[-1] = (results[-1][0], True,
                            "DCL %dms · parse %dms · blob %.1fMB%s"
                            % (d["dcl"], d["parseMs"], d["blobMB"], tag))
+
+    # ── 5c. 数据不变量全量审计（★ 2026-10-06 第 5 轮体检）─────────────
+    #   机器穷举四网全部行 × 30+ 条不变量 + 六源跨层对账（快照/页面/gz 归档/
+    #   history/feed/模板）。与抽查式检查的本质区别：**全量**，任何一行破坏
+    #   不变量都会被抓到。观察项（R3 联通无细分 / R6 广电下架无日期）是上游
+    #   形态，只输出数量不 fail——数量突变才是信号。
+    print("\n[5c] 数据不变量审计 deep_audit.py")
+    p, out = run("audit：行不变量 + 六源对账",
+                 [sys.executable, os.path.join(BASE, "deep_audit.py")],
+                 quiet_tail=10)
+    if p.returncode:
+        results[-1] = (results[-1][0], False, "存在不变量违规，详见上方输出")
 
     # ── 6. 筛选口径对账（三网）───────────────────────────────────────
     print("\n[6] 筛选口径对账 run_conformance.py")

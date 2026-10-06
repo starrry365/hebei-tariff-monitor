@@ -1975,6 +1975,17 @@ def rows_of(o, diff=None, code=""):
     if dropped:
         log(f"!! {code}：{dropped} 条与河北/全国无关（其他省份专属）已按需求丢弃 —— "
             f"这批条目若正好落在本次 diff 里，变更标注会因条数对不上而整批撤销")
+    # ★ 行主键去重序号（第 5 轮体检 S5，2026-10-06）：上游目录存在「同名同细分
+    #   多版本」（新旧报告号并存，四网约 440 例）。页面键「网|细分|名称」不加序号
+    #   会串行——收藏一颗星亮两行、详情/同价位定位取错行。对第 2+ 个重复行写 kd，
+    #   页面 keyOf() 拼键时追加 #序号。首个出现的行不带 kd ⇒ 键逐字不变，
+    #   存量收藏零影响（重复行此前本就无法被独立收藏）。
+    _seen_pk = {}
+    for _r in rows:
+        _pk = (_r.get("ty") or "", _r.get("n") or _r.get("t") or "")
+        _seen_pk[_pk] = _seen_pk.get(_pk, 0) + 1
+        if _seen_pk[_pk] > 1:
+            _r["kd"] = _seen_pk[_pk]
     return _mark_changes(rows, diff)
 
 

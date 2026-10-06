@@ -902,6 +902,12 @@ const rowsOf=n=>((NETS[n]||{}).rows)||[];
    改优先级要记得改 8 处 —— 又是「同一判据多份副本」的病。收拢成一行。
    ★ 收藏键 v2 的名称段用它取值：改实现**不得改变返回值**，否则存量收藏全部失联。 */
 const rowName=d=>d.n||d.t||"";
+/* 行主键拼装（S5，2026-10-06 第 5 轮审计）：唯一出口。上游存在「同名同细分
+   多版本」（新旧报告号并存，四网约 440 例），键不加序号会串行——收藏一颗星
+   亮两行、详情/同价位定位取错行。构建期对第 2+ 个重复行写 kd，这里追加 #序号。
+   ★ 存量收藏兼容：首个重复行不带 kd，键逐字不变；重复行此前本就无法被独立
+     收藏（键相同只指向第一行），加序号不破坏任何既有收藏。 */
+const keyOf=(net,d)=>net+"|"+(d.ty||"")+"|"+rowName(d)+(d.kd?"#"+d.kd:"");
 /* 维度 id ↔ 条件键映射（M2，2026-10-04）：全表只有 #off → offv 一处不一致，
    但 condOf（读值）与 diagEmpty（反查键复位）各硬编码过一次字符串 ——
    哪天改名只改一处，另一处就静默断线。映射对象只此一份，两处都来查表。
@@ -1674,7 +1680,7 @@ function migrateFav(){
     let hit=0;
     rowsOf(netC).forEach(d=>{
       if(rowName(d)===name){
-        const k2=netC+"|"+(d.ty||"")+"|"+name;
+        const k2=keyOf(netC,d);
         if(!fav[k2])fav[k2]=1;
         hit++;
       }
@@ -1744,7 +1750,7 @@ function favRefresh(){
          收藏数悄悄缩水。这里对**本网全量数据**核对收藏键（不是当前筛选结果 ——
          被筛选挡住的收藏不算失效），零命中的提示出来。 */
       const hit={};
-      rowsOf(NET).forEach(d=>{hit[NET+"|"+(d.ty||"")+"|"+rowName(d)]=1});
+      rowsOf(NET).forEach(d=>{hit[keyOf(NET,d)]=1});
       const miss=Object.keys(fav).filter(k=>k.indexOf(NET+"|")===0&&!hit[k]).length;
       note.textContent="★ 仅显示收藏（本页 "+shown+" 条）· 分页与筛选不受影响，翻页后仍然只显示收藏"
         +(miss?" · 另有 "+miss+" 个收藏条目已不在本网数据中（可能已下架）":"")
@@ -1865,7 +1871,7 @@ function openFavAll(){
     const keys=Object.keys(fav).filter(k=>k.indexOf(nc+"|")===0);
     if(!keys.length)return;
     const hit={};
-    rowsOf(nc).forEach(d=>{hit[nc+"|"+(d.ty||"")+"|"+rowName(d)]=d});
+    rowsOf(nc).forEach(d=>{hit[keyOf(nc,d)]=d});
     keys.sort();
     rows.push('<tr><td colspan="7" style="font-weight:700;padding:8px 6px 4px;border-bottom:2px solid var(--bd2)">'
       +esc((NETS[nc]||{}).nm||nc)+"（"+keys.length+"）</td></tr>");
@@ -2059,7 +2065,7 @@ function render(){
        ★ 键 v2（2026-10-04）＝「网|细分|名称」：v1「网|名称」会让同网同名的
          不同细分条目共享收藏状态。上游改名仍会失联 —— 那是键里没有稳定 id
          可用的设计限制（见 recheck-20261004 #7）。 */
-    buf.push('<tr class="row'+(isNew?" isnew":"")+(d.st?" stopped":"")+'" data-i="'+i+'" data-k="'+esc(NET+"|"+(d.ty||"")+"|"+rowName(d))+'" tabindex="0" title="点击展开详情 / 复制" aria-expanded="false">'
+    buf.push('<tr class="row'+(isNew?" isnew":"")+(d.st?" stopped":"")+'" data-i="'+i+'" data-k="'+esc(keyOf(NET,d))+'" tabindex="0" title="点击展开详情 / 复制" aria-expanded="false">'
       +'<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元":"—")+'</td>'
       +'<td>'+fmtGb(d.g)+'</td>'
       +'<td>'+(d.c&&d.c!=="0"?'<span style="white-space:nowrap">'+esc(d.c)+" 分钟</span>":"—")+'</td>'
@@ -2907,7 +2913,7 @@ function exportCSV(){
   /* 「只看收藏」是 DOM 层显隐、不在 view 里 —— 导出若无视它，用户看着
      几条收藏、导出的却是全量筛选结果，口径就劈了。按同一口径过滤；
      收藏键与表格行的 dataset.k 同一构造（NET|细分|名称，v2）。 */
-  const rows=onlyFav?view.filter(d=>fav[NET+"|"+(d.ty||"")+"|"+rowName(d)]):view;
+  const rows=onlyFav?view.filter(d=>fav[keyOf(NET,d)]):view;
   const L=[CSV_COLS.map(c=>csvCell(c[0])).join(",")];
   rows.forEach(d=>L.push(CSV_COLS.map(c=>csvCell(c[1](d))).join(",")));
   /* BOM 不能省：不加的话 Excel 会按本地代码页解读 UTF-8，中文全是乱码。
