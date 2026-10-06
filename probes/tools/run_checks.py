@@ -228,6 +228,16 @@ def main():
 
     # ── 5. e2e 语义断言 ─────────────────────────────────────────────
     print("\n[5] 页面级断言 page_e2e_check.js")
+    # ★ e2e 前再清场一次（2026-10-06）。walk 与 e2e 是两个 eval，walk 会留下
+    #   状态（页签 STA / 视图 view / hash）；e2e 的 resetAll 名义上能恢复，但
+    #   低频竞态实测仍会漂：cityProbe 按**错误的网**对账（got 恒为另一网的
+    #   全量行数，如四网全见 1303=telecom 全量），而同一脚本单独跑全绿、
+    #   连跑两遍也全绿 —— 纯跨 eval 状态耦合，不是页面回归。
+    #   与 [3] 的清场同理：换一次全新页面加载从根上断开，一次 nav ≈1 秒，
+    #   比一次假红（人肉排查半小时）便宜得多。
+    run("nav 清场（e2e 前，about:blank）", [sys.executable, STEP, "nav", "about:blank"])
+    run("nav 到本地页面（e2e 用全新加载）", [sys.executable, STEP, "nav",
+                           "file:///" + HTML.replace("\\", "/")])
     e = js("page_e2e_check.js", os.path.join(BASE, "page_e2e_check.js"),
            os.path.join(TMP, "e2e.json"))
     if e is not None:

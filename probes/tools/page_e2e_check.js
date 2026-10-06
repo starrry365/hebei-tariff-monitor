@@ -96,6 +96,25 @@
     try { renderNet(); } catch (e) {}
     resetAll();
 
+    /* ★ 2026-10-06 加固：resetAll 之后必须**核对** NET 真的落在 netCode 上。
+       低频竞态实测（同日）：walk 之后跑本脚本，cityProbe 的 got/want 全按
+       错误的网对账（四网 got 恒为 telecom 全量 1303），而单独跑、连跑两遍
+       都全绿 —— 状态在某处漂了，报出来却是一句让人看不懂的「条数不符」。
+       与其留给下一个人猜，不如在这里强制归位 + 重置一遍，并把漂移记进报告
+       （netDrift 有值本身就是「发生过状态漂移」的永久证据）。 */
+    if (NET !== netCode) {
+      o.netDrift = { saw: NET, want: netCode };
+      NET = netCode;
+      try { renderNav(); } catch (e) {}
+      try { renderNet(); } catch (e) {}
+      resetAll();
+    }
+    /* 永久诊断字段：每次测量都带上「我以为我在测哪个网 / 哪个页签」。
+       check() 拿它跟期望网核对 —— 一旦再漂，报错直接点名，不再让
+       「条数不符」背锅。 */
+    o.netSnap = NET;
+    o.staSnap = STA;
+
     var n = net() || {};
     o.netname = n.nm || "";
     o.sub = txt($("#sub")).slice(0, 170);
@@ -171,6 +190,8 @@
           if (typeof readHash === "function") { readHash(); }
           apply();
           o.cityProbe = { city: cit.value, before: b0, got: view.length,
+                          net: NET, sta: STA,
+                          ct: (function () { var e = $("#ct"); return e ? e.value : null; })(),
                           want: wantBy(function (d) {
                             return (d.cty || []).indexOf(cit.value) >= 0;
                           }) };
@@ -304,9 +325,19 @@
     cbn:     { stopped: true  }
   };
 
-  function check(o, exp) {
+  function check(o, exp, code) {
     var bad = [];
     if (o.error) { return ["页面异常: " + o.error]; }
+    /* ★ 状态漂移核对（2026-10-06）：先确认「测的就是这个网」再对账条数。
+       漂移发生时条数断言全是废数据，必须先报这个。 */
+    if (o.netSnap !== code) {
+      bad.push("e2e 状态漂移：按 " + code + " 对账，实际测的是 "
+        + o.netSnap + "（以下条数断言不可信）");
+    }
+    if (o.netDrift) {
+      bad.push("resetAll 后 NET 曾漂移（" + o.netDrift.saw + " → 已强制归位，"
+        + "跨 eval 状态耦合，非页面回归）");
+    }
     if (!(o.rows > 0)) { bad.push("row=0"); }
     if (!o.scOptions.length) { bad.push("无地域档位"); }
     else if (!o.scChoosable.length) { bad.push("地域两档都不可选"); }
@@ -387,7 +418,7 @@
   ["move", "unicom", "telecom", "cbn"].forEach(function (code) {
     var o;
     try { o = snap(code); } catch (e) { o = { net: code, error: String(e) }; }
-    var bad = check(o, EXPECT[code]);
+    var bad = check(o, EXPECT[code], code);
     o.ok = bad.length === 0;
     o.problems = bad;
     if (!o.ok) { allOk = false; }
