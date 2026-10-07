@@ -608,7 +608,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   .brow{grid-template-columns:minmax(78px,104px) 1fr 52px;font-size:12px}
   .stat .sn{font-size:22px}
   th,td{padding:8px 7px}
-  /* 🔴 窄屏下 11 列的自然宽度远超屏宽，table 的 overflow:clip 会把右侧列
+  /* 🔴 窄屏下 10 列的自然宽度远超屏宽，table 的 overflow:clip 会把右侧列
      （目标客户/上架/下线/有效期）**直接剪掉**且无任何办法看到 —— 切成横向滚动。
      wrapper 此刻成为滚动容器，th 的 sticky 随之失效（表头随内容滚走），
      窄屏上「能看全」优先于「表头钉住」。 */
@@ -882,7 +882,6 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   <th>目标客户<button type="button" class="cfx" data-cf="ap" title="列筛选：勾选要保留的取值">▽</button></th>
   <th data-k="on">上架<span class="ar"></span><button type="button" class="cfx" data-cf="on" title="列筛选：按上架状态分档（待上架 / 今天 / 30 天内 / 30 天前）">▽</button></th>
   <th data-k="off">下线<span class="ar"></span><button type="button" class="cfx" data-cf="off" title="列筛选：按下线状态分档（已过期 / 60 天内到期 / 60 天以上 / 长期）">▽</button></th>
-  <th data-k="vp">有效期<span class="ar"></span><button type="button" class="cfx" data-cf="vp" title="列筛选：按有效期分档（已过期 / 90 天内到期 / 90 天–1 年 / 1 年以上 / 短约 / 长约 / 长期）">▽</button></th>
 </tr></thead>
 <tbody id="tb"></tbody>
 </table>
@@ -1348,13 +1347,6 @@ const F={
          return a<0?a:t;
        }},
   off :{lb:"下线时间",def: 1,get:d=>toDate(d.e)},
-  /* 有效期排序：固定到期日按**剩余天数**（升序时最紧迫的排最前，已过期为负数
-     自然排最前）；纯时长按月数；都解析不出（空白/长期/怪文案）→ null 恒排最后。 */
-  vp  :{lb:"有效期",  def: 1,get:d=>{
-         const i=vpInfo(d);if(!i)return null;
-         if(i.date!=null)return BASE_OK?left(i.date):i.date;
-         return i.term*30.4;      /* 月数折天数，量纲与日期路径一致可比较 */
-       }},
   fee :{lb:"月费",    def: 1,get:d=>num(d.f)},
   gb  :{lb:"流量",    def:-1,get:d=>(d.g==null?null:d.g)},
   call:{lb:"通话",    def:-1,get:d=>num(d.c)},
@@ -1760,25 +1752,7 @@ const COLF_DEF={
     const lf=left(dt);
     if(lf>FAR)return"长期";
     if(lf<0)return"已过期";
-    return lf<=60?"60 天内到期":"60 天以上";}},
-  /* 有效期筛**档位**不筛原文（100% 覆盖率的长文本，去重几百个没法当筛选值；
-     档位与 vpCell 徽标颜色同源：日期型按剩余天数三档，纯时长按月数两档，
-     解析不出但确有文案的进「其他」——原文在 title 与展开详情里都看得到）。 */
-  vp:{lab:"有效期",get:d=>{
-    const i=vpInfo(d),raw=String(d.vp||"");
-    if(!i){
-      if(/长期/.test(raw))return"长期";
-      return raw?"其他":"";
-    }
-    if(i.date!=null){
-      if(!BASE_OK)return"其他";          /* 缺基线：有日期算不出剩余天数，不给假档 */
-      const lf=left(i.date);
-      if(lf<0)return"已过期";
-      if(lf<=90)return"90 天内到期";
-      return lf<=365?"90 天–1 年":"1 年以上";
-    }
-    return i.term<=12?"短约 ≤12 个月":"长约 1 年以上";
-  }}
+    return lf<=60?"60 天内到期":"60 天以上";}}
 };
 const COLF_MAX=400;              // 清单 DOM 渲染上限（搜索可缩小）
 let COLF={};                     // 列 key → 已勾选值数组；无键 = 该列不筛
@@ -1925,14 +1899,6 @@ function offCell(d){
    「突出显示」。解析得出档位的走 vpTag（与展开详情高亮行同一判据）；
    解析不出但确有文案的给灰色虚线短标签 —— 原文一个字都不丢（title 全文，
    展开详情里仍是 vp-hi 完整高亮行）。 */
-function vpCell(d){
-  const t=vpTag(d);
-  if(t)return'<td class="vpc">'+t+'</td>';
-  const raw=String(d.vp||"").trim();
-  if(!raw)return'<td class="vpc"><span class="mut">—</span></td>';
-  return'<td class="vpc"><span class="vptg vptg-raw" title="'
-    +esc(raw)+'">'+esc(raw.length>12?raw.slice(0,12)+"…":raw)+'</span></td>';
-}
 
 /* —— 办理条款徽章（2026-10-07，全网普查后新增）——
    调研口径：15014 行 × 9 个文本字段 × 14 类语义正则普查，命中数与误报形态
@@ -2423,7 +2389,7 @@ function render(){
     ROWS=[];  /* 2026-10-04：模块级变量不跨渲染残留 —— 空结果页没有 tr.row，
                  委托器当前不会经 data-i 回取，但「上一页的数据还挂在全局」
                  是坏味道，且未来任何新交互都可能踩中它。 */
-    tb.innerHTML='<tr><td colspan="11" class="empty"><div>没有匹配的资费</div>'
+    tb.innerHTML='<tr><td colspan="10" class="empty"><div>没有匹配的资费</div>'
       +diagEmpty()
       +'<div style="margin-top:10px"><a href="#" id="clr">重置全部筛选</a></div></td></tr>';
     const c=$("#clr");if(c)c.onclick=e=>{e.preventDefault();resetAll()};
@@ -2454,15 +2420,14 @@ function render(){
         /* L1（2026-10-04）：「已下架」页签下整页每行都挂同一枚徽标 ——
            页签标题已声明状态，这里是纯冗余（联通 3177 行 × 1 枚）；
            「全部」页签下它才有区分度，保留。 */
-        +(STA==="1"?"":stopTag(d))+'</td>'
+        +(STA==="1"?"":stopTag(d))+vpTag(d)+'</td>'
       +'<td><span class="tg" title="'+esc("大类："+(d.cat||"—")+(d.ty&&d.ty!==d.cat?" · 官方细分："+d.ty:"")+"；官方原始分类见展开详情")+'">'+esc(d.cat||"—")+'</span></td>'
       +'<td>'+owTag(d)+'</td>'
       +'<td>'+bwCell(d)+'</td>'
       +apCell(d,terms)
       +'<td style="white-space:nowrap">'+onCell(d)+'</td>'
-      +'<td style="white-space:nowrap">'+offCell(d)+'</td>'
-      +vpCell(d)+'</tr>'
-      +'<tr class="det"><td colspan="11"><div class="detwrap">'+detHTML(d)+'</div></td></tr>');
+      +'<td style="white-space:nowrap">'+offCell(d)+'</td></tr>'
+      +'<tr class="det"><td colspan="10"><div class="detwrap">'+detHTML(d)+'</div></td></tr>');
   });
   tb.innerHTML=buf.join("");
   decorateFav();

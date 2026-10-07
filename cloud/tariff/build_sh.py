@@ -370,7 +370,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 .vptg-far{background:var(--card3);color:var(--tx3);font-weight:500}
 .vptg-rn{background:none;color:var(--tx3);border:1px dashed var(--bd2);font-weight:500}
 .vptg-raw{background:var(--card3);color:var(--tx3);font-weight:500;border:1px dashed var(--bd2)}
-.vpc{white-space:nowrap}.vpc .vptg{margin-left:0;font-size:11.5px;line-height:19px}
+/* 名称列内的有效期徽章：不占独立列（用户要求），档位配色与详情同源 */
 .ctc{white-space:nowrap}
 .ctg{display:inline-block;padding:0 7px;border-radius:5px;font-size:11px;font-weight:700;line-height:17px;white-space:nowrap;margin-right:4px;cursor:default}
 .ctg-bad{background:var(--badbg);color:var(--bad);border:1px solid currentColor}
@@ -451,7 +451,6 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-off
     <th data-k="c">通话<span class="ar"></span><button type="button" class="cfx" data-cf="c" title="列筛选">▽</button></th>
     <th data-k="o">上架<span class="ar"></span><button type="button" class="cfx" data-cf="o" title="列筛选">▽</button></th>
     <th data-k="e">下线<span class="ar"></span><button type="button" class="cfx" data-cf="e" title="列筛选">▽</button></th>
-    <th title="资费标称有效期（自动解析：到期日 / 时长 / 自动续）">有效期<button type="button" class="cfx" data-cf="vy" title="列筛选：按有效期分档">▽</button></th>
   </tr></thead><tbody id="tb"></tbody></table>
   <div class="empty" id="empty" hidden>没有匹配的资费<br>
     <button type="button" class="tbtn" id="resetAll">清空全部筛选</button></div>
@@ -538,13 +537,6 @@ function vpTagS(r){
   var y=Math.floor(i.term/12),mo=i.term%12;
   var ts=y?(mo?y+"年"+mo+"个月":y+"年"):mo+"个月";
   return' <span class="vptg '+(i.term<=12?"vptg-mid":"vptg-far")+'" title="有效期约 '+ts+'（订购起算）">'+ts+'</span>'+rn;
-}
-function vpCellS(r){
-  var t=vpTagS(r);
-  if(t)return'<td class="vpc">'+t+'</td>';
-  var raw=String(r.vy||"").trim();
-  if(!raw)return'<td class="vpc"><span class="mut">—</span></td>';
-  return'<td class="vpc"><span class="vptg vptg-raw" title="'+esc(raw)+'">'+esc(raw.length>12?raw.slice(0,12)+"…":raw)+'</span></td>';
 }
 function detVp(r){
   if(!r.vy)return"";
@@ -633,20 +625,10 @@ const COLF_DEF={
   o:{lab:"上架",get:r=>/^\\d{8}$/.test(r.o)?r.o.slice(0,4)+"-"+r.o.slice(4,6):"未标注"},
   e:{lab:"下线",get:r=>{
     if(!/^\\d{8}$/.test(r.e))return"未设定";
-    return r.st?"已过期":"未到期"}},
-  vy:{lab:"有效期",get:r=>{
-    var i=vpInfoS(r.vy),raw=String(r.vy||"");
-    if(!i){if(/长期/.test(raw))return"长期";return raw?"其他":""}
-    if(i.date!=null){
-      var lf=Math.ceil((i.date-Date.now())/864e5);
-      if(lf<0)return"已过期";
-      if(lf<=90)return"90 天内到期";
-      return lf<=365?"90 天–1 年":"1 年以上";
-    }
-    return i.term<=12?"短约 ≤12 个月":"长约 1 年以上";}}
+    return r.st?"已过期":"未到期"}}
 };
 let COLF={};   // {code: Set(取值)}；只存「勾选了」的列
-const CF_BASE=[["f",1],["g",1],["c",1],["o",1],["e",1],["cat",1],["sub",1],["vy",1]];
+const CF_BASE=[["f",1],["g",1],["c",1],["o",1],["e",1],["cat",1],["sub",1]];
 const tb=$("#tb"),kw=$("#kw"),stat=$("#stat"),condBox=$("#condChips");
 let cur=[];
 function basePass(r,skipCode){
@@ -682,12 +664,13 @@ function view(){
         +'<span class="nmt">'+esc(r.n)+'</span>'
         +(isNew?'<span class="bg bg-new">NEW</span>':"")
         +(r.st?'<span class="bg bg-stop">已下架</span>':"")
+        +vpTagS(r)
         +(r.sub?'<span class="tg">'+esc(r.sub)+'</span>':"")
         +'<div class="mut">'+esc(r.cat||"")+(r.ap?" · "+esc(r.ap):"")+'</div></td>'
       +'<td>'+fmtGb(r.g)+'</td>'
       +'<td>'+(r.c&&r.c!=="0"?esc(r.c)+" 分钟":"—")+'</td>'
-      +'<td>'+fmtD(r.o)+'</td><td>'+fmtD(r.e)+'</td>'+vpCellS(r)+'</tr>'
-      +'<tr class="det"><td colspan="7"><div class="detwrap"><div class="detgrid">'
+      +'<td>'+fmtD(r.o)+'</td><td>'+fmtD(r.e)+'</td></tr>'
+      +'<tr class="det"><td colspan="6"><div class="detwrap"><div class="detgrid">'
         +(r.sub?'<div class="ditem"><span>细分</span><em>'+esc(r.sub)+'</em></div>':"")
         +(r.ap?'<div class="ditem"><span>适用人群</span><em>'+esc(r.ap)+'</em></div>':"")
         +detVp(r)

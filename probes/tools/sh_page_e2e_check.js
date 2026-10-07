@@ -45,14 +45,15 @@
   var rows1 = $$("#tb tr.row").length;
   chk("明细行数 == ROWS", rows1 === ROWS.length, rows1 + " vs " + ROWS.length);
 
-  /* 2b. 有效期列（2026-10-07 对齐主界面；条款不设独立列，只验详情「办理必读」）*/
-  chk("表头 7 列", document.querySelectorAll("thead th").length === 7,
+  /* 2b. 有效期不设独立列（2026-10-07 用户要求撤列）：徽章回名称列，
+     详情「有效期限」高亮行与 CSV 列保留 */
+  chk("表头 6 列", document.querySelectorAll("thead th").length === 6,
       document.querySelectorAll("thead th").length + " 列");
-  chk("有效期单元格渲染", $$("#tb tr.row td.vpc").length === rows1,
-      $$("#tb tr.row td.vpc").length + " / " + rows1);
+  chk("表头无有效期列", !document.querySelector('th[data-cf="vy"]') &&
+      !$$("#tb tr.row td.vpc").length);
   var vpHit = 0;
-  $$("#tb tr.row td.vpc").forEach(function (t) { if (t.querySelector(".vptg")) vpHit++; });
-  chk("有效期徽章有命中", vpHit > 0, vpHit + " 行带徽章");
+  $$("#tb tr.row td.nm").forEach(function (t) { if (t.querySelector(".vptg")) vpHit++; });
+  chk("名称列有效期徽章有命中", vpHit > 0, vpHit + " 行带徽章");
   /* 条款判据仍活着（详情「办理必读」依赖它），但不再有列表单元格/筛选 */
   chk("condHitsS 判据在位", typeof condHitsS === "function");
   chk("表头无条款列", !document.querySelector('th[data-cf="cond"]') &&

@@ -321,7 +321,7 @@
     try {
       if (typeof cfSet === "function") {
         var ths = document.querySelectorAll("thead th");
-        var thNo = 0, thTotal = ths.length, vpTh = !!document.querySelector('th[data-k="vp"]');
+        var thNo = 0, thTotal = ths.length;
         [].forEach.call(ths, function (th) { if (!th.querySelector(".cfx")) thNo++; });
         var feeCnt = {};
         rowsOf(NET).forEach(function (d) {
@@ -341,9 +341,13 @@
         }
         /* 条款已不设独立列（用户要求），只验详情里「办理必读」判据仍活着 */
         var condFn = (typeof condHits === "function");
-        var vpCells = document.querySelectorAll("#tb tr.row td.vpc").length;
-        o.colfAllProbe = { thMissing: thNo, thTotal: thTotal, vpTh: vpTh,
-                           vpCells: vpCells, condFn: condFn,
+        /* 有效期不设独立列（用户要求）：徽章回名称列，验名称列徽章有命中 */
+        var nameVp = 0;
+        [].forEach.call(document.querySelectorAll("#tb tr.row td.nm"), function (td) {
+          if (td.querySelector(".vptg")) nameVp++;
+        });
+        o.colfAllProbe = { thMissing: thNo, thTotal: thTotal, nameVp: nameVp,
+                           condFn: condFn,
                            feePick: fk,
                            want: feeWant, got: feeGot, restored: view.length === feeBase };
       }
@@ -483,14 +487,14 @@
       if (!fp.restored) { bad.push("列筛清空后条数没复原"); }
     }
 
-    // 列筛选·全列覆盖（11 列漏斗 + 月费列功能；条款不设列只留详情）
+    // 列筛选·全列覆盖（10 列漏斗 + 月费列功能；有效期/条款均不设独立列）
     if (o.colfAllErr) { bad.push("全列筛选操作异常: " + o.colfAllErr); }
     else if (o.colfAllProbe) {
       var fa = o.colfAllProbe;
-      if (fa.thTotal !== 11) { bad.push("表头应为 11 列（条款不设独立列），实为 " + fa.thTotal); }
-      if (!fa.vpTh) { bad.push("缺有效期列（th[data-k=vp]）"); }
+      if (fa.thTotal !== 10) { bad.push("表头应为 10 列（有效期/条款均不设独立列），实为 " + fa.thTotal); }
+      if (document.querySelector('th[data-k="vp"]')) { bad.push("有效期仍占独立列（应并入名称列徽章）"); }
       if (fa.thMissing > 0) { bad.push("表头有 " + fa.thMissing + " 列缺筛选漏斗"); }
-      if (!fa.vpCells) { bad.push("有效期列 0 个单元格渲染"); }
+      if (!fa.nameVp) { bad.push("名称列 0 个有效期徽章（突出显示失效）"); }
       if (!fa.condFn) { bad.push("condHits 判据函数丢失（详情「办理必读」会失效）"); }
       if (fa.feePick && fa.got !== fa.want) {
         bad.push("列筛「月费=" + fa.feePick + "」条数不符：页面 " + fa.got + " ≠ 数据 " + fa.want);
