@@ -19,6 +19,11 @@
   + 全列 Excel 式列筛选（漏斗面板：facet 条数 / 搜索 / 全选反选 / chip 摘除）
   + 同款表格（吸顶表头 / 斑马纹 / 点行展开 detgrid 详情 / 全列排序），
   深浅主题可切换（记住选择）。
+变化历史（2026-10-07 加，参考河北主界面）：构建期先走 shct_monitor 的
+  变化跟踪（每日快照归档 → diff → change_guard 护栏 → changes/shct-*.md
+  → shct_history.json），页面注入裁剪后的 HIST，渲染同款时间线
+  （「资费明细 / 变化历史」视图页签切换）。页面不感知磁盘文件 —— HIST
+  是它唯一的数据源，与主页面「不解析 changes/*.md」同一条纪律。
 """
 import gzip
 import json
@@ -251,6 +256,71 @@ body{min-height:100vh;background:var(--bg1);color:var(--tx);
 #cfpop label.cfi .cfn{margin-left:auto;opacity:.6;font-size:11px}
 #cfpop .cfmore{padding:6px 10px;font-size:11px;opacity:.65}
 
+/* ── 视图页签（资费明细 / 变化历史）—— 样式与状态页签同源 ── */
+#vtabs{display:inline-flex;gap:2px;padding:3.5px;border:1px solid var(--bd2);border-radius:12px;
+  background:var(--glass2);flex:none}
+#vtabs button{border:0;background:transparent;padding:6.5px 13px;border-radius:9px;
+  font-size:12.5px;cursor:pointer;color:var(--tx2);font-weight:600;font-family:inherit;
+  transition:.15s;white-space:nowrap}
+#vtabs button:hover{color:var(--ac)}
+#vtabs button.on{background:linear-gradient(135deg,var(--op1),var(--op2));color:#fff;
+  box-shadow:0 3px 9px rgba(0,0,0,.16)}
+
+/* ── 变化历史（时间线）—— 与河北主界面同款 ─────────────────── */
+.tl{position:relative;padding-left:22px}
+.tl::before{content:'';position:absolute;left:5px;top:5px;bottom:5px;width:2px;
+  background:linear-gradient(180deg,var(--op1),var(--op2),transparent);border-radius:2px;opacity:.5}
+.tnode{position:relative;padding:11px 0 11px 3px}
+.tnode::before{content:'';position:absolute;left:-20px;top:17px;width:10px;height:10px;
+  border-radius:50%;background:var(--op1);box-shadow:0 0 0 3px var(--bg1);transition:background .4s}
+.tnode.zero::before{background:var(--tx3);opacity:.45}
+.thd{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:12.5px;cursor:pointer}
+.thd .ts{font-weight:700;color:var(--tx)}
+.tbd{display:none;margin-top:9px}
+.tnode.open .tbd{display:block}
+.tnet{padding:10px 13px;border-radius:10px;background:var(--glass2);border:1px solid var(--bd2)}
+.tnet .nh{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:12.5px;font-weight:700}
+.tnet .nn{color:var(--tx2);font-weight:400}
+.tcaps{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.tcap{padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;
+  background:var(--glass3);border:1px solid var(--bd2);color:var(--tx2)}
+.tcap.a{background:var(--okbg);color:var(--ok);border-color:transparent}
+.tcap.r{background:var(--badbg);color:var(--bad);border-color:transparent}
+.tcap.c{background:var(--warnbg);color:var(--warn);border-color:transparent}
+.tcap.w{background:var(--glass3);color:var(--bad);border:1px dashed var(--bad)}
+/* 字段变更对照卡：左=旧值，右=新值（与主界面同款） */
+.dc{margin-top:8px;border:1px solid var(--bd2);border-radius:10px;overflow:hidden;
+  background:var(--glass3)}
+.dch{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;padding:7px 11px;
+  font-size:12.5px;font-weight:700;border-bottom:1px solid var(--bd2);
+  background:var(--glass2)}
+.dch .nn{font-weight:400;color:var(--tx3)}
+.drow{display:grid;grid-template-columns:minmax(58px,88px) 1fr 1fr;font-size:12px}
+.drow+.drow{border-top:1px solid var(--bd2)}
+.dlab{padding:7px 4px 7px 11px;color:var(--tx2);font-weight:600;
+  display:flex;align-items:flex-start}
+.dold{padding:7px 11px;color:var(--tx3);word-break:break-word;
+  border-right:1px dashed var(--bd2);
+  background:linear-gradient(90deg,rgba(226,68,68,.05),rgba(226,68,68,0))}
+.dnew{padding:7px 11px;color:var(--tx);word-break:break-word;
+  background:linear-gradient(90deg,rgba(30,166,92,0),rgba(30,166,92,.055))}
+.dtg{display:inline-block;padding:0 5px;border-radius:5px;font-size:10.5px;
+  font-weight:700;line-height:16px;margin-right:5px;vertical-align:1px;flex:none}
+.dtg.o{background:var(--badbg);color:var(--bad)}
+.dtg.n{background:var(--okbg);color:var(--ok)}
+.dold.plain,.dnew.plain{color:var(--tx3);background:none}
+.drow.chg .dlab{color:var(--tx)}
+.dstat{margin-left:auto;font-weight:400;font-size:11px;color:var(--tx3)}
+.dc.full .drow{font-size:11.5px}
+.dc.full .dlab,.dc.full .dold,.dc.full .dnew{padding-top:5px;padding-bottom:5px}
+.dmorebtn{margin:8px 0 0 11px;padding:4px 12px;border:1px solid var(--bd2);
+  background:var(--glass2);border-radius:999px;font-size:12px;cursor:pointer;
+  color:var(--tx2);font-family:inherit}
+.dmorebtn:hover{border-color:var(--ac);color:var(--ac)}
+.hh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.hh .ht{font-size:14.5px;font-weight:750}
+#histNote{font-size:11.5px;color:var(--tx3)}
+
 /* ── 表格（同款：吸顶实色表头 / 斑马纹 / 悬停 / ▸ 指示）── */
 .tblwrap{overflow:visible}
 table{width:100%;border-collapse:separate;border-spacing:0;
@@ -329,9 +399,14 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-off
 
   <div class="stats" id="stats"></div>
 
+  <div id="viewTbl">
   <div class="deck">
     <div class="deck-in">
       <div class="brow1">
+        <div id="vtabs" role="tablist">
+          <button type="button" data-v="tbl" class="on">资费明细</button>
+          <button type="button" data-v="hist">变化历史</button>
+        </div>
         <div id="tabs" role="tablist">
           <button type="button" data-st="" class="on">全部</button>
           <button type="button" data-st="0">在售</button>
@@ -363,6 +438,14 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-off
   <div class="empty" id="empty" hidden>没有匹配的资费<br>
     <button type="button" class="tbtn" id="resetAll">清空全部筛选</button></div>
   </div>
+  </div><!-- /viewTbl -->
+
+  <div id="viewHist" hidden>
+    <div class="deck"><div class="deck-in">
+      <div class="hh"><span class="ht">资费变更时间线</span><span id="histNote"></span></div>
+      <div class="tl" id="histBox"></div>
+    </div></div>
+  </div>
 
   <div id="cfpop" role="dialog" aria-modal="false"></div>
 
@@ -370,6 +453,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-off
 </div>
 <script>
 __ROWS__;
+__HIST__;
 __METAJS__;
 const $=s=>document.querySelector(s);
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}
@@ -387,13 +471,16 @@ $("#themeBtn").addEventListener("click",()=>{
   document.documentElement.dataset.theme=t;
   try{localStorage.setItem("shtheme",t)}catch(e){}
 });
-/* 统计卡：总量 / 在售 / 30 天内新上架 */
+/* 统计卡：总量 / 在售 / 30 天内新上架 / 30 天变更量 */
 (function(){
   const cut=new Date(Date.now()-30*864e5).toISOString().slice(0,10).replace(/-/g,"");
+  const cutD=cut.slice(0,4)+"-"+cut.slice(4,6)+"-"+cut.slice(6,8);
   const on=ROWS.filter(r=>!r.st).length;
   const nw=ROWS.filter(r=>r.o&&r.o>=cut&&!r.st).length;
+  const ch30=(HIST||[]).filter(x=>String(x.d||"")>=cutD)
+    .reduce((s,x)=>s+(x.a||0)+(x.r||0)+(x.c||0),0);
   $("#cnt-on").textContent=on;$("#cnt-all").textContent=ROWS.length;
-  $("#stats").innerHTML=[["资费总条数",ROWS.length],["在售",on],["30 天内新上架",nw]]
+  $("#stats").innerHTML=[["资费总条数",ROWS.length],["在售",on],["30 天内新上架",nw],["30 天变更",ch30]]
     .map(p=>'<div class="stat"><div class="sn">'+p[1]+'</div><div class="sl">'+p[0]+'</div></div>').join("");
 })();
 /* ── 收藏关注（localStorage，按套餐名） ───────────────────────── */
@@ -652,20 +739,145 @@ function zebrafy(){
   });
 }
 kw.addEventListener("input",view);
+/* ── 视图切换：资费明细 / 变化历史 ─────────────────────────────── */
+document.querySelectorAll("#vtabs button").forEach(b=>b.addEventListener("click",()=>{
+  const v=b.dataset.v;
+  document.querySelectorAll("#vtabs button").forEach(x=>x.classList.toggle("on",x===b));
+  $("#viewTbl").hidden=v!=="tbl";
+  $("#viewHist").hidden=v!=="hist";
+}));
 /* CATS 与 ROWS 一起由 _inject 注入（const CATS=[...]，跟在 ROWS 声明后） */
 view();
+
+/* ── 变化历史（时间线）──────────────────────────────────────────
+   数据来自构建脚本注入的 HIST（shct_history.json 的 items 裁剪版），
+   渲染逻辑与河北主界面同构（单网简化：每天一个节点）。
+   ★ 抑制原因必须显示：a=r=c=0 有两种完全不同的含义 ——
+     「上游确实没变」和「本轮护栏抑制/基线回弹，没敢记变化」。
+     只显示「本次无变化」会把后者伪装成前者。 */
+const NOTE_CN={"degraded":"数据异常·已冻结上一版","rebound":"基线回弹·不计变化",
+  "schema":"字段结构变更·仅重建基线","noise":"采样噪声·疑似整批轮换，不计变化",
+  "baseline":"首版基线","resync":"重同步基线",
+  "collect-error":"采集失败·沿用上一版","snapshot-fallback":"沿用快照"};
+/* 对照卡每轮先铺的张数，其余折叠（数据侧上限与主链路一致） */
+const DIFF_SHOW=6;
+function fmtDiffs(ds){
+  if(ds.length<=DIFF_SHOW)return ds.join("");
+  return ds.slice(0,DIFF_SHOW).join("")
+    +'<div class="dmore" hidden>'+ds.slice(DIFF_SHOW).join("")+'</div>'
+    +'<button type="button" class="dmorebtn" data-n="'+ds.length+'">展开其余 '
+    +(ds.length-DIFF_SHOW)+' 条字段变更</button>';
+}
+function renderHistory(){
+  const box=$("#histBox"),note=$("#histNote");
+  const items=(HIST||[]).slice().sort((a,b)=>String(b.ts||"").localeCompare(String(a.ts||"")));
+  if(!items.length){
+    box.innerHTML='<div class="empty">还没有可展示的变更记录 —— 自本次部署起开始累积，'
+      +'下一轮巡检有变化时就会出现。</div>';
+    note.textContent="";return;
+  }
+  const byD={};
+  items.forEach(x=>{const d=x.d||String(x.ts||"").slice(0,10);(byD[d]=byD[d]||[]).push(x)});
+  const days=Object.keys(byD).sort().reverse();
+  note.textContent="共 "+items.length+" 次巡检 · "+days.length+" 天 · 点击任一天展开";
+  box.innerHTML=days.map(d=>{
+    const ns=byD[d];
+    let A=0,R=0,C=0;
+    ns.forEach(x=>{A+=x.a||0;R+=x.r||0;C+=x.c||0});
+    const zero=!(A||R||C);
+    const notas=[...new Set(ns.map(x=>x.note).filter(Boolean))];
+    return '<div class="tnode'+(zero?" zero":"")+'">'
+      +'<div class="thd"><span class="ts">'+esc(d)+'</span>'
+      +(zero
+        ?'<span class="tcap">全天无变化</span>'
+        :((A?'<span class="tcap a">新增 '+A+'</span>':"")
+          +(R?'<span class="tcap r">下架 '+R+'</span>':"")
+          +(C?'<span class="tcap c">字段变更 '+C+'</span>':"")))
+      +(notas.length?'<span class="tcap w" title="'+esc(notas.map(n=>NOTE_CN[n]||n).join("；"))+'">⚠️ 有抑制 '+notas.length+'</span>':"")
+      +'</div><div class="tbd">'+ns.map(x=>{
+          const caps=[];
+          if(x.note)caps.push('<span class="tcap w" title="本轮未记入任何变化">⚠ '+esc(NOTE_CN[x.note]||x.note)+'</span>');
+          if(x.a)caps.push('<span class="tcap a">新增 '+x.a+'</span>');
+          if(x.r)caps.push('<span class="tcap r">下架 '+x.r+'</span>');
+          if(x.c)caps.push('<span class="tcap c">字段变更 '+x.c+'</span>');
+          /* 护栏数字：不计入上面的新增/下架，但不显示就等于把
+             「为什么数字比想象的小」这件事藏起来。 */
+          if(x.gl)caps.push('<span class="tcap" title="同一条资费换了栏目/板块，不算新增也不算下线">漂移合并 '+x.gl+'</span>');
+          if(x.gm)caps.push('<span class="tcap" title="在售目录 ↔ 停售目录之间迁移，只按一个方向计一次">在售↔停售 '+x.gm+'</span>');
+          if(x.gf)caps.push('<span class="tcap" title="下线日期尚未到期，判为漏采而非下架">假下架抑制 '+x.gf+'</span>');
+          if(x.gs)caps.push('<span class="tcap" title="上线日早于上一轮基线，属漏采补录">补录 '+x.gs+'</span>');
+          if(!caps.length)caps.push('<span class="tcap">本次无变化</span>');
+          const chips=[],diffs=[];
+          (x.smp||[]).forEach(s=>{
+            if(s.k==="more")return;   // 截断标记，循环后单独渲染
+            if(s.k==="c"&&((s.rows&&s.rows.length)||(s.ch&&s.ch.length))){
+              const its=(s.rows&&s.rows.length)
+                ?s.rows.map(r=>({f:r[0],o:r[1],n:r[2],ch:!!r[3]}))
+                :s.ch.map(c=>({f:c.f,o:c.o,n:c.n,ch:true}));
+              const nch=its.filter(i=>i.ch).length;
+              const rows=its.map(i=>{
+                const o=(i.o==null?"":String(i.o))||"—",n=(i.n==null?"":String(i.n))||"—";
+                if(!i.ch)return '<div class="drow"><div class="dlab">'+esc(i.f||"")+'</div>'
+                  +'<div class="dold plain">'+esc(o)+'</div>'
+                  +'<div class="dnew plain">'+esc(n)+'</div></div>';
+                return '<div class="drow chg"><div class="dlab">'+esc(i.f||"字段")+'</div>'
+                  +'<div class="dold"><span class="dtg o">旧</span>'+esc(o)+'</div>'
+                  +'<div class="dnew"><span class="dtg n">新</span>'+esc(n)+'</div></div>';
+              }).join("");
+              diffs.push('<div class="dc'+(nch<its.length?" full":"")
+                +'"><div class="dch">⇄ '+esc(s.n||"")
+                +(s.ty?'<span class="nn">'+esc(s.ty)+'</span>':"")
+                +(nch<its.length?'<span class="dstat">变更 '+nch+' 项 / 共 '
+                  +its.length+' 项 · 高亮为变更</span>':"")
+                +'</div>'+rows+'</div>');
+              return;
+            }
+            const mark=s.k==="a"?"＋":s.k==="r"?"－":"⇄";
+            chips.push('<span class="tcap'+(s.k==="a"?" a":s.k==="r"?" r":" c")+'" title="'
+              +esc(s.ty||"")+'">'+mark+esc(s.n||"")+'</span>');
+          });
+          const more=(x.smp||[]).find(s=>s.k==="more");
+          if(more&&more.n)chips.push('<span class="tcap" title="为控制页面体积，本轮样本做了截断；完整明细见仓库 changes/shct-*.md 归档">…还有 '
+            +more.n+' 条明细</span>');
+          return '<div class="tnet"><div class="nh"><span>'+esc(x.net||"上海电信")
+            +'</span><span class="nn">'+(x.n==null?"":x.n+" 条")+'</span></div>'
+            +'<div class="tcaps">'+caps.join("")+'</div>'
+            +(chips.length?'<div class="tcaps">'+chips.join("")+'</div>':"")
+            +fmtDiffs(diffs)
+            +'</div>';
+        }).join("")+'</div></div>';
+  }).join("");
+  box.querySelectorAll(".thd").forEach(h=>{
+    h.onclick=()=>h.parentNode.classList.toggle("open");
+  });
+  box.querySelectorAll(".dmorebtn").forEach(b=>{
+    b.onclick=()=>{
+      const m=b.parentNode.querySelector(".dmore");
+      if(!m)return;
+      const n=+b.dataset.n||0;
+      if(m.hidden){m.hidden=false;b.textContent="收起字段变更（共 "+n+" 条）"}
+      else{m.hidden=true;b.textContent="展开其余 "+(n-DIFF_SHOW)+" 条字段变更"}
+    };
+  });
+}
+/* 🔴 调用必须在 NOTE_CN/DIFF_SHOW（const）定义**之后** —— JS 的 const 有
+   暂时性死区，提前调用会在第一次给 histBox 赋 innerHTML 时抛 ReferenceError：
+   症状是 histNote 有文案、时间线区域一片空白且无任何报错提示（eval 静默）。 */
+renderHistory();
 </script>
 </body>
 </html>
 """
 
 
-def _inject(tpl, rows, meta, metajs):
+def _inject(tpl, rows, meta, metajs, hist):
     """数据注入：</script> 防 breakout（HTML 里数据段先于脚本结束标签闭合检查）。"""
     blob = json.dumps(rows, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     mblob = json.dumps(meta, ensure_ascii=False).replace("</", "<\\/")
+    hblob = json.dumps(hist, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     cats = json.dumps(sorted({r.get("cat") or "" for r in rows}), ensure_ascii=False)
     out = tpl.replace("__ROWS__;", "const ROWS=" + blob + ";\nconst CATS=" + cats + ";")
+    out = out.replace("__HIST__;", "const HIST=" + hblob + ";")
     out = out.replace("__METAJS__;", "const META=" + mblob + ";")
     out = out.replace("__META__", esc_html(meta))
     return out
@@ -706,6 +918,16 @@ def build_rows(d):
 
 def main():
     d, src = load_data()
+    # 变化跟踪（快照归档 → diff → 护栏 → 报告 → shct_history）。
+    # 🔴 整块兑住：自用源的跟踪挂了不能拖死小页构建，但每一处失败都 log。
+    try:
+        trk = shct_monitor.run_change_tracking(d, log)
+    except Exception as e:
+        log("!! 上海变化跟踪异常（不影响小页）：%r" % e)
+        trk = None
+    # 页面时间线只带裁剪后的样本（近 7 天每轮 30 条 / 更早 12 条）——
+    # 磁盘上的 shct_history.json 仍是全量，与主链路 history.json 同一取舍。
+    hist = shct_monitor.TM.hist_for_page(shct_monitor.load_history().get("items") or [])
     rows = build_rows(d)
     total = len(rows)
     cats = {r["cat"] for r in rows}
@@ -713,10 +935,10 @@ def main():
         total, " / ".join("%s %d" % (c, sum(1 for r in rows if r["cat"] == c)) for c in sorted(cats)),
         d.get("fetchedAt", "?"))
     metajs = {"src": src, "fetchedAt": d.get("fetchedAt", ""), "url": d.get("sourceUrl", "")}
-    html = _inject(TPL, rows, meta, metajs)
+    html = _inject(TPL, rows, meta, metajs, hist)
 
     # 校验：数据容器在、没有把模板占位符留下
-    if MARK not in html or "const CATS=" not in html:
+    if MARK not in html or "const CATS=" not in html or "const HIST=" not in html:
         raise SystemExit("!! 生成页缺数据容器，拒绝写入")
     if "__ROWS__" in html or "__META__" in html:
         raise SystemExit("!! 生成页残留模板占位符，拒绝写入")

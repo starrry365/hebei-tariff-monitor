@@ -709,6 +709,11 @@ jobs:
           #    时间线永远只有仓库里那一份、长不起来。页面用的却是当轮内存里的版本，
           #    所以「页面看着有今天、仓库里没有」，下次构建又退回去。
           if [ -f cloud/tariff/history.json ]; then git add cloud/tariff/history.json; fi
+          # ★ 上海电信自己的变化历史（sh.html 时间线数据源，2026-10-07 加）——
+          #   与 history.json 同一条教训：不提交，时间线就永远长不起来。
+          #   shct 的每日快照归档（snapshots/shct_*.json.gz）与变更报告
+          #   （changes/shct-*.md）已被上面那条 add -A 覆盖，无需单列。
+          if [ -f cloud/tariff/shct_history.json ]; then git add cloud/tariff/shct_history.json; fi
           # ★ 降级计数（连续 N 轮偏低才接受新数据）必须**跨轮次持久化** ——
           #   不提交它，「连续 3 轮」就退化成「每轮都算第一轮」，护栏等于没装。
           if [ -f cloud/tariff/degrade_state.json ]; then git add cloud/tariff/degrade_state.json; fi
