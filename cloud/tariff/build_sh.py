@@ -363,6 +363,23 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 .detgrid .ditem{display:flex;gap:9px;min-width:0}
 .detgrid .ditem>span{flex:none;width:64px;color:var(--tx3);font-weight:600;font-size:11.5px;padding-top:1px}
 .detgrid .ditem>em{font-style:normal;color:var(--tx);word-break:break-all;min-width:0}
+/* 有效期/条款徽章（对齐主界面配色语义）：红=硬门槛，橙=预存，蓝=计费规则 */
+.vptg{display:inline-block;padding:0 7px;border-radius:5px;font-size:11px;font-weight:700;line-height:17px;white-space:nowrap;margin-left:5px}
+.vptg-soon{background:var(--badbg);color:var(--bad);border:1px solid currentColor}
+.vptg-mid{background:var(--warnbg);color:var(--warn)}
+.vptg-far{background:var(--card3);color:var(--tx3);font-weight:500}
+.vptg-rn{background:none;color:var(--tx3);border:1px dashed var(--bd2);font-weight:500}
+.vptg-raw{background:var(--card3);color:var(--tx3);font-weight:500;border:1px dashed var(--bd2)}
+.vpc{white-space:nowrap}.vpc .vptg{margin-left:0;font-size:11.5px;line-height:19px}
+.ctc{white-space:nowrap}
+.ctg{display:inline-block;padding:0 7px;border-radius:5px;font-size:11px;font-weight:700;line-height:17px;white-space:nowrap;margin-right:4px;cursor:default}
+.ctg-bad{background:var(--badbg);color:var(--bad);border:1px solid currentColor}
+.ctg-warn{background:var(--warnbg);color:var(--warn)}
+.ctg-info{background:var(--ac2);color:var(--ac);border:1px solid currentColor}
+.ctg-more{background:var(--card3);color:var(--tx3);font-weight:500}
+.ditem.vp-hi{background:var(--warnbg);border-radius:8px;padding:4px 8px;margin:2px -4px}
+.ditem.vp-hi em{font-style:normal}
+.ditem.vp-hi .vpraw{color:var(--tx)}
 .ditem.full{grid-column:1/-1}
 .empty{padding:48px;text-align:center;color:var(--tx2)}
 .empty .tbtn{margin-top:12px}
@@ -434,6 +451,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-off
     <th data-k="c">通话<span class="ar"></span><button type="button" class="cfx" data-cf="c" title="列筛选">▽</button></th>
     <th data-k="o">上架<span class="ar"></span><button type="button" class="cfx" data-cf="o" title="列筛选">▽</button></th>
     <th data-k="e">下线<span class="ar"></span><button type="button" class="cfx" data-cf="e" title="列筛选">▽</button></th>
+    <th title="资费标称有效期（自动解析：到期日 / 时长 / 自动续）">有效期<button type="button" class="cfx" data-cf="vy" title="列筛选：按有效期分档">▽</button></th>
+    <th title="办理条款：合约期 / 违约金 / 最低消费 / 预存 / 首月优惠（从资费说明自动提取，悬停看原文片段）">条款<button type="button" class="cfx" data-cf="cond" title="列筛选：按条款分档">▽</button></th>
   </tr></thead><tbody id="tb"></tbody></table>
   <div class="empty" id="empty" hidden>没有匹配的资费<br>
     <button type="button" class="tbtn" id="resetAll">清空全部筛选</button></div>
@@ -462,6 +481,94 @@ function fmtD(s){s=String(s||"");return /^\\d{8}$/.test(s)?s.slice(0,4)+"-"+s.sl
 function fmtGb(g){if(g==null||g===""||g===0)return"—";
   if(g>=1024)return(g/1024).toFixed(1).replace(/\\.0$/,"")+"TB";
   if(g>=1)return(g%1?+g.toFixed(1):g)+"GB";return Math.round(g*1024)+"MB"}
+/* —— 有效期/条款解析（2026-10-07 对齐主界面，口径同款）——
+   主界面普查结论直接复用：只做 5 类门槛条款，来源=资费说明(x)；
+   违约金用**肯定语境判定**：承担/收取/产生/支付+违约（且命中点前一字
+   不是 无/免/不）或 违约金+按/为 才算 —— 「无需承担违约责任」
+   「退订无需违约金」「无违约责任」全部不触发。 */
+var COND_DEFS=[
+  {lab:"合约期",cls:"ctg-bad",pat:/承诺(在网|使用)|协议期|合约期|在网(至少|不少于)/,tip:"承诺在网/协议期，期内退订可能有代价"},
+  {lab:"违约金",cls:"ctg-bad",find:function(s){
+     var m,RE=/(?:承担|收取|产生|支付)[^，。；]{0,6}违约|违约金\\s*[按照为]/g;
+     while((m=RE.exec(s))){
+       if(/[无免不]/.test(s.slice(Math.max(0,m.index-3),m.index)))continue;
+       return m;
+     }
+     return null;
+   },tip:"期内退订/销户/携转可能产生违约金"},
+  {lab:"最低消费",cls:"ctg-bad",pat:/最低消费|保底消费/,tip:"有最低消费/保底要求"},
+  {lab:"预存",cls:"ctg-warn",pat:/预存|押金/,tip:"需预存话费/押金"},
+  {lab:"首月优惠",cls:"ctg-info",pat:/首月(免费|0元|零元|按天|折算|收取|扣费)|恢复原价|个月后恢复|优惠期(满|结束)/,tip:"首月计费规则特殊 / 到期恢复原价"}
+];
+function condHitsS(r){
+  var s=String(r.x||"");if(!s)return[];
+  var out=[];
+  for(var i=0;i<COND_DEFS.length;i++){
+    var c=COND_DEFS[i],m=c.find?c.find(s):c.pat.exec(s);
+    if(!m)continue;
+    if(c.neg&&c.neg.test(s.slice(Math.max(0,m.index-30),m.index)))continue;
+    out.push({def:c,snip:s.slice(Math.max(0,m.index-24),m.index+30).trim()});
+  }
+  return out;
+}
+function vpInfoS(v){
+  v=String(v||"").trim();
+  if(!v||v==="长期")return null;
+  var best=null,m,RE=/20\\d{2}\\s*[年\\-\\/.]\\s*\\d{1,2}\\s*[月\\-\\/.]\\s*\\d{1,2}/g;
+  while((m=RE.exec(v))){
+    var p=m[0].match(/\\d+/g),y=+p[0],mo=+p[1],dy=+p[2]||1;
+    if(mo<1||mo>12||dy<1||dy>31)continue;
+    var t=Date.UTC(y,mo-1,dy);
+    if(t>=Date.UTC(2020,0,1)&&t<=Date.UTC(2040,11,31)&&(best==null||t>best))best=t;
+  }
+  var term=null,tm;
+  if((tm=v.match(/(\\d+)\\s*个?\\s*月/))&&+tm[1]>0&&+tm[1]<=120)term=+tm[1];
+  if(term==null&&(tm=v.match(/(\\d+)\\s*年/))&&+tm[1]>0&&+tm[1]<=10)term=+tm[1]*12;
+  if(best==null&&term==null)return null;
+  return{date:best,term:term,renew:/自动续|自动顺延|续展|自动延续/.test(v)};
+}
+function vpTagS(r){
+  var i=vpInfoS(r.vy);if(!i)return"";
+  var rn=i.renew?' <span class="vptg vptg-rn" title="到期后自动顺延/续约">自动续</span>':"";
+  if(i.date!=null){
+    var lf=Math.ceil((i.date-Date.now())/864e5),ds=new Date(i.date).toISOString().slice(0,10);
+    if(lf<=0)return' <span class="vptg vptg-soon" title="标称有效期已过（'+ds+'）">'+ds+' 已过</span>'+rn;
+    if(lf<=90)return' <span class="vptg vptg-soon" title="距标称有效期（'+ds+'）还有 '+lf+' 天">至 '+ds+'</span>'+rn;
+    return' <span class="vptg '+(lf<=365?"vptg-mid":"vptg-far")+'" title="标称有效期至 '+ds+'">至 '+ds+'</span>'+rn;
+  }
+  var y=Math.floor(i.term/12),mo=i.term%12;
+  var ts=y?(mo?y+"年"+mo+"个月":y+"年"):mo+"个月";
+  return' <span class="vptg '+(i.term<=12?"vptg-mid":"vptg-far")+'" title="有效期约 '+ts+'（订购起算）">'+ts+'</span>'+rn;
+}
+function vpCellS(r){
+  var t=vpTagS(r);
+  if(t)return'<td class="vpc">'+t+'</td>';
+  var raw=String(r.vy||"").trim();
+  if(!raw)return'<td class="vpc"><span class="mut">—</span></td>';
+  return'<td class="vpc"><span class="vptg vptg-raw" title="'+esc(raw)+'">'+esc(raw.length>12?raw.slice(0,12)+"…":raw)+'</span></td>';
+}
+function condCellS(r){
+  var h=condHitsS(r);
+  if(!h.length)return'<td class="ctc"><span class="mut">—</span></td>';
+  var tip=h.map(function(x){return"【"+x.def.lab+"】"+x.snip}).join("\\n");
+  var pills=h.slice(0,2).map(function(x){return'<span class="ctg '+x.def.cls+'" title="'
+    +esc(x.def.tip+"："+x.snip)+'">'+esc(x.def.lab)+'</span>'}).join("");
+  var more=h.length>2?'<span class="ctg ctg-more" title="'+esc(tip)+'">+'+(h.length-2)+'</span>':"";
+  return'<td class="ctc" title="'+esc(tip)+'">'+pills+more+'</td>';
+}
+function detVp(r){
+  if(!r.vy)return"";
+  var i=vpInfoS(r.vy);
+  if(!i)return'<div class="ditem"><span>有效期限</span><em>'+esc(r.vy)+'</em></div>';
+  return'<div class="ditem vp-hi"><span>有效期限</span><em>'+vpTagS(r)
+    +' <span class="vpraw">'+esc(r.vy)+'</span></em></div>';
+}
+function detCond(r){
+  var h=condHitsS(r);if(!h.length)return"";
+  return'<div class="ditem vp-hi"><span>办理必读</span><em>'
+    +h.map(function(x){return'<span class="ctg '+x.def.cls+'">'+esc(x.def.lab)+'</span> '+esc(x.snip)}).join("；")
+    +'</em></div>';
+}
 /* 主题切换（记住选择，同主页面行为） */
 (function(){let t=null;try{t=localStorage.getItem("shtheme")}catch(e){}
   if(!t)t=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";
@@ -536,10 +643,21 @@ const COLF_DEF={
   o:{lab:"上架",get:r=>/^\\d{8}$/.test(r.o)?r.o.slice(0,4)+"-"+r.o.slice(4,6):"未标注"},
   e:{lab:"下线",get:r=>{
     if(!/^\\d{8}$/.test(r.e))return"未设定";
-    return r.st?"已过期":"未到期"}}
+    return r.st?"已过期":"未到期"}},
+  vy:{lab:"有效期",get:r=>{
+    var i=vpInfoS(r.vy),raw=String(r.vy||"");
+    if(!i){if(/长期/.test(raw))return"长期";return raw?"其他":""}
+    if(i.date!=null){
+      var lf=Math.ceil((i.date-Date.now())/864e5);
+      if(lf<0)return"已过期";
+      if(lf<=90)return"90 天内到期";
+      return lf<=365?"90 天–1 年":"1 年以上";
+    }
+    return i.term<=12?"短约 ≤12 个月":"长约 1 年以上";}},
+  cond:{lab:"条款",get:r=>{var h=condHitsS(r);return h.length?h[0].def.lab:""}}
 };
 let COLF={};   // {code: Set(取值)}；只存「勾选了」的列
-const CF_BASE=[["f",1],["g",1],["c",1],["o",1],["e",1],["cat",1],["sub",1]];
+const CF_BASE=[["f",1],["g",1],["c",1],["o",1],["e",1],["cat",1],["sub",1],["vy",1],["cond",1]];
 const tb=$("#tb"),kw=$("#kw"),stat=$("#stat"),condBox=$("#condChips");
 let cur=[];
 function basePass(r,skipCode){
@@ -579,11 +697,12 @@ function view(){
         +'<div class="mut">'+esc(r.cat||"")+(r.ap?" · "+esc(r.ap):"")+'</div></td>'
       +'<td>'+fmtGb(r.g)+'</td>'
       +'<td>'+(r.c&&r.c!=="0"?esc(r.c)+" 分钟":"—")+'</td>'
-      +'<td>'+fmtD(r.o)+'</td><td>'+fmtD(r.e)+'</td></tr>'
-      +'<tr class="det"><td colspan="6"><div class="detwrap"><div class="detgrid">'
+      +'<td>'+fmtD(r.o)+'</td><td>'+fmtD(r.e)+'</td>'+vpCellS(r)+condCellS(r)+'</tr>'
+      +'<tr class="det"><td colspan="8"><div class="detwrap"><div class="detgrid">'
         +(r.sub?'<div class="ditem"><span>细分</span><em>'+esc(r.sub)+'</em></div>':"")
         +(r.ap?'<div class="ditem"><span>适用人群</span><em>'+esc(r.ap)+'</em></div>':"")
-        +(r.vy?'<div class="ditem"><span>有效期限</span><em>'+esc(r.vy)+'</em></div>':"")
+        +detVp(r)
+        +detCond(r)
         +(r.ch?'<div class="ditem"><span>办理渠道</span><em>'+esc(r.ch)+'</em></div>':"")
         +(r.r?'<div class="ditem"><span>报备编号</span><em>'+esc(r.r)+'</em></div>':"")
         +(r.x?'<div class="ditem full"><span>资费说明</span><em>'+esc(r.x)+'</em></div>':"")
@@ -713,11 +832,12 @@ $("#resetAll").addEventListener("click",()=>{
 });
 /* CSV 导出（当前筛选结果，BOM 让 Excel 直开不乱码） */
 $("#csv").addEventListener("click",()=>{
-  const head=["月费(元)","名称","分类","细分","流量(GB)","通话(分钟)","上架","下线","状态","适用人群","办理渠道","有效期限","报备编号","资费说明"];
+  const head=["月费(元)","名称","分类","细分","流量(GB)","通话(分钟)","上架","下线","状态","适用人群","办理渠道","有效期限","办理条款","报备编号","资费说明"];
   const q=s=>'"'+String(s==null?"":s).replace(/"/g,'""')+'"';
   const lines=[head.map(q).join(",")];
   cur.forEach(r=>lines.push([r.f,r.n,r.cat,r.sub,r.g,r.c,
-    fmtD(r.o),fmtD(r.e),r.st?"已下架":"在售",r.ap,r.ch,r.vy,r.r,r.x].map(q).join(",")));
+    fmtD(r.o),fmtD(r.e),r.st?"已下架":"在售",r.ap,r.ch,r.vy,
+    condHitsS(r).map(function(x){return x.def.lab}).join("/"),r.r,r.x].map(q).join(",")));
   const a=document.createElement("a");
   a.href=URL.createObjectURL(new Blob(["\\uFEFF"+lines.join("\\r\\n")],{type:"text/csv;charset=utf-8"}));
   a.download="上海电信资费_"+new Date().toISOString().slice(0,10)+".csv";

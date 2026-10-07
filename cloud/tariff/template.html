@@ -434,6 +434,20 @@ mark{background:var(--ac2);color:inherit;padding:0 1px;border-radius:2px}
 .vptg-mid{background:var(--warnbg);color:var(--warn)}
 .vptg-far{background:var(--card3);color:var(--tx3);font-weight:500}
 .vptg-rn{background:none;color:var(--tx3);border:1px dashed var(--bd2);font-weight:500}
+.vptg-raw{background:var(--card3);color:var(--tx3);font-weight:500;border:1px dashed var(--bd2)}
+/* 办理条款徽章：红=硬门槛（合约/违约/最低消费），橙=资金动作（预存），
+   蓝=计费规则（首月优惠）；与 vptg 同款尺寸但独立配色，不沘进有效期语义 */
+.ctc{white-space:nowrap}
+.ctg{display:inline-block;padding:0 7px;border-radius:5px;font-size:11px;font-weight:700;
+  line-height:17px;white-space:nowrap;margin-right:4px;cursor:default}
+.ctg-bad{background:var(--badbg);color:var(--bad);border:1px solid currentColor}
+.ctg-warn{background:var(--warnbg);color:var(--warn)}
+.ctg-info{background:var(--acbg,rgba(59,130,246,.14));color:var(--ac);border:1px solid currentColor}
+.ctg-more{background:var(--card3);color:var(--tx3);font-weight:500}
+/* 有效期独立列：徽章在名称列里时 margin-left 是留给前置文字的，
+   独占单元格后归零、字号提一档（11→11.5）让档位颜色更醒目 */
+.vpc{white-space:nowrap}
+.vpc .vptg{margin-left:0;font-size:11.5px;line-height:19px}
 .ditem.vp-hi{background:var(--warnbg);border-radius:8px;padding:4px 8px;margin:2px -4px}
 .ditem.vp-hi em{font-style:normal}
 .ditem.vp-hi .vpraw{color:var(--tx)}
@@ -594,8 +608,8 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   .brow{grid-template-columns:minmax(78px,104px) 1fr 52px;font-size:12px}
   .stat .sn{font-size:22px}
   th,td{padding:8px 7px}
-  /* 🔴 窄屏下 10 列的自然宽度远超屏宽，table 的 overflow:clip 会把右侧列
-     （目标客户/上架/下线）**直接剪掉**且无任何办法看到 —— 切成横向滚动。
+  /* 🔴 窄屏下 11 列的自然宽度远超屏宽，table 的 overflow:clip 会把右侧列
+     （目标客户/上架/下线/有效期）**直接剪掉**且无任何办法看到 —— 切成横向滚动。
      wrapper 此刻成为滚动容器，th 的 sticky 随之失效（表头随内容滚走），
      窄屏上「能看全」优先于「表头钉住」。 */
   .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--r)}
@@ -868,6 +882,8 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   <th>目标客户<button type="button" class="cfx" data-cf="ap" title="列筛选：勾选要保留的取值">▽</button></th>
   <th data-k="on">上架<span class="ar"></span><button type="button" class="cfx" data-cf="on" title="列筛选：按上架状态分档（待上架 / 今天 / 30 天内 / 30 天前）">▽</button></th>
   <th data-k="off">下线<span class="ar"></span><button type="button" class="cfx" data-cf="off" title="列筛选：按下线状态分档（已过期 / 60 天内到期 / 60 天以上 / 长期）">▽</button></th>
+  <th data-k="vp">有效期<span class="ar"></span><button type="button" class="cfx" data-cf="vp" title="列筛选：按有效期分档（已过期 / 90 天内到期 / 90 天–1 年 / 1 年以上 / 短约 / 长约 / 长期）">▽</button></th>
+  <th title="办理条款：合约期 / 违约金 / 最低消费 / 预存 / 首月优惠（从权益说明与超套资费自动提取，悬停看原文片段）">条款<button type="button" class="cfx" data-cf="cond" title="列筛选：按条款分档（合约期 / 违约金 / 最低消费 / 预存 / 首月优惠 / 无）">▽</button></th>
 </tr></thead>
 <tbody id="tb"></tbody>
 </table>
@@ -1333,6 +1349,13 @@ const F={
          return a<0?a:t;
        }},
   off :{lb:"下线时间",def: 1,get:d=>toDate(d.e)},
+  /* 有效期排序：固定到期日按**剩余天数**（升序时最紧迫的排最前，已过期为负数
+     自然排最前）；纯时长按月数；都解析不出（空白/长期/怪文案）→ null 恒排最后。 */
+  vp  :{lb:"有效期",  def: 1,get:d=>{
+         const i=vpInfo(d);if(!i)return null;
+         if(i.date!=null)return BASE_OK?left(i.date):i.date;
+         return i.term*30.4;      /* 月数折天数，量纲与日期路径一致可比较 */
+       }},
   fee :{lb:"月费",    def: 1,get:d=>num(d.f)},
   gb  :{lb:"流量",    def:-1,get:d=>(d.g==null?null:d.g)},
   call:{lb:"通话",    def:-1,get:d=>num(d.c)},
@@ -1738,7 +1761,29 @@ const COLF_DEF={
     const lf=left(dt);
     if(lf>FAR)return"长期";
     if(lf<0)return"已过期";
-    return lf<=60?"60 天内到期":"60 天以上";}}
+    return lf<=60?"60 天内到期":"60 天以上";}},
+  /* 有效期筛**档位**不筛原文（100% 覆盖率的长文本，去重几百个没法当筛选值；
+     档位与 vpCell 徽标颜色同源：日期型按剩余天数三档，纯时长按月数两档，
+     解析不出但确有文案的进「其他」——原文在 title 与展开详情里都看得到）。 */
+  vp:{lab:"有效期",get:d=>{
+    const i=vpInfo(d),raw=String(d.vp||"");
+    if(!i){
+      if(/长期/.test(raw))return"长期";
+      return raw?"其他":"";
+    }
+    if(i.date!=null){
+      if(!BASE_OK)return"其他";          /* 缺基线：有日期算不出剩余天数，不给假档 */
+      const lf=left(i.date);
+      if(lf<0)return"已过期";
+      if(lf<=90)return"90 天内到期";
+      return lf<=365?"90 天–1 年":"1 年以上";
+    }
+    return i.term<=12?"短约 ≤12 个月":"长约 1 年以上";
+  }},
+  /* 条款筛**最高优先级档**（partition）：一至多条同时命中时只归入最重的一档
+     （红→橙→蓝次序即 COND_DEFS 顺序）—— 徽章看全量，筛选看「最重的一条」；
+     这与窄带列「mb 优先于提速」同一哲学：档位必须互斥才不虚报。 */
+  cond:{lab:"条款",get:d=>{const h=condHits(d);return h.length?h[0].def.lab:"";}}
 };
 const COLF_MAX=400;              // 清单 DOM 渲染上限（搜索可缩小）
 let COLF={};                     // 列 key → 已勾选值数组；无键 = 该列不筛
@@ -1877,6 +1922,83 @@ function offCell(d){
   if(lf<0)return'<div>'+fmtD(d.e)+'</div><div class="exp">已过期 '+(-lf)+' 天</div>';
   if(lf<=60)return'<div>'+fmtD(d.e)+'</div><div class="soon">'+lf+' 天后到期</div>';
   return'<div>'+fmtD(d.e)+'</div><div class="mut">'+lf+' 天后到期</div>';
+}
+
+/* —— 有效期列（2026-10-07）：从「名称列尾随小徽章」升格为独立列 ——
+   vp 四网覆盖率 100%（每行都有官方文案），挤在名称后面等于没有；
+   独立成列、彩色档位徽章（红=紧迫 / 琥珀=短约 / 灰=远期）才配得上
+   「突出显示」。解析得出档位的走 vpTag（与展开详情高亮行同一判据）；
+   解析不出但确有文案的给灰色虚线短标签 —— 原文一个字都不丢（title 全文，
+   展开详情里仍是 vp-hi 完整高亮行）。 */
+function vpCell(d){
+  const t=vpTag(d);
+  if(t)return'<td class="vpc">'+t+'</td>';
+  const raw=String(d.vp||"").trim();
+  if(!raw)return'<td class="vpc"><span class="mut">—</span></td>';
+  return'<td class="vpc"><span class="vptg vptg-raw" title="'
+    +esc(raw)+'">'+esc(raw.length>12?raw.slice(0,12)+"…":raw)+'</span></td>';
+}
+
+/* —— 办理条款徽章（2026-10-07，全网普查后新增）——
+   调研口径：15014 行 × 9 个文本字段 × 14 类语义正则普查，命中数与误报形态
+   逐类抽样核对后只留下 5 类「办理前必看」的门槛类条款（来源字段：权益说明 x
+   + 超套资费 ex；**不含名称 t** —— 名称本来就全量可见，徽章它纯属重复）：
+     合约期   664 条（承诺在网 24/36 个月、合约期套餐档次不下降…）
+     预存/押金 569（一次性预存 100 元…）
+     违约金   ~225（违约金=月功能费×协议期剩余月份…）
+     最低消费  169
+     首月优惠   77（首月免费/按天折算/恢复原价）
+   普查中明确**不做**的：限渠道（2.7 万命中全是渠道字段本体，噪音）；
+   不可/除外（5544 条长文本，逐条标红等于没标）；赠送类（正向信息非门槛）；
+   限新老用户（「新入网立即生效」这类流程语句无法与限制语句区分，误报率高）。
+   🔴 否定语境陷阱（实测 128+ 条）：「退订/销户/携转等**无需承担**违约责任」
+     「退订**无需违约金**」—— 见「违约」就标红会把免违约条款标成违约条款。
+     判据：违约金类改用**肯定语境判定**（find 函数），只有承担/收取/产生/支付
+     + 违约才算，命中点前一字是 无/免/不 则跳过。 */
+const COND_DEFS=[
+  {lab:"合约期",  cls:"ctg-bad", pat:/承诺(在网|使用)|协议期|合约期|在网(至少|不少于)/,
+   tip:"承诺在网/协议期，期内退订可能有代价"},
+  /* 违约金用**肯定语境判定**（实测 235 肯定 vs 138 否定，neg-lookbehind 漏判
+     「退订无需违约金」这类没有「承担」二字的否定）：只有 承担/收取/产生/支付+违约
+     （且命中点前一字不是 无/免/不）或 违约金+按/为 才算 —— 「无需承担违约责任」
+     「无违约责任」「退订无需违约金」全部不触发；混合语境（合约期内要赔、
+     期后不用赔）以 first positive 为准，徽章本就判「有没有违约金条款」。 */
+  {lab:"违约金",  cls:"ctg-bad", find:function(s){
+     let m,RE=/(?:承担|收取|产生|支付)[^，。；]{0,6}违约|违约金\s*[按照为]/g;
+     while((m=RE.exec(s))){
+       /* 回看 3 字：「无需承担」的无在 2 字外，只看 1 字会漏（实测踩过）；
+          「需要承担」的 3 字窗是「需要」，不含无/免/不，正确放行 */
+       if(/[无免不]/.test(s.slice(Math.max(0,m.index-3),m.index)))continue;
+       return m;
+     }
+     return null;
+   }, tip:"期内退订/销户/携转可能产生违约金"},
+  {lab:"最低消费",cls:"ctg-bad", pat:/最低消费|保底消费/, tip:"有最低消费/保底要求"},
+  {lab:"预存",    cls:"ctg-warn",pat:/预存|押金/, tip:"需预存话费/押金"},
+  {lab:"首月优惠",cls:"ctg-info",pat:/首月(免费|0元|零元|按天|折算|收取|扣费)|恢复原价|个月后恢复|优惠期(满|结束)/,
+   tip:"首月计费规则特殊 / 到期恢复原价"}
+];
+function condHits(d){
+  const s=String(d.x||"")+"｜"+String(d.ex||"");
+  if(!s.replace(/｜/g,""))return[];
+  const out=[];
+  for(const c of COND_DEFS){
+    const m=c.find?c.find(s):c.pat.exec(s);
+    if(!m)continue;
+    if(c.neg&&c.neg.test(s.slice(Math.max(0,m.index-30),m.index)))continue;
+    out.push({def:c,at:m.index,snip:s.slice(Math.max(0,m.index-24),m.index+30).trim()});
+  }
+  return out;
+}
+/* 列表单元格：最多 2 枚 + 「+N」（title 里带全量条款与各自原文片段） */
+function condCell(d){
+  const h=condHits(d);
+  if(!h.length)return'<td class="ctc"><span class="mut">—</span></td>';
+  const tip=h.map(x=>"【"+x.def.lab+"】"+x.snip).join("\n");
+  const pills=h.slice(0,2).map(x=>'<span class="ctg '+x.def.cls+'" title="'
+    +esc(x.def.tip+"："+x.snip)+'">'+esc(x.def.lab)+'</span>').join("");
+  const more=h.length>2?'<span class="ctg ctg-more" title="'+esc(tip)+'">+'+(h.length-2)+'</span>':"";
+  return'<td class="ctc" title="'+esc(tip)+'">'+pills+more+'</td>';
 }
 
 /* —— 「同价位更优选择」（2026-10-01）——
@@ -2192,6 +2314,11 @@ function detHTML(d){
   /* 有效期带期限时高亮整行：徽标给档位，官方原文全量跟在后面（不截断） */
   if(vpInfo(d))g.push(["有效期",vpTag(d)+' <span class="vpraw">'+esc(d.vp)+'</span>',1]);
   else g.push(["有效期",d.vp||"—"]);
+  /* 办理必读（2026-10-07）：条款命中与列表徽章同一判据（condHits），
+     这里给每条的原文片段 —— 悬停列表徽章看片段，展开后不用悬停直接看 */
+  const _ch=condHits(d);
+  if(_ch.length)g.push(["办理必读",_ch.map(x=>'<span class="ctg '+x.def.cls+'">'
+    +esc(x.def.lab)+'</span> '+esc(x.snip)).join('<span class="vpraw">；</span>'),1]);
   g.push(["权益说明",d.x||"—"]);
   /* 宽带用 bwDetail() 的原始 HTML（内含速率徽标），其余字段一律转义；
      p[2] 标记该行是**已转义/受控的 HTML**（vp 高亮行 / 宽带行），直接注入 */
@@ -2311,7 +2438,7 @@ function render(){
     ROWS=[];  /* 2026-10-04：模块级变量不跨渲染残留 —— 空结果页没有 tr.row，
                  委托器当前不会经 data-i 回取，但「上一页的数据还挂在全局」
                  是坏味道，且未来任何新交互都可能踩中它。 */
-    tb.innerHTML='<tr><td colspan="10" class="empty"><div>没有匹配的资费</div>'
+    tb.innerHTML='<tr><td colspan="12" class="empty"><div>没有匹配的资费</div>'
       +diagEmpty()
       +'<div style="margin-top:10px"><a href="#" id="clr">重置全部筛选</a></div></td></tr>';
     const c=$("#clr");if(c)c.onclick=e=>{e.preventDefault();resetAll()};
@@ -2342,14 +2469,16 @@ function render(){
         /* L1（2026-10-04）：「已下架」页签下整页每行都挂同一枚徽标 ——
            页签标题已声明状态，这里是纯冗余（联通 3177 行 × 1 枚）；
            「全部」页签下它才有区分度，保留。 */
-        +(STA==="1"?"":stopTag(d))+vpTag(d)+'</td>'
+        +(STA==="1"?"":stopTag(d))+'</td>'
       +'<td><span class="tg" title="'+esc("大类："+(d.cat||"—")+(d.ty&&d.ty!==d.cat?" · 官方细分："+d.ty:"")+"；官方原始分类见展开详情")+'">'+esc(d.cat||"—")+'</span></td>'
       +'<td>'+owTag(d)+'</td>'
       +'<td>'+bwCell(d)+'</td>'
       +apCell(d,terms)
       +'<td style="white-space:nowrap">'+onCell(d)+'</td>'
-      +'<td style="white-space:nowrap">'+offCell(d)+'</td></tr>'
-      +'<tr class="det"><td colspan="10"><div class="detwrap">'+detHTML(d)+'</div></td></tr>');
+      +'<td style="white-space:nowrap">'+offCell(d)+'</td>'
+      +vpCell(d)
+      +condCell(d)+'</tr>'
+      +'<tr class="det"><td colspan="12"><div class="detwrap">'+detHTML(d)+'</div></td></tr>');
   });
   tb.innerHTML=buf.join("");
   decorateFav();
@@ -3121,6 +3250,7 @@ function rowText(d){
     "宽带："+(bi?(mb?mb+"M":"含宽带"):"—"),
     "渠道："+(d.chx||"—")+(d.ch?"（"+d.ch+"）":""),
     "上架："+(fmtD(d.o)||"—")+"  下线："+(fmtD(d.e)||"—"),
+    "有效期："+(d.vp||"—"),
     "报备编号："+(d.r||"—"),
     "数据基线："+String(net().base||"—")+"（来源 "+String(net().src||"—")+"）"
   ].join("\n");
@@ -3174,7 +3304,9 @@ const CSV_COLS=[
   ["渠道档",d=>d.chx],["办理渠道原文",d=>d.ch],
   ["报备编号",d=>d.r],["上架日",d=>fmtD(d.o)],["下线日",d=>fmtD(d.e)],
   ["本次变更",d=>(d.ca?"新增":"")+(d.ca&&d.ck?"/":"")+(d.ck?"字段变更":"")],
-  ["超套资费",d=>d.ex],["有效期",d=>d.vp],["权益说明",d=>d.x],
+  ["超套资费",d=>d.ex],["有效期",d=>d.vp],
+  ["办理条款",d=>condHits(d).map(x=>x.def.lab).join("/")],
+  ["权益说明",d=>d.x],
   /* C1（2026-10-04）：基线日期 —— 文件名里有但行内没有，多份 CSV 合并分析时
      行级时效信息就丢了。取 net().base（与页面顶部「数据基线」同源）。 */
   ["基线日期",()=>net().base||""]];

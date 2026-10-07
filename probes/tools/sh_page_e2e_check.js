@@ -45,6 +45,33 @@
   var rows1 = $$("#tb tr.row").length;
   chk("明细行数 == ROWS", rows1 === ROWS.length, rows1 + " vs " + ROWS.length);
 
+  /* 2b. 有效期/条款列（2026-10-07 对齐主界面）*/
+  chk("表头 8 列", document.querySelectorAll("thead th").length === 8,
+      document.querySelectorAll("thead th").length + " 列");
+  chk("有效期单元格渲染", $$("#tb tr.row td.vpc").length === rows1,
+      $$("#tb tr.row td.vpc").length + " / " + rows1);
+  chk("条款单元格渲染", $$("#tb tr.row td.ctc").length === rows1,
+      $$("#tb tr.row td.ctc").length + " / " + rows1);
+  var vpHit = 0, ctHit = 0;
+  $$("#tb tr.row td.vpc").forEach(function (t) { if (t.querySelector(".vptg")) vpHit++; });
+  $$("#tb tr.row td.ctc").forEach(function (t) { if (t.querySelector(".ctg")) ctHit++; });
+  chk("有效期徽章有命中", vpHit > 0, vpHit + " 行带徽章");
+  chk("条款徽章有命中", ctHit > 0, ctHit + " 行带徽章");
+  /* 条款 facet 功能：挑最多档位勾选，条数与同源判据一致 */
+  if (typeof COLF_DEF === "object" && COLF_DEF.cond) {
+    var cnt = {}, pick = null;
+    ROWS.forEach(function (r) { var v = COLF_DEF.cond.get(r); cnt[v] = (cnt[v] || 0) + 1; });
+    Object.keys(cnt).forEach(function (v) { if (v && (!pick || cnt[v] > cnt[pick])) pick = v; });
+    if (pick) {
+      COLF.cond = new Set([pick]);
+      var want = ROWS.filter(function (r) { return COLF_DEF.cond.get(r) === pick; }).length;
+      view();
+      chk("条款 facet 筛准（" + pick + "）", cur.length === want,
+          cur.length + " vs " + want);
+      delete COLF.cond; view();
+    }
+  }
+
   /* 3. 视图页签切换 */
   chk("默认明细可见", !$("#viewTbl").hidden && $("#viewHist").hidden);
   var histBtn = document.querySelector('#vtabs button[data-v="hist"]');
