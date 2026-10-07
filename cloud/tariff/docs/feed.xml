@@ -5,6 +5,16 @@
 <description>河北移动/联通/电信/广电资费目录每日巡检捕获的业务变更（新增 / 下线 / 字段变更）</description>
 <language>zh-CN</language>
 <item>
+<title>2026-10-07 河北电信：变更 2</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-07.md</link>
+<category>变更</category>
+<guid isPermaLink="false">2026-10-07-telecom</guid>
+<pubDate>Wed, 07 Oct 2026 19:54:20 +0800</pubDate>
+<description>2026-10-07 河北电信：变更 2
+± 视频汇聚（月包）
+± 视频汇聚（月包）</description>
+</item>
+<item>
 <title>2026-10-05 河北电信：变更 2</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-05.md</link>
 <category>变更</category>
