@@ -312,12 +312,11 @@
       }
     } catch (e) { o.colfErr = String(e && e.message || e); }
 
-    /* ══ 列筛选·全列覆盖（2026-10-06 晚；2026-10-07 扩到 12 列含有效期/条款）══
+    /* ══ 列筛选·全列覆盖（2026-10-06 晚；2026-10-07 扩 12 列、
+          同日按用户要求撤掉条款独立列 → 回到 11 列，条款只留详情「办理必读」）══
        ① DOM：表头每列都必须有漏斗按钮（「这一行都加上筛选」的硬断言）；
        ② 功能：月费列按展示口径（「29 元」）取值 —— 挑条数最多的费用值，
-          cfSet 后条数必须恰好等于该值行数，清空复原；
-       ③ 功能（2026-10-07）：条款列 facet 同样要筛准 —— 最高优先级档
-          partition 口径，condHits 与页面同源（直接调页面自己的函数）。 */
+          cfSet 后条数必须恰好等于该值行数，清空复原。 */
     o.colfAllProbe = null;
     try {
       if (typeof cfSet === "function") {
@@ -340,27 +339,11 @@
           });
           cfSet("fee", null); apply();
         }
-        /* 条款列 facet 功能：挑条数最多的档位，cfSet 后与同源判据比对 */
-        var condCnt = {}, condPick = null, condGot = -1, condWant = -1;
-        if (typeof condHits === "function" && typeof COLF_DEF === "object" && COLF_DEF.cond) {
-          rowsOf(NET).forEach(function (d) {
-            var v = COLF_DEF.cond.get(d);
-            condCnt[v] = (condCnt[v] || 0) + 1;
-          });
-          condPick = Object.keys(condCnt).filter(function (v) { return v; })
-            .sort(function (a, b) { return condCnt[b] - condCnt[a]; })[0];
-          if (condPick) {
-            cfSet("cond", [condPick]); apply();
-            condGot = view.length;
-            condWant = wantBy(function (d) { return COLF_DEF.cond.get(d) === condPick; });
-            cfSet("cond", null); apply();
-          }
-        }
-        var vpCells = document.querySelectorAll("#tb tr.row td.vpc").length,
-            ctCells = document.querySelectorAll("#tb tr.row td.ctc").length;
+        /* 条款已不设独立列（用户要求），只验详情里「办理必读」判据仍活着 */
+        var condFn = (typeof condHits === "function");
+        var vpCells = document.querySelectorAll("#tb tr.row td.vpc").length;
         o.colfAllProbe = { thMissing: thNo, thTotal: thTotal, vpTh: vpTh,
-                           vpCells: vpCells, ctCells: ctCells,
-                           condPick: condPick, condWant: condWant, condGot: condGot,
+                           vpCells: vpCells, condFn: condFn,
                            feePick: fk,
                            want: feeWant, got: feeGot, restored: view.length === feeBase };
       }
@@ -500,18 +483,15 @@
       if (!fp.restored) { bad.push("列筛清空后条数没复原"); }
     }
 
-    // 列筛选·全列覆盖（12 列漏斗 + 月费列/条款列功能）
+    // 列筛选·全列覆盖（11 列漏斗 + 月费列功能；条款不设列只留详情）
     if (o.colfAllErr) { bad.push("全列筛选操作异常: " + o.colfAllErr); }
     else if (o.colfAllProbe) {
       var fa = o.colfAllProbe;
-      if (fa.thTotal !== 12) { bad.push("表头应为 12 列（含有效期/条款），实为 " + fa.thTotal); }
+      if (fa.thTotal !== 11) { bad.push("表头应为 11 列（条款不设独立列），实为 " + fa.thTotal); }
       if (!fa.vpTh) { bad.push("缺有效期列（th[data-k=vp]）"); }
       if (fa.thMissing > 0) { bad.push("表头有 " + fa.thMissing + " 列缺筛选漏斗"); }
       if (!fa.vpCells) { bad.push("有效期列 0 个单元格渲染"); }
-      if (!fa.ctCells) { bad.push("条款列 0 个单元格渲染"); }
-      if (fa.condPick && fa.condGot !== fa.condWant) {
-        bad.push("列筛「条款=" + fa.condPick + "」条数不符：页面 " + fa.condGot + " ≠ 数据 " + fa.condWant);
-      }
+      if (!fa.condFn) { bad.push("condHits 判据函数丢失（详情「办理必读」会失效）"); }
       if (fa.feePick && fa.got !== fa.want) {
         bad.push("列筛「月费=" + fa.feePick + "」条数不符：页面 " + fa.got + " ≠ 数据 " + fa.want);
       }

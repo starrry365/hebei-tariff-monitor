@@ -883,7 +883,6 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   <th data-k="on">上架<span class="ar"></span><button type="button" class="cfx" data-cf="on" title="列筛选：按上架状态分档（待上架 / 今天 / 30 天内 / 30 天前）">▽</button></th>
   <th data-k="off">下线<span class="ar"></span><button type="button" class="cfx" data-cf="off" title="列筛选：按下线状态分档（已过期 / 60 天内到期 / 60 天以上 / 长期）">▽</button></th>
   <th data-k="vp">有效期<span class="ar"></span><button type="button" class="cfx" data-cf="vp" title="列筛选：按有效期分档（已过期 / 90 天内到期 / 90 天–1 年 / 1 年以上 / 短约 / 长约 / 长期）">▽</button></th>
-  <th title="办理条款：合约期 / 违约金 / 最低消费 / 预存 / 首月优惠（从权益说明与超套资费自动提取，悬停看原文片段）">条款<button type="button" class="cfx" data-cf="cond" title="列筛选：按条款分档（合约期 / 违约金 / 最低消费 / 预存 / 首月优惠 / 无）">▽</button></th>
 </tr></thead>
 <tbody id="tb"></tbody>
 </table>
@@ -1779,11 +1778,7 @@ const COLF_DEF={
       return lf<=365?"90 天–1 年":"1 年以上";
     }
     return i.term<=12?"短约 ≤12 个月":"长约 1 年以上";
-  }},
-  /* 条款筛**最高优先级档**（partition）：一至多条同时命中时只归入最重的一档
-     （红→橙→蓝次序即 COND_DEFS 顺序）—— 徽章看全量，筛选看「最重的一条」；
-     这与窄带列「mb 优先于提速」同一哲学：档位必须互斥才不虚报。 */
-  cond:{lab:"条款",get:d=>{const h=condHits(d);return h.length?h[0].def.lab:"";}}
+  }}
 };
 const COLF_MAX=400;              // 清单 DOM 渲染上限（搜索可缩小）
 let COLF={};                     // 列 key → 已勾选值数组；无键 = 该列不筛
@@ -1989,16 +1984,6 @@ function condHits(d){
     out.push({def:c,at:m.index,snip:s.slice(Math.max(0,m.index-24),m.index+30).trim()});
   }
   return out;
-}
-/* 列表单元格：最多 2 枚 + 「+N」（title 里带全量条款与各自原文片段） */
-function condCell(d){
-  const h=condHits(d);
-  if(!h.length)return'<td class="ctc"><span class="mut">—</span></td>';
-  const tip=h.map(x=>"【"+x.def.lab+"】"+x.snip).join("\n");
-  const pills=h.slice(0,2).map(x=>'<span class="ctg '+x.def.cls+'" title="'
-    +esc(x.def.tip+"："+x.snip)+'">'+esc(x.def.lab)+'</span>').join("");
-  const more=h.length>2?'<span class="ctg ctg-more" title="'+esc(tip)+'">+'+(h.length-2)+'</span>':"";
-  return'<td class="ctc" title="'+esc(tip)+'">'+pills+more+'</td>';
 }
 
 /* —— 「同价位更优选择」（2026-10-01）——
@@ -2438,7 +2423,7 @@ function render(){
     ROWS=[];  /* 2026-10-04：模块级变量不跨渲染残留 —— 空结果页没有 tr.row，
                  委托器当前不会经 data-i 回取，但「上一页的数据还挂在全局」
                  是坏味道，且未来任何新交互都可能踩中它。 */
-    tb.innerHTML='<tr><td colspan="12" class="empty"><div>没有匹配的资费</div>'
+    tb.innerHTML='<tr><td colspan="11" class="empty"><div>没有匹配的资费</div>'
       +diagEmpty()
       +'<div style="margin-top:10px"><a href="#" id="clr">重置全部筛选</a></div></td></tr>';
     const c=$("#clr");if(c)c.onclick=e=>{e.preventDefault();resetAll()};
@@ -2476,9 +2461,8 @@ function render(){
       +apCell(d,terms)
       +'<td style="white-space:nowrap">'+onCell(d)+'</td>'
       +'<td style="white-space:nowrap">'+offCell(d)+'</td>'
-      +vpCell(d)
-      +condCell(d)+'</tr>'
-      +'<tr class="det"><td colspan="12"><div class="detwrap">'+detHTML(d)+'</div></td></tr>');
+      +vpCell(d)+'</tr>'
+      +'<tr class="det"><td colspan="11"><div class="detwrap">'+detHTML(d)+'</div></td></tr>');
   });
   tb.innerHTML=buf.join("");
   decorateFav();

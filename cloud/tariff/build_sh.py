@@ -452,7 +452,6 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-off
     <th data-k="o">上架<span class="ar"></span><button type="button" class="cfx" data-cf="o" title="列筛选">▽</button></th>
     <th data-k="e">下线<span class="ar"></span><button type="button" class="cfx" data-cf="e" title="列筛选">▽</button></th>
     <th title="资费标称有效期（自动解析：到期日 / 时长 / 自动续）">有效期<button type="button" class="cfx" data-cf="vy" title="列筛选：按有效期分档">▽</button></th>
-    <th title="办理条款：合约期 / 违约金 / 最低消费 / 预存 / 首月优惠（从资费说明自动提取，悬停看原文片段）">条款<button type="button" class="cfx" data-cf="cond" title="列筛选：按条款分档">▽</button></th>
   </tr></thead><tbody id="tb"></tbody></table>
   <div class="empty" id="empty" hidden>没有匹配的资费<br>
     <button type="button" class="tbtn" id="resetAll">清空全部筛选</button></div>
@@ -546,15 +545,6 @@ function vpCellS(r){
   var raw=String(r.vy||"").trim();
   if(!raw)return'<td class="vpc"><span class="mut">—</span></td>';
   return'<td class="vpc"><span class="vptg vptg-raw" title="'+esc(raw)+'">'+esc(raw.length>12?raw.slice(0,12)+"…":raw)+'</span></td>';
-}
-function condCellS(r){
-  var h=condHitsS(r);
-  if(!h.length)return'<td class="ctc"><span class="mut">—</span></td>';
-  var tip=h.map(function(x){return"【"+x.def.lab+"】"+x.snip}).join("\\n");
-  var pills=h.slice(0,2).map(function(x){return'<span class="ctg '+x.def.cls+'" title="'
-    +esc(x.def.tip+"："+x.snip)+'">'+esc(x.def.lab)+'</span>'}).join("");
-  var more=h.length>2?'<span class="ctg ctg-more" title="'+esc(tip)+'">+'+(h.length-2)+'</span>':"";
-  return'<td class="ctc" title="'+esc(tip)+'">'+pills+more+'</td>';
 }
 function detVp(r){
   if(!r.vy)return"";
@@ -653,11 +643,10 @@ const COLF_DEF={
       if(lf<=90)return"90 天内到期";
       return lf<=365?"90 天–1 年":"1 年以上";
     }
-    return i.term<=12?"短约 ≤12 个月":"长约 1 年以上";}},
-  cond:{lab:"条款",get:r=>{var h=condHitsS(r);return h.length?h[0].def.lab:""}}
+    return i.term<=12?"短约 ≤12 个月":"长约 1 年以上";}}
 };
 let COLF={};   // {code: Set(取值)}；只存「勾选了」的列
-const CF_BASE=[["f",1],["g",1],["c",1],["o",1],["e",1],["cat",1],["sub",1],["vy",1],["cond",1]];
+const CF_BASE=[["f",1],["g",1],["c",1],["o",1],["e",1],["cat",1],["sub",1],["vy",1]];
 const tb=$("#tb"),kw=$("#kw"),stat=$("#stat"),condBox=$("#condChips");
 let cur=[];
 function basePass(r,skipCode){
@@ -697,8 +686,8 @@ function view(){
         +'<div class="mut">'+esc(r.cat||"")+(r.ap?" · "+esc(r.ap):"")+'</div></td>'
       +'<td>'+fmtGb(r.g)+'</td>'
       +'<td>'+(r.c&&r.c!=="0"?esc(r.c)+" 分钟":"—")+'</td>'
-      +'<td>'+fmtD(r.o)+'</td><td>'+fmtD(r.e)+'</td>'+vpCellS(r)+condCellS(r)+'</tr>'
-      +'<tr class="det"><td colspan="8"><div class="detwrap"><div class="detgrid">'
+      +'<td>'+fmtD(r.o)+'</td><td>'+fmtD(r.e)+'</td>'+vpCellS(r)+'</tr>'
+      +'<tr class="det"><td colspan="7"><div class="detwrap"><div class="detgrid">'
         +(r.sub?'<div class="ditem"><span>细分</span><em>'+esc(r.sub)+'</em></div>':"")
         +(r.ap?'<div class="ditem"><span>适用人群</span><em>'+esc(r.ap)+'</em></div>':"")
         +detVp(r)
