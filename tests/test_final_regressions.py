@@ -322,8 +322,17 @@ class TestScriptsSmoke(unittest.TestCase):
                               timeout=120)
 
     def test_check_fresh_runs(self):
+        # 冒烟口径（2026-10-08 修）：验「脚本正确执行并给出合法结论」，
+        # 不是「数据此刻必须新鲜」。check_fresh 的退出码语义（见其文件头）：
+        #   0=新鲜 / 1=过期告警 / 2=连基线都读不到。
+        # 旧断言 ==0 会把每天 06:30–09:35（晨班车落地前）窗口内跑的 CI
+        # 全部误红（快照 30~33 小时龄属日变窗内的正常陈旧，巡检本身健康），
+        # 2026-10-08 08:52 的 push CI 实际踩中。故 0/1 都算通过——
+        # 1 还必须是「规范告警」而非崩溃：输出须含检查时间行。
         r = self._run("cloud/tariff/check_fresh.py")
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(r.returncode, (0, 1), "退出码 2=基线缺失/其它=异常崩溃：" + r.stdout + r.stderr)
+        self.assertIn("检查时间：", r.stdout, "输出缺格式标记，脚本可能没真正跑完逻辑")
+        self.assertIn("阈值", r.stdout)
 
     def test_noise_guard_selfcheck(self):
         r = self._run("cloud/tariff/noise_guard.py", "--selfcheck")
