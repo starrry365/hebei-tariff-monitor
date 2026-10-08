@@ -5,6 +5,26 @@
 <description>河北移动/联通/电信/广电资费目录每日巡检捕获的业务变更（新增 / 下线 / 字段变更）</description>
 <language>zh-CN</language>
 <item>
+<title>2026-10-08 河北联通：新增 2</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-10-08.md</link>
+<category>新增</category>
+<guid isPermaLink="false">2026-10-08-unicom</guid>
+<pubDate>Thu, 08 Oct 2026 08:58:56 +0800</pubDate>
+<description>2026-10-08 河北联通：新增 2
+＋ 5G畅越冰激凌升级版15元（河北）
+＋ 5G畅越冰激凌升级版25元（河北）</description>
+</item>
+<item>
+<title>2026-10-08 河北移动：下线 2</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-10-08.md</link>
+<category>下线</category>
+<guid isPermaLink="false">2026-10-08-move</guid>
+<pubDate>Thu, 08 Oct 2026 08:55:52 +0800</pubDate>
+<description>2026-10-08 河北移动：下线 2
+－ 反诈宝个人版
+－ 反诈宝家庭版</description>
+</item>
+<item>
 <title>2026-10-05 河北电信：变更 2</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-05.md</link>
 <category>变更</category>
