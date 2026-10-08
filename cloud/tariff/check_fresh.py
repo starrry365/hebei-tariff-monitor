@@ -43,6 +43,16 @@ SNAP_DIR = os.path.join(BASE, "snapshots")
 NET_CN = {"move": "河北移动", "unicom": "河北联通",
           "telecom": "河北电信", "cbn": "中国广电"}
 
+# 分源清单（2026-10-08 深查）：快照前缀 ↔ history code。
+# 🔴 只看「全局最新」有盲区：若广电单独静默失效而其它源正常，全局最新
+#   永远新鲜，报警永远不响 —— 而这恰是本脚本要防的场景②（任务根本没跑）。
+#   分源判龄后，任一源缺新鲜证据都会响。shct 是独立链路（shct_history.json），
+#   不在主巡检范围。
+SOURCES = [("移动", "move", "hebei_tariff"),
+           ("联通", "unicom", "unicom_tariff"),
+           ("电信", "telecom", "ct_tariff"),
+           ("广电", "cbn", "cbn_tariff")]
+
 _TS_FORMATS = ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S",
                "%Y-%m-%d %H:%M", "%Y-%m-%d")
 
@@ -77,6 +87,29 @@ def _load(path):
         return None
 
 
+def _hist_items():
+    """读 history.json 的 items（不可解析/为空都返回 None/[] 由调用方区分）。"""
+    d = _load(HIST)
+    if d is None:
+        return None
+    items = d.get("items") if isinstance(d, dict) else d
+    return items if isinstance(items, list) else None
+
+
+def _newest_ts_in(items, code=None):
+    """items 里 ts 最大的一条 → (item, ts)；code 给了就只看该源。"""
+    best, best_ts = None, None
+    for it in items or []:
+        if not isinstance(it, dict):
+            continue
+        if code is not None and it.get("code") != code:
+            continue
+        ts = parse_ts(it.get("ts"))
+        if ts and (best_ts is None or ts > best_ts):
+            best, best_ts = it, ts
+    return best, best_ts
+
+
 def newest_history():
     """history.json 里最新一条记录 → (datetime, 描述)。
 
@@ -84,19 +117,12 @@ def newest_history():
     顺序不保证（回填的 src=backfill 记录可能后插），所以按 ts 排序取最大，
     而不是盲信最后一条。
     """
-    d = _load(HIST)
-    if d is None:
+    items = _hist_items()
+    if items is None:
         return None, "history.json 缺失或不可解析"
-    items = d.get("items") if isinstance(d, dict) else d
-    if not isinstance(items, list) or not items:
+    if not items:
         return None, "history.json 里还没有任何记录"
-    best, best_ts = None, None
-    for it in items:
-        if not isinstance(it, dict):
-            continue
-        ts = parse_ts(it.get("ts"))
-        if ts and (best_ts is None or ts > best_ts):
-            best, best_ts = it, ts
+    best, best_ts = _newest_ts_in(items)
     if best_ts is None:
         return None, "history.json 里没有可解析的时间戳"
     net = NET_CN.get(best.get("code"), best.get("net") or best.get("code") or "?")
@@ -119,6 +145,30 @@ def _read_fetched_at(path):
     except (OSError, EOFError, ValueError):
         pass
     return None
+
+
+def newest_snapshot_for(prefix):
+    """某源（按文件名前缀）最新快照 → (datetime, 描述)。
+
+    时间戳口径同 newest_snapshot：优先 fetchedAt，文件名日期只作兑底。
+    """
+    best, best_p = None, None
+    for p in glob.glob(os.path.join(SNAP_DIR, prefix + "_*.json.gz")):
+        m = re.search(r"_(\d{8})\.json\.gz$", os.path.basename(p))
+        if not m:
+            continue
+        try:
+            d = datetime.datetime.strptime(m.group(1), "%Y%m%d").replace(tzinfo=CST)
+        except ValueError:
+            continue
+        if best is None or d > best:
+            best, best_p = d, p
+    if best is None:
+        return None, f"{prefix} 无快照"
+    fa = _read_fetched_at(best_p)
+    if fa is not None:
+        best = fa
+    return best, os.path.basename(best_p)
 
 
 def newest_snapshot():
@@ -149,26 +199,43 @@ def newest_snapshot():
 
 
 def check(max_hours):
+    """分源判龄（2026-10-08 重构）。
+
+    每源两个证据：快照 fetchedAt、history 里该 code 的最新一条。
+    源龄 = 两者中**较新**的那个 —— 任一证物新鲜就说明该源最近确实跑过
+    （巡检链路里快照与 history 几乎同刻落盘，正常时两者只差分钟级；
+    取较新可避免「写入成功但另一方偶发失败」时的误报）。
+    任一源超阈值 / 某源两个证据都没有 ⇒ 告警（exit 1）；
+    四源全部一个证据都拿不到 ⇒ 连基线都没了（exit 2）。
+    """
     now = datetime.datetime.now(CST)
     out = {"now": now.strftime("%Y-%m-%d %H:%M:%S"), "max_hours": max_hours,
            "items": [], "stale": [], "missing": []}
+    hist = _hist_items() or []
 
-    for label, fn in (("history", newest_history), ("snapshot", newest_snapshot)):
-        ts, why = fn()
-        if ts is None:
-            out["missing"].append(why)
+    for cn, code, prefix in SOURCES:
+        s_ts, s_why = newest_snapshot_for(prefix)
+        _, h_ts = _newest_ts_in(hist, code)
+        ev = [(t, w) for t, w in ((s_ts, "快照 " + s_why),
+                                  (h_ts, "history %s" % code)) if t]
+        if not ev:
+            out["missing"].append(f"{cn}：快照与 history 都没有记录")
             continue
-        age = (now - ts).total_seconds() / 3600.0
-        rec = {"source": label, "why": why,
-               "ts": ts.strftime("%Y-%m-%d %H:%M:%S"),
+        latest, latest_why = max(ev, key=lambda x: x[0])
+        age = (now - latest).total_seconds() / 3600.0
+        rec = {"source": cn, "code": code,
+               "snapshot": s_ts.strftime("%Y-%m-%d %H:%M:%S") if s_ts else None,
+               "history": h_ts.strftime("%Y-%m-%d %H:%M:%S") if h_ts else None,
+               "why": latest_why,
+               "ts": latest.strftime("%Y-%m-%d %H:%M:%S"),
                "age_hours": round(age, 2)}
         out["items"].append(rec)
         if age > max_hours:
             out["stale"].append(rec)
 
-    if not out["items"]:                    # 两条都读不到：连基线都没了
+    if not out["items"]:                # 四源全部无任何数据：连基线都没了
         return 2, out
-    if out["stale"]:
+    if out["stale"] or out["missing"]:  # 任一源静默消失/过期都算告警
         return 1, out
     return 0, out
 
@@ -184,15 +251,17 @@ def main():
     if args.json:
         print(json.dumps(out, ensure_ascii=False, indent=2))
     else:
-        print("检查时间：%s（阈值 %d 小时）" % (out["now"], out["max_hours"]))
+        print("检查时间：%s（阈值 %d 小时，分源判定）" % (out["now"], out["max_hours"]))
         for it in out["items"]:
             flag = "⚠ 过期" if it["age_hours"] > out["max_hours"] else "✅"
-            print("  %s %s：%s 小时前（%s）"
-                  % (flag, it["why"], it["age_hours"], it["ts"]))
+            print("  %s %s：源龄 %s 小时（最新证据 %s，%s）"
+                  % (flag, it["source"], it["age_hours"], it["ts"], it["why"]))
+            if it["snapshot"] is None:
+                print("      （该源无快照，依据 history）")
         for m in out["missing"]:
             print("  ❌ 读不到：%s" % m)
         if code == 1:
-            print("\n::warning::资费数据已过期 —— 巡检可能没在跑，请看 Actions 与 cron")
+            print("\n::warning::资费数据已过期（分源判定）—— 巡检可能没在跑，请看 Actions 与 cron")
         elif code == 2:
             print("\n::error::连数据基线都读不到（history.json / snapshots 都不可用）")
     return code

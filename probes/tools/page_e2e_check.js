@@ -341,6 +341,30 @@
         }
         /* 条款已不设独立列（用户要求），只验详情里「办理必读」判据仍活着 */
         var condFn = (typeof condHits === "function");
+        /* 办理门槛徽章筛（2026-10-08）：真功能性断言 —— 挑命中最多且非全量的
+           类别，页面条数必须等于「数据侧用同一判据数出来的条数」；
+           _any 与清空后复原也要验（三档各查一遍）。 */
+        var condPick = null, condGot = -1, condWant = -1, condAny = -1,
+            condBase2 = view.length;
+        if (typeof condHits === "function" && typeof wantBy === "function") {
+          var labCnt = {};
+          rowsOf(NET).forEach(function (d) {
+            condHits(d).forEach(function (x) { labCnt[x.def.lab] = (labCnt[x.def.lab] || 0) + 1; });
+          });
+          Object.keys(labCnt).forEach(function (l) {
+            if (labCnt[l] < rowsOf(NET).length && (!condPick || labCnt[l] > labCnt[condPick])) condPick = l;
+          });
+          if (condPick) {
+            document.getElementById("cond").value = condPick; apply();
+            condGot = view.length;
+            condWant = wantBy(function (d) {
+              return condHits(d).some(function (x) { return x.def.lab === condPick; });
+            });
+            document.getElementById("cond").value = "_any"; apply();
+            condAny = view.length;
+            document.getElementById("cond").value = ""; apply();
+          }
+        }
         /* 有效期不设独立列（用户要求）：徽章回名称列，验名称列徽章有命中 */
         var nameVp = 0;
         [].forEach.call(document.querySelectorAll("#tb tr.row td.nm"), function (td) {
@@ -348,6 +372,9 @@
         });
         o.colfAllProbe = { thMissing: thNo, thTotal: thTotal, nameVp: nameVp,
                            condFn: condFn,
+                           condPick: condPick, condGot: condGot, condWant: condWant,
+                           condAny: condAny, condBase: condBase2,
+                           condRestored: view.length === condBase2,
                            feePick: fk,
                            want: feeWant, got: feeGot, restored: view.length === feeBase };
       }
@@ -498,6 +525,15 @@
       if (!fa.condFn) { bad.push("condHits 判据函数丢失（详情「办理必读」会失效）"); }
       if (fa.feePick && fa.got !== fa.want) {
         bad.push("列筛「月费=" + fa.feePick + "」条数不符：页面 " + fa.got + " ≠ 数据 " + fa.want);
+      }
+      if (fa.condPick) {
+        if (fa.condGot !== fa.condWant) {
+          bad.push("徽章筛「" + fa.condPick + "」条数不符：页面 " + fa.condGot + " ≠ 数据 " + fa.condWant);
+        }
+        if (!(fa.condAny > 0 && fa.condAny < fa.condBase)) {
+          bad.push("徽章筛 _any 档结果异常：" + fa.condAny);
+        }
+        if (!fa.condRestored) { bad.push("徽章筛清空后条数没复原"); }
       }
       if (!fa.restored) { bad.push("月费列筛清空后条数没复原"); }
     }

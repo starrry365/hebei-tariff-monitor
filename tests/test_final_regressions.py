@@ -31,6 +31,7 @@ import check_fresh      # noqa: E402
 import make_source_zip  # noqa: E402
 import noise_guard      # noqa: E402
 import notify           # noqa: E402
+import prune_data       # noqa: E402
 import summary          # noqa: E402
 
 PY = sys.executable
@@ -178,7 +179,8 @@ class TestFresh(unittest.TestCase):
         self.assertTrue(out["stale"])
 
     def test_no_data_at_all_is_2(self):
-        """比过期更严重：读不到任何产物（连基线都没了）。"""
+        """比过期更严重：读不到任何产物（连基线都没了）。
+        分源判定后：四源各自的「快照+history」都读不到 ⇒ missing 按源计 4 条。"""
         with tempfile.TemporaryDirectory() as tmp:
             hp = os.path.join(tmp, "nope.json")
             sd = os.path.join(tmp, "nosnap")
@@ -186,7 +188,7 @@ class TestFresh(unittest.TestCase):
                  mock.patch.object(check_fresh, "SNAP_DIR", sd):
                 code, out = check_fresh.check(30)
         self.assertEqual(code, 2)
-        self.assertEqual(len(out["missing"]), 2)
+        self.assertEqual(len(out["missing"]), len(check_fresh.SOURCES))
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -402,6 +404,150 @@ class TestFreshSnapshotFetchedAt(unittest.TestCase):
             self.assertEqual(ts.strftime("%Y-%m-%d"), "2020-01-01")
         finally:
             check_fresh.SNAP_DIR = old
+            shutil.rmtree(d, ignore_errors=True)
+
+
+# ════════════════════════════════════════════════════════════════════
+#  check_fresh 分源判定 —— 单源静默失效必须能响
+# ════════════════════════════════════════════════════════════════════
+class TestFreshPerSource(unittest.TestCase):
+    """旧逻辑只看「全局最新」：广电单独静默失效而其它源正常时，
+    全局最新永远新鲜，报警永远不响 —— 而这正是脚本要防的场景②。
+    锁死：任一源两个证据（快照 fetchedAt + history 该源最新条）都过期
+    ⇒ exit 1；全部源都没有任何数据 ⇒ exit 2。"""
+
+    @staticmethod
+    def _mk_snap(d, name, payload):
+        p = os.path.join(d, name)
+        with gzip.open(p, "wt", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False)
+        return p
+
+    def _setup(self, ages):
+        """ages: {code: 小时前}。为每源造快照 + history 条目；缺键 = 完全没有。"""
+        import datetime as dt
+        d = tempfile.mkdtemp()
+        old_snap, old_hist = check_fresh.SNAP_DIR, check_fresh.HIST
+        items = []
+        for code, prefix in [("move", "hebei_tariff"), ("unicom", "unicom_tariff"),
+                             ("telecom", "ct_tariff"), ("cbn", "cbn_tariff")]:
+            if code not in ages:
+                continue
+            h = ages[code]
+            ts = (dt.datetime.now(check_fresh.CST) - dt.timedelta(hours=h)
+                  ).strftime("%Y-%m-%d %H:%M:%S")
+            self._mk_snap(d, f"{prefix}_20200101.json.gz",
+                          {"fetchedAt": ts, "entries": [{"n": "x"}]})
+            items.append({"ts": ts, "d": ts[:10], "code": code})
+        check_fresh.SNAP_DIR = d
+        hp = os.path.join(d, "history.json")
+        with open(hp, "w", encoding="utf-8") as f:
+            json.dump({"schema": 1, "items": items}, f, ensure_ascii=False)
+        check_fresh.HIST = hp
+        return d, old_snap, old_hist
+
+    def test_single_source_silent_failure_alerts(self):
+        # 广电 40h 没跑、其它源 2h 前：全局「最新」是新鲜的，但必须响
+        d, s, h = self._setup({"move": 2, "unicom": 2, "telecom": 2, "cbn": 40})
+        try:
+            code, out = check_fresh.check(30)
+            self.assertEqual(code, 1, "单源静默失效必须告警")
+            self.assertEqual([r["code"] for r in out["stale"]], ["cbn"])
+        finally:
+            check_fresh.SNAP_DIR, check_fresh.HIST = s, h
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_all_fresh_passes(self):
+        d, s, h = self._setup({"move": 2, "unicom": 3, "telecom": 4, "cbn": 5})
+        try:
+            code, out = check_fresh.check(30)
+            self.assertEqual(code, 0)
+            self.assertEqual(len(out["items"]), 4)
+        finally:
+            check_fresh.SNAP_DIR, check_fresh.HIST = s, h
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_no_data_at_all_is_level2(self):
+        d, s, h = self._setup({})
+        try:
+            code, out = check_fresh.check(30)
+            self.assertEqual(code, 2, "四源全部无数据 = 连基线都没了")
+        finally:
+            check_fresh.SNAP_DIR, check_fresh.HIST = s, h
+            shutil.rmtree(d, ignore_errors=True)
+
+
+# ════════════════════════════════════════════════════════════════════
+#  prune_data —— 快照裁剪的三道保险
+# ════════════════════════════════════════════════════════════════════
+class TestPruneData(unittest.TestCase):
+    """裁剪脚本动的是数据归档，三道保险必须锁死：
+    ① 每源最新一份永不删（停更源的 diff 基线不能断）；
+    ② 剩余 < 4 份触发保险丝，放弃删除；
+    ③ 不认识命名的一律不碰。"""
+
+    def _setup(self, files):
+        d = tempfile.mkdtemp()
+        old = prune_data.SNAP_DIR
+        prune_data.SNAP_DIR = d
+        for name, content in files.items():
+            with gzip.open(os.path.join(d, name), "wt", encoding="utf-8") as f:
+                json.dump(content, f)
+        return d, old
+
+    def test_deletes_old_keeps_new_and_protects_newest_per_prefix(self):
+        d, old = self._setup({
+            "cbn_tariff_20200101.json.gz": {"x": 1},   # 老
+            "cbn_tariff_20990101.json.gz": {"x": 2},   # 新（未来日期 = 最新）
+            "cbn_tariff_20200201.json.gz": {"x": 3},   # 老但比上面那份新一点
+        })
+        try:
+            to_del, keep = prune_data.scan(90)
+            names = {os.path.basename(p) for p in to_del}
+            self.assertEqual(names, {"cbn_tariff_20200101.json.gz", "cbn_tariff_20200201.json.gz"})
+            # 最新那份即使超龄也在 keep
+            self.assertIn(os.path.join(d, "cbn_tariff_20990101.json.gz"), keep)
+        finally:
+            prune_data.SNAP_DIR = old
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_fuse_aborts_when_below_min_keep(self):
+        d, old = self._setup({
+            "cbn_tariff_20200101.json.gz": {"x": 1},
+            "cbn_tariff_20200201.json.gz": {"x": 2},
+            "unicom_tariff_20200101.json.gz": {"x": 3},
+            "unicom_tariff_20200201.json.gz": {"x": 4},
+            "ct_tariff_20200101.json.gz": {"x": 5},
+            "ct_tariff_20200201.json.gz": {"x": 6},
+            "hebei_tariff_20200101.json.gz": {"x": 7},
+            "hebei_tariff_20200201.json.gz": {"x": 8},
+        })
+        try:
+            # --days 0 → 全部超龄，每源只保最新 ⇒ 剩 4 份本来够底线；
+            # 把 MIN_KEEP 提到 10 模拟「参数灾难」，验证保险丝放弃删除
+            with mock.patch.object(prune_data, "MIN_KEEP", 10):
+                sys.argv = ["prune_data.py", "--days", "0", "--delete"]
+                rc = prune_data.main()
+            self.assertEqual(rc, 1, "低于保险丝必须放弃删除")
+            self.assertEqual(len(os.listdir(d)), 8, "保险丝触发时不得删除任何文件")
+        finally:
+            prune_data.SNAP_DIR = old
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_unrecognized_names_untouched(self):
+        d, old = self._setup({
+            "shct_latest.json": {"x": 1},                       # 不是 .json.gz
+            "weird.json.gz": {"x": 2},                          # 没有日期尾
+            "cbn_tariff_20200101.json.gz": {"x": 3},
+            "cbn_tariff_20990101.json.gz": {"x": 4},
+        })
+        try:
+            to_del, keep = prune_data.scan(90)
+            names = {os.path.basename(p) for p in to_del}
+            self.assertNotIn("weird.json.gz", names)
+            self.assertNotIn("shct_latest.json", names)
+        finally:
+            prune_data.SNAP_DIR = old
             shutil.rmtree(d, ignore_errors=True)
 
 

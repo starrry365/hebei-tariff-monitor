@@ -516,14 +516,26 @@ var COND_DEFS=[
   {lab:"限办次数",cls:"ctg-info",pat:/每个(证件|身份证)|同一(证件|身份证|用户|客户)[^，。；]{0,10}(不超过|限|最多)|办理次数不超过|名下(已有|最多|同时)|每人限办?|限办\\d/,tip:"同一证件/名下可办理次数有限"}
 ];
 function condHitsS(r){
-  var s=[r.x,r.ex,r.ap,r.vy].map(function(v){return String(v||"")}).join("｜");
+  /* 2026-10-08 第三轮：与主版 condHits 同款字段偏移表 —— snip 钳制在本字段内
+     不跨界；匹配区间越过字段边界（拼接串里跨「｜」的伪命中）一律拒绝。 */
+  var FIELDS=[r.x,r.ex,r.ap,r.vy],s="",off=[];
+  for(var j=0;j<FIELDS.length;j++){
+    var t=String(FIELDS[j]||"");
+    off.push([s.length,s.length+t.length]);
+    s+=t+"｜";
+  }
   if(!s.replace(/｜/g,""))return[];
   var out=[];
   for(var i=0;i<COND_DEFS.length;i++){
     var c=COND_DEFS[i],m=c.find?c.find(s):c.pat.exec(s);
     if(!m)continue;
     if(c.neg&&c.neg.test(s.slice(Math.max(0,m.index-30),m.index)))continue;
-    out.push({def:c,snip:s.slice(Math.max(0,m.index-24),m.index+30).trim()});
+    var seg=null;
+    for(var k=0;k<off.length;k++){if(m.index>=off[k][0]&&m.index<off[k][1]){seg=off[k];break}}
+    if(!seg)seg=off[off.length-1];
+    if(m.index+m[0].length>seg[1])continue;
+    var a=Math.max(seg[0],m.index-24),b=Math.min(seg[1],m.index+30);
+    out.push({def:c,snip:s.slice(a,b).trim()});
   }
   return out;
 }

@@ -697,6 +697,12 @@ jobs:
           fi
           echo "快照 $n_snap 份 · 归档 $(du -h cloud/tariff/page/index.html.gz | cut -f1) · 闸门通过"
 
+      - name: 裁剪过期快照归档（保 90 天，在完整性闸门前跑）
+        run: python cloud/tariff/prune_data.py --days 90 --delete
+        # 🔴 删除是**脚本内两道保险**兜着的（每源最新受保护 + 剩余<4 放弃），
+        #    不是裸 rm；`git add -A snapshots` 会把删除一起暂存 —— 这正是裁剪
+        #    要的效果，而脚本保险 + 下面的完整性闸门双保险挡住误删。
+
       - name: 提交数据与归档
         run: |
           set -e

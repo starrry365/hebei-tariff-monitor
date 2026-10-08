@@ -798,6 +798,19 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
             <option value="线上+线下">线上+线下</option>
             <option value="其他">其他 / 未注明</option>
           </select></label>
+        <label class="f"><span class="fl">办理门槛</span>
+          <select id="cond" title="按办理条款徽章筛（与详情「办理必读」同一判据 condHits）：违约金/合约期/最低消费/预存/首月优惠/一次性费用/限办次数。想避开违约金套餐的人选「无任何门槛条款」">
+            <option value="">不限门槛</option>
+            <option value="_any">有任一门槛条款</option>
+            <option value="_none">无任何门槛条款</option>
+            <option value="违约金">⚠️ 违约金</option>
+            <option value="合约期">📌 合约期/协议期</option>
+            <option value="最低消费">💰 最低消费</option>
+            <option value="预存">💳 预存/押金</option>
+            <option value="首月优惠">🎁 首月优惠/到期恢复</option>
+            <option value="一次性费用">🧾 一次性费用</option>
+            <option value="限办次数">🔢 限办次数</option>
+          </select></label>
       </div>
       <div class="fsec"><span class="glab">时效</span>
         <label class="f"><span class="fl">上架时间</span>
@@ -952,7 +965,7 @@ const HIST_SMP_KEEP=30;
    清空筛选 / 切网复位 / 深链读写本来都要遍历同一批控件，而原先是**每处各写一遍字面量**
    （5 处），加一个维度就得记得改 5 个地方。漏一处的后果是「切网后这个维度没被清掉」：
    上个网选中的条件继续生效，页面却毫无提示 —— 与「幽灵筛选值」是同一类静默错。 */
-const DIMS=["sb","sc","ow","cat","ty","ct","pf","gf","cf","bw","chx","on","off","chg"];
+const DIMS=["sb","sc","ow","cat","ty","ct","pf","gf","cf","bw","chx","on","off","chg","cond"];
 function clearDims(){DIMS.forEach(k=>{const e=document.getElementById(k);if(e)e.value=""})}
 const NET_LS=["move","unicom","telecom","cbn"];      // 顺序即导航条顺序
 /* rowsOf：行数据的**唯一**入口（2026-10-06 起带懒解码）。
@@ -1402,7 +1415,8 @@ function sortView(){
 
 /* 维度的显示前缀。空串＝这个维度的选项文本本身就能读懂（如「本次变更」）。 */
 const DIM_PRE={sb:"资费范围：",sc:"地域：",ow:"归属：",cat:"类型：",ty:"细分：",ct:"城市：",pf:"月费：",
-               gf:"流量：",cf:"通话：",bw:"宽带：",chx:"渠道：",on:"上架：",off:"下线：",chg:""};
+               gf:"流量：",cf:"通话：",bw:"宽带：",chx:"渠道：",on:"上架：",off:"下线：",chg:"",
+               cond:"办理门槛："};
 /* 资费范围的**显示名**：数据值说的是「这一条从哪个目录来」（tariffAttr 1/2 =
    全国跨省目录 / 本省目录；3 = 电信集团公示目录，2026-10-03 接入），
    官方页面给用户看的词是「全网资费 / 河北资费 / 集团资费公示」。
@@ -1505,7 +1519,7 @@ function condOf(){
   return {kw:kwTerms,
           sb:g("sb"),sc:g("sc"),ow:g("ow"),cat:g("cat"),ty:g("ty"),ct:g("ct"),
           pf:rg("pf"),gf:rg("gf"),cf:rg("cf"),bw:g("bw"),chx:g("chx"),
-          on:g("on"),offv:g(dimIdOf("offv")),chg:g("chg"),sta:STA,dimOff:dm,colf:colf};
+          on:g("on"),offv:g(dimIdOf("offv")),chg:g("chg"),cond:g("cond"),sta:STA,dimOff:dm,colf:colf};
 }
 
 /* —— 板块 → 类型 → 细分：三级联动 + 档位条数 ——
@@ -1981,15 +1995,32 @@ const COND_DEFS=[
 function condHits(d){
   /* 扫描串第二轮起覆盖 6 个字段：x 权益说明 + ex 超套资费（第一轮口径）
      + ap 目标客户 + vp 有效期 + oth 办理限制（含一次性费用/合约时长补注）
-     + rsp 违约责任（移动特有）—— 办理门槛信息不分字段，命中即示。 */
-  const s=[d.x,d.ex,d.ap,d.vp,d.oth,d.rsp].map(v=>String(v||"")).join("｜");
+     + rsp 违约责任（移动特有）—— 办理门槛信息不分字段，命中即示。
+     2026-10-08 第三轮：加字段偏移表，修两个拼接串的潜伏问题：
+     ① snip 跨界 —— 命中点贴近字段边界时片段混进相邻字段文本
+       （「有效期」尾巴粘着「权益说明」开头），读者分不清哪段是证据；
+       现按偏移钳制在本字段内，前后文不足 24/30 字就少给，不再跨界。
+     ② 跨字段伪命中 —— 三段式正则的中间段不排除「｜」，「…承担」+
+       「违约…」分属两字段也能拼出一次命中。语义上句子从不跨字段，
+       凡匹配区间越过字段边界的一律拒绝。 */
+  const FIELDS=[d.x,d.ex,d.ap,d.vp,d.oth,d.rsp];
+  let s="",off=[];
+  for(const v of FIELDS){
+    const t=String(v||"");
+    off.push([s.length,s.length+t.length]);
+    s+=t+"｜";
+  }
   if(!s.replace(/｜/g,""))return[];
   const out=[];
   for(const c of COND_DEFS){
     const m=c.find?c.find(s):c.pat.exec(s);
     if(!m)continue;
     if(c.neg&&c.neg.test(s.slice(Math.max(0,m.index-30),m.index)))continue;
-    out.push({def:c,at:m.index,snip:s.slice(Math.max(0,m.index-24),m.index+30).trim()});
+    /* 命中点所属字段；匹配区间越过该字段右边界 = 跨字段拼接，拒绝 */
+    const seg=off.find(o=>m.index>=o[0]&&m.index<o[1])||off[off.length-1];
+    if(m.index+m[0].length>seg[1])continue;
+    const a=Math.max(seg[0],m.index-24), b=Math.min(seg[1],m.index+30);
+    out.push({def:c,at:m.index,snip:s.slice(a,b).trim()});
   }
   return out;
 }
@@ -2490,7 +2521,7 @@ function match(d,c){
   const kw=c.kw,scv=c.sc,owv=c.ow,sbv=c.sb,cat=c.cat,
         ty=c.ty,ct=c.ct,pf=c.pf,gf=c.gf,
         cf=c.cf,bw=c.bw,chx=c.chx,
-        on=c.on,off=c.offv,chg=c.chg;
+        on=c.on,off=c.offv,chg=c.chg,cdv=c.cond;
   const ctDimOff=c.dimOff.ct,owDimOff=c.dimOff.ow,sbDimOff=c.dimOff.sb,
         tyDimOff=c.dimOff.ty;
 
@@ -2577,6 +2608,17 @@ function match(d,c){
     /* 渠道：上游原文已由构建脚本归一到三档（+其他）写在 d.chx 上，这里直接比对。
        按原文 ch 筛没有意义 —— 光移动一家就有 8 种写法表达同一件事。 */
     if(chx&&d.chx!==chx)return false;
+    /* 办理门槛徽章筛（2026-10-08）：与详情「办理必读」同一判据（condHits）。
+       _any=有任一徽章 / _none=零徽章（想避开违约金套餐的人等的就是这个档）/
+       其余取值=含该类徽章。match 每行每轮都调 —— 条件未启用时不跑正则，
+       7 个正则 × 8 千行的开销只在真筛选时付。无保险丝：condHits 对任何行
+       都有定义，不存在「维度不存在却按它筛」的假 0 条。 */
+    if(cdv){
+      const labs=condHits(d).map(x=>x.def.lab);
+      if(cdv==="_any"){if(!labs.length)return false}
+      else if(cdv==="_none"){if(labs.length)return false}
+      else if(labs.indexOf(cdv)<0)return false;
+    }
     /* 列筛选（Excel 式多选）：每列的取值函数与面板清单同源（COLF_DEF），
        这里只认 condOf 快照里的 colf，全局 COLF 不参与 —— 反事实诊断的前提。 */
     for(const cfk in c.colf){

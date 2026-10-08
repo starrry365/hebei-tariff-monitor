@@ -988,7 +988,10 @@ def index_rows(o):
             row = {f: str(e.get(f) or "").replace("\n", " ").strip() for f in KEY_FIELDS}
             row.update({"_ty": ty, "_attr": g.get("tariffAttr"), "_name": nm,
                         "_tname": str(e.get("tariffName") or "").strip(),
-                        "_reportNo": str(e.get("reportNo") or "").strip()})
+                        "_reportNo": str(e.get("reportNo") or "").strip(),
+                        # 违约责任原文（2026-10-08）：不在 KEY_FIELDS（进 diff 会首轮
+                        # 全量 changed），但指纹审计（rsp_audit）需要逐条原文。
+                        "_rsp": str(e.get("responsibility") or "").strip()})
             rows[k] = row
     return rows
 
@@ -1003,6 +1006,37 @@ def diff_rows(old, new):
         if d:
             changed.append((k, d))
     return added, removed, changed
+
+
+# —— 违约责任指纹审计（2026-10-08）——
+# 🔴 动机：responsibility 不在 KEY_FIELDS（进 diff 会首轮全量 changed，另案评估
+#    过被否），运营商**上调违约金标准**（优惠金额倍数 2 倍→3 倍这类真金白银）
+#    目前不产生任何变更报告 —— 这正是用户最该被通知的变化。
+# 指纹口径：文本里的全部数字（金额/倍数/月数）排序成元组。
+#   文字微调（改措辞/调语序）不触发；数字变了必触发 —— 违约责任条款里的
+#   数字几乎都是钱和期限，没有无关数字（实测抽样确认）。
+#   纯否定句（无需承担违约责任）无数字 → 空指纹，与「无条款」同值 —— 刻意的：
+#   本审计只回答「违约金标准有没有变」，有没有条款由页面徽章回答。
+RSP_SIG_RE = re.compile(r"\d+(?:\.\d+)?")
+
+
+def rsp_sig(txt):
+    return tuple(sorted(RSP_SIG_RE.findall(txt or "")))
+
+
+def rsp_audit(oidx, idx):
+    """逐条对比新旧快照的违约责任数字指纹。
+
+    返回 [(key, name, old_txt, new_txt)]（指纹有差的条，按键排序）。
+    只比对两轮都存在的条 —— 新增/下线由主报告负责，这里不重复。
+    """
+    out = []
+    for k in sorted(set(oidx) & set(idx)):
+        ot, nt = oidx[k].get("_rsp") or "", idx[k].get("_rsp") or ""
+        if ot == nt or rsp_sig(ot) == rsp_sig(nt):
+            continue
+        out.append((k, idx[k].get("_name") or idx[k].get("_tname") or k, ot, nt))
+    return out
 
 
 # 字段变更样本「整行对照」的展示字段顺序 —— 页面照这个顺序铺行，
@@ -1213,6 +1247,24 @@ def write_report(old_o, new_o, added, removed, changed,
             L.append("")
         if gsec:
             L += ["## 🛡 护栏核验（以下**不计入**上面的三个数字）", ""] + gsec
+
+    # ── 违约责任指纹审计：不在变更计数里，只摊开事实 ─────────────
+    # 只对移动做：responsibility 字段目前只有移动上游给（其余三网恒空，
+    # 指纹恒等比对是纯浪费）。放报告尾部而不是头部：它是「额外的眼睛」，
+    # 别把主变更列表挤到读者要滚动才能看到。
+    if _code_of_net(net) == "move":
+        ra = rsp_audit(oidx, idx)
+        if ra:
+            L += [f"## ⚖️ 违约责任指纹变化（{len(ra)} 条，不计入变更计数）", "",
+                  "> responsibility 不在 diff 字段里（进 diff 会首轮全量 changed）；"
+                  "这里独立对比数字指纹 —— 文字微调不报，违约金/合约期等**数字标准**变了必报。", ""]
+            for k, nm, ot, nt in ra[:20]:
+                L.append(f"- **{nm}**　指纹 `{','.join(rsp_sig(ot)) or '（无）'}` → `{','.join(rsp_sig(nt)) or '（无）'}`")
+                L.append(f"  - 旧：`{ot[:90] or '—'}`")
+                L.append(f"  - 新：`{nt[:90] or '—'}`")
+            if len(ra) > 20:
+                L.append(f"- …（其余 {len(ra) - 20} 条见当日快照 `{_snap_today or 'snapshots/'}`）")
+            L.append("")
 
     if added:
         L += [f"## 新增资费（{len(added)}）", ""]
