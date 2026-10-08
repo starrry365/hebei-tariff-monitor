@@ -1976,6 +1976,40 @@ def rows_of(o, diff=None, code=""):
                    #   ★★ cat_src 而非 raw_l1 —— 联通停售桶要先按二级栏目还原，
                    #      见本函数开头那段「把停售套餐还原成真实分类」。
                    "cat": type_cat(cat_src), "chx": ch_norm(chn)}
+            # ★ 办理门槛字段补全（2026-10-07 第二轮普查）：移动上游的 违约责任/
+            #   办理限制/一次性费用/合约时长 4 个字段此前**没有一个**进过页面 ——
+            #   实测 5280 行里 557 条实质违约责任条款（去重 193 种文案，含
+            #   「优惠未履约期限乘以每月优惠金额 30 元」这类真金白银）、218 条
+            #   duration 合约月数在 otherContent/validPeriod 里都查不到，
+            #   是「办理必读高亮不够全」的最大漏源。归一成两个独立字段：
+            #     rsp = responsibility 原文（详情「违约责任」行 + 办理必读扫描源；
+            #           「无需承担违约责任」的否定句也保留 —— 详情看全文不误读）
+            #     oth = others + otherFees + duration 补注（不单独展示全文，只作
+            #           办理必读扫描源 —— others 大半是「各地市政策不同」这类
+            #           boilerplate，铺全文是噪音；真门槛条款命中后以片段展示）
+            #   🔴 为什么不并进 x：x 是 diff 感知字段，并入会让下一轮巡检把
+            #   全量移动行标成「权益说明有变更」（一次性噪音 5000+ 行）。
+            #   独立字段 diff 不感知（KEY_FIELDS 是 raw 快照字段，另一条链路），
+            #   代价是变更检测暂感知不到这两字段的变化 —— 要感知时把它们加进
+            #   KEY_FIELDS 即可，但要接受首轮全量 changed，另案评估。
+            rsp_v = s("responsibility", 400)
+            if rsp_v and rsp_v not in ("-", "无"):
+                rec["rsp"] = rsp_v
+            oth_parts = []
+            for _k, _n in (("others", 240), ("otherFees", 120)):
+                _v = s(_k, _n)
+                if _v and _v not in ("-", "无") and not any(_v in p for p in oth_parts):
+                    oth_parts.append(_v)
+            # duration「24个月/要求在网24个月」是官方标的合约时长，且实测 218 条
+            # 在文案里查不到 —— 补注一句让页面合约期正则能命中（避免构建期重复
+            # 跑「文案是否已含合约期字样」的语义判断，只查时长子串是否已可见）。
+            du_v = s("duration", 24)
+            if du_v and du_v not in ("-", "无") and re.search(r"\d+\s*个月", du_v):
+                if du_v not in rec["x"] and du_v not in rec["vp"]:
+                    oth_parts.append("合约期时长：" + du_v)
+            if oth_parts:
+                rec["oth"] = "；".join(oth_parts)[:400]
+
             # ★ 板块：本网该字段真有两档才写。电信原是写死的 "2"（单档不落盘），
             #   2026-10-03 集团公示块接入后 _attrs={2,3}，电信也有了这一维。
             if sect_on and str(attr or "").strip() in ATTR_CN:

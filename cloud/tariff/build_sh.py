@@ -480,26 +480,44 @@ function fmtGb(g){if(g==null||g===""||g===0)return"—";
   if(g>=1024)return(g/1024).toFixed(1).replace(/\\.0$/,"")+"TB";
   if(g>=1)return(g%1?+g.toFixed(1):g)+"GB";return Math.round(g*1024)+"MB"}
 /* —— 有效期/条款解析（2026-10-07 对齐主界面，口径同款）——
-   主界面普查结论直接复用：只做 5 类门槛条款，来源=资费说明(x)；
-   违约金用**肯定语境判定**：承担/收取/产生/支付+违约（且命中点前一字
-   不是 无/免/不）或 违约金+按/为 才算 —— 「无需承担违约责任」
-   「退订无需违约金」「无违约责任」全部不触发。 */
+   主界面第二轮普查结论直接复用：7 类门槛条款（合约期/违约金/最低消费/
+   预存/首月优惠/一次性费用/限办次数）；扫描范围 x+ex+ap+vy；
+   违约金/预存用**肯定语境判定**：命中点前几字是 无/免/不 则跳过 ——
+   「无需承担违约责任」「退订无需违约金」「无需预存」全部不触发。 */
 var COND_DEFS=[
-  {lab:"合约期",cls:"ctg-bad",pat:/承诺(在网|使用)|协议期|合约期|在网(至少|不少于)/,tip:"承诺在网/协议期，期内退订可能有代价"},
+  {lab:"合约期",cls:"ctg-bad",find:function(s){
+     var m,RE=/承诺(在网|使用)|协议期|合约期|合同期|约定期限|最低在网|连续在网|在网(至少|不少于)/g;
+     while((m=RE.exec(s))){
+       if(/[无没免不]/.test(s.slice(Math.max(0,m.index-3),m.index)))continue;
+       if(/(无需|不需要?|不用|免)承担/.test(s.slice(m.index,m.index+28)))continue;
+       return m;
+     }
+     return null;
+   },tip:"承诺在网/协议期，期内退订可能有代价"},
   {lab:"违约金",cls:"ctg-bad",find:function(s){
-     var m,RE=/(?:承担|收取|产生|支付)[^，。；]{0,6}违约|违约金\\s*[按照为]/g;
+     var m,RE=/(?:承担|收取|产生|支付|赔付|赔偿|扣除|加收)[^，。；]{0,8}违约|违约金\\s*[按照为]|解约金|提前解约[^，。；]{0,10}(?:金|费|赔付|赔偿)|(?:退订|销户|携转|解约)[^，。；无免不没]{0,6}(?:需|须|要)[^，。；无免不没]{0,10}(?:赔付|赔偿|缴纳|支付)/g;
      while((m=RE.exec(s))){
        if(/[无免不]/.test(s.slice(Math.max(0,m.index-3),m.index)))continue;
        return m;
      }
      return null;
    },tip:"期内退订/销户/携转可能产生违约金"},
-  {lab:"最低消费",cls:"ctg-bad",pat:/最低消费|保底消费/,tip:"有最低消费/保底要求"},
-  {lab:"预存",cls:"ctg-warn",pat:/预存|押金/,tip:"需预存话费/押金"},
-  {lab:"首月优惠",cls:"ctg-info",pat:/首月(免费|0元|零元|按天|折算|收取|扣费)|恢复原价|个月后恢复|优惠期(满|结束)/,tip:"首月计费规则特殊 / 到期恢复原价"}
+  {lab:"最低消费",cls:"ctg-bad",pat:/最低消费|保底消费|承诺(最低)?消费|最低月消费|月消费(不低于|不少于)|每月?消费不低于|消费不足(需|要)?补齐/,tip:"有最低消费/保底/消费补齐要求"},
+  {lab:"预存",cls:"ctg-warn",find:function(s){
+     var m,RE=/预存|押金|预交|预缴|预存款|一次性存入|存入话费|首充/g;
+     while((m=RE.exec(s))){
+       if(/[无免不]/.test(s.slice(Math.max(0,m.index-2),m.index)))continue;
+       return m;
+     }
+     return null;
+   },tip:"需预存话费/押金/首充"},
+  {lab:"首月优惠",cls:"ctg-info",pat:/首月(免费|0元|零元|按天|折算|收取|扣费|半价|五折|减半|免收)|恢复原价|个月后恢复|优惠期(满|结束)|次月(恢复|起按|开始按|按原价)|到期(后)?恢复|体验期(满|结束)|活动期(满|结束)|按(日|自然日)折算/,tip:"首月计费规则特殊 / 到期恢复原价"},
+  {lab:"一次性费用",cls:"ctg-warn",pat:/调测费|安装费|工料费|开户费|一次性(缴纳|支付|收取|费用)/,tip:"办理时需一次性缴纳的费用（调测/装机等）"},
+  {lab:"限办次数",cls:"ctg-info",pat:/每个(证件|身份证)|同一(证件|身份证|用户|客户)[^，。；]{0,10}(不超过|限|最多)|办理次数不超过|名下(已有|最多|同时)|每人限办?|限办\\d/,tip:"同一证件/名下可办理次数有限"}
 ];
 function condHitsS(r){
-  var s=String(r.x||"");if(!s)return[];
+  var s=[r.x,r.ex,r.ap,r.vy].map(function(v){return String(v||"")}).join("｜");
+  if(!s.replace(/｜/g,""))return[];
   var out=[];
   for(var i=0;i<COND_DEFS.length;i++){
     var c=COND_DEFS[i],m=c.find?c.find(s):c.pat.exec(s);
