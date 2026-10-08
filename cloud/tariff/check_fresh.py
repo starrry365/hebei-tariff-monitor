@@ -29,6 +29,7 @@
 import argparse
 import datetime
 import glob
+import gzip
 import json
 import os
 import re
@@ -102,8 +103,32 @@ def newest_history():
     return best_ts, f"history.json 最新一条（{net} {best_ts:%Y-%m-%d %H:%M}）"
 
 
+def _read_fetched_at(path):
+    """读 gzip JSON 头部 fetchedAt（真实采集时刻）。读不到返回 None。
+
+    只读头部 64KB：fetchedAt 写在 JSON 开头附近，整文件解压浪费
+    （最大快照几 MB，几十个文件逐个全读就慢了）。头截断导致 json 不完整
+    也无所谓 —— 用正则抠字段，不整包解析。
+    """
+    try:
+        with gzip.open(path, "rt", encoding="utf-8", errors="replace") as f:
+            head = f.read(65536)
+        m = re.search(r'"fetchedAt"\s*:\s*"(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2})"', head)
+        if m:
+            return parse_ts(m.group(1))
+    except (OSError, EOFError, ValueError):
+        pass
+    return None
+
+
 def newest_snapshot():
-    """snapshots/ 里最新的快照日期 → (datetime, 描述)。文件名尾部是 YYYYMMDD。"""
+    """snapshots/ 里最新的快照 → (datetime, 描述)。文件名尾部是 YYYYMMDD。
+
+    🔴 时间戳必须优先用 JSON 内的 fetchedAt（真实采集时刻），文件名日期
+    （午夜零点）只作兜底 —— 2026-10-08 教训：20:17 采集的
+    cbn_tariff_20261007.json.gz 按文件名算成 00:00，平白虚增 ~20 小时年龄，
+    晨间窗口（当天班车落地前）的 push CI 全部误红（实际数据龄仅 12.6h）。
+    """
     best, best_p = None, None
     for p in glob.glob(os.path.join(SNAP_DIR, "*.json.gz")):
         m = re.search(r"_(\d{8})\.json\.gz$", os.path.basename(p))
@@ -114,10 +139,13 @@ def newest_snapshot():
         except ValueError:
             continue
         if best is None or d > best:
-            best, best_p = d, os.path.basename(p)
+            best, best_p = d, p
     if best is None:
         return None, "snapshots/ 下没有任何快照"
-    return best, f"最新快照（{best_p}）"
+    fa = _read_fetched_at(best_p)
+    if fa is not None:
+        best = fa
+    return best, f"最新快照（{os.path.basename(best_p)}）"
 
 
 def check(max_hours):

@@ -12,8 +12,11 @@
 跑法：
     python tests/test_final_regressions.py
 """
+import gzip
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -350,6 +353,96 @@ class TestScriptsSmoke(unittest.TestCase):
     def test_notify_selfcheck(self):
         r = self._run("cloud/tariff/notify.py", "--selfcheck")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+
+# ════════════════════════════════════════════════════════════════════
+#  check_fresh.newest_snapshot —— fetchedAt 优先于文件名日期
+# ════════════════════════════════════════════════════════════════════
+class TestFreshSnapshotFetchedAt(unittest.TestCase):
+    """2026-10-08 真实教训：newest_snapshot 曾按文件名日期（午夜零点）算年龄，
+    20:17 采集的 cbn_tariff_20261007.json.gz 被当成 00:00，虚增 ~20 小时，
+    晨间窗口（当天班车落地前）的 push CI 全部误红 —— 数据实际只有 12.6h 龄。
+    锁死：必须优先读 gzip 内 JSON 的 fetchedAt，文件名只作兜底。"""
+
+    def _mk_snap(self, d, name, payload):
+        p = os.path.join(d, name)
+        with gzip.open(p, "wt", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False)
+        return p
+
+    def test_prefers_fetched_at_over_filename(self):
+        import datetime as dt
+        recent = dt.datetime.now(check_fresh.CST) - dt.timedelta(hours=2)
+        d = tempfile.mkdtemp()
+        old = check_fresh.SNAP_DIR
+        check_fresh.SNAP_DIR = d
+        try:
+            self._mk_snap(d, "cbn_tariff_20200101.json.gz",
+                          {"fetchedAt": recent.strftime("%Y-%m-%d %H:%M:%S"),
+                           "entries": [{"n": "x"}]})
+            ts, why = check_fresh.newest_snapshot()
+            self.assertIsNotNone(ts)
+            age_h = (dt.datetime.now(check_fresh.CST) - ts).total_seconds() / 3600
+            # 年龄应 ≈2h；若用了文件名零点会是 ~24 万小时
+            self.assertLess(age_h, 4, f"疑似用了文件名零点而非 fetchedAt：age={age_h}h why={why}")
+            self.assertIn("cbn_tariff_20200101", why)
+        finally:
+            check_fresh.SNAP_DIR = old
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_falls_back_to_filename_when_unreadable(self):
+        d = tempfile.mkdtemp()
+        old = check_fresh.SNAP_DIR
+        check_fresh.SNAP_DIR = d
+        try:
+            # 无 fetchedAt 字段 → 退回文件名日期（午夜零点），不能崩
+            self._mk_snap(d, "cbn_tariff_20200101.json.gz", {"entries": []})
+            ts, why = check_fresh.newest_snapshot()
+            self.assertIsNotNone(ts)
+            self.assertEqual(ts.strftime("%Y-%m-%d"), "2020-01-01")
+        finally:
+            check_fresh.SNAP_DIR = old
+            shutil.rmtree(d, ignore_errors=True)
+
+
+# ════════════════════════════════════════════════════════════════════
+#  双份 COND_DEFS 漂移护栏 —— template.html（主界面）vs build_sh.TPL（上海页）
+# ════════════════════════════════════════════════════════════════════
+class TestCondDefsSync(unittest.TestCase):
+    """两处手维护同一份判据（7 类条款的 lab/cls/正则/find），历史上靠人工逐
+    def 对比；2026-10-08 深查确认当时一致，但没有任何机制拦住将来某次只改
+    一边的漂移 —— 此测试把语义一致性锁进 CI。"""
+
+    @classmethod
+    def setUpClass(cls):
+        import build_sh  # 有 __main__ 守卫，import 无副作用
+        tpl_src = open(os.path.join(TARIFF, "template.html"), encoding="utf-8").read()
+        m1 = re.search(r"const COND_DEFS=\[([\s\S]*?)\n\];", tpl_src)
+        m2 = re.search(r"var COND_DEFS=\[([\s\S]*?)\n\];", build_sh.TPL)
+        cls.assertIsNotNone(cls, m1, "template.html 里找不到 COND_DEFS")
+        cls.assertIsNotNone(cls, m2, "build_sh.TPL 里找不到 COND_DEFS")
+        cls.main_src = cls._norm(m1.group(1))
+        cls.sh_src = cls._norm(m2.group(1))
+
+    @staticmethod
+    def _norm(s):
+        # 规范化到语义等价：剥注释 / let→var / 压空白 / 逗号后空格
+        # （代码区的这些差异不改变语义；字符串字面量里只有中文标点，不受影响）
+        s = re.sub(r"/\*[\s\S]*?\*/", "", s)
+        s = re.sub(r"//[^\n]*", "", s)
+        s = re.sub(r"\blet\b", "var", s)
+        s = re.sub(r",\s+", ",", s)
+        return re.sub(r"\s+", " ", s).strip()
+
+    def test_defs_identical(self):
+        self.assertEqual(self.main_src, self.sh_src,
+                         "主界面与上海页的 COND_DEFS 漂移了 —— 两边要同步改，"
+                         "否则两页对同一套餐给出不同的办理必读")
+
+    def test_seven_categories_in_order(self):
+        labs = re.findall(r'lab:"([^"]+)"', self.main_src)
+        self.assertEqual(labs, ["合约期", "违约金", "最低消费", "预存",
+                                "首月优惠", "一次性费用", "限办次数"])
 
 
 if __name__ == "__main__":
