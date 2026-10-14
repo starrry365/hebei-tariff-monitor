@@ -4,5 +4,5 @@
 # 需要一个依赖文件做缓存键。改了版本记得同步改 tariff-daily.yml / ci.yml 里的安装行。
 pycryptodome
 websocket-client
-ruff==0.16.9
+ruff==0.17.0
 pyyaml
