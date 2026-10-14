@@ -223,7 +223,7 @@ jobs:
 
       - name: 留存电信采集现场（失败时才有用）
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ct-grab-evidence
           path: |
@@ -628,7 +628,7 @@ jobs:
       # 本轮快照打包传给 post-checks（深核查 job）：它是新 runner、新 checkout，
       # 直接读仓库会拿到**上一轮**的快照 —— 必须显式把现场数据递过去。
       - name: 上传本轮快照（供 post-checks 深核查）
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: fresh-snapshots
           path: cloud/tariff/snapshots
