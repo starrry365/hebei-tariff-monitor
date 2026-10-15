@@ -114,7 +114,8 @@ jobs:
     #    不是安全装置；它坏掉的代价应该是多采一轮，而不是丢一整天的数据。
     if: always() && (github.event_name == 'workflow_dispatch' || needs.gate.outputs.go != 'false')
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 3 轮兜底重试（含 2×120s 轮间隔）+ 完整校验链，20 分钟偏紧，放宽到 25
+    timeout-minutes: 25
     env:
       # 必须用 POSIX 格式（CST-8）而不是 Asia/Shanghai —— 精简镜像缺 tzdata 会被静默忽略、
       # 退回 UTC，导致快照文件名与报告日期整体错一天
@@ -237,6 +238,9 @@ jobs:
           #    采集器内部已有两层重试（call() 3 连试 + fetch_all 对分类接口的
           #    6 轮长退避），这里再加最后一道：歇 2 分钟把整个采集流程重来一遍。
           #    分钟级的路由抖动，三层里总有一层能跨过去。
+          #    ★ 2026-10-15 起一日一班，当天没有第二班车 —— 兜底从 2 轮升到 3 轮，
+          #      且把「歇 2 分钟」挪到轮与轮**之间**（原写法 sleep 落在最后一轮
+          #      失败之后，白等 120 秒还从没真正起到轮间隔的作用）。
           #    ★ 重试是安全的：exit 3 发生在写快照**之前**，失败轮不留任何半成品，
           #      第二轮从干净状态开始；对比/归档逻辑本身幂等。
           # 🔴 「是否推进到了写快照之后」不能看「今天快照存在」：同日可能多次采集
@@ -250,7 +254,8 @@ jobs:
           SNAP_TODAY="cloud/tariff/snapshots/hebei_tariff_$(date +%Y%m%d).json.gz"
           SNAP_MD5=""
           if [ -f "$SNAP_TODAY" ]; then SNAP_MD5=$(md5sum "$SNAP_TODAY" | cut -d" " -f1); fi
-          for i in 1 2; do
+          for i in 1 2 3; do
+            echo "=== 采集尝试 第 $i/3 轮 ==="
             if python cloud/tariff/tariff_monitor.py; then
               exit 0
             fi
@@ -262,16 +267,15 @@ jobs:
             CUR_MD5=""
             if [ -f "$SNAP_TODAY" ]; then CUR_MD5=$(md5sum "$SNAP_TODAY" | cut -d" " -f1); fi
             if [ -n "$CUR_MD5" ] && [ "$CUR_MD5" != "$SNAP_MD5" ]; then
-              echo "::error::第一轮在快照写入之后失败（采集已完成，死因在后续步骤）。不重试。请查看上方日志定位。"
+              echo "::error::第 $i 轮在快照写入之后失败（采集已完成，死因在后续步骤）。不重试。请查看上方日志定位。"
               exit 1
             fi
-            if [ "$i" = "2" ]; then
-              echo "::warning::第一轮采集失败（多为 GitHub 服务器到运营商网关的瞬时网络问题），歇 120s 重来"
+            if [ "$i" -lt 3 ]; then
+              echo "::warning::第 $i 轮采集失败（多为 GitHub 服务器到运营商网关的瞬时网络问题），歇 120s 重来"
               sleep 120
             fi
-            echo "=== 采集尝试 第 $i/2 轮 ==="
           done
-          echo "::error::两轮采集均失败，按真失败处理（上游大概率不是抖动，而是改版/封禁）"
+          echo "::error::三轮采集均失败，按真失败处理（上游大概率不是抖动，而是改版/封禁）"
           exit 1
 
       # ── 判据层体检 ───────────────────────────────────────────────────
@@ -743,6 +747,36 @@ jobs:
             done
             test -n "$pushed"     # 三次仍失败则让本步失败（在 Actions 上看得见）
           fi
+
+      # ── 失败即时告警（2026-10-15 加，单班制下当天没有第二次机会）─────────
+      # 一日一班后，巡检失败原本要等到 12:07 的新鲜度检查才被发现（迟到 7 小时）。
+      # 这里在 job 失败的第一时间直接推一条告警；成功时静默（fresh-check 兜底）。
+      # NOTIFY=0 或未配置任何通道时自动跳过（notify.enabled()）。
+      - name: 失败即时告警
+        if: failure()
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set +e
+          python - <<'PY'
+          import os, sys
+          sys.path.insert(0, "cloud/tariff")
+          import notify
+          if not notify.enabled():
+              print("推送通道未配置，跳过")
+              raise SystemExit(0)
+          title = "❌ 资费巡检失败（%s）" % os.environ.get("GITHUB_JOB", "tariff")
+          body = "\n".join([
+              "# ❌ 资费每日巡检失败", "",
+              "单班制（北京 05:07）下**当天没有自动补跑**，数据将停留到明早。", "",
+              "- 日志：%s" % os.environ.get("RUN_URL", "(未知)"),
+              "- 可立即补跑：Actions → 资费每日巡检 → Run workflow",
+              "- 若已过 12:07，新鲜度检查也会另行兜底告警。",
+          ])
+          res = notify.send_all(title, body, dedup=True)
+          print("推送结果：", res or "（无通道配置，已跳过）")
+          PY
+          exit 0
 
   # ── 深核查（网络探针）单独一个 job，与 deploy 并行 ────────────────────
   # 🔴 为什么不留在 tariff job 里：2026-10-03 run #41 实测——「移动采集维度
