@@ -4,6 +4,28 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>河北运营商资费查询</title>
+<script>
+/* ── 数据文件预载（2026-10-15 拆分懒加载的配套）──────────────────────────
+   四网行数据在 sidecar 文件里（__SIDE_MAP__ 由构建期注入 stamp 映射），
+   主脚本体在 body 末尾 —— 若等它 boot 完再发请求，HTML 解析和 sidecar
+   下载就是**串行**的。这段小脚本在 head 里就地执行：按 hash 选出目标网
+   （没有就用默认 move），立刻发 preload —— 下载与页面其余部分的解析
+   **并行**，主脚本稍后用同一 URL 注入 <script> 时直接命中内存缓存。
+   ★ 为什么不写成静态 <link rel=preload>：目标网由 hash 决定，静态写死
+     会把非默认网的访问者白拖一份 2.5MB。
+   ★ 预载失败（离线/404）无任何副作用：preload 只是提示，不执行不报错。 */
+(function(){
+  try{
+    var m=/(?:^|&)net=(move|unicom|telecom|cbn)\b/.exec((location.hash||"").slice(1));
+    var c=m?m[1]:"move";
+    var MAP=__SIDE_MAP__;
+    var s=MAP[c];
+    if(s){var l=document.createElement("link");
+      l.rel="preload";l.as="script";l.href=s;
+      document.head.appendChild(l);}
+  }catch(e){}
+})();
+</script>
 <meta name="description" content="河北移动、联通、电信、广电四网资费套餐全量查询与每日变更监控，支持筛选、对比与变化历史追溯。">
 <meta name="keywords" content="河北资费,移动资费,联通资费,电信资费,广电资费,套餐查询,宽带资费">
 <style>
@@ -987,6 +1009,24 @@ function loadNet(c){
    ★ _netLoading 防重复派发：载入期间再触发守卫（连点导航/连改 hash）不重复插
      script 标签；回调里核对 NET——载入途中用户切走的话，迟到的完成回调
      不能把另一网渲染顶掉。 */
+/* 空闲预取其余三网（2026-10-15）：当前网就绪后，浏览器空闲时用
+   <link rel=prefetch> 把其余 sidecar 拉进 HTTP/SW 缓存 —— 之后切网零等待。
+   ★ prefetch 是**低优先级**提示：不跟用户当前交互抢带宽，断网/省流模式下
+     浏览器可自行跳过，失败无任何副作用（真正的加载仍走 loadNet 的守卫链路）。
+   ★ SW 对 /data/ 是 cache-first，prefetch 到的响应直接落缓存 —— 这也是
+     sw.js 里那套「按 stamp 剪枝」的输入之一。 */
+let _prefetched=false;
+function prefetchRest(){
+  if(_prefetched)return;
+  _prefetched=true;
+  NET_LS.forEach(c=>{
+    const N=NETS[c];
+    if(!N||N.rows||N.cols||!N.src_data||__NET_DATA__[c])return;
+    const l=document.createElement("link");
+    l.rel="prefetch";l.href=N.src_data;
+    document.head.appendChild(l);
+  });
+}
 let _netLoading=null;
 function applyWhenReady(){
   const c=NET,n=NETS[c]||{};
@@ -999,6 +1039,8 @@ function applyWhenReady(){
     loadNet(c).then(()=>{
       if(_netLoading!==c)return;          // 载入途中已切走：本次结果作废
       _netLoading=null;renderNet();apply();
+      if("requestIdleCallback" in window)requestIdleCallback(prefetchRest,{timeout:3000});
+      else setTimeout(prefetchRest,1800);
     }).catch(e=>{
       if(_netLoading!==c)return;
       _netLoading=null;

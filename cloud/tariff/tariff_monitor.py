@@ -1866,6 +1866,18 @@ def write_net_sidecars(enc):
     return enc
 
 
+def side_map_of(enc):
+    """各网数据文件的 ``{code: rel}`` 映射（模板 head 预载用）。
+
+    页面 <head> 里那段内联小脚本要在 HTML 还在解析时就发起 sidecar 请求
+    （与解析并行，省掉「主脚本 boot 完才发请求」的串行等待），而主脚本在
+    body 末尾 —— 所以 stamp 集合必须由构建期经 ``__SIDE_MAP__`` 注入到
+    head 处。没接数据的网值为空串，head 脚本会跳过。
+    """
+    return {c: (p.get("src_data") or "") if isinstance(p, dict) else ""
+            for c, p in enc.items()}
+
+
 def read_net_sidecar(rel):
     """读回一份 sidecar（``data/{code}.{stamp}.js``）里的 ``{"cols": ...}``。
 
@@ -2245,7 +2257,7 @@ def rows_of(o, diff=None, code=""):
 #   时就只改了 build_html，render_only 那侧静默漏掉。合并到一处，从结构上消除这种漏。
 PLACEHOLDERS = ("__NETS__", "__N__", "__DATE__", "__CAT_ORDER__",
                 "__OW_ORDER__", "__CITY_ORDER__", "__CITY_EXTRA__",
-                "__HIST__", "__NOTICE__")
+                "__HIST__", "__SIDE_MAP__", "__NOTICE__")
 
 
 def js_json(obj):
@@ -2671,7 +2683,8 @@ def build_html(sources, notice="", diffs=None, archive=True):
         sources.get("move") or {}, prev_day())
     # sidecar 拆分（2026-10-15）：cols 落 docs/data/，内联 meta 只剩元信息 ——
     # 页面首屏不再被 3.5 MB 数据块阻塞（见 write_net_sidecars 的长注释）。
-    payload = js_json(write_net_sidecars(encode_nets_for_page(net_payload(payloads))))
+    nets_enc = write_net_sidecars(encode_nets_for_page(net_payload(payloads)))
+    payload = js_json(nets_enc)
     out = fill_template(html, {
         "__NETS__": payload, "__N__": str(total), "__DATE__": date,
         # 大类顺序（不是数据）注入页面：页面按它生成下拉，顺序才和构建日志一致。
@@ -2691,6 +2704,7 @@ def build_html(sources, notice="", diffs=None, archive=True):
         # smp 样本超 HIST_SMP_KEEP 截断（hist_for_page）：磁盘 history.json 全量，
         # 页面只带每轮前 30 条 + 「还有 N 条」标记 —— 全量明细在 changes/*.md。
         "__HIST__": js_json(hist_for_page(load_history().get("items") or [])),
+        "__SIDE_MAP__": js_json(side_map_of(nets_enc)),
         # notice=None → 用兜底文案；notice="" → 页面把提示条整个藏掉
         # （main() 在四网全部零变化时传空串 —— 「本次无变化」没有信息量）。
         "__NOTICE__": notice if notice is not None else "本次巡检未检测到变化"})
@@ -2808,7 +2822,8 @@ def render_only():
     # 同 build_html：内联进 <script> 的 JSON 必须走 js_json 转义（防 </script 提前闭合）
     # sidecar 在这里**重发**（write_net_sidecars）：base/ts 沿用页面原值 ⇒ stamp 不变
     # ⇒ 文件名不变、归档去重哲学照旧；剪枝照常把陈旧版本收掉。
-    payload = js_json(write_net_sidecars(encode_nets_for_page(nets)))
+    nets_enc = write_net_sidecars(encode_nets_for_page(nets))
+    payload = js_json(nets_enc)
     tpl = open(os.path.join(BASE, "template.html"), encoding="utf-8").read()
     try:
         out = fill_template(tpl, {
@@ -2818,6 +2833,7 @@ def render_only():
             "__CITY_ORDER__": js_json(list(CITY_ORDER)),
             "__CITY_EXTRA__": js_json(list(CITY_EXTRA)),
             "__HIST__": js_json(hist_for_page(load_history().get("items") or [])),
+            "__SIDE_MAP__": js_json(side_map_of(nets_enc)),
             "__NOTICE__": notice})
     except RuntimeError as e:
         log(f"!! {e}，中止（否则会留下未替换的标记把页面搞坏）")

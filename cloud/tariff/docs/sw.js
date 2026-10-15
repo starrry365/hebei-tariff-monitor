@@ -14,7 +14,7 @@
  * 🔴 改了这个文件里任何**缓存名单**，必须同时 bump CACHE 版本号。
  *    否则老用户永远停在旧壳子上（activate 里只清「版本号不同」的缓存）。
  */
-const CACHE = "hbtm-shell-v2";
+const CACHE = "hbtm-shell-v3";
 
 /* 只预缓存「壳」：体积小、几乎不变 */
 const SHELL = [
@@ -45,9 +45,13 @@ self.addEventListener("activate", (e) => {
 });
 
 function isNavigation(req, url) {
+  /* 🔴 2026-10-15 收紧：原先 `req.mode === "navigate"` 单独成立 —— 任何
+     直接打开的页面（如 sh.html 上海小页）都算「导航」，会被当成 index.html
+     缓存：离线回退时上海页**顶替**主页出现，且毫无提示。
+     导航请求必须同时命中「站点根 / index.html」这两个形态才走主页策略。 */
   return req.mode === "navigate"
-    || url.pathname.endsWith("/")
-    || url.pathname.endsWith("index.html");
+    && (url.pathname.endsWith("/")
+        || url.pathname.endsWith("index.html"));
 }
 
 self.addEventListener("fetch", (e) => {
@@ -84,7 +88,30 @@ self.addEventListener("fetch", (e) => {
       fetch(req)
         .then((res) => {
           const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put("./index.html", copy)).catch(() => {});
+          caches.open(CACHE).then((c) => {
+            c.put("./index.html", copy).catch(() => {});
+            /* sidecar 缓存剪枝（2026-10-15）：sidecar 是不可变 URL，每天换 4 个
+               新文件名，而 cache 只进不出 —— 不剪的话一年在用户浏览器里囤
+               ~2GB 旧数据。页面 meta 里带当前全部 src_data（ stamp 集合），
+               拿它当「现役名单」，把缓存里不在名单上的 /data/ 条目清掉。
+               解析失败就跳过本次剪枝（宁多留，不可误删现役文件）。 */
+            res.clone().text().then((t) => {
+              const cur = new Set();
+              const re = /"src_data":"(data\/[^"]+\.js)"/g;
+              let m;
+              while ((m = re.exec(t))) cur.add(m[1]);
+              if (!cur.size) return;
+              return c.keys().then((ks) => Promise.all(ks.map((r) => {
+                const p = new URL(r.url).pathname;
+                const i = p.indexOf("/data/");
+                if (i === -1 || !p.endsWith(".js")) return null;
+                const rel = p.slice(i + 1);           // data/xxx.js
+                return cur.has(rel)
+                  ? null
+                  : c.delete(r).catch(() => null);
+              })));
+            }).catch(() => {});
+          });
           return res;
         })
         .catch(() => caches.match("./index.html").then((r) => r || caches.match(req)))
