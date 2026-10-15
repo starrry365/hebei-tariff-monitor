@@ -107,6 +107,12 @@ def load_rows(net=None):
     if not m:
         sys.exit("页面里找不到 `const NETS=`")
     nets, _ = json.JSONDecoder().raw_decode(raw[m.end():])
+    # 2026-10-15 起 cols 拆进 docs/data/ sidecar，页面 meta 只带 src_data ——
+    # 解码前先把目标网的 cols 从 sidecar 合并回来（缺了就明说，别静默给空）。
+    for _c, _p in (nets or {}).items():
+        if (isinstance(_p, dict) and "rows" not in _p and "cols" not in _p
+                and isinstance(_p.get("src_data"), str)):
+            _p["cols"] = T.read_net_sidecar(_p["src_data"])["cols"]
     nets = T.decode_nets_from_page(nets)   # 2026-10-06 页面数据列式编码：解回 rows
     live_net = (nets or {}).get(net) or {}
     rows = live_net.get("rows") or []

@@ -1361,6 +1361,15 @@ def write_page(html_body, tag=""):
         log(f"!! 页面校验不通过（只有 {len(s)} 字节，明显不完整），保留上一版页面")
         os.remove(tmp)
         return False, f"体积过小 {len(s)}"
+    # sidecar 引用校验（2026-10-15）：页面 meta 引用的每份数据文件都必须真实存在
+    # 且非空 —— 缺了就是「切到某网白屏/空表」，而且是部署后才发现的那种。
+    for rel in re.findall(r'"src_data":\s*"(data/[^"]+)"', s):
+        p = os.path.join(DOCS, rel)
+        if not os.path.exists(p) or os.path.getsize(p) < 100:
+            why = f"sidecar 缺失或过小: {rel}"
+            log(f"!! 页面校验不通过（{why}），保留上一版页面")
+            os.remove(tmp)
+            return False, why
     os.replace(tmp, HTML_DST)
     log(f"页面已写入 {os.path.relpath(HTML_DST, BASE)}（{len(s)/1024:.0f} KB{tag}）")
     return True, "ok"
@@ -1621,6 +1630,11 @@ def archive_page():
     if not os.path.exists(HTML_DST):
         return None
     cur = open(HTML_DST, encoding="utf-8").read()
+    # 2026-10-15 起页面是拆分形态（cols 在 docs/data/ sidecar），但归档必须
+    # 自包含：审计工具直接解包本 gz，而 sidecar 只留 current+previous，
+    # 几天后归档引用的文件就被剪枝了。归档前把 cols 内联回容器（见
+    # inline_nets_cols）；无拆分痕迹的页面原样通过，行为不变。
+    cur = inline_nets_cols(cur)
     if os.path.exists(PAGE_GZ):
         try:
             with gzip.open(PAGE_GZ, "rt", encoding="utf-8") as f:
@@ -1783,8 +1797,90 @@ def net_payload(payloads):
                      #   不信数据 ⇒ 一个错的声明就能把整个维度藏掉，且毫无提示。
                      #   现在页面按「本网有没有 d.cty」自己判（数据驱动，见 renderDims）。
                      #   教训：**声明与现实脱节时不会有任何报警**，能不用就别用。
+                     "n": len(p.get("rows") or []),
                      "rows": p.get("rows") or []}
     return out
+
+
+# ── 四网数据 sidecar 拆分（2026-10-15 面板提速 P1）───────────────────────────
+# ★ 问题：四网 rows 全部内联在 index.html 的 `const NETS=` 里（3.5 MB），
+#   而 <script> 内联块是**解析阻塞**的 —— 浏览器必须先下完、解析完这段 JS
+#   才能触发 DOMContentLoaded，实测 DCL 1100–4200 ms 且随数据量逐日恶化。
+# ★ 方案：把每网的 cols 拆成独立文件 ``docs/data/{code}.{stamp}.js``
+#   （``window.__NET_DATA__`` 赋值形态，普通 <script src> 即可加载，file:// 也兼容）；
+#   页面内联部分只剩各网的**元信息**（sh/nm/src/base/ts/n/src_data）。
+#   首屏只解码当前浏览的那一网，其余三网切到时再取再解 —— DCL 与数据总量脱钩。
+# ★ stamp 取移动网的 base+ts（一次构建四网同源同刻）：URL 随数据版本变 ⇒
+#   **不可变 URL**，浏览器/Service Worker 可永久缓存，改数据自动换新地址，
+#   不存在「改了内容忘了改缓存」这类经典事故。重渲染（render_only）base/ts
+#   都沿用页面原值 ⇒ stamp 不变 ⇒ 归档去重哲学保持成立。
+# ★ 冗余期保留 current+previous 两份：页面引用的是 current，previous 兜住
+#   「sidecar 先落盘、页面替换失败」的中间态 —— 否则上一版页面会引用到已删除的文件。
+DATA_DIR = os.path.join(DOCS, "data")
+
+
+def _sidecar_stamp(enc):
+    """从编码后的四网容器取统一 stamp（移动 base+ts，只留数字；取不到退 0）。"""
+    mv = enc.get("move") or {}
+    s = "%s%s" % (mv.get("base") or "", mv.get("ts") or "")
+    s = re.sub(r"\D", "", s)
+    return s or "0"
+
+
+def write_net_sidecars(enc):
+    """编码后的四网容器 → 拆分形态：cols 落 sidecar 文件，meta 里换成 ``src_data``。
+
+    **就地修改并返回** enc（build_html/render_only 直接拿返回值注入模板）。
+    每网写 ``docs/data/{code}.{stamp}.js``：
+      ``window.__NET_DATA__=window.__NET_DATA__||{};__NET_DATA__["{code}"]={...cols...};``
+    然后从 meta 里 **pop 掉 cols**（内联体积从 3.5 MB 降到 ~200 KB），
+    写入 ``src_data`` 供页面按需加载。写完按 stamp 剪枝，只留 current+previous。
+    """
+    stamp = _sidecar_stamp(enc)
+    os.makedirs(DATA_DIR, exist_ok=True)
+    for code, p in enc.items():
+        if not isinstance(p, dict) or "cols" not in p:
+            continue
+        rel = "data/%s.%s.js" % (code, stamp)
+        body = ('window.__NET_DATA__=window.__NET_DATA__||{};'
+                '__NET_DATA__["%s"]=%s;' % (code, js_json({"cols": p["cols"]})))
+        tmp = os.path.join(DATA_DIR, os.path.basename(rel) + ".new")
+        with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+            f.write(body)
+        os.replace(tmp, os.path.join(DOCS, rel))
+        p["src_data"] = rel
+        del p["cols"]          # 内联 meta 不再携带行数据 —— 这就是省下的那 3.5 MB
+    # 剪枝：每网只留 stamp 最大的两份（current + previous）。
+    # 按文件名排序即按 stamp 排序（stamp 定长数字串，字典序==数值序）。
+    try:
+        names = sorted(os.listdir(DATA_DIR))
+    except OSError:
+        names = []
+    for code in enc:
+        mine = [n for n in names if n.startswith(code + ".") and n.endswith(".js")]
+        for n in mine[:-2]:
+            try:
+                os.remove(os.path.join(DATA_DIR, n))
+            except OSError:
+                pass
+    return enc
+
+
+def read_net_sidecar(rel):
+    """读回一份 sidecar（``data/{code}.{stamp}.js``）里的 ``{"cols": ...}``。
+
+    解析从**第二个 ``=``** 开始：第一个等号属于 ``window.__NET_DATA__=``，
+    第二个等号后面才是本网的 JSON 体（raw_decode，正则会撞上文案里的字符）。
+    """
+    s = open(os.path.join(DOCS, rel), encoding="utf-8").read()
+    i = s.find("=")
+    i = s.find("=", i + 1)
+    if i < 0:
+        raise ValueError("sidecar 里找不到第二个赋值等号: %s" % rel)
+    obj, _ = json.JSONDecoder().raw_decode(s[i + 1:])
+    if not isinstance(obj, dict) or "cols" not in obj:
+        raise ValueError("sidecar 内容不是 {cols:...} 形态: %s" % rel)
+    return obj
 
 
 def _mark_changes(rows, diff):
@@ -2297,16 +2393,70 @@ def encode_nets_for_page(nets):
 
 
 def decode_nets_from_page(nets):
-    """页面读回的四网容器 → 进程内形态（cols 解回 rows；纯 rows 的旧页面原样返回）。"""
+    """页面读回的四网容器 → 进程内形态（cols 解回 rows；纯 rows 的旧页面原样返回）。
+
+    2026-10-15 起页面的 cols 拆进 docs/data/ sidecar（meta 只带 src_data，
+    见 write_net_sidecars）—— 合并动作**收拢在本函数**：所有「从页面读回
+    容器」的调用方（体检、导出、各探针）都经此一条路，谁都不必感知拆分。
+    sidecar 读不回时**保留原样**（rows 为空）而不是抛异常：本函数也服务
+    「对旧归档内容做纯结构比对」的场景，那边引用的 sidecar 早已被剪枝，
+    抛异常会把本来无关的比对炸掉；需要严格语义的调用方（render_only）
+    在自己那一层显式校验并中止。
+    """
     out = {}
     for code, p in (nets or {}).items():
         if isinstance(p, dict) and "rows" not in p and "cols" in p:
             q = dict(p)
             q["rows"] = decode_rows_compact(p["cols"])
             out[code] = q
+        elif (isinstance(p, dict) and "rows" not in p and "cols" not in p
+                and isinstance(p.get("src_data"), str)):
+            q = dict(p)
+            try:
+                q["cols"] = read_net_sidecar(q["src_data"])["cols"]
+                q["rows"] = decode_rows_compact(q["cols"])
+            except Exception as e:
+                log(f"-- {code} 的 sidecar 读不回（{q['src_data']}："
+                    f"{type(e).__name__}: {e}）—— 该网按无数据处理")
+                out[code] = p
+            else:
+                out[code] = q
         else:
             out[code] = p
     return out
+
+
+def inline_nets_cols(text):
+    """页面正文 → 把 meta 里 src_data 指向的 cols 内联回 NETS 容器（归档自包含）。
+
+    docs/index.html 是拆分形态；入库归档 page/index.html.gz 必须自包含 ——
+    多个审计工具直接解包它，而 sidecar 只留 current+previous，几天后归档
+    引用的文件就被剪掉了。没有拆分痕迹（旧页面/解析失败）原样返回。
+    字段顺序与 encode_nets_for_page 一致（cols 恒在最后），同一份数据
+    内联结果逐字节稳定 —— 归档按字节去重的哲学不受影响。
+    """
+    m = re.search(r"const\s+NETS\s*=", text)
+    if not m:
+        return text
+    try:
+        nets, end = json.JSONDecoder().raw_decode(text[m.end():])
+    except Exception:
+        return text
+    if not isinstance(nets, dict) or not any(
+            isinstance(p, dict) and "cols" not in p and "rows" not in p
+            and isinstance(p.get("src_data"), str)
+            for p in nets.values()):
+        return text
+    merged = {}
+    for code, p in nets.items():
+        if (isinstance(p, dict) and "cols" not in p and "rows" not in p
+                and isinstance(p.get("src_data"), str)):
+            q = dict(p)
+            q["cols"] = read_net_sidecar(q["src_data"])["cols"]
+            merged[code] = q
+        else:
+            merged[code] = p
+    return text[:m.end()] + js_json(merged) + text[m.end() + end:]
 
 
 HIST_SMP_KEEP = 30       # 页面注入：近 7 天轮次每轮最多保留的样本条数
@@ -2519,7 +2669,9 @@ def build_html(sources, notice="", diffs=None, archive=True):
     #   这个占位符只留作无 JS 时的后备文本，取移动的 base 最不容易误导。
     date = (payloads.get("move") or {}).get("base") or data_day(
         sources.get("move") or {}, prev_day())
-    payload = js_json(encode_nets_for_page(net_payload(payloads)))
+    # sidecar 拆分（2026-10-15）：cols 落 docs/data/，内联 meta 只剩元信息 ——
+    # 页面首屏不再被 3.5 MB 数据块阻塞（见 write_net_sidecars 的长注释）。
+    payload = js_json(write_net_sidecars(encode_nets_for_page(net_payload(payloads))))
     out = fill_template(html, {
         "__NETS__": payload, "__N__": str(total), "__DATE__": date,
         # 大类顺序（不是数据）注入页面：页面按它生成下拉，顺序才和构建日志一致。
@@ -2595,6 +2747,18 @@ def render_only():
             return 3
         # 2026-10-06 页面数据改列式编码（encode_nets_for_page）：读回的第一步
         # 统一解回 rows 形态 —— 本函数后半段全部按 rows 契约工作，不该感知编码。
+        # 2026-10-15 起 meta 里连 cols 都不带了（拆成 docs/data/ sidecar，
+        # 见 write_net_sidecars）—— 先按 src_data 把 cols 合并回来再解码。
+        # 🔴 合并失败必须中止：静默降成空壳 = 页面少一网数据且无任何报警。
+        for _c, _p in nets.items():
+            if (isinstance(_p, dict) and "rows" not in _p and "cols" not in _p
+                    and isinstance(_p.get("src_data"), str)):
+                try:
+                    _p["cols"] = read_net_sidecar(_p["src_data"])["cols"]
+                except Exception as e:
+                    log(f"!! {_c} 的数据文件读不回（{_p['src_data']}："
+                        f"{type(e).__name__}: {e}）—— 中止重渲染，保留现有页面")
+                    return 3
         nets = decode_nets_from_page(nets)
     else:
         # 兼容四网改造**之前**的页面（容器还是 `const DATA=[...]`）。
@@ -2642,7 +2806,9 @@ def render_only():
     mv["rows"] = rows
 
     # 同 build_html：内联进 <script> 的 JSON 必须走 js_json 转义（防 </script 提前闭合）
-    payload = js_json(encode_nets_for_page(nets))
+    # sidecar 在这里**重发**（write_net_sidecars）：base/ts 沿用页面原值 ⇒ stamp 不变
+    # ⇒ 文件名不变、归档去重哲学照旧；剪枝照常把陈旧版本收掉。
+    payload = js_json(write_net_sidecars(encode_nets_for_page(nets)))
     tpl = open(os.path.join(BASE, "template.html"), encoding="utf-8").read()
     try:
         out = fill_template(tpl, {

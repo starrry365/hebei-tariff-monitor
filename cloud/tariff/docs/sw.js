@@ -14,7 +14,7 @@
  * 🔴 改了这个文件里任何**缓存名单**，必须同时 bump CACHE 版本号。
  *    否则老用户永远停在旧壳子上（activate 里只清「版本号不同」的缓存）。
  */
-const CACHE = "hbtm-shell-v1";
+const CACHE = "hbtm-shell-v2";
 
 /* 只预缓存「壳」：体积小、几乎不变 */
 const SHELL = [
@@ -61,6 +61,23 @@ self.addEventListener("fetch", (e) => {
     return;
   }
   if (url.origin !== self.location.origin) return;   // 跨域一概不管
+
+  /* 四网数据 sidecar（2026-10-15 拆分）：**cache-first 且永不回源验证**。
+     URL 自带数据版本（docs/data/{code}.{stamp}.js，stamp=基线日期+抓取时刻），
+     内容不可变 —— 数据一变构建期就写新文件名，旧缓存天然失效，
+     「缓存住旧数据」这类事故在 URL 层就不可能发生。命中即零网络往返。 */
+  if (url.pathname.indexOf("/data/") !== -1 && url.pathname.endsWith(".js")) {
+    e.respondWith(
+      caches.match(req).then((hit) => hit || fetch(req).then((res) => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+        }
+        return res;
+      }))
+    );
+    return;
+  }
 
   if (isNavigation(req, url)) {
     e.respondWith(

@@ -26,6 +26,9 @@ cloud/tariff/.ct_raw.json
 # 直接上传部署（不上传 git），同时 gzip 归档成 page/index.html.gz 入库做离线备份。
 cloud/tariff/docs/index.html
 cloud/tariff/docs/.nojekyll
+# docs/data/ 是 2026-10-15 起四网行数据的 sidecar（{code}.{stamp}.js），
+# 与 index.html 同一批 CI 中间产物：随 Pages artifact 整目录部署，不入 git。
+cloud/tariff/docs/data/
 # 状态文件由 CI 每次运行覆盖
 cloud/tariff/state.json.tmp
 

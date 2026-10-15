@@ -656,16 +656,18 @@ jobs:
           python cloud/tariff/make_source_zip.py
 
       # ── 部署到 GitHub Pages ────────────────────────────────────────────
-      # 部署的是 CI 现场生成的 docs/index.html（未压缩那份，已 gitignore）。
-      # 页面数据全部内联在 HTML 里（const NETS=...），所以 artifact 里只需这一个文件，
-      # 不需要额外托管数据文件 —— 也就不会出现「页面更新了但数据接口还是旧的」这类错配。
+      # 部署的是 CI 现场生成的 docs/ 整目录（未压缩 index.html，已 gitignore）。
+      # 2026-10-15 起四网行数据拆在 docs/data/{code}.{stamp}.js（sidecar 拆分，
+      # 首屏不再被 3.5MB 内联数据阻塞），随目录一起上传 —— 下面断言保证
+      # 「页面在、数据文件不在」的残缺产物根本走不到部署那一步。
       - name: 准备 Pages 产物
         run: |
           set -e
           test -s cloud/tariff/docs/index.html
+          ls cloud/tariff/docs/data/*.js >/dev/null || { echo "::error::sidecar 缺失（docs/data/ 没有 .js）—— 拆分构建失败"; exit 1; }
           touch cloud/tariff/docs/.nojekyll          # 禁止 Jekyll 处理，避免下划线文件被吞
-          ls -la cloud/tariff/docs/
-          echo "页面大小：$(du -h cloud/tariff/docs/index.html | cut -f1)"
+          ls -la cloud/tariff/docs/ cloud/tariff/docs/data/
+          echo "页面大小：$(du -h cloud/tariff/docs/index.html | cut -f1)（另有 sidecar：$(du -sh cloud/tariff/docs/data | cut -f1)）"
 
       - name: 上传 Pages 产物
         # v4（7b1f4a7）：内部把 actions/upload-artifact 钉到了 SHA —— v3 的
@@ -692,6 +694,7 @@ jobs:
           test -s cloud/tariff/page/index.html.gz || { echo "::error::页面归档 page/index.html.gz 缺失或为空——拒绝提交"; exit 1; }
           test -s cloud/tariff/history.json || { echo "::error::history.json 缺失或为空——拒绝提交"; exit 1; }
           test -s cloud/tariff/docs/index.html || { echo "::error::docs/index.html 缺失——拒绝提交"; exit 1; }
+          ls cloud/tariff/docs/data/*.js >/dev/null 2>&1 || { echo "::error::docs/data/ sidecar 缺失——拒绝提交"; exit 1; }
           # 每网都要有当天（或最近）的影子，防止「某网静默消失」
           for p in hebei_tariff_ unicom_tariff_ ct_tariff_ cbn_tariff_; do
             ls -1 cloud/tariff/snapshots/${p}*.json.gz >/dev/null 2>&1 \

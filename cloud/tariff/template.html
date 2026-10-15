@@ -949,6 +949,64 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
    ★ 每网自带 base：「相对天数 / 上架下线筛选」都以**本网**的数据基线为准，
      不能全局共用一个 —— 三家的抓取时点不可能总在同一天。 */
 const NETS=__NETS__;
+/* ── 四网数据 sidecar 按需加载（2026-10-15 面板提速 P1）────────────────────
+   构建期把每网 rows 的列式编码拆进 docs/data/{code}.{stamp}.js（见
+   tariff_monitor.write_net_sidecars），页面内联只剩各网**元信息**（含 n=条数、
+   src_data=数据文件路径）。首屏只加载并解码「当前浏览的那一网」，其余三网
+   切到时再取再解 —— DCL 不再被 3.5 MB 内联数据块阻塞，与四网总量脱钩。
+   ★ 用 <script src> 注入而不是 fetch：file:// 下 fetch 本地文件被浏览器禁掉，
+     <script> 不受限 —— 本机双击打开页面照样能用（与 JSONP 同思路）。
+   ★ sidecar 是不可变 URL（stamp 随数据版本变），sw.js 对 /data/ 走 cache-first，
+     二次访问零网络请求。加载失败的文案直接进 #stat —— 静默空表比报错更糟。 */
+const __NET_DATA__=window.__NET_DATA__||{};
+/* netReady：该网的行数据是否已可用（cols 已注入或 rows 已解好）。 */
+function netReady(c){
+  const N=NETS[c];
+  return !!(N&&(N.rows||N.cols));
+}
+function loadNet(c){
+  return new Promise((res,rej)=>{
+    if(netReady(c))return res();
+    const N=NETS[c];
+    if(!N||!N.src_data)return rej(new Error("本网没有数据文件"));
+    const s=document.createElement("script");
+    s.src=N.src_data;
+    s.onload=()=>{
+      N.cols=__NET_DATA__[c]&&__NET_DATA__[c].cols;
+      N.cols?res():rej(new Error("数据文件内容异常"));
+    };
+    s.onerror=()=>rej(new Error("数据文件加载失败"));
+    document.head.appendChild(s);
+  });
+}
+/* apply 的「数据就绪守卫」。当前网数据未到位时不渲染空表冒充结果，
+   而是明确显示载入状态，到位后补一次完整渲染；就绪时与 switchNet 的
+   渲染链路（renderNet+apply）完全等价。三条入口——切网、hashchange、
+   首启——都走这里，其余交互式 apply() 调用只可能发生在数据已就绪之后
+   （唯一换网途径 switchNet 也要过这道守卫）。
+   ★ _netLoading 防重复派发：载入期间再触发守卫（连点导航/连改 hash）不重复插
+     script 标签；回调里核对 NET——载入途中用户切走的话，迟到的完成回调
+     不能把另一网渲染顶掉。 */
+let _netLoading=null;
+function applyWhenReady(){
+  const c=NET,n=NETS[c]||{};
+  if(netReady(c)||!n.src_data){renderNet();apply();return}
+  if(_netLoading!==c){
+    _netLoading=c;
+    $("#stat").style.display="";
+    $("#stat").innerHTML="⏳ 载入 "+esc(n.nm||c)+" 数据…";
+    $("#tb").innerHTML="";
+    loadNet(c).then(()=>{
+      if(_netLoading!==c)return;          // 载入途中已切走：本次结果作废
+      _netLoading=null;renderNet();apply();
+    }).catch(e=>{
+      if(_netLoading!==c)return;
+      _netLoading=null;
+      $("#stat").style.display="";
+      $("#stat").innerHTML="⚠ 载入失败："+esc(String(e&&e.message||e));
+    });
+  }
+}
 /* 大类顺序由构建脚本注入（见 tariff_monitor.CAT_ORDER）。
    在页面里另写一份常量会与 Python 那份漂移，而漂移只表现为「下拉顺序和构建日志对不上」，
    不报错 —— 这种没人会去查的不一致最难防，所以干脆只留一份权威。 */
@@ -1001,10 +1059,26 @@ function rowsOf(n){
   const N=NETS[n];
   if(!N)return _NO_ROWS;
   if(!N.rows){
-    N.rows=N.cols?_decRows(N.cols):[];
-    N.cols=null;
+    if(!N.cols){
+      /* sidecar 拆分（2026-10-15）：数据文件还没加载时返回空壳但**绝不写入缓存**
+         —— 一旦把空数组存进 N.rows，sidecar 到位后这里看到的是「已初始化」，
+         真数据永远进不来（整个页面表现为该网永远是 0 条，且无任何报警）。
+         真正的空网（无 src_data，未接入）照旧缓存空数组：语义是「没有数据」。 */
+      if(N.src_data)return _NO_ROWS;
+      N.rows=[];
+    }else{
+      N.rows=_decRows(N.cols);
+      N.cols=null;
+    }
   }
   return N.rows.length?N.rows:_NO_ROWS;
+}
+/* netPending：该网的行数据**在磁盘上但还没载入**（有 src_data 且两皆无）。
+   renderNav 之类会遍历**所有**网的地方用它区分「待载入」与「真的没数据」
+   —— 只用 online() 的话，待载入的网会被误标成「尚未接入」。 */
+function netPending(c){
+  const N=NETS[c];
+  return !!(N&&!N.rows&&!N.cols&&N.src_data);
 }
 /* 行显示名的唯一取用处（S2，2026-10-04 工程审查）：n=名称（列表展示，120 字上限）、
    t=套餐名（详情行展示，80 字上限），两键 80% 相同、20% 不同 —— 不是冗余，
@@ -2877,7 +2951,11 @@ function renderNav(){
   nav.innerHTML='<div class="netnav-in"></div>';
   const inn=nav.firstChild;
   NET_LS.forEach(c=>{
-    const n=NETS[c]||{},has=online(c),br=NET_BRAND[c]||["#8a97a8","#5b6a7d"];
+    const n=NETS[c]||{};
+    /* has 的口径：已接入（含「数据文件在但未载入」的待载入态）。
+       条数优先用构建期注入的元信息 n —— 待载入的网**不能**调 rowsOf()：
+       它只会拿到还没载入的空壳，且这个调用本身毫无必要。 */
+    const has=online(c)||netPending(c),br=NET_BRAND[c]||["#8a97a8","#5b6a7d"];
     const b=document.createElement("button");
     b.type="button";
     b.className="netbtn"+(c===NET?" on":"");
@@ -2885,7 +2963,7 @@ function renderNav(){
     b.style.setProperty("--b2",br[1]);
     b.innerHTML='<span class="ndot" aria-hidden="true"></span>'
       +"<span>"+esc(n.nm||c)+"</span>"
-      +(has?'<span class="nc">'+rowsOf(c).length+" 条</span>"
+      +(has?'<span class="nc">'+(n.n!=null?n.n:rowsOf(c).length)+" 条</span>"
            :'<span class="nb">尚未接入</span>');
     b.onclick=()=>switchNet(c);
     inn.appendChild(b);
@@ -2907,7 +2985,10 @@ function switchNet(c){
   /* 点当前网也照常走一遍刷新（但**不清筛选**，所以是幂等的）：
      别在这里提前 return —— 少刷一次的后果是页面上留着与数据不符的旧标题/旧下拉，
      而且完全不报错。 */
-  renderNav();setBase();renderNet();apply();
+  /* 渲染走数据就绪守卫（applyWhenReady）：目标网 sidecar 未载入时先显示载入态，
+     到位后自动补 renderNet+apply —— 就绪时与下面的旧链路完全等价。 */
+  renderNav();
+  applyWhenReady();
 }
 
 /* ══ 运营商官方标志（内联资源 · 离线可用）══════════════════════════════════
@@ -3998,9 +4079,9 @@ window.addEventListener("resize",fixBarh);
 /* 同页跳到另一个 hash（手改地址栏 / 点同页链接）不会重新加载，
    没这个监听页面就不会跟着变。syncHash 用的是 replaceState（不触发 hashchange），
    所以加监听不会自激。 */
-window.addEventListener("hashchange",()=>{readHash();apply()});
+window.addEventListener("hashchange",()=>{readHash();applyWhenReady()});
 fixBarh();
-apply();
+applyWhenReady();
 /* 首屏落在哪个页签：readHash() 里若带了 #v=… 已 self 设定过（setView 是幂等的，
    重设一遍只是保证「没有 hash 时」也走一次完整的显隐 + 尺寸重算）。 */
 setView(VIEW);

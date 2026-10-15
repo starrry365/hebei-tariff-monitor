@@ -47,12 +47,19 @@ EXCLUDE_IMAGE_SUFFIX = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")
 #: 相对仓库根的精确排除（生成物 / 体积过大）
 EXCLUDE_REL = {"cloud/tariff/docs/index.html",
                "cloud/tariff/page/index.html.gz"}
+#: 整目录排除：docs/data/ 是 2026-10-15 起四网行数据 sidecar（生成物，
+#: 且随日期累积，比单个 index.html 还大）。加进上面的 EXCLUDE_DIRS
+#: 会把任何名为 data 的目录全排掉，口径太宽 —— 用「docs 下的 data」精确匹配。
+def _is_sidecar_dir(parts):
+    return parts[:3] == ["cloud", "tariff", "docs"] and "data" in parts[3:]
 
 
 def keep(rel):
     """rel 用 / 分隔。返回 True 表示可以入包。"""
     parts = rel.split("/")
     if any(p in EXCLUDE_DIRS for p in parts[:-1]):
+        return False
+    if _is_sidecar_dir(parts):
         return False
     name = parts[-1]
     if name in EXCLUDE_NAMES:

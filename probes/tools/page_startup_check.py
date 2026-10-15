@@ -2,19 +2,19 @@
 """首屏性能仪表（2026-10-04 工程审查 P1「先有仪表再谈优化」）。
 
 **它测什么**：导航到本地重建页（docs/index.html），读 Navigation Timing 的
-DCL / load，并在页面里实测 NETS 数据 blob 的 JSON.parse 耗时与字节数。
-这是**唯一随数据量线性恶化**的环节（交互层 filter+sort 实测 9ms，
-即使 10 倍数据也只有 ~90ms），所以阈值锚在首屏。
+DCL / load，并实测「当前网 rowsOf 首调」的懒解码耗时（cols→rows，交互前
+最重的一次同步计算）。内联体积与 sidecar 字节数由 Python 侧直接从磁盘统计
+（file:// 下页面里 fetch 不到 sidecar，页面侧测不了，也没必要）。
 
-**为什么做成本地仪表而不是 CI 闸门**：post-checks job 无浏览器（纯 Python
-探针），为一条性能曲线装 Chrome+Xvfb 不划算。仪表的职责是**记录趋势**——
-每次本机回归都打印当前 DCL，超软阈值（1500ms，≈3 倍数据）时提示按
-eng-review P1 预案（四网拆分懒加载）动手；超硬阈值（5000ms）才 fail。
+2026-10-15 四网数据拆分懒加载落地后，体积指标改为「内联 meta（随模板走，
+不再随数据量涨）+ sidecar（不可变 URL，SW 缓存后零往返）」，DCL 预期回落到
+600ms 档并与四网总数据量脱钩；阈值语义不变，锚的是「数据量再翻倍也不恶化」。
 
-判据（实测基线 2026-10-04：DCL 604~642ms · parse 47ms · blob 6.2MB）：
+判据（拆分前基线 2026-10-15：DCL 1103~4220ms · 内联 6.24MB；拆分前基线
+2026-10-04：DCL 604~642ms · parse 47ms · blob 6.2MB）：
   exit 0  正常（≤1500ms）
   exit 0  软超线（1500~5000ms）—— 打印警示，不挡回归
-  exit 1  硬超线（>5000ms 或 parse >2000ms）—— 数据量已到悬崖，必须优化
+  exit 1  硬超线（>5000ms 或解码 >2000ms）—— 数据量已到悬崖，必须优化
 
 用法：python probes/tools/page_startup_check.py
 （调试 Chrome 由 cdp_launch.py 幂等拉起；run_checks 第 [5b] 步调用本脚本。）
@@ -31,32 +31,41 @@ import websocket
 BASE = os.path.dirname(os.path.abspath(__file__))
 HTML = os.path.abspath(os.path.join(BASE, "..", "..", "cloud", "tariff",
                                     "docs", "index.html"))
+DATA_DIR = os.path.abspath(os.path.join(BASE, "..", "..", "cloud", "tariff",
+                                        "docs", "data"))
 URL = "file:///" + HTML.replace("\\", "/")
 
 DCL_WARN = 1500
 DCL_FAIL = 5000
-PARSE_FAIL = 2000
+DEC_FAIL = 2000
 
-# 在页面里执行：读导航计时 + 实测 JSON.parse。返回 JSON 字符串。
+# 在页面里执行：读导航计时 + 实测当前网懒解码首调。返回 JSON 字符串。
+# 调用前 Python 侧已轮询等 sidecar 就绪（netReady），这里只管计时。
 PROBE_JS = r"""
 (() => {
   const nav = performance.getEntriesByType('navigation')[0];
-  const html = document.documentElement.innerHTML;
-  const start = html.indexOf('const NETS=') + 11;
-  const end = html.indexOf(';\n', start);
-  const blob = html.slice(start, end);
   const t0 = performance.now();
-  JSON.parse(blob);
+  const rows = rowsOf(NET);
   const t1 = performance.now();
   return JSON.stringify({
     dcl: Math.round(nav.domContentLoadedEventEnd),
     load: Math.round(nav.loadEventEnd),
-    parseMs: Math.round(t1 - t0),
-    blobMB: +(blob.length / 1048576).toFixed(1),
+    decMs: Math.round(t1 - t0),
+    net: NET,
+    rows: rows.length,
     view: (typeof view !== 'undefined') ? view.length : -1
   });
 })()
 """
+
+
+def _sidecar_bytes():
+    """docs/data/ 下全部 sidecar 的总字节数（目录不存在＝还没拆分，计 0）。"""
+    try:
+        return sum(os.path.getsize(os.path.join(DATA_DIR, f))
+                   for f in os.listdir(DATA_DIR) if f.endswith(".js"))
+    except OSError:
+        return 0
 
 
 def main():
@@ -98,6 +107,12 @@ def main():
     else:
         print("!! 页面 15s 内未加载完成（Chrome 是否正常？）")
         return 1
+    # 等 sidecar 异步加载完成（file:// 下是毫秒级；给 10s 余量）。
+    # 等不到也继续 —— rows=0 本身就是要记录的异常信号。
+    for _ in range(40):
+        if ev("(typeof netReady==='function')&&netReady(NET)").get("value"):
+            break
+        time.sleep(0.25)
     time.sleep(0.5)                          # load 事件收尾
 
     res = ev(PROBE_JS)
@@ -106,18 +121,24 @@ def main():
         return 1
     d = json.loads(res["value"])
 
+    # 内联体积（页面文件）与 sidecar 体积（数据文件）由 Python 侧从磁盘统计。
+    inline_kb = os.path.getsize(HTML) / 1024
+    sc_kb = _sidecar_bytes() / 1024
+
     # 判定与输出（最后一行是机器可读摘要，run_checks 解析它写进检查项注记）
     warn = DCL_WARN < d["dcl"] <= DCL_FAIL
-    hard = d["dcl"] > DCL_FAIL or d["parseMs"] > PARSE_FAIL
-    print("首屏仪表：DCL=%dms · JSON.parse=%dms · blob=%.1fMB · view=%d"
-          % (d["dcl"], d["parseMs"], d["blobMB"], d["view"]))
+    hard = d["dcl"] > DCL_FAIL or d["decMs"] > DEC_FAIL
+    print("首屏仪表：DCL=%dms · load=%dms · 当前网(%s)懒解码=%dms · "
+          "内联=%.0fKB · sidecar=%.0fKB · rows=%d · view=%d"
+          % (d["dcl"], d["load"], d["net"], d["decMs"], inline_kb, sc_kb,
+             d["rows"], d["view"]))
     print(json.dumps(d, ensure_ascii=False))
     if hard:
-        print("!! 超过硬阈值（DCL>%d 或 parse>%d）—— 数据量已到悬崖，按 eng-review"
-              " P1 预案（四网拆分懒加载）动手" % (DCL_FAIL, PARSE_FAIL))
+        print("!! 超过硬阈值（DCL>%d 或解码>%d）—— 首屏已到悬崖，必须优化"
+              % (DCL_FAIL, DEC_FAIL))
         return 1
     if warn:
-        print("⚠ DCL 超软阈值 %dms —— 仪表记录在案；持续上涨再按预案拆分" % DCL_WARN)
+        print("⚠ DCL 超软阈值 %dms —— 仪表记录在案；持续上涨再查内联体积" % DCL_WARN)
     return 0
 
 

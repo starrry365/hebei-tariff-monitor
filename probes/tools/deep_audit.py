@@ -233,7 +233,9 @@ else:
 print("== 3. 六源跨层对账 ==")
 gz_blob = gzip.open(PAGE_GZ, "rb").read().decode("utf-8", errors="ignore")
 seg = lambda s: s[s.index("const NETS=") + 11:s.index(";\n", s.index("const NETS="))] if "const NETS=" in s else None
-a, b = seg(h), seg(gz_blob)
+# 2026-10-15 起线上页面是拆分形态（cols 在 sidecar），归档是内联形态 ——
+# docs 侧先按 inline_nets_cols 内联回来再比字节，两边才同一口径。
+a, b = seg(tm.inline_nets_cols(h)), seg(gz_blob)
 if a == b:
     note("NETS blob docs↔gz: 逐字节一致")
 else:

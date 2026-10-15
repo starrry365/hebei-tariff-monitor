@@ -267,8 +267,8 @@ def main():
             d = json.loads(m.group(0))
             tag = "" if d["dcl"] <= 1500 else " ⚠ 超软阈值"
             results[-1] = (results[-1][0], True,
-                           "DCL %dms · parse %dms · blob %.1fMB%s"
-                           % (d["dcl"], d["parseMs"], d["blobMB"], tag))
+                           "DCL %dms · 当前网懒解码 %dms · rows %d%s"
+                           % (d["dcl"], d["decMs"], d["rows"], tag))
 
     # ── 5c. 数据不变量全量审计（★ 2026-10-06 第 5 轮体检）─────────────
     #   机器穷举四网全部行 × 30+ 条不变量 + 六源跨层对账（快照/页面/gz 归档/
