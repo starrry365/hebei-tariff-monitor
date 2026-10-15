@@ -672,7 +672,10 @@ jobs:
           echo "页面大小：$(du -h cloud/tariff/docs/index.html | cut -f1)"
 
       - name: 上传 Pages 产物
-        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        # v4（7b1f4a7）：内部把 actions/upload-artifact 钉到了 SHA —— v3 的
+        # action.yml 里是裸 `@v4` 引用，会触发仓库的「全依赖树必须钉 SHA」
+        # 策略，Set up job 直接被拒（2026-10-14 起每日巡检全挂的根因）。
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
           path: cloud/tariff/docs
 
