@@ -609,7 +609,11 @@ let FAV=false;   // 「只看收藏」开关
 function saveFavs(){try{localStorage.setItem("shfavs",JSON.stringify([...FAVS]))}catch(e){}}
 $("#favTog").addEventListener("click",()=>{FAV=!FAV;$("#favTog").classList.toggle("on",FAV);view()});
 /* ── 分类 chips（动态生成，带条数） ───────────────────────────── */
-let CAT="",ST="",SK=null,SD=1;
+/* 默认按「上架」倒序（SK="o" SD=-1）：公示页读者第一眼要看的是「最近上了什么」，
+   旧默认按月费排，新上架的老套餐混在中间根本看不出来（2026-10-15 用户反馈）。
+   未标注上架日期的条目排最后（cmp 里的空值分支，与方向无关）。
+   点其它表头正常切换，点「上架」本身在 升/降 间翻转。 */
+let CAT="",ST="",SK="o",SD=-1;
 const catBox=$("#catChips");
 catBox.innerHTML='<button type="button" data-c="" class="on">全部分类</button>'+
   CATS.map(c=>'<button type="button" data-c="'+esc(c)+'">'+esc(c)+
@@ -634,6 +638,12 @@ document.querySelectorAll("th[data-k]").forEach(th=>th.addEventListener("click",
   });
   view();
 }));
+/* 初始排序态与默认值对齐（SK="o" SD=-1）：表头高亮 + ↓ 箭头，
+   不然默认排了上架倒序、表头却毫无提示，读者不知道列表是怎么排的。 */
+(function(){
+  const th=document.querySelector('th[data-k="o"]');
+  if(th){th.classList.add("act");const ar=th.querySelector(".ar");if(ar)ar.textContent="↓";}
+})();
 /* ── 列筛选（Excel 式多选）：COLF_DEF 单一来源 ────────────────────
    与主界面同一套设计：漏斗只声明取值函数，面板清单 / match 判据 / facet
    条数全部从它派生。facet 口径 = 摘掉本列勾选、其余条件照常。 */
