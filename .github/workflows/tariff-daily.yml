@@ -412,7 +412,7 @@ jobs:
           #       PLACEHOLDERS 同步）。
           left = [p for p in ('__NETS__', '__N__', '__DATE__', '__CAT_ORDER__',
                               '__OW_ORDER__', '__CITY_ORDER__', '__CITY_EXTRA__',
-                              '__HIST__', '__NOTICE__') if p in s]
+                              '__HIST__', '__SIDE_MAP__', '__NOTICE__') if p in s]
           assert not left, '占位符未替换: %s' % left
           m = re.search(r'const NETS=', s)
           assert m, '页面里找不到 const NETS= 数据容器'
