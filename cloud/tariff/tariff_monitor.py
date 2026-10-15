@@ -3036,13 +3036,22 @@ def net_round(code, today, fallback=None):
     cn, tag, prefix = ns.cn, ns.tag, ns.snap_prefix
     load = fallback or load_prev
     try:
+        # 并行预取（TARIFF_PARALLEL=1）：
+        #   · 预取已完成 → 直接取暂存结果（"err" 就地重抛 → 走「沿用上次快照」）
+        #   · 预取还在跑 → **join 等它收尾**，绝不再起第二份采集
+        #     （2026-10-15 实测：不等的话同一轮里联通被完整采两遍，请求翻倍）
+        #   · 等超了（上游疑似挂死）→ 抛异常走「沿用上次快照」，语义不变
+        th = _PREFETCH_TH.pop(code, None)
+        if th is not None:
+            log(f"-- {cn}预取进行中，join 等收尾（上限 {PREFETCH_JOIN_MAX}s）")
+            th.join(PREFETCH_JOIN_MAX)
         if code in _PREFETCH:
-            # 并行预取（TARIFF_PARALLEL=1）时取线程暂存的结果；
-            # "err" 就地重抛 → 走下面原有的「沿用上次快照」分支。
             st, val = _PREFETCH.pop(code)
             if st == "err":
                 raise val
             data = val
+        elif th is not None and th.is_alive():
+            raise RuntimeError(f"预取超 {PREFETCH_JOIN_MAX}s 未收尾")
         else:
             data = ns.fetch()
     except (Exception, SystemExit) as e:
@@ -3164,6 +3173,9 @@ def snap_net_ready(code, today):
 #   本机直跑 / selftest / render_only 不设 → 代码路径与旧版**完全一致**，
 #   自测打桩（net_round 换桩后 _PREFETCH 永远为空）也不受影响。
 _PREFETCH = {}
+_PREFETCH_TH = {}        # code -> 预取线程句柄（net_round 等它收尾用）
+PREFETCH_JOIN_MAX = 480  # 等预取的硬上限（秒）：fetch 内部自带重试/退避，
+                         # 480s 还没完说明上游挂了 —— 抛异常走「沿用上次快照」
 
 
 def _prefetch_http_nets():
@@ -3172,6 +3184,12 @@ def _prefetch_http_nets():
     异常也照收（"err", exc）—— net_round 取用时重新抛出，
     走它原有的「采集异常 → 沿用上次快照」分支，语义与串行版完全一致。
     线程设 daemon：移动首采失败提前 return 3 时，进程不等这些线程。
+    🔴 2026-10-15 补关键教训：线程句柄必须存进 _PREFETCH_TH。
+       首版只存结果，net_round 轮到联通时预取还没跑完（move 52s 就轮到了，
+       联通预取要 ~170s）⇒ `code in _PREFETCH` 为 False ⇒ 主线程**自己又采
+       一遍** ⇒ 实测同一轮里联通被完整采集两次（预取 171s + 主线 160s
+       并发互抢带宽），3146 次请求白打、还无谓惊动上游（封禁风险）。
+       现在轮到该网时先 join 等预取收尾，把并行真正落在「与移动重叠」上。
     """
     import threading
 
@@ -3189,8 +3207,10 @@ def _prefetch_http_nets():
     for code in _RUN_ORDER:
         if code in ("move", "telecom") or not NETS[code].live:
             continue   # 移动在主线程自己采；电信走 Chrome 后台会话（CT_GRAB_DONE）
-        threading.Thread(target=_one, args=(code,),
-                         daemon=True, name=f"prefetch-{code}").start()
+        th = threading.Thread(target=_one, args=(code,),
+                              daemon=True, name=f"prefetch-{code}")
+        th.start()
+        _PREFETCH_TH[code] = th
 
 
 def _wait_grab(timeout=300):

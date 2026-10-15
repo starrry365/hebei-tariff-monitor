@@ -533,19 +533,40 @@ def city_scope(combos=None, cities=None, verbose=True, workers=8):
     def cell(p):
         (fl, sl), (nm, code) = p
         m = {}
+        bad = []                          # 本格请求失败的 attr 列表
         for a in ATTRS:                   # attr 语义未明，两个都取以减少遗漏
             lst = get_level3(a, fl, sl, code)
             if lst is None:               # ⚠️ 未知（**不是**空目录）—— 记下来，别当成「没有」
-                scope_fails.append((fl, sl, nm, code, a))
+                bad.append(a)
                 continue
             for x in lst:
                 if x.get("id"):
                     m[x["id"]] = x.get("name")
-        return (fl, sl), code, m
+        return (p, m, bad)
 
     tasks = [((fl, sl), c) for (fl, sl, _f, _s) in combos for c in cities]
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        cells = list(ex.map(cell, tasks))
+        results = {}
+        for p, m, bad in ex.map(cell, tasks):
+            results[p] = (m, bad)
+        # 🔴 格子级重试（2026-10-15）：原先失败只打「请重跑」，CI 无人应答 ——
+        #    失败格子按「未知」处理，「并集净增」被低估，城市专属条目**静默漏采**
+        #    （当日实测：1 个格子失败 ⇒ 22 组合 × 12 城的并集少算一角）。
+        #    现在只重发失败的那几个格子（整格两个 attr 重取），最多 2 轮；
+        #    还失败才真按「未知」降级并如实上报 —— 为一个格子整轮重跑不值。
+        for rnd in (1, 2):
+            todo = [p for p, (_m, bad) in results.items() if bad]
+            if not todo:
+                break
+            log("   [city_scope] %d 个格子请求失败，格子级重试（第 %d/2 轮）"
+                % (len(todo), rnd))
+            for p, m, bad in ex.map(cell, todo):
+                results[p] = (m, bad)
+    cells = [((fl, sl), code, results[((fl, sl), c)][0])
+             for ((fl, sl), (nm, code)) in tasks]
+    scope_fails = [(fl, sl, nm, code, a)
+                   for ((fl, sl), (nm, code)), (_m, bad) in results.items()
+                   for a in bad]
     per = {}
     for (fl, sl), code, m in cells:
         per.setdefault((fl, sl), {})[code] = m
@@ -594,11 +615,12 @@ def city_scope(combos=None, cities=None, verbose=True, workers=8):
             log("   [city_scope] ⚠️ 全部一致 —— 但仍须留意：抽样组合必须覆盖 3/99 等易变档，"
                 "否则又是假阴性")
         if scope_fails:
-            log("   [city_scope] 🔴 **%d 个格子请求失败**（已按「未知」跳过，未当成空目录）：%s"
+            log("   [city_scope] 🔴 **%d 个格子重试 2 轮后仍失败**"
+                "（按「未知」跳过，未当成空目录）：%s"
                 % (len(scope_fails),
                    "；".join("%s/%s@%s(a=%s)" % (f, s, nm, a)
                              for f, s, nm, _c, a in scope_fails[:6])))
-            log("        ⚠️ 结论不可信 —— 失败的格子会让「并集净增」被低估，请重跑。")
+            log("        ⚠️ 并集可能被低估 —— 上游对该接口持续抽风，明日巡检留意城市专属条数。")
     return out
 
 
