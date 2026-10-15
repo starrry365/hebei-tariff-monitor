@@ -2,7 +2,7 @@
 
 🟢 Live: <https://starrry365.github.io/hebei-tariff-monitor/>
 
-Twice daily (09:30 / 15:30 Beijing) scrapes public tariffs from Hebei Mobile, Unicom, Telecom and CBN (~14k entries, on-sale + delisted), diffs changes, and deploys a PWA query page with region/type/channel filters, favorites and change history.
+Daily at 05:07 Beijing time scrapes public tariffs from Hebei Mobile, Unicom, Telecom and CBN (~14k entries, on-sale + delisted), diffs changes, and deploys a PWA query page with region/type/channel filters, favorites and change history.
 
 Workflows run on schedule/dispatch only — snapshots are committed back, so a `push` trigger would self-loop.
 
