@@ -220,17 +220,13 @@ jobs:
           # ── 电信 Chrome 采集后台化 ────────────────────────────────────────
           # ci_grab.sh 在后台跑（产出 .ct_raw.json / .shct_raw.json），与主线程里
           # tariff_monitor 的移动/联通/广电 HTTP 采集同时进行；tariff_monitor 在
-          # 电信轮开始前等它收尾（_wait_grab 认 CT_GRAB_DONE 标记，超时 600s 只放弃
-          # 等待不失败 —— 电信本就是机会性采集，判据交给 snap_net_ready）。
-          # ★ 伴生子 shell 专门 wait 收尸后 touch 标记：僵尸进程 kill(pid,0) 恒真，
-          #   主 shell 又没空 wait，只认标记文件才可靠。
-          # ★ ci_grab.sh 永不非零退出，采不到时 tariff_monitor 自动退回快照渲染。
-          CT_GRAB_DONE="$RUNNER_TEMP/ct_grab.done"
-          rm -f "$CT_GRAB_DONE"
+          # 电信轮开始前轮询产物新鲜度等它收尾（_wait_grab，CT_GRAB_WAIT=1，
+          # 超时 300s 只放弃等待不失败 —— 电信本就是机会性采集，判据交给
+          # snap_net_ready）。ci_grab.sh 永不非零退出，采不到时自动退回快照渲染。
+          # 🔴 不要在这里做「wait 收尸 + touch 标记」：wait 等不了兄弟进程，
+          #    且 errexit 会吞掉后续 touch（首跑实测白等 600s），见 _wait_grab 注释。
           bash probes/tools/ct_browser/ci_grab.sh &
-          CT_PID=$!
-          export CT_GRAB_DONE
-          ( wait "$CT_PID"; touch "$CT_GRAB_DONE" ) &
+          export CT_GRAB_WAIT=1
 
           # 🔴 兜底重试（2026-10-03 立）。背景：run #43/#44 一天两遇 GitHub 服务器
           #    到移动网关的 Errno 101（Network is unreachable），采集器 exit 3 把

@@ -2977,7 +2977,7 @@ def snap_net_ready(code, today):
 #     结果（或异常）暂存 _PREFETCH；net_round 轮到该网时取用 ——
 #     对比 / 快照 / 报告 / 降级逻辑**逐字未动**，仍按 _RUN_ORDER 串行执行。
 #   · 电信：Chrome 会话由工作流后台启动（与 HTTP 采集全程重叠），
-#     电信轮开始前 _wait_grab() 等它收尾。
+#     电信轮开始前 _wait_grab() 轮询产物新鲜度等它收尾（CT_GRAB_WAIT=1）。
 # ★ 用环境变量开关：TARIFF_PARALLEL=1 才启用（仅工作流设置）。
 #   本机直跑 / selftest / render_only 不设 → 代码路径与旧版**完全一致**，
 #   自测打桩（net_round 换桩后 _PREFETCH 永远为空）也不受影响。
@@ -3011,30 +3011,37 @@ def _prefetch_http_nets():
                          daemon=True, name=f"prefetch-{code}").start()
 
 
-def _wait_grab(timeout=600):
-    """电信 Chrome 采集后台化时（工作流 export CT_GRAB_DONE=<标记文件>），
-    电信轮开始前等它收尾。
+def _wait_grab(timeout=300):
+    """电信 Chrome 采集后台化时（工作流后台启动 ci_grab.sh 并 export
+    CT_GRAB_WAIT=1），电信轮开始前等它把 .ct_raw.json 写出来。
 
-    ★ 为什么等**标记文件**而不是进程存活：工作流里 Chrome 会话是 step shell
-      的后台子进程，退出后成为僵尸、直到 shell 收尸 —— 而 shell 在忙着跑
-      tariff_monitor，没空 wait。僵尸进程 ``kill(pid, 0)`` 恒真，按进程判
-      「还活着」会白等满超时。所以由工作流起一个伴生子 shell 专门
-      ``wait $PID``（收尸）后 touch 标记文件，这里只认标记、不猜进程状态。
-      （.ct_raw.json 是收尾时一次性写出，标记出现 ⇒ 文件完整。）
+    ★ 判据直接轮询 ct_monitor.raw_day()（产物里记录的采集日 == 今天）——
+      与 snap_net_ready 同一权威。产物是收尾时一次性写出，写出来即完整，
+      不存在「读到半截文件」的窗口。
+    ★ 为什么不再用「伴生子 shell wait 收尸后 touch 标记」（2026-10-15 首版）：
+      ① bash 的 wait 只能等**自家子进程**，子 shell 等兄弟进程必失败（127）；
+      ② run 步骤默认 set -e，wait 失败会直接中断子 shell，touch 永不执行
+        —— 结果标记永远不出现，_wait_grab 白等满 600s（首跑实测）。
+      轮询产物则对「秒采完」「挂着不退」「提前崩」三种情况都秒级/有界响应。
     ★ 超时只放弃等待，不失败：后续 snap_net_ready() 判「没有今日产物」
       自然走快照渲染 —— 电信本就是机会性采集。
     """
-    done = os.getenv("CT_GRAB_DONE", "").strip()
-    if not done:
+    if os.getenv("CT_GRAB_WAIT", "").strip() != "1":
+        return
+    try:
+        ct = __import__("ct_monitor")
+    except Exception:
         return
     t0 = time.time()
-    while not os.path.exists(done):
-        if time.time() - t0 > timeout:
-            log(f"!! 等电信 Chrome 采集收尾超时 {timeout}s（标记未出现），"
-                f"继续往下走（电信本轮预计走快照渲染）")
-            return
+    while time.time() - t0 < timeout:
+        try:
+            if ct.raw_day() == time.strftime("%Y%m%d"):
+                log("-- 电信 Chrome 采集已收尾（等待 %.0fs）" % (time.time() - t0))
+                return
+        except Exception:
+            pass   # 产物还没落盘 / 文件尚不可读 —— 继续轮询
         time.sleep(5)
-    log("-- 电信 Chrome 采集已收尾")
+    log(f"!! 等电信 Chrome 采集产物超时 {timeout}s，继续往下走（电信本轮预计走快照渲染）")
 
 
 def other_nets(today):
