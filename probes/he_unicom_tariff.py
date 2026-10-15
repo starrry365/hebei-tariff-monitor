@@ -562,8 +562,9 @@ def city_scope(combos=None, cities=None, verbose=True, workers=8):
                 % (len(todo), rnd))
             for p, m, bad in ex.map(cell, todo):
                 results[p] = (m, bad)
-    cells = [((fl, sl), code, results[((fl, sl), c)][0])
-             for ((fl, sl), (nm, code)) in tasks]
+    cells = []
+    for ((fl, sl), (_nm, code)) in tasks:
+        cells.append(((fl, sl), code, results[((fl, sl), (_nm, code))][0]))
     scope_fails = [(fl, sl, nm, code, a)
                    for ((fl, sl), (nm, code)), (_m, bad) in results.items()
                    for a in bad]

@@ -56,6 +56,11 @@ TESTS = [
      "护栏自测（假下架 / 假新增 / 身份漂移 / 回弹 / 降级状态机）",
      True),
 
+    ("city-scope-stub",
+     [sys.executable, "tests/test_city_scope_stub.py"],
+     "city_scope 格子级重试桩测试（离线；防 UnboundLocalError 类运行期错误复发）",
+     True),
+
     ("pipeline-selftest",
      [sys.executable, "cloud/tariff/selftest_pipeline.py"],
      "集成缝自测（other_nets 四分支 / 返回契约 / note 覆盖）",

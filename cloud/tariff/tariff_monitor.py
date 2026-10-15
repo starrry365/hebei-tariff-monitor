@@ -3037,22 +3037,32 @@ def net_round(code, today, fallback=None):
     load = fallback or load_prev
     try:
         # 并行预取（TARIFF_PARALLEL=1）：
-        #   · 预取已完成 → 直接取暂存结果（"err" 就地重抛 → 走「沿用上次快照」）
+        #   · 预取已完成 → 直接取暂存结果
         #   · 预取还在跑 → **join 等它收尾**，绝不再起第二份采集
         #     （2026-10-15 实测：不等的话同一轮里联通被完整采两遍，请求翻倍）
-        #   · 等超了（上游疑似挂死）→ 抛异常走「沿用上次快照」，语义不变
+        #   · 等超了（上游疑似挂死）→ 视同预取失败，主线程还有一整轮机会
         th = _PREFETCH_TH.pop(code, None)
         if th is not None:
             log(f"-- {cn}预取进行中，join 等收尾（上限 {PREFETCH_JOIN_MAX}s）")
             th.join(PREFETCH_JOIN_MAX)
+        data, pre_err = None, None
         if code in _PREFETCH:
             st, val = _PREFETCH.pop(code)
-            if st == "err":
-                raise val
-            data = val
+            if st == "ok":
+                data = val
+            else:
+                pre_err = val
         elif th is not None and th.is_alive():
-            raise RuntimeError(f"预取超 {PREFETCH_JOIN_MAX}s 未收尾")
-        else:
+            pre_err = RuntimeError(f"预取超 {PREFETCH_JOIN_MAX}s 未收尾")
+        if data is None and pre_err is not None:
+            # 🔴 预取失败 ≠ 采集失败（2026-10-15）：线程里抛的任何异常原先被
+            #    当成终局 → 直接沿用旧快照，页面挂「本轮采集失败」提示，
+            #    用户只能事后排查。可主线程此刻**有整段空闲**——预取已经结束
+            #    （或超时），重新采一遍不再有重复采集问题。瞬时抖动就地救回；
+            #    真是上游改版类的确定性失败，也只是多花一趟采集的时间。
+            log(f"-- {cn}预取失败（{type(pre_err).__name__}: {str(pre_err)[:120]}），"
+                f"主线程原地重试一次")
+        if data is None:
             data = ns.fetch()
     except (Exception, SystemExit) as e:
         # SystemExit 也要接：ct_monitor.fetch_all() 在缺少 .ct_raw.json 时
