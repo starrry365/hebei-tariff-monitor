@@ -120,6 +120,10 @@ jobs:
       # 必须用 POSIX 格式（CST-8）而不是 Asia/Shanghai —— 精简镜像缺 tzdata 会被静默忽略、
       # 退回 UTC，导致快照文件名与报告日期整体错一天
       TZ: CST-8
+      # 并行采集（2026-10-15，单班制提速）：联通/广电预取线程与移动同时采，
+      # 电信 Chrome 会话由「抓取」步后台启动全程重叠。本机直跑 / selftest
+      # 不设此变量 → 代码路径与旧串行版完全一致（见 _prefetch_http_nets 注释）。
+      TARIFF_PARALLEL: "1"
       # 网关密钥不写进代码，由 Actions Secret 注入（缺了会直接抛错，不会静默回退）
       NRAPIGATE_KEY: ${{ secrets.NRAPIGATE_KEY }}
       NRAPIGATE_IV: ${{ secrets.NRAPIGATE_IV }}
@@ -207,31 +211,27 @@ jobs:
           PY
           set -e
 
-      - name: 采集电信（真实 Chrome + Xvfb，失败不阻断）
-        run: bash probes/tools/ct_browser/ci_grab.sh
-
-      - name: 留存电信采集现场（失败时才有用）
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: ct-grab-evidence
-          path: |
-            /tmp/ct_shot.png
-            /tmp/ct-chrome.log
-            cloud/tariff/.ct_raw.json
-            cloud/tariff/.shct_raw.json
-          if-no-files-found: ignore
-          retention-days: 14
-
-      - name: 构建上海电信小页（自用隐秘源，失败不阻断）
-        run: |
-          # docs/sh.html 跟着 Pages 整目录一起上线；入口是主页顶栏那颗 6px 圆点。
-          # raw 缺席时自动退 snapshots/shct_latest.json（上一次成功采集的存档）。
-          python cloud/tariff/build_sh.py \
-            || echo "::warning title=上海小页构建失败::docs/sh.html 未更新（自用源，不影响主链路）"
+      # （2026-10-15 并行化）电信 Chrome 采集不再单独占一步：移到下面「抓取」步里
+      # 后台启动，与移动/联通/广电的 HTTP 采集全程重叠（原先串行要白等 2~4 分钟）。
+      # 「留存电信现场」「构建上海小页」两步也相应挪到「抓取」之后 —— 那时产物才齐。
 
       - name: 抓取 + 对比 + 生成并归档页面
         run: |
+          # ── 电信 Chrome 采集后台化 ────────────────────────────────────────
+          # ci_grab.sh 在后台跑（产出 .ct_raw.json / .shct_raw.json），与主线程里
+          # tariff_monitor 的移动/联通/广电 HTTP 采集同时进行；tariff_monitor 在
+          # 电信轮开始前等它收尾（_wait_grab 认 CT_GRAB_DONE 标记，超时 600s 只放弃
+          # 等待不失败 —— 电信本就是机会性采集，判据交给 snap_net_ready）。
+          # ★ 伴生子 shell 专门 wait 收尸后 touch 标记：僵尸进程 kill(pid,0) 恒真，
+          #   主 shell 又没空 wait，只认标记文件才可靠。
+          # ★ ci_grab.sh 永不非零退出，采不到时 tariff_monitor 自动退回快照渲染。
+          CT_GRAB_DONE="$RUNNER_TEMP/ct_grab.done"
+          rm -f "$CT_GRAB_DONE"
+          bash probes/tools/ct_browser/ci_grab.sh &
+          CT_PID=$!
+          export CT_GRAB_DONE
+          ( wait "$CT_PID"; touch "$CT_GRAB_DONE" ) &
+
           # 🔴 兜底重试（2026-10-03 立）。背景：run #43/#44 一天两遇 GitHub 服务器
           #    到移动网关的 Errno 101（Network is unreachable），采集器 exit 3 把
           #    整轮巡检掐死——电信白采、页面不重建、部署 skip。
@@ -277,6 +277,27 @@ jobs:
           done
           echo "::error::三轮采集均失败，按真失败处理（上游大概率不是抖动，而是改版/封禁）"
           exit 1
+
+      # ── 以下两步依赖电信采集产物，故排在「抓取」之后（并行化挪位）─────────
+      - name: 留存电信采集现场（失败时才有用）
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ct-grab-evidence
+          path: |
+            /tmp/ct_shot.png
+            /tmp/ct-chrome.log
+            cloud/tariff/.ct_raw.json
+            cloud/tariff/.shct_raw.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: 构建上海电信小页（自用隐秘源，失败不阻断）
+        run: |
+          # docs/sh.html 跟着 Pages 整目录一起上线；入口是主页顶栏那颗 6px 圆点。
+          # raw 缺席时自动退 snapshots/shct_latest.json（上一次成功采集的存档）。
+          python cloud/tariff/build_sh.py \
+            || echo "::warning title=上海小页构建失败::docs/sh.html 未更新（自用源，不影响主链路）"
 
       # ── 判据层体检 ───────────────────────────────────────────────────
       # 🔴 这两步以前**从来没在 CI 里跑过**，只在本机手动执行过 ——

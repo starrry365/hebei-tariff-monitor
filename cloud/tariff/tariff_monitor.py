@@ -2854,7 +2854,15 @@ def net_round(code, today, fallback=None):
     cn, tag, prefix = ns.cn, ns.tag, ns.snap_prefix
     load = fallback or load_prev
     try:
-        data = ns.fetch()
+        if code in _PREFETCH:
+            # 并行预取（TARIFF_PARALLEL=1）时取线程暂存的结果；
+            # "err" 就地重抛 → 走下面原有的「沿用上次快照」分支。
+            st, val = _PREFETCH.pop(code)
+            if st == "err":
+                raise val
+            data = val
+        else:
+            data = ns.fetch()
     except (Exception, SystemExit) as e:
         # SystemExit 也要接：ct_monitor.fetch_all() 在缺少 .ct_raw.json 时
         # 刻意用 SystemExit 抛出一段给**人看**的采集指引（本机直接跑时体验好）。
@@ -2961,6 +2969,74 @@ def snap_net_ready(code, today):
     return NETS[code].ready(today)
 
 
+# ── 并行预取与电信后台会话等待（2026-10-15，单班制提速）─────────────────
+# 一日一班后没有「下一班车」兜时间，采集段从「四网串行」改为「三网 HTTP +
+# 电信 Chrome 全并行」：
+#   · 联通 / 广电：main() 开工时开两个后台线程与移动**同时**采（三网接口
+#     完全独立 —— 不同域名、不同适配器、不同缓存文件，串行只是历史顺序），
+#     结果（或异常）暂存 _PREFETCH；net_round 轮到该网时取用 ——
+#     对比 / 快照 / 报告 / 降级逻辑**逐字未动**，仍按 _RUN_ORDER 串行执行。
+#   · 电信：Chrome 会话由工作流后台启动（与 HTTP 采集全程重叠），
+#     电信轮开始前 _wait_grab() 等它收尾。
+# ★ 用环境变量开关：TARIFF_PARALLEL=1 才启用（仅工作流设置）。
+#   本机直跑 / selftest / render_only 不设 → 代码路径与旧版**完全一致**，
+#   自测打桩（net_round 换桩后 _PREFETCH 永远为空）也不受影响。
+_PREFETCH = {}
+
+
+def _prefetch_http_nets():
+    """把「非移动、非电信」的直连网（联通 / 广电）丢进后台线程预取。
+
+    异常也照收（"err", exc）—— net_round 取用时重新抛出，
+    走它原有的「采集异常 → 沿用上次快照」分支，语义与串行版完全一致。
+    线程设 daemon：移动首采失败提前 return 3 时，进程不等这些线程。
+    """
+    import threading
+
+    def _one(code):
+        ns = NETS[code]
+        try:
+            val = ns.fetch()
+        except (Exception, SystemExit) as e:
+            _PREFETCH[code] = ("err", e)
+        else:
+            _PREFETCH[code] = ("ok", val)
+            log(f"[prefetch] {ns.cn}预取完成："
+                f"{len((val or {}).get('entries') or [])} 条")
+
+    for code in _RUN_ORDER:
+        if code in ("move", "telecom") or not NETS[code].live:
+            continue   # 移动在主线程自己采；电信走 Chrome 后台会话（CT_GRAB_DONE）
+        threading.Thread(target=_one, args=(code,),
+                         daemon=True, name=f"prefetch-{code}").start()
+
+
+def _wait_grab(timeout=600):
+    """电信 Chrome 采集后台化时（工作流 export CT_GRAB_DONE=<标记文件>），
+    电信轮开始前等它收尾。
+
+    ★ 为什么等**标记文件**而不是进程存活：工作流里 Chrome 会话是 step shell
+      的后台子进程，退出后成为僵尸、直到 shell 收尸 —— 而 shell 在忙着跑
+      tariff_monitor，没空 wait。僵尸进程 ``kill(pid, 0)`` 恒真，按进程判
+      「还活着」会白等满超时。所以由工作流起一个伴生子 shell 专门
+      ``wait $PID``（收尸）后 touch 标记文件，这里只认标记、不猜进程状态。
+      （.ct_raw.json 是收尾时一次性写出，标记出现 ⇒ 文件完整。）
+    ★ 超时只放弃等待，不失败：后续 snap_net_ready() 判「没有今日产物」
+      自然走快照渲染 —— 电信本就是机会性采集。
+    """
+    done = os.getenv("CT_GRAB_DONE", "").strip()
+    if not done:
+        return
+    t0 = time.time()
+    while not os.path.exists(done):
+        if time.time() - t0 > timeout:
+            log(f"!! 等电信 Chrome 采集收尾超时 {timeout}s（标记未出现），"
+                f"继续往下走（电信本轮预计走快照渲染）")
+            return
+        time.sleep(5)
+    log("-- 电信 Chrome 采集已收尾")
+
+
 def other_nets(today):
     """把「移动之外」的每一网都跑一遍。
 
@@ -2996,8 +3072,12 @@ def other_nets(today):
         # 没有就跳过，交给下面的 NET_SNAP 用快照顶上。
         # 这一步必须在 net_round **之前**：ct_monitor 宁可抛 SystemExit 给一段
         # 人看的采集指引，也不肯静默返回空 —— 那对人是好事，对无人值守是打扰。
-        if code in NET_SNAP and not snap_net_ready(code, today):
-            continue
+        if code in NET_SNAP:
+            # 电信 Chrome 采集被工作流后台化时，先等它收尾再判「今日有没有产物」
+            # （没设 CT_GRAB_DONE 时是空操作 —— 本机直跑 / 串行模式不受影响）。
+            _wait_grab()
+            if not snap_net_ready(code, today):
+                continue
         fb = load_latest if code in NET_SNAP else None
         data, dd, sm = net_round(code, today, fallback=fb)
         sources[code] = data
@@ -3110,6 +3190,10 @@ def main():
     today = time.strftime("%Y%m%d")
     day10 = f"{today[:4]}-{today[4:6]}-{today[6:]}"
 
+    # 并行预取（2026-10-15，单班制提速）：开工先把联通/广电丢到后台线程，
+    # 与移动的采集同时跑；详见 _prefetch_http_nets 的说明。
+    if os.getenv("TARIFF_PARALLEL", "").strip() == "1":
+        _prefetch_http_nets()
     data = fetch_all()
     if data is None:
         log("!! 抓取失败：分类列表拿不到")
