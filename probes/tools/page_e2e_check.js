@@ -29,7 +29,21 @@
  *
  * 返回：JSON 字符串（直接给 python 解析），不抛异常 —— 断言失败只体现在 ok=false。
  */
-(function () {
+(async function () {
+  /* ★ 2026-10-15 起四网行数据是 sidecar **异步**加载（见 template.html loadNet）
+     —— 不等数据到位就断言，非默认网全是 rows=0 的假红（本版实测：不等待时
+     unicom/telecom/cbn 全挂，等待后 8104 条全绿）。
+     这里先把有数据文件的网全部 loadNet 到位再进断言；CDP 侧 awaitPromise
+     会兑现本 Promise。数据就绪后 switchNet 走同步渲染路径，后续断言零改动。 */
+  try {
+    if (typeof loadNet === "function" && typeof NET_LS !== "undefined") {
+      await Promise.all(NET_LS.map(function (c) {
+        return (NETS[c] && (NETS[c].rows || NETS[c].cols || NETS[c].src_data))
+          ? loadNet(c).catch(function () { return null; })
+          : null;
+      }));
+    }
+  } catch (e) { /* 预载失败不拦截断言 —— 让各网检查自己如实报红 */ }
   function txt(el) { return String((el && el.textContent) || ""); }
   function opts(sel) { return [].slice.call($(sel).options); }
 
