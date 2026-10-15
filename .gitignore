@@ -57,8 +57,12 @@ cloud/tariff/docs/*.new
 chrome-prof/
 # 本地 CDP Chrome 的临时 profile（cdp_launch.py 用；几十 MB，绝不入库）
 probes/tools/cdp_prof/
-# 本地兜底快照（raw 缺失时 build_sh.py 的回退数据，不入库）
-cloud/tariff/snapshots/shct_latest.json
+# ★ shct_latest.json 已于 2026-10-15 改为**入库**（原注释「不入库」作废）：
+#   它是 build_sh.py 在 raw 缺席时的回退数据 —— 不入库的话，某轮采集彻底失败
+#   时 CI 全新检出里没有它，小页直接「拒绝生成空页」停更；入库后退到上一轮，
+#   页面照常出、只是数据停在上一版（与本仓库其它快照的降级哲学一致）。
+#   CI 每轮 save_snapshot 后写覆盖，随「提交数据与归档」的 add -A 自动更新。
+# cloud/tariff/snapshots/shct_latest.json
 # ── 上海电信隐秘小源（自用，2026-10-06）───────────────────────
 # 原始采集产物（harvest_sh.js 产出，shct_monitor.fetch_all 的输入）
 cloud/tariff/.shct_raw.json
