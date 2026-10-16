@@ -1,9 +1,11 @@
 /* 河北四网资费查询页 —— Service Worker（PWA 离线壳）
  *
  * 策略（一句话：**页面求新，壳子求快**）：
- *   · 导航请求（index.html）→ network-first。
+ *   · 导航请求（任何 .html / 站点根）→ network-first。
  *     页面的数据是每天巡检重建的；宁可等网络，也不给用户看昨天的价目表。
- *     网络失败时才退回缓存（地铁里 / 断网时还能看上次那份，比白屏强）。
+ *     网络失败时才退回各自上次的缓存（地铁里 / 断网时还能看上次那份）。
+ *   · 数据 sidecar（/data/*.js）→ cache-first。
+ *     URL 自带版本戳、内容不可变，命中即零往返。
  *   · 其他同源静态资源（图标 / manifest）→ cache-first。
  *     它们几乎不变，走缓存省一次往返。
  *
@@ -14,7 +16,7 @@
  * 🔴 改了这个文件里任何**缓存名单**，必须同时 bump CACHE 版本号。
  *    否则老用户永远停在旧壳子上（activate 里只清「版本号不同」的缓存）。
  */
-const CACHE = "hbtm-shell-v3";
+const CACHE = "hbtm-shell-v4";
 
 /* 只预缓存「壳」：体积小、几乎不变 */
 const SHELL = [
@@ -44,14 +46,13 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-function isNavigation(req, url) {
+function isIndex(req, url) {
   /* 🔴 2026-10-15 收紧：原先 `req.mode === "navigate"` 单独成立 —— 任何
      直接打开的页面（如 sh.html 上海小页）都算「导航」，会被当成 index.html
      缓存：离线回退时上海页**顶替**主页出现，且毫无提示。
-     导航请求必须同时命中「站点根 / index.html」这两个形态才走主页策略。 */
-  return req.mode === "navigate"
-    && (url.pathname.endsWith("/")
-        || url.pathname.endsWith("index.html"));
+     「index 主页壳」必须同时命中「站点根 / index.html」这两个形态。 */
+  return url.pathname.endsWith("/")
+    || url.pathname.endsWith("index.html");
 }
 
 self.addEventListener("fetch", (e) => {
@@ -83,18 +84,26 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  if (isNavigation(req, url)) {
+  /* 🔴 2026-10-16 修复：**所有导航请求一律 network-first**。
+     此前只有 isNavigation（根/index.html）走 network-first，其余导航
+     （sh.html 上海小页）掉进下方「静态资源 cache-first」兜底分支 ——
+     一旦进过缓存就永远不再回源：排序修复上线两天，用户浏览器里仍是
+     最初那份旧页面（CACHE bump 也只是把毒洗一次，下次改版照样复发）。
+     页面数据是每日巡检重建的，页面必须求新；离线时才退回各自的缓存
+     （各回各的 URL，不再劫持成主页）。 */
+  if (req.mode === "navigate") {
     e.respondWith(
       fetch(req)
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((c) => {
-            c.put("./index.html", copy).catch(() => {});
-            /* sidecar 缓存剪枝（2026-10-15）：sidecar 是不可变 URL，每天换 4 个
-               新文件名，而 cache 只进不出 —— 不剪的话一年在用户浏览器里囤
-               ~2GB 旧数据。页面 meta 里带当前全部 src_data（ stamp 集合），
-               拿它当「现役名单」，把缓存里不在名单上的 /data/ 条目清掉。
-               解析失败就跳过本次剪枝（宁多留，不可误删现役文件）。 */
+            c.put(req, copy).catch(() => {});
+            /* 以下仅主页壳需要：sidecar 缓存剪枝（2026-10-15）：sidecar 是
+               不可变 URL，每天换 4 个新文件名，而 cache 只进不出 —— 不剪的
+               话一年在用户浏览器里囤 ~2GB 旧数据。页面 meta 里带当前全部
+               src_data（stamp 集合），拿它当「现役名单」，把缓存里不在名单
+               上的 /data/ 条目清掉。解析失败就跳过本次剪枝（宁多留，不可误删）。 */
+            if (!isIndex(req, url)) return;
             res.clone().text().then((t) => {
               const cur = new Set();
               const re = /"src_data":"(data\/[^"]+\.js)"/g;
@@ -114,7 +123,8 @@ self.addEventListener("fetch", (e) => {
           });
           return res;
         })
-        .catch(() => caches.match("./index.html").then((r) => r || caches.match(req)))
+        .catch(() => caches.match(req).then((r) =>
+          r || (isIndex(req, url) ? caches.match("./index.html") : undefined)))
     );
     return;
   }

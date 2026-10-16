@@ -376,6 +376,54 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 .ctg-bad{background:var(--badbg);color:var(--bad);border:1px solid currentColor}
 .ctg-warn{background:var(--warnbg);color:var(--warn)}
 .ctg-info{background:var(--ac2);color:var(--ac);border:1px solid currentColor}
+
+/* ── 搜索命中高亮（2026-10-16）：kw 命中的名称片段 ── */
+#tb mark{background:var(--warnbg);color:var(--warn);padding:0 1px;border-radius:3px}
+
+/* ── 统计卡可点（2026-10-16）：点卡片 = 应用对应过滤 ── */
+.stat{font-family:inherit;text-align:left;cursor:pointer;color:inherit;transition:transform .15s,box-shadow .15s,border-color .15s}
+.stat:hover{transform:translateY(-2px);box-shadow:var(--sh2);border-color:var(--ac)}
+.stat:active{transform:translateY(0)}
+.stat[data-act="hist"]::after{background:linear-gradient(180deg,var(--warn),var(--op2))}
+
+/* ── 回到顶部（2026-10-16）── */
+#topBtn{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:60;
+  width:40px;height:40px;border-radius:50%;border:1px solid var(--bd2);
+  background:var(--glass2);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  color:var(--tx2);font-size:16px;cursor:pointer;box-shadow:var(--sh);opacity:0;
+  pointer-events:none;transition:opacity .25s,transform .25s,color .15s,border-color .15s;font-family:inherit}
+#topBtn.show{opacity:.92;pointer-events:auto}
+#topBtn.show:hover{color:var(--ac);border-color:var(--ac);transform:translateY(-2px)}
+
+/* ── 移动端排序下拉（≤640px 显示；桌面用表头点选）── */
+#msortw{display:none;align-items:center;gap:6px;font-size:12px;color:var(--tx3);flex:none}
+#msort{padding:7px 9px;border:1px solid var(--bd2);border-radius:10px;font:inherit;font-size:12.5px;
+  background:var(--glass3);color:var(--tx);color-scheme:light dark}
+
+/* ── 移动端卡片视图（2026-10-16）：≤640px 表格→卡片，6 列挤爆窄屏 ── */
+@media(max-width:640px){
+  thead{display:none}
+  table,tr{display:block}
+  table{background:none;border:0;box-shadow:none;border-radius:0}
+  td{display:block;border-bottom:0;padding:0}
+  tbody tr.row{margin-bottom:10px;border:1px solid var(--bd2);border-radius:12px;
+    background:var(--glass3);box-shadow:var(--sh);overflow:hidden}
+  tr.row>td{border-bottom:1px dashed var(--bd2);padding:8px 12px}
+  tr.row>td:last-child{border-bottom:0}
+  tbody tr.row.zeb td,tr.row:hover td{background:none}
+  td.fee{display:flex;justify-content:space-between;align-items:baseline;
+    font-size:15.5px;color:var(--ac);background:var(--glass2)!important}
+  td.fee::before{content:none}
+  td[data-l]{display:flex;justify-content:space-between;align-items:baseline;gap:14px;font-size:12.5px}
+  td[data-l]::before{content:attr(data-l);color:var(--tx3);font-size:11.5px;font-weight:600;flex:none}
+  .det,.det.on{display:block}
+  .det>td{padding:0}
+  .det>td>div{padding:10px 12px}
+  tr.det{margin-top:-6px;margin-bottom:10px;border:1px solid var(--bd2);border-radius:12px;background:var(--glass2)}
+  tr.row.open{border-bottom-left-radius:0;border-bottom-right-radius:0}
+  tr.row.open+tr.det{border-top:0;border-top-left-radius:0;border-top-right-radius:0}
+  .tblwrap{margin:0 -4px}
+}
 .ctg-more{background:var(--card3);color:var(--tx3);font-weight:500}
 .ditem.vp-hi{background:var(--warnbg);border-radius:8px;padding:4px 8px;margin:2px -4px}
 .ditem.vp-hi em{font-style:normal}
@@ -427,6 +475,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-off
         <div id="tabs" role="tablist">
           <button type="button" data-st="" class="on">全部</button>
           <button type="button" data-st="0">在售</button>
+          <button type="button" data-st="new">30天新上架</button>
           <button type="button" data-st="1">已下架</button>
         </div>
         <div class="kwwrap">
@@ -441,7 +490,17 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-off
     </div>
   </div>
 
-  <div class="rbar"><span id="stat"></span></div>
+  <div class="rbar"><span id="stat"></span>
+    <label id="msortw">排序
+      <select id="msort">
+        <option value="o:-1">上架 · 最新优先</option>
+        <option value="o:1">上架 · 最早优先</option>
+        <option value="f:1">月费 · 从低到高</option>
+        <option value="f:-1">月费 · 从高到低</option>
+        <option value="n:1">名称 · 拼音序</option>
+      </select>
+    </label>
+  </div>
 
   <div class="tblwrap">
   <table><thead><tr>
@@ -465,6 +524,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-off
   </div>
 
   <div id="cfpop" role="dialog" aria-modal="false"></div>
+
+  <button type="button" id="topBtn" title="回到顶部" aria-label="回到顶部">↑</button>
 
   <footer>来源：中国电信上海公司「资费专区」（189.cn）· 与河北站同一套监控管线，每日自动更新 · 仅作个人查询参考，办理以官方渠道为准</footer>
 </div>
@@ -599,8 +660,9 @@ $("#themeBtn").addEventListener("click",()=>{
   const ch30=(HIST||[]).filter(x=>String(x.d||"")>=cutD)
     .reduce((s,x)=>s+(x.a||0)+(x.r||0)+(x.c||0),0);
   $("#cnt-on").textContent=on;$("#cnt-all").textContent=ROWS.length;
-  $("#stats").innerHTML=[["资费总条数",ROWS.length],["在售",on],["30 天内新上架",nw],["30 天变更",ch30]]
-    .map(p=>'<div class="stat"><div class="sn">'+p[1]+'</div><div class="sl">'+p[0]+'</div></div>').join("");
+  $("#stats").innerHTML=[["资费总条数",ROWS.length,"all"],["在售",on,"0"],
+      ["30 天内新上架",nw,"new"],["30 天变更",ch30,"hist"]]
+    .map(p=>'<button type="button" class="stat" data-act="'+p[2]+'"><div class="sn">'+p[1]+'</div><div class="sl">'+p[0]+'</div></button>').join("");
 })();
 /* ── 收藏关注（localStorage，按套餐名） ───────────────────────── */
 let FAVS;
@@ -614,6 +676,7 @@ $("#favTog").addEventListener("click",()=>{FAV=!FAV;$("#favTog").classList.toggl
    未标注上架日期的条目排最后（cmp 里的空值分支，与方向无关）。
    点其它表头正常切换，点「上架」本身在 升/降 间翻转。 */
 let CAT="",ST="",SK="o",SD=-1;
+const CUT30=new Date(Date.now()-30*864e5).toISOString().slice(0,10).replace(/-/g,"");
 const catBox=$("#catChips");
 catBox.innerHTML='<button type="button" data-c="" class="on">全部分类</button>'+
   CATS.map(c=>'<button type="button" data-c="'+esc(c)+'">'+esc(c)+
@@ -629,21 +692,26 @@ $("#tabs").addEventListener("click",e=>{
   $("#tabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));view();
 });
 /* ── 列排序：点表头切换字段，再点反向 ─────────────────────────── */
+/* 表头箭头与移动端下拉统一由此同步（桌面点表头 / 手机用下拉，状态同源） */
+const msort=$("#msort");
+function syncSortUI(){
+  document.querySelectorAll("th[data-k]").forEach(x=>{
+    const on=x.dataset.k===SK;
+    x.classList.toggle("act",on);
+    const ar=x.querySelector(".ar");if(ar)ar.textContent=on?(SD>0?"↑":"↓"):"";
+  });
+  if([...msort.options].some(o=>o.value===SK+":"+SD))msort.value=SK+":"+SD;
+}
 document.querySelectorAll("th[data-k]").forEach(th=>th.addEventListener("click",()=>{
   const k=th.dataset.k;
   if(SK===k)SD=-SD;else{SK=k;SD=1}
-  document.querySelectorAll("th[data-k]").forEach(x=>{
-    x.classList.toggle("act",x===th);
-    x.querySelector(".ar").textContent=x===th?(SD>0?"↑":"↓"):"";
-  });
-  view();
+  syncSortUI();view();
 }));
-/* 初始排序态与默认值对齐（SK="o" SD=-1）：表头高亮 + ↓ 箭头，
-   不然默认排了上架倒序、表头却毫无提示，读者不知道列表是怎么排的。 */
-(function(){
-  const th=document.querySelector('th[data-k="o"]');
-  if(th){th.classList.add("act");const ar=th.querySelector(".ar");if(ar)ar.textContent="↓";}
-})();
+msort.addEventListener("change",()=>{
+  const i=msort.value.indexOf(":");
+  SK=msort.value.slice(0,i);SD=+msort.value.slice(i+1);
+  syncSortUI();view();
+});
 /* ── 列筛选（Excel 式多选）：COLF_DEF 单一来源 ────────────────────
    与主界面同一套设计：漏斗只声明取值函数，面板清单 / match 判据 / facet
    条数全部从它派生。facet 口径 = 摘掉本列勾选、其余条件照常。 */
@@ -673,7 +741,9 @@ const tb=$("#tb"),kw=$("#kw"),stat=$("#stat"),condBox=$("#condChips");
 let cur=[];
 function basePass(r,skipCode){
   if(CAT&&r.cat!==CAT&&skipCode!=="cat")return false;
-  if(ST!==""&&String(r.st)!==ST)return false;
+  if(ST==="new"){   // 30 天内新上架（与统计卡 nw 口径一致）
+    if(!(r.o&&r.o>=CUT30&&!r.st))return false;
+  }else if(ST!==""&&String(r.st)!==ST)return false;
   if(FAV&&!FAVS.has(r.n))return false;
   for(const k in COLF){
     if(k===skipCode)continue;
@@ -691,25 +761,26 @@ function view(){
   });
   cur.sort(cmp);
   stat.innerHTML="匹配 <b>"+cur.length+"</b> / "+ROWS.length+" 条"+(FAV?" · ★ 只看收藏":"");
-  const today=new Date().toISOString().slice(0,10).replace(/-/g,"");
-  const cut=new Date(Date.now()-30*864e5).toISOString().slice(0,10).replace(/-/g,"");
+  const cut=CUT30;
+  const reQ=q?new RegExp("("+q.replace(/[.*+?^${}()|[\\]\\\\]/g,"\\\\$&")+")","ig"):null;
   const buf=[];
   cur.forEach((r,i)=>{
     const fee=r.f===""?"—":r.f+" 元";
     const isNew=r.o&&r.o>=cut&&!r.st;
+    const nmT=esc(r.n).replace(reQ,"<mark>$1</mark>");
     buf.push('<tr class="row'+(r.st?" stopped":"")+'" data-i="'+i+'" tabindex="0">'
       +'<td class="fee">'+esc(fee)+'</td>'
       +'<td class="nm"><button type="button" class="favbtn'+(FAVS.has(r.n)?" on":"")
         +'" data-fn="'+esc(r.n)+'" title="收藏 / 取消收藏">'+(FAVS.has(r.n)?"★":"☆")+'</button>'
-        +'<span class="nmt">'+esc(r.n)+'</span>'
+        +'<span class="nmt">'+nmT+'</span>'
         +(isNew?'<span class="bg bg-new">NEW</span>':"")
         +(r.st?'<span class="bg bg-stop">已下架</span>':"")
         +vpTagS(r)
         +(r.sub?'<span class="tg">'+esc(r.sub)+'</span>':"")
         +'<div class="mut">'+esc(r.cat||"")+(r.ap?" · "+esc(r.ap):"")+'</div></td>'
-      +'<td>'+fmtGb(r.g)+'</td>'
-      +'<td>'+(r.c&&r.c!=="0"?esc(r.c)+" 分钟":"—")+'</td>'
-      +'<td>'+fmtD(r.o)+'</td><td>'+fmtD(r.e)+'</td></tr>'
+      +'<td data-l="流量">'+fmtGb(r.g)+'</td>'
+      +'<td data-l="通话">'+(r.c&&r.c!=="0"?esc(r.c)+" 分钟":"—")+'</td>'
+      +'<td data-l="上架">'+fmtD(r.o)+'</td><td data-l="下线">'+fmtD(r.e)+'</td></tr>'
       +'<tr class="det"><td colspan="6"><div class="detwrap"><div class="detgrid">'
         +(r.sub?'<div class="ditem"><span>细分</span><em>'+esc(r.sub)+'</em></div>':"")
         +(r.ap?'<div class="ditem"><span>适用人群</span><em>'+esc(r.ap)+'</em></div>':"")
@@ -724,7 +795,51 @@ function view(){
   zebrafy();
   $("#empty").hidden=!!cur.length;
   drawCondChips();drawFunnels();
+  syncHash();
 }
+/* ── URL hash 状态深链（2026-10-16）：搜索/页签/分类/收藏/排序全部进 hash ──
+   刷新不丢、可分享给微信好友「直接看 30 天新上架」；replaceState 不产生
+   历史垃圾。默认态写空 hash，保持 URL 干净。 */
+function syncHash(){
+  const p=new URLSearchParams();
+  if(kw.value.trim())p.set("q",kw.value.trim());
+  if(CAT)p.set("cat",CAT);
+  if(ST)p.set("st",ST);
+  if(FAV)p.set("fav","1");
+  if(SK!=="o"||SD!==-1)p.set("s",SK+(SD>0?"a":"d"));
+  const h=p.toString();
+  try{history.replaceState(null,"",location.pathname+location.search+(h?"#"+h:""))}catch(e){}
+}
+/* boot：从 hash 恢复状态（必须在首次 view() 之前执行） */
+(function(){
+  let p;try{p=new URLSearchParams(location.hash.slice(1))}catch(e){return}
+  try{
+    if(p.get("q"))kw.value=p.get("q");
+    if(p.get("cat")){CAT=p.get("cat");
+      catBox.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x.dataset.c===CAT))}
+    if(p.get("st")){ST=p.get("st");
+      $("#tabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x.dataset.st===ST))}
+    if(p.get("fav")==="1"){FAV=true;$("#favTog").classList.add("on")}
+    const s=p.get("s");
+    if(s&&s.length>1){SK=s.slice(0,-1);SD=s.endsWith("a")?1:-1;syncSortUI()}
+  }catch(e){}
+})();
+/* ── 统计卡可点（2026-10-16）：点卡片 = 清掉其它条件并应用对应过滤 ── */
+$("#stats").addEventListener("click",e=>{
+  const b=e.target.closest(".stat");if(!b)return;
+  const act=b.dataset.act;
+  if(act==="hist"){ // 「30 天变更」是时间线指标 → 直达变化历史视图
+    document.querySelector('#vtabs [data-v="hist"]').click();return}
+  kw.value="";COLF={};
+  CAT="";catBox.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x.dataset.c===""));
+  ST=act==="all"?"":act;   // all→全部 / on→在售(0) / new→新上架(new)
+  $("#tabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x.dataset.st===ST));
+  view();
+});
+/* ── 回到顶部（2026-10-16）── */
+const topBtn=$("#topBtn");
+addEventListener("scroll",()=>topBtn.classList.toggle("show",scrollY>600),{passive:true});
+topBtn.addEventListener("click",()=>scrollTo({top:0,behavior:"smooth"}));
 /* 收藏星标（事件委托；点击不触发行的展开） */
 tb.addEventListener("click",e=>{
   const fb=e.target.closest(".favbtn");
