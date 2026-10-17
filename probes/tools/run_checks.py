@@ -226,6 +226,26 @@ def main():
             for e in errs[:5]:
                 print("       ! %s" % e)
 
+    # ── 4b. 切网冷载入不塌陷 ─────────────────────────────────────────
+    # walk / e2e 都先 loadNet 预热，于是**只测热路径**；真实用户第一次点某个
+    # 网（或空闲预热还没轮到它）走的是冷路径 —— 2026-10-17 实测修复前：
+    # 整页 5846→958、滚动位置 2200→170、停 335ms 再长回 9558，
+    # 用户报的就是「切运营商时闪一下」。本步骤专测那一段。
+    print("\n[4b] 切网冷载入不塌陷 page_cold_switch.js")
+    cold = js("page_cold_switch.js", os.path.join(BASE, "page_cold_switch.js"),
+              os.path.join(TMP, "cold.json"))
+    if cold is not None:
+        if cold.get("err"):
+            results.append(("cold switch：载入态不塌陷", False, cold["err"]))
+        else:
+            ok = bool(cold.get("ok"))
+            why = ("docH %.0f%% · wrapH %.0f%% · 滚动位移 %dpx · 载入帧 %d"
+                   % (cold.get("docRatio", 0) * 100, cold.get("wrapRatio", 0) * 100,
+                      cold.get("dy", -1), cold.get("loadFrames", 0)))
+            results.append(("cold switch：载入态不塌陷", ok, why))
+        print("  %s %-42s %s" % ("OK  " if results[-1][1] else "!!  ",
+                                 results[-1][0], results[-1][2]))
+
     # ── 5. e2e 语义断言 ─────────────────────────────────────────────
     print("\n[5] 页面级断言 page_e2e_check.js")
     # ★ e2e 前再清场一次（2026-10-06）。walk 与 e2e 是两个 eval，walk 会留下

@@ -367,6 +367,11 @@ button:focus-visible,select:focus-visible,input:focus-visible,[tabindex]:focus-v
    那时 wrapper 成为滚动容器，表头随内容滚走（窄屏上表格本就一屏装不下，
    「能看全」优先于「表头钉住」），右侧被 clip 裁掉的列就能滚出来了。 */
 .tblwrap{overflow:visible}
+/* 切网载入态占位行（见 applyWhenReady）：表格容器高度由 JS 锁住，
+   这一行只负责说明"在等什么"，不需要撑高，也不该看起来像"没有数据"。 */
+tr.tload>td{padding:56px 12px;text-align:center;color:var(--tx3);font-size:13px;
+  letter-spacing:.2px}
+tr.tload b{color:var(--tx2);font-weight:700}
 table{width:100%;border-collapse:separate;border-spacing:0;
   background:var(--glass);border:1px solid var(--bd2);border-radius:var(--r);overflow:clip;
   font-size:13px;box-shadow:var(--sh)}
@@ -1152,23 +1157,48 @@ function loadNet(c){
    ★ _netLoading 防重复派发：载入期间再触发守卫（连点导航/连改 hash）不重复插
      script 标签；回调里核对 NET——载入途中用户切走的话，迟到的完成回调
      不能把另一网渲染顶掉。 */
-/* 空闲预取其余三网（2026-10-15）：当前网就绪后，浏览器空闲时用
-   <link rel=prefetch> 把其余 sidecar 拉进 HTTP/SW 缓存 —— 之后切网零等待。
-   ★ prefetch 是**低优先级**提示：不跟用户当前交互抢带宽，断网/省流模式下
-     浏览器可自行跳过，失败无任何副作用（真正的加载仍走 loadNet 的守卫链路）。
-   ★ SW 对 /data/ 是 cache-first，prefetch 到的响应直接落缓存 —— 这也是
-     sw.js 里那套「按 stamp 剪枝」的输入之一。 */
-let _prefetched=false;
+/* 空闲预热其余三网（2026-10-17 由「link prefetch 提示」升级为**真正 loadNet**）
+   —— 目的不再是"让 HTTP 缓存里有"，而是"切网时数据已在内存里"。
+   🔴 为什么必须升级：link prefetch 只保证响应落缓存，切网仍要走 loadNet 插
+     script 的**异步**往返。本机 file:// 实测那一段是 335ms，线上还要加网络/
+     SW 往返 —— 这段时间列表是空的（见 applyWhenReady 里那段注释），
+     用户看到的就是「整页闪一下」。预热成内存数据后，切网走同步渲染，零等待。
+   ★ 代价与降级：三网 sidecar 合计 200~300 KB，在**首屏之后**的空闲时段串行加载，
+     不占首屏关键路径；开了省流（saveData）或 2G 网络时退回低优先级的
+     link prefetch，让浏览器自己决定要不要下。
+   ★ 串行不是并行：同时插三个 script 会在移动端抢主线程解析 200+ KB JSON，
+     反而让当前页面的滚动/点击卡一下 —— 每网之间让出一帧，用户几乎无感。 */
+let _warmed=false;
 function prefetchRest(){
-  if(_prefetched)return;
-  _prefetched=true;
-  NET_LS.forEach(c=>{
+  if(_warmed)return;
+  _warmed=true;
+  const rest=NET_LS.filter(c=>{
     const N=NETS[c];
-    if(!N||N.rows||N.cols||!N.src_data||__NET_DATA__[c])return;
-    const l=document.createElement("link");
-    l.rel="prefetch";l.href=N.src_data;
-    document.head.appendChild(l);
+    return N&&!netReady(c)&&N.src_data&&!__NET_DATA__[c];
   });
+  if(!rest.length)return;
+  const conn=navigator.connection||{};
+  if(conn.saveData||/(^|-)2g$/.test(conn.effectiveType||"")){
+    rest.forEach(c=>{
+      const l=document.createElement("link");
+      l.rel="prefetch";l.href=NETS[c].src_data;
+      document.head.appendChild(l);
+    });
+    return;
+  }
+  (function next(){
+    const c=rest.shift();
+    if(!c)return;
+    /* 后台标签页不烧 CPU/流量：等回到前台再继续 */
+    if(document.visibilityState==="hidden"){
+      document.addEventListener("visibilitychange",next,{once:true});
+      return;
+    }
+    loadNet(c).catch(()=>{}).then(()=>{
+      if("requestIdleCallback" in window)requestIdleCallback(next,{timeout:2500});
+      else setTimeout(next,400);
+    });
+  })();
 }
 let _netLoading=null;
 function applyWhenReady(){
@@ -1178,7 +1208,18 @@ function applyWhenReady(){
     _netLoading=c;
     $("#stat").style.display="";
     $("#stat").innerHTML="⏳ 载入 "+esc(n.nm||c)+" 数据…";
-    $("#tb").innerHTML="";
+    /* 🔴 载入态**绝不能清空列表**（2026-10-17 实测）：
+       80 行一清，整页高度从 5846 塌到 958、滚动位置从 2200 被夹回 170，
+       停 ~335ms 再长回 9558 —— 用户看到的是「整页白闪 + 跳回顶上」，
+       而四网 sidecar 是异步的，第一次点某个网必然走这条路。
+       改法：锁住表格容器现行高度（只锁 min-height，图片/字体加载不会顶高），
+       内容换成一行提示；数据到位后 render() 清掉锁、同帧替换。
+       为什么锁 .tblwrap 而不是 tbody：tbody 高度由行决定，min-height 在
+       table-row-group 上行为不稳；.tblwrap 是普通 div，桌面/窄屏都吃 min-height。 */
+    const wrap=$("#tb").closest(".tblwrap");
+    if(wrap){const h=wrap.offsetHeight;if(h>0)wrap.style.minHeight=h+"px"}
+    $("#tb").innerHTML='<tr class="tload"><td colspan="10">正在载入 <b>'
+      +esc(n.nm||c)+'</b> 资费数据…</td></tr>';
     loadNet(c).then(()=>{
       if(_netLoading!==c)return;          // 载入途中已切走：本次结果作废
       _netLoading=null;renderNet();apply();
@@ -1187,6 +1228,8 @@ function applyWhenReady(){
     }).catch(e=>{
       if(_netLoading!==c)return;
       _netLoading=null;
+      /* 失败也要解锁：留着 min-height 会甩出一大块空白，看着像"卡住了" */
+      const w2=$("#tb").closest(".tblwrap");if(w2)w2.style.minHeight="";
       $("#stat").style.display="";
       $("#stat").innerHTML="⚠ 载入失败："+esc(String(e&&e.message||e));
     });
@@ -2751,6 +2794,9 @@ function apCell(d,terms){
 
 function render(){
   const tb=$("#tb");tb.innerHTML="";
+  /* 解掉载入态锁的高度（见 applyWhenReady 那段注释）：render 是所有
+     「真的有数据要画」的必经入口，在这里解锁不会漏掉任何一条路径。 */
+  const _tw=tb.closest(".tblwrap");if(_tw&&_tw.style.minHeight)_tw.style.minHeight="";
   const terms=kwTermsNow();          // 命中词高亮与筛选用同一份词表
   const st=pg*PAGE,slice=view.slice(st,st+PAGE);
   const tp=Math.max(1,Math.ceil(view.length/PAGE));
