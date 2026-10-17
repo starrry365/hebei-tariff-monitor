@@ -498,6 +498,30 @@ mark{background:var(--ac2);color:inherit;padding:0 1px;border-radius:2px}
 .fee.free{color:var(--ok)}
 .fee.low{color:var(--warn)}
 .ap{color:var(--tx2);font-size:12px;max-width:320px}
+/* ── 目标客户：桌面也收成两行（2026-10-18）────────────────────────────
+   此前只有 ≤640px 的卡片视图做截断，桌面上是「有多少显示多少」。
+   实测（四网快照，默认每页 80 行）：联通的目标客户文案最长 220 字，
+   在 194px 宽的单元格里要折 6–7 行 —— 单行 117px（p50），17 行超过 120px、
+   最多 251px；一屏 788px 只放得下 6 条，翻页像在啃。移动那边文案短，
+   同一张表 p50 只有 60px，于是「换一个网，翻页手感差一倍」。
+   收到两行后整表行高落在 60–70px，一屏 12 条，四网一致；代价是被截掉的
+   文案看不到全文 —— 所以：
+     · 真被截断的那些，syncApTitles() 会补上 title（悬停看全文）；
+     · 点击整行展开，详情里「目标客户」一字不少（detHTML）；
+     · **搜索命中的行不截断**（.aph，见 apCell）—— 命中的词若正好落在
+       第 4 行以后，截断会让用户「行出现了却看不出为什么命中」，这比长
+       文案本身更糟。
+   为什么用 -webkit-box 而不是 max-height：只有它会在最后一行画省略号，
+   用户能看出「这里还有字」，而不是以为文案就这么短。 */
+.ap .apv{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* 搜索命中行放开截断：命中词必须可见，宁可这一行高一点。
+   ★ 选择器写得比窄屏那条 `tr.row>td.ap .apv` 更具体，否则 ≤640px 的卡片视图
+     里这条会被媒体查询盖掉 —— 而窄屏恰恰是「截断最狠、命中词最容易被切」的地方。 */
+table tr.row>td.ap.aph .apv{display:block;-webkit-line-clamp:unset;overflow:visible}
+/* 整列基本无值的表头（见 markEmptyCols）：淡化 + title 说明，
+   否则「归属」这种只有移动有的列在其余三网是整列空白，看着像坏了 */
+th.thnone{opacity:.45}
+th.thnone:hover{opacity:1}
 .mut{color:var(--tx3);font-size:11.5px}
 .bwtg{display:inline-block;padding:0 6px;border-radius:5px;background:var(--okbg);color:var(--ok);
   font-size:11.5px;font-weight:700}
@@ -2926,7 +2950,11 @@ function zebrafy(){
    原先硬切 90 字符无省略号无提示：用户不知道内容被截了（详情里有全文，
    列表层却无任何暗示）。现在截断补「…」+ title 全文。
    顺带 L4：与名称列同款搜索高亮 —— 搜「政企」命中的就是这个字段，
-   行出现在结果里却不高亮，命中原因要展开才找得到。hl 内部自带转义。 */
+   行出现在结果里却不高亮，命中原因要展开才找得到。hl 内部自带转义。
+   ★ 2026-10-18：截断改由 CSS（.ap .apv 两行 clamp）统一负责，这里不再
+     手拼「…」和按 90 字猜 title —— 同一条文案在不同网、不同列宽下溢出行数
+     差很多，猜不准就会出现「没溢出却挂省略号」或「溢出到第 3 行却没有 title」。
+     真溢出与否交给浏览器，渲染后由 syncApTitles() 用 clientHeight 判一次。 */
 function apCell(d,terms){
   const s=d.ap||"";
   /* ★ 值包一层 .apv（2026-10-17）：窄屏要按行数截断（-webkit-line-clamp），
@@ -2934,8 +2962,57 @@ function apCell(d,terms){
      clamp 静默失效 —— 表现是「截断了高度、文字照样画到卡片外面」。
      包一层普通 div 就没有这个问题；桌面端 div 是普通块级盒，渲染完全不变。 */
   if(!s)return'<td class="ap m0">—</td>';
-  return '<td class="ap"'+(s.length>90?' title="'+esc(s)+'"':"")+'>'
-    +'<div class="apv">'+hl(s,terms)+(s.length>90?"…":"")+'</div></td>';
+  /* 命中词落在被截断的那几行里 = 用户看不到命中原因 ⇒ 这一行不截断 */
+  const hit=terms.length&&terms.some(t=>s.toLowerCase().indexOf(t)>=0);
+  return '<td class="ap'+(hit?" aph":"")+'"><div class="apv">'+hl(s,terms)+'</div></td>';
+}
+/* 截断后补 title：只给**真的**溢出那几行挂全文，判定看浏览器算出来的
+   scrollHeight/clientHeight（>1px 容差，小数像素在缩放下很常见）。
+   80 行读一次几何属性 = 一次布局，「渲染后顺手量」比「渲染前按字数猜」准得多。 */
+function syncApTitles(){
+  const vs=document.querySelectorAll("#tb tr.row>td.ap>.apv");
+  for(const v of vs){
+    if(v.scrollHeight-v.clientHeight>1)v.parentNode.title=v.textContent;
+  }
+}
+/* —— 整列基本无值（2026-10-18）——
+   有些字段是某个网独有的：归属只有移动有（其余三网 8105 / 1307 / 339 条全空），
+   宽带四网都接近全空（移动 98%、联通 97%）。桌面上这些列**一格字都没有**，
+   空得跟渲染坏了似的；而窄屏靠 td.m0 直接把空格隐藏了，桌面没有这套。
+   这里不动单元格，只在表头标一个「本网基本无此字段」，把「空白」解释成
+   「本来就没有」，而不是让用户怀疑加载失败。
+   ★ 判据与单元格渲染同源（fmtGb / bwInfo / d.c），不另写一套 —— 否则会出现
+     「表头说无值、格子里却有字」这种自相矛盾。
+   ★ 按**整网**算并缓存：按当前视图算的话，翻页 / 加个筛选表头就变一次脸，
+     同一个网翻两页得到两种解释。 */
+const _CE={};                                   // net -> {f:n, g:n, ...}（n=缺失条数，0=未达阈值）
+function colEmptyOf(net){
+  if(_CE[net])return _CE[net];
+  const rs=rowsOf(net),n=rs.length||1;
+  const miss={f:0,g:0,c:0,ow:0,bw:0};
+  for(const d of rs){
+    if(d.f===""||d.f==null)miss.f++;
+    if(fmtGb(d.g)==="—")miss.g++;
+    if(!(d.c&&d.c!=="0"))miss.c++;
+    if(!d.ow)miss.ow++;
+    if(!bwInfo(d))miss.bw++;
+  }
+  const o={};
+  for(const k in miss)o[k]=miss[k]/n>=0.95?miss[k]:0;
+  return _CE[net]=o;
+}
+function markEmptyCols(){
+  const ce=colEmptyOf(NET);
+  /* ★ 取值键在 th 里的那个 ▽ 按钮上（data-cf），不在 th 上 —— 列筛选面板
+     按按钮取键。早先按 th[data-cf] 选，选择器命中 0 个，整段静默空转。 */
+  document.querySelectorAll(".tblwrap th .cfx").forEach(b=>{
+    const th=b.closest("th"),m=ce[b.dataset.cf];
+    if(!th)return;
+    if(th.dataset.bt===undefined)th.dataset.bt=th.title||"";
+    th.classList.toggle("thnone",!!m);
+    th.title=m?(th.dataset.bt?th.dataset.bt+" · ":"")+"本网 "+m+" 条里该字段几乎为空"
+      :th.dataset.bt;
+  });
 }
 
 function render(){
@@ -3015,6 +3092,15 @@ function render(){
   tb.innerHTML=buf.join("");
   decorateFav();
   zebrafy();
+  /* 两件事都必须在 innerHTML 之后（要真实几何 / 真实 DOM）：
+     · syncApTitles —— 量哪些目标客户被两行截断，补 title；
+     · markEmptyCols —— 表头「本网基本无此字段」的淡化，随网变化。 */
+  syncApTitles();
+  markEmptyCols();
+  /* 再量一遍（幂等）：换网后整页高度会变，竖向滚动条出现/消失会改变表格宽度，
+     宽度一变 clamp 的溢出边界也跟着变 —— 首轮量的时候可能还停在旧宽度上。
+     放到下一帧补一次，比在渲染前按字数猜可靠，代价只是一次 80 行的几何读取。 */
+  requestAnimationFrame(syncApTitles);
 }
 /* —— 唯一的一条筛选判据 ——
    apply() 用它筛结果，syncDims() 用它算「每个档位几条」。
