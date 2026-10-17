@@ -124,6 +124,8 @@ jobs:
       # 电信 Chrome 会话由「抓取」步后台启动全程重叠。本机直跑 / selftest
       # 不设此变量 → 代码路径与旧串行版完全一致（见 _prefetch_http_nets 注释）。
       TARIFF_PARALLEL: "1"
+      # AI 今日看点（2026-10-17）：不配置则 ai_brief 静默跳过，主链路不受影响
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       # 网关密钥不写进代码，由 Actions Secret 注入（缺了会直接抛错，不会静默回退）
       NRAPIGATE_KEY: ${{ secrets.NRAPIGATE_KEY }}
       NRAPIGATE_IV: ${{ secrets.NRAPIGATE_IV }}
@@ -412,7 +414,8 @@ jobs:
           #       PLACEHOLDERS 同步）。
           left = [p for p in ('__NETS__', '__N__', '__DATE__', '__CAT_ORDER__',
                               '__OW_ORDER__', '__CITY_ORDER__', '__CITY_EXTRA__',
-                              '__HIST__', '__SIDE_MAP__', '__NOTICE__') if p in s]
+                              '__HIST__', '__SIDE_MAP__', '__NOTICE__',
+                              '__AI_BRIEF__') if p in s]
           assert not left, '占位符未替换: %s' % left
           m = re.search(r'const NETS=', s)
           assert m, '页面里找不到 const NETS= 数据容器'

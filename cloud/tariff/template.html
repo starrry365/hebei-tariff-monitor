@@ -204,6 +204,28 @@ body{min-height:100vh;background:var(--bg1);color:var(--tx);
 .notice.warn{background:var(--badbg);color:var(--bad)}
 .notice a{color:inherit;font-weight:600;text-decoration:underline;text-underline-offset:2px}
 
+/* ── AI 今日看点（2026-10-17）：构建期 LLM 摘要，__AI_BRIEF__ 内联注入 ── */
+.aicard{margin:2px 14px 12px;padding:10px 13px;border-radius:12px;
+  background:var(--card);border:1px solid var(--bd2);box-shadow:var(--sh);
+  font-size:12.5px;line-height:1.65}
+.aihd{display:flex;align-items:center;gap:7px}
+.aihd b{font-size:13px}
+.aiico{width:18px;height:18px;border-radius:6px;display:grid;place-items:center;flex:none;
+  background:linear-gradient(135deg,var(--op1),var(--op2));color:#fff;font-size:11px}
+.aimodel{margin-left:auto;color:var(--tx3);font-size:11px;white-space:nowrap}
+.aisum{margin:6px 0 7px;color:var(--tx)}
+.aiitems{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.aiitems li{display:flex;gap:7px;align-items:baseline;flex-wrap:wrap}
+.ainet{flex:none;color:var(--tx3);font-weight:600}
+.ainm{font-weight:600;color:var(--tx);word-break:break-all}
+.aig{flex:none;padding:0 7px;border-radius:5px;font-size:11px;font-weight:700;line-height:17px}
+.g-shi{background:var(--badbg);color:var(--bad)}
+.g-men{background:var(--warnbg);color:var(--warn)}
+.g-ying{background:var(--okbg);color:var(--ok)}
+.g-wen{background:var(--card2);color:var(--tx3);border:1px solid var(--bd2)}
+.ainote{color:var(--tx3);min-width:0}
+.aipf{margin:7px 0 0;color:var(--warn);font-size:12px}
+
 /* ══ #deck：筛选卡片容器（不吸顶）══════════════════════════════
    🔴 2026-09-25 事故修复的架构不能回退：只有 #vtab 吸顶（≈46px），
    #bar 随列表滚走；#deck / #bar 绝不声明 position:sticky。 */
@@ -693,6 +715,12 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
     <div class="notice" id="notice">__NOTICE__</div>
     <div class="notice warn" id="basewarn" style="display:none"></div>
   </div>
+  <div class="aicard" id="aicard" style="display:none">
+    <div class="aihd"><span class="aiico">✦</span><b>AI 今日看点</b><span class="aimodel" id="aimodel"></span></div>
+    <p class="aisum" id="aisum"></p>
+    <ul class="aiitems" id="aiitems"></ul>
+    <p class="aipf" id="aipf" style="display:none"></p>
+  </div>
 </header>
 
 <!-- 视图页签（唯一吸顶元素；实色背景，见样式表硬规则） -->
@@ -1060,6 +1088,8 @@ const OW_ORDER=__OW_ORDER__;
    HIST_SMP_KEEP 必须与 tariff_monitor.py 里的同名常量一致（页面时间线的截断
    阈值只在「注入侧」生效，这里只是给「…还有 N 条」提示文案引用一个数字）。 */
 const HIST=__HIST__;
+/* AI 今日看点（构建期 LLM 摘要，ai_brief.py 生成）：null = 无变化/未配 key/失败 */
+const AIB=__AI_BRIEF__;
 const HIST_SMP_KEEP=30;
 /* 所有「枚举型筛选维度」的控件 id —— 全页只此一份。
    清空筛选 / 切网复位 / 深链读写本来都要遍历同一批控件，而原先是**每处各写一遍字面量**
@@ -3855,6 +3885,32 @@ initTheme();
    真正需要常驻顶部的提示是「降级冻结 / 沿用快照 / 真变化」，那些都有内容，
    不会走到这条隐藏分支。 */
 (function(){const nb=$("#notice");if(nb&&!nb.textContent.trim())nb.style.display="none";})();
+/* ── AI 今日看点渲染（2026-10-17）────────────────────────────────
+   AIB 为 null（无变化/未配 key/LLM 失败）→ 卡片保持 display:none，主链路无关。
+   🔴 防注入：套餐名等字段来自源站（外部可任意改），一律 esc() 后才进 innerHTML。 */
+(function(){
+  try{
+  if(!AIB||!AIB.summary)return;
+  const card=$("#aicard");if(!card)return;
+  $("#aisum").textContent=AIB.summary;
+  $("#aimodel").textContent=AIB.model?("via "+AIB.model):"";
+  const GR={"实质":"g-shi","门槛":"g-men","营销":"g-ying","文案":"g-wen"};
+  const ul=$("#aiitems");
+  (AIB.items||[]).forEach(it=>{
+    const li=document.createElement("li");
+    const cn=(NETS[it.net]||{}).sh||it.net||"";
+    li.innerHTML='<span class="ainet">'+esc(cn)+'</span>'
+      +'<span class="ainm">'+esc(it.name)+'</span>'
+      +'<span class="aig '+(GR[it.grade]||"g-wen")+'">'+esc(it.grade)+'</span>'
+      +'<span class="ainote">'+esc(it.note)+'</span>';
+    ul.appendChild(li);
+  });
+  if(AIB.pitfalls&&AIB.pitfalls.length){
+    const pf=$("#aipf");pf.style.display="block";pf.textContent="⚠ "+AIB.pitfalls.join("；");
+  }
+  card.style.display="block";
+  }catch(e){/* 看点渲染失败绝不连坐主页 */}
+})();
 /* 每页条数记忆恢复：必须在 readHash() 之前 —— 深链 #p=N 的页码要按恢复后的
    PAGE 折算（第 5 页/80条 与 第 5 页/200条 是两回事），apply() 里 clamp 用的也是它。 */
 (function(){try{const v=+localStorage.getItem("hbtm_psz");if(v===80||v===200||v===400){PAGE=v;$("#psz").value=String(v)}}catch(e){}})();

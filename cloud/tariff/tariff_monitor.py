@@ -2257,7 +2257,7 @@ def rows_of(o, diff=None, code=""):
 #   时就只改了 build_html，render_only 那侧静默漏掉。合并到一处，从结构上消除这种漏。
 PLACEHOLDERS = ("__NETS__", "__N__", "__DATE__", "__CAT_ORDER__",
                 "__OW_ORDER__", "__CITY_ORDER__", "__CITY_EXTRA__",
-                "__HIST__", "__SIDE_MAP__", "__NOTICE__")
+                "__HIST__", "__SIDE_MAP__", "__NOTICE__", "__AI_BRIEF__")
 
 
 def js_json(obj):
@@ -2614,7 +2614,7 @@ def write_feed():
     log(f"已更新订阅源（{os.path.relpath(FEED_PATH, BASE)}，{len(items)} 条真变化）")
 
 
-def build_html(sources, notice="", diffs=None, archive=True):
+def build_html(sources, notice="", diffs=None, archive=True, ai_brief=None):
     """重建查询页（多网）。
 
     ``sources``：``{网code: 数据源对象}`` —— 目前是 ``{"move": o, "unicom": o}``，
@@ -2707,7 +2707,10 @@ def build_html(sources, notice="", diffs=None, archive=True):
         "__SIDE_MAP__": js_json(side_map_of(nets_enc)),
         # notice=None → 用兜底文案；notice="" → 页面把提示条整个藏掉
         # （main() 在四网全部零变化时传空串 —— 「本次无变化」没有信息量）。
-        "__NOTICE__": notice if notice is not None else "本次巡检未检测到变化"})
+        "__NOTICE__": notice if notice is not None else "本次巡检未检测到变化",
+        # AI 今日看点（2026-10-17）：构建期 LLM 摘要，None → 页面不渲染卡片。
+        # 只做「标注 + 排序」，护栏规则判定不被 AI 覆盖（见 ai_brief.py docstring）。
+        "__AI_BRIEF__": js_json(ai_brief) if ai_brief else "null"})
     # ★ 先写 .new 校验、再原子替换：这个文件坏掉＝全站白屏，而「写到一半」
     #   与「模板改坏」都不报错。校验不过就保留上一版可用页面（见 write_page）。
     ok, why = write_page(out)
@@ -2834,7 +2837,8 @@ def render_only():
             "__CITY_EXTRA__": js_json(list(CITY_EXTRA)),
             "__HIST__": js_json(hist_for_page(load_history().get("items") or [])),
             "__SIDE_MAP__": js_json(side_map_of(nets_enc)),
-            "__NOTICE__": notice})
+            "__NOTICE__": notice,
+            "__AI_BRIEF__": "null"})
     except RuntimeError as e:
         log(f"!! {e}，中止（否则会留下未替换的标记把页面搞坏）")
         return 3
@@ -3562,9 +3566,18 @@ def main():
         notice = build_notice(move_sm, tails, special_notice)
         diffs = {"move": move_diffs} if move_diffs else {}
         diffs.update(xdiff)
+        # AI 今日看点（2026-10-17）：构建期 LLM 摘要 + 变化分级。未配 key /
+        # 零变化 / 任何失败都返回 None —— 卡片不渲染，主链路照常（AI 失败 ≠
+        # 巡检失败）。只覆盖河北四网（上海小页看点二期）。
+        brief = None
+        try:
+            import ai_brief as _ai_brief
+            brief = _ai_brief.build(today)
+        except Exception as _e:                   # noqa: BLE001 —— 永不弄死巡检
+            print(f"::warning title=AI 看点生成失败::{_e}", flush=True)
         # 「结构变更 ⇒ 重建基线不通知」的收尾：结构变了但页面照常重建
         # （页面读的是数据，不是 diff），只是不把它当成一次「变化」推出去。
-        build_html(dict({"move": data}, **extra), notice, diffs)
+        build_html(dict({"move": data}, **extra), notice, diffs, ai_brief=brief)
     else:
         # --no-html 也要跑其余三网：不然「另三网的快照与报告」会缺失，
         # 而 --no-html 的语义只是「不重建页面」，不是「只跑移动」。
