@@ -2549,9 +2549,13 @@ def inline_hist(text):
         log(f"-- 归档：读取 {rel} 失败（{type(e).__name__}: {e}），时间线不内联")
         return text
     text = text[:m.start()] + 'const HIST_SRC=""' + text[m.end():]
-    # 只替换第一处（数据声明），页面里的 __HIST_DATA__ 回调不含这个字面量。
-    return re.sub(r"let\s+HIST\s*=\s*null\s*;", "let HIST=%s;" % js_json(items),
-                  text, count=1)
+    # 🔴 替换必须用函数形式：re.sub 的**替换串**会再解释一遍反斜杠转义
+    #    （\n 变真换行、\u003c 报 bad escape），而 js_json 的输出里全是这些
+    #    转义 —— 直接用字符串替换会把 JSON 里的 "\n" 变成裸换行，内联进
+    #    <script> 就是**字符串字面量跨行** ⇒ 整页语法错误、归档全白屏。
+    #    （2026-10-17 实测踩中：rows=0、页面节点只剩静态骨架。）
+    return re.sub(r"let\s+HIST\s*=\s*null\s*;",
+                  lambda _m: "let HIST=%s;" % js_json(items), text, count=1)
 
 
 def hist_for_page(items):

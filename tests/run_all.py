@@ -61,6 +61,11 @@ TESTS = [
      "city_scope 格子级重试桩测试（离线；防 UnboundLocalError 类运行期错误复发）",
      True),
 
+    ("hist-inline",
+     [sys.executable, "tests/test_hist_inline.py"],
+     "归档内联 HIST 的转义回归（re.sub 吃 \\n ⇒ 整页语法错误；离线）",
+     True),
+
     ("pipeline-selftest",
      [sys.executable, "cloud/tariff/selftest_pipeline.py"],
      "集成缝自测（other_nets 四分支 / 返回契约 / note 覆盖）",

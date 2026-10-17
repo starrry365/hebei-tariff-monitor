@@ -416,9 +416,17 @@ jobs:
                               '__NOTICE__') if p in s]
           assert not left, '占位符未替换: %s' % left
           # 2026-10-17：变更历史改走 sidecar（懒加载），归档必须已被 inline_hist
-          # 内联回来 —— 否则解包归档时时间线会说「加载失败」。
-          assert 'const HIST_SRC=""' in s or 'const HIST=__HIST__' not in s, \
+          # 内联回来 —— 否则解包归档时时间线会说「加载失败」。判据必须是
+          # 「HIST_SRC 已置空」这一条硬事实：写成 or 兜底的话，inline_hist 失效时
+          # 页面里留着 "data/hist.xxx.js"，旧写法照样判定通过（假绿）。
+          assert 'const HIST_SRC=""' in s, \
               '归档里 HIST 未内联（inline_hist 没生效）—— 时间线会加载失败'
+          # 内联数据必须是**合法 JSON**：re.sub 的替换串会二次解释反斜杠，
+          # 一旦有人把 lambda 换回字符串替换，JSON 里的 "\n" 会变成裸换行，
+          # 内联进 <script> 就是字符串字面量跨行 ⇒ 整页语法错误（白屏）。
+          _hi = s.index('let HIST=') + len('let HIST=')
+          _hdata = json.JSONDecoder().raw_decode(s[_hi:])[0]
+          assert isinstance(_hdata, list) and _hdata, 'HIST 内联数据不是合法 JSON 或为空'
           m = re.search(r'const NETS=', s)
           assert m, '页面里找不到 const NETS= 数据容器'
           nets = json.JSONDecoder().raw_decode(s[m.end():])[0]
