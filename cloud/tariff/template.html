@@ -405,7 +405,9 @@ th.act .ar{opacity:1}
        border-radius:6px;background:var(--card2);color:inherit;cursor:pointer}
 #cfpop .cfa button:hover{border-color:var(--ac);color:var(--ac)}
 #cfpop .cfa .cfn{margin-left:auto;color:var(--mut,inherit);opacity:.7;font-size:11px}
-#cfpop .cfl{overflow:auto;padding:3px 0;min-height:36px}
+/* overscroll-behavior:contain —— 触屏把清单划到底后，滚动链不要传到文档：
+   一旦传到文档就变成「页面在滚」，外层判据会按外部滚动把面板收起。 */
+#cfpop .cfl{overflow:auto;overscroll-behavior:contain;padding:3px 0;min-height:36px}
 #cfpop label.cfi{display:flex;gap:7px;align-items:center;padding:4px 10px;cursor:pointer;font-size:12px}
 #cfpop label.cfi:hover{background:var(--card2)}
 #cfpop .cft{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -2142,7 +2144,14 @@ function buildCfPop(){
     if(b)return;                       // 漏斗自己关自己（cfOpen 里有 toggle），不在这里抢
     cfClose();
   });
-  document.addEventListener("scroll",()=>cfClose(),true);   // 捕获段：表内滚动也算
+  /* 外部滚动 = 锚点被滚走，面板位置就失效了，收起。但**面板内清单自己滚动**
+     必须放过：scroll 不冒泡，可它在 capture 段依旧从 document 自上而下走过，
+     不判 target 的话手指在清单里一划弹层就自己关了（2026-10-17 用户报障）。 */
+  document.addEventListener("scroll",e=>{
+    const t=e.target;
+    if(t&&t.nodeType===1&&pop.contains(t))return;          // 面板内滚动（.cfl）
+    cfClose();
+  },true);   // 捕获段：表内滚动也算
   window.addEventListener("resize",cfClose);
   document.addEventListener("keydown",e=>{
     if(e.key==="Escape"&&pop.classList.contains("open")){e.stopPropagation();cfClose()}

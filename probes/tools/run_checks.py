@@ -246,6 +246,27 @@ def main():
         print("  %s %-42s %s" % ("OK  " if results[-1][1] else "!!  ",
                                  results[-1][0], results[-1][2]))
 
+    # ── 4c. 列筛选面板可滚动 ─────────────────────────────────────────
+    # 用户报「筛选的小面包无法滑动，一滑动就自己关掉」。根因是 scroll 监听
+    # 挂在 document 的捕获段，面板内 .cfl 滚动也会命中 ⇒ 立刻 cfClose()。
+    # 判据三重：面板能开、清单能滚且滚完仍开着、页面滚动仍会收起
+    # （最后一条防「索性永不关闭」的假修复）。
+    print("\n[4c] 列筛选面板可滚动 page_cf_scroll.js")
+    cfs = js("page_cf_scroll.js", os.path.join(BASE, "page_cf_scroll.js"),
+             os.path.join(TMP, "cfscroll.json"))
+    if cfs is not None:
+        if cfs.get("err"):
+            results.append(("cf panel：面板内滚动不关闭", False, cfs["err"]))
+        else:
+            ok = bool(cfs.get("ok"))
+            al = cfs.get("afterList") or {}
+            why = ("列 %s · 可滚 %s · 滚动后 open=%s scrollTop=%d · 页面滚动后 open=%s"
+                   % (cfs.get("key"), cfs.get("scrollable"), al.get("open"),
+                      al.get("scrollTop", -1), (cfs.get("afterPage") or {}).get("open")))
+            results.append(("cf panel：面板内滚动不关闭", ok, why))
+        print("  %s %-42s %s" % ("OK  " if results[-1][1] else "!!  ",
+                                 results[-1][0], results[-1][2]))
+
     # ── 5. e2e 语义断言 ─────────────────────────────────────────────
     print("\n[5] 页面级断言 page_e2e_check.js")
     # ★ e2e 前再清场一次（2026-10-06）。walk 与 e2e 是两个 eval，walk 会留下
