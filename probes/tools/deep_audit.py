@@ -221,11 +221,19 @@ else:
                         hit = net; break
                 if hit: break
             net = hit or "?"
-            nrows = len(nets[net].get("rows") or []) if net != "?" else -1
+            if net == "?":
+                # 匹配靠「快照首条名称出现在该网行里」。匹配不上**不等于**数据有问题：
+                # shct（上海电信，渲染到独立的 sh.html）本来就不在 index.html 的
+                # 网别里。原来这里一律打 [≠] + rows=-1，看着像「页面少了 514 行」
+                # —— 2026-10-17 实测被误读一次，改成显式「不属于本页」。
+                note("%s -> 不属于 index.html 的网别：快照数据=%d [另一页 · 跳过]"
+                     % (os.path.basename(p), n_snap))
+                continue
+            nrows = len(nets[net].get("rows") or [])
             tag = "OK" if nrows == n_snap else "≠"
             note("%s -> %s: 快照数据=%d vs 页面 rows=%d [%s]"
                  % (os.path.basename(p), net, n_snap, nrows, tag))
-            if nrows != n_snap and net != "?":
+            if nrows != n_snap:
                 bad("S行数不一致", net, os.path.basename(p),
                     "snapshot=%d page=%d" % (n_snap, nrows))
 
@@ -243,10 +251,17 @@ else:
     # 只有当「行数结构都不同」时才值得报——数一下各自行数给结论
     # （2026-10-06 起页面 NETS 是列式编码，行数要走 decode_nets_from_page 数）
     _na, _nb = tm.decode_nets_from_page(json.loads(a)), tm.decode_nets_from_page(json.loads(b))
-    na = len(_na.get("move", {}).get("rows") or []) + len(_na.get("unicom", {}).get("rows") or [])
-    nb = len(_nb.get("move", {}).get("rows") or []) + len(_nb.get("unicom", {}).get("rows") or [])
-    note("NETS blob docs↔gz 不一致：docs 总行 %d vs 官方 gz 总行 %d"
-         % (na, nb) + "（本机预览态 vs 官方归档，预期内；CI 构建后应一致）")
+    # 四网全数（原来只数 move+unicom，telecom/cbn 少了行也看不出来）
+    na = sum(len((_na.get(k) or {}).get("rows") or []) for k in NET_LS)
+    nb = sum(len((_nb.get(k) or {}).get("rows") or []) for k in NET_LS)
+    if na == nb:
+        # 每次构建 stamp / 派生字段（n 等）都可能不同 ⇒ 字节差异不等于数据差异。
+        # 说成「不一致」容易被读成「数据不对」，2026-10-17 实测误读一次。
+        note("NETS blob docs↔gz: 行数一致（四网共 %d 行），仅字节差异"
+             "（stamp/派生字段；本机预览态 vs 官方归档，预期内）" % na)
+    else:
+        note("NETS blob docs↔gz **行数不同**：docs 四网 %d vs 官方 gz %d"
+             "（预览态可能落后于归档；CI 构建后应一致）" % (na, nb))
 hist = json.load(io.open(HIST_PATH, encoding="utf-8"))
 items = hist.get("items", [])
 # 2026-10-17：HIST 改走 sidecar（懒加载），页面里只剩 const HIST_SRC="…"。
@@ -270,11 +285,13 @@ feed = io.open(FEED, encoding="utf-8").read()
 n_item = feed.count("<item>")
 # feed 是「变更驱动」：只在有实际变更（a/r/c>0）的日子加条目。
 # 校验口径：最新一个**有变更**的 history 日必须出现在 feed 里（RFC2822 或 ISO 均认）。
-latest_change_day = ""
-for x in items:
-    if (x.get("a") or 0) or (x.get("r") or 0) or (x.get("c") or 0):
-        latest_change_day = x.get("d") or latest_change_day
-        break
+# 🔴 2026-10-17 修：history.json 的 items 是**正序（老→新）**，原来这里
+#    「取第一条有变更的 + break」等于取**最老**的变更日 —— 2026-10-17 实测取到
+#    2026-09-21（那天一条下架），而它早被 FEED_KEEP=60 挤出 feed，于是判据必红。
+#    不是数据错，是判据把顺序当成了契约。取 max(日期) 才与顺序解耦。
+_chg_days = [x.get("d") or "" for x in items
+             if (x.get("a") or 0) or (x.get("r") or 0) or (x.get("c") or 0)]
+latest_change_day = max(_chg_days) if _chg_days else ""
 note("feed items=%d, 最新有变更日 %s 在 feed 中: %s"
      % (n_item, latest_change_day or "(无)", "OK" if (latest_change_day in feed or latest_change_day == "") else "❌"))
 # T2 判据与构建同源：feed 是 history 里「真变化」条目按 FEED_KEEP 截断的镜像，

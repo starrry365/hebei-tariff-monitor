@@ -23,7 +23,7 @@
  *              —— 这一项专治「看着都在、其实点不到」
  *   errs   捕获到的全部异常
  */
-(function () {
+(async function () {
   var errs = [];
   function E(m) { if (errs.length < 200) errs.push(m); }
   window.addEventListener("error", function (e) {
@@ -49,6 +49,40 @@
      于是残渣叠加 —— 表现为「后面所有测量都异常但不报错」（实测踩过：
      关键词 5G 本该几十条却量到 0，差点误判成搜索坏了）。 */
   function clean() { safe("clean", function () { resetAll(); }); }
+
+  /* ══ 数据预载（必须先做）══
+     ★ 2026-10-17：四网行数据是 sidecar **异步**加载（template.html loadNet，
+       `#tb` 先清空并显示「⏳ 载入 …」）。
+     不等就绪就遍历 ⇒ 第一次切到未载入的网量到的是**载入态**：view 还是上一网
+     的数（move 的 5275 串到 unicom 上）、未载入网全 0。本版实测连跑两遍
+     diff 309 处、必然判「连跑不一致」，但页面本身完全正常（第二遍全绿，
+     因为 sidecar 已注入 DOM、切网关走同步渲染）。
+     e2e 早在 2026-10-15 就加过同样的等待（见 page_e2e_check.js 注释），
+     walk 漏了 —— 判据没错，是探针没跟上数据加载方式。
+     预载失败不拦截遍历：把错误塞进 errs，让判据自己如实报红。 */
+  try {
+    if (typeof loadNet === "function" && typeof NET_LS !== "undefined") {
+      await Promise.all(NET_LS.map(function (c) {
+        var N = (typeof NETS !== "undefined") ? NETS[c] : null;
+        return (N && (N.rows || N.cols || N.src_data))
+          ? loadNet(c).catch(function (e) {
+              E("preload:" + c + " " + ((e && e.message) || e)); return null;
+            })
+          : null;
+      }));
+    }
+  } catch (e) { E("preload " + ((e && e.message) || e)); }
+
+  /* 变更历史同样是按需拉取（loadHist → data/hist.*.js）。
+     不等它，#v-hist 的第一遍 nodes=0（"正在载入"占位），第二遍才有 28 个节点
+     —— 又是「连跑不一致」，但页面正常。离线/文件缺失时 loadHist 兑现 null，
+     这里记进 errs 让判据如实报红，而不是静默当成「历史为空」。 */
+  try {
+    if (typeof loadHist === "function") {
+      var _h = await loadHist();
+      if (_h === null) E("preload:hist 变更历史未能载入（离线或 sidecar 缺失）");
+    }
+  } catch (e) { E("preload:hist " + ((e && e.message) || e)); }
 
   var R = { bind: {}, views: {}, nets: {}, misc: {}, errs: errs };
 
