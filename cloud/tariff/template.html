@@ -454,7 +454,7 @@ th.act .ar{opacity:1}
      cursor:pointer;vertical-align:1px;opacity:.55}
 .cfx:hover{opacity:1;border-color:var(--ac);color:var(--ac)}
 .cfx.on{opacity:1;background:var(--ac);border-color:var(--ac);color:#fff}
-#cfpop{position:fixed;z-index:95;width:280px;max-width:92vw;display:none;flex-direction:column;
+#cfpop{position:fixed;z-index:95;width:320px;max-width:92vw;display:none;flex-direction:column;
        max-height:min(480px,70vh);background:var(--card);color:inherit;
        border:1px solid var(--bd2);border-radius:10px;box-shadow:0 14px 36px rgba(0,0,0,.35)}
 #cfpop.open{display:flex}
@@ -463,16 +463,22 @@ th.act .ar{opacity:1}
        border:1px solid var(--bd2);border-radius:6px;background:var(--card2);color:inherit}
 #cfpop .cfa{display:flex;gap:6px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--bd2)}
 #cfpop .cfa button{padding:2px 8px;font:inherit;font-size:11px;border:1px solid var(--bd2);
-       border-radius:6px;background:var(--card2);color:inherit;cursor:pointer}
+       border-radius:6px;background:var(--card2);color:inherit;cursor:pointer;flex:none}
 #cfpop .cfa button:hover{border-color:var(--ac);color:var(--ac)}
-#cfpop .cfa .cfn{margin-left:auto;color:var(--mut,inherit);opacity:.7;font-size:11px}
+/* 排序下拉：跟按钮同款，宽度按「条数 ↓」收紧，别把计数挤掉 */
+#cfpop .cfa select{flex:none;max-width:96px;padding:2px 2px 2px 4px;font:inherit;font-size:11px;
+       border:1px solid var(--bd2);border-radius:6px;background:var(--card2);color:inherit;cursor:pointer}
+#cfpop .cfa select:hover{border-color:var(--ac);color:var(--ac)}
+#cfpop .cfa .cfn{margin-left:auto;color:var(--mut,inherit);opacity:.7;font-size:11px;white-space:nowrap}
 /* overscroll-behavior:contain —— 触屏把清单划到底后，滚动链不要传到文档：
    一旦传到文档就变成「页面在滚」，外层判据会按外部滚动把面板收起。 */
 #cfpop .cfl{overflow:auto;overscroll-behavior:contain;padding:3px 0;min-height:36px}
 #cfpop label.cfi{display:flex;gap:7px;align-items:center;padding:4px 10px;cursor:pointer;font-size:12px}
 #cfpop label.cfi:hover{background:var(--card2)}
 #cfpop .cft{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#cfpop label.cfi .cfn{margin-left:auto;opacity:.6;font-size:11px}
+#cfpop label.cfi .cfn{margin-left:auto;opacity:.6;font-size:11px;cursor:pointer;
+       padding:0 3px;border-radius:3px}
+#cfpop label.cfi .cfn:hover{opacity:1;color:var(--ac);background:var(--ac2)}
 #cfpop .cfmore{padding:6px 10px;font-size:11px;opacity:.65}
 td{padding:10px;border-bottom:1px solid var(--bd2);vertical-align:top}
 tbody tr:last-child td{border-bottom:0}
@@ -1238,7 +1244,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
           </ul>
         </li>
         <li><b>抓取与使用边界</b><span>每网每日至多一次，按正常浏览节奏请求；遇 robots 限制或频率提示即停止该网采集；以真实浏览器访问，不破解验证码、不伪造身份、不绕过登录。数据持有方如认为抓取或展示方式不当，可要求停止相应网别的采集。</span></li>
-        <li><b>本地存储与隐私</b><span>不设 Cookie，不加载第三方脚本、统计或广告，不引用任何外部域名资源（断网可用，可在开发者工具中核对）。仅本地保存 5 项偏好：<code>hbtm_fav</code> / <code>hbtm_only_fav</code>（收藏与「只看收藏」）、<code>hbtm_psz</code>（每页条数）、<code>hb-tariff-theme</code>（深色 / 浅色）、<code>ft-fold</code>（筛选区收起）；不离开设备、不与账号关联，清除站点数据即删除。托管方（GitHub Pages）可能按其政策记录访问日志，本站不接触、不分析。</span></li>
+        <li><b>本地存储与隐私</b><span>不设 Cookie，不加载第三方脚本、统计或广告，不引用任何外部域名资源（断网可用，可在开发者工具中核对）。仅本地保存 6 项偏好：<code>hbtm_fav</code> / <code>hbtm_only_fav</code>（收藏与「只看收藏」）、<code>hbtm_psz</code>（每页条数）、<code>hb-tariff-theme</code>（深色 / 浅色）、<code>ft-fold</code>（筛选区收起）、<code>hbtm_cfsort</code>（列筛选清单的排序方式）；不离开设备、不与账号关联，清除站点数据即删除。托管方（GitHub Pages）可能按其政策记录访问日志，本站不接触、不分析。</span></li>
         <li><b>责任与侵权处理</b><span>对因使用本页信息产生的损失，在法律允许的范围内不承担责任。<b class="dscwarn">本声明不排除依法不能排除的责任</b>（如故意或重大过失致财产损失），与法律冲突时以法律为准。套餐名称、资费内容与商标归各运营商所有，本页仅作展示与索引。权利人认为展示不当，请通过 <a href="https://github.com/starrry365/hebei-tariff-monitor/issues" target="_blank" rel="noopener noreferrer">GitHub issue</a> 提交：①真实身份 ②权属或初步证据 ③具体条目；核实后删除或调整。错误通知造成他人损失的，由通知人承担。</span></li>
       </ol>
 
@@ -2263,6 +2269,91 @@ const COLF_DEF={
     if(lf<0)return"已过期";
     return lf<=60?"60 天内到期":"60 天以上";}}
 };
+/* ── 清单排序（2026-10-17）───────────────────────────────────────────
+   原先只有一种序：条数降序。对「取值本身带有量纲」的列那是噪音 ——
+   月费 392 项排成 0/20/10/15/30/5/6/100/50/19.9 元，宽带排成
+   300M/1000M/2000M/600M，梯度看不出来，长尾倒挤在最前面。
+   ★ 字符串序不能直接用："100 元" < "19.9 元" < "20 元"，
+     "1000M" < "300M"。所以有量纲的列各给一个 key（取值 → 可比较数值）；
+     没有 key 的列（细分 / 归属 / 目标客户 / 名称）退回中文 Collator。
+   ★ 排序只改**显示顺序**：不动 COLF 的取值集合、不参与 match()，
+     e2e 的列筛选断言走 cfSet() 不经面板 —— 功能风险为零。
+   ⚠ begin/end 之间是**无 DOM 依赖**的纯逻辑，tests/test_cf_sort.py 会
+     原样抽出来交给 node 跑真实排序断言（不是拿正则猜）。这段里不许出现
+     document / NETS / COLF / _cfMp。 */
+/* @cfsort-begin */
+const ZH_SORT=new Intl.Collator("zh-Hans-CN",{numeric:true,sensitivity:"base"});
+const _numOf=v=>{const m=/-?\d+(?:\.\d+)?/.exec(String(v));return m?+m[0]:null};
+/* 流量按容量归一到 GB：fmtGb 产出 "500MB" / "1.5GB" / "2TB" / "<1MB" */
+const _gbOf=v=>{
+  const s=String(v);
+  if(s==="<1MB")return .001;
+  const m=/^([\d.]+)(TB|GB|MB)$/.exec(s);
+  if(!m)return null;
+  const n=+m[1];
+  return m[2]==="TB"?n*1024:m[2]==="MB"?n/1024:n;
+};
+/* 宽带的两个无容量档位排在所有数字档之后（含宽带 ⊂ 提速/组网 之外，
+   两者互斥，顺序只要求确定） */
+const BW_TAIL=["含宽带","提速/组网"];
+const ON_RANK={"待上架":0,"今天上架":1,"30 天内":2,"30 天前":3};
+const OFF_RANK={"已过期":0,"60 天内到期":1,"60 天以上":2,"长期":3};
+const CF_ORD={
+  fee :{lb:"金额",key:v=>_numOf(v)},
+  gb  :{lb:"流量",key:v=>_gbOf(v)},
+  call:{lb:"时长",key:v=>_numOf(v)},
+  bw  :{lb:"带宽",key:v=>{
+    const n=_numOf(v);
+    return n!=null?n:1e6+Math.max(0,BW_TAIL.indexOf(v));}},
+  /* 缺基准日（BASE_OK=false）时取值退回日期原文 → 落到 null 沉底，
+     同键再用 Collator 兜底，而 ISO 日期串的字典序正好等于时间序。 */
+  on  :{lb:"时间",key:v=>ON_RANK[v]!=null?ON_RANK[v]:null},
+  off :{lb:"时间",key:v=>OFF_RANK[v]!=null?OFF_RANK[v]:null}
+};
+/* mode：count 条数↓ / countr 条数↑ / val 取值↑ / valr 取值↓
+   （空白）**任何一种模式都沉底**；同键用 ZH_SORT 兜底 —— 同一份数据
+   两次打开顺序必须一致（面板之外没有任何地方能替它纠正）。 */
+function cfSortBy(k,items,mp,mode){
+  const o=CF_ORD[k];
+  /* 同键兜底：有自然序的列按取值键（条数相同时 0.29 元 必须在 0.5 元 前面），
+     没有的才用 Collator。
+     ⚠ 不能一律用 Collator：numeric:true 是把数字串按整数段比的 ——
+       "0.29" / "0.5" 会被切成 [0,'.',29] 与 [0,'.',5]，于是 0.29 > 0.5。
+       实测条数序里就出现过「0.5 元 · 0.9 元 · 0.29 元」这种反直觉排列。 */
+  const byKey=(a,b)=>{
+    const x=o.key(a),y=o.key(b);
+    if(x==null||y==null)return (x==null)-(y==null);
+    return x-y;
+  };
+  const tie=o?byKey:(a,b)=>ZH_SORT.compare(a,b);
+  return items.slice().sort((a,b)=>{
+    if((a==="")!==(b===""))return a===""?1:-1;
+    if(mode==="count"||mode==="countr"){
+      const c=((mp&&mp[b])||0)-((mp&&mp[a])||0);
+      return (mode==="countr"?-c:c)||tie(a,b);
+    }
+    let c=0;
+    if(o){
+      const x=o.key(a),y=o.key(b);
+      if(x==null||y==null){
+        if(x==null&&y!=null)return 1;
+        if(y==null&&x!=null)return -1;
+      }else c=x-y;
+    }else c=ZH_SORT.compare(a,b);
+    /* 取值键相同（口径不同但数值一致，如「1 元」与「1.0 元」）时再用文本定序 */
+    return (mode==="valr"?-c:c)||ZH_SORT.compare(a,b);
+  });
+}
+/* @cfsort-end */
+/* 偏好按**列**记：月费要看金额、目标客户要看条数，两者不该互相影响。
+   未记录的列用「有 key 就按取值、没有就按条数」。 */
+const CFS_KEY="hbtm_cfsort",CF_MODES=["count","countr","val","valr"];
+let CFS={};
+try{CFS=JSON.parse(localStorage.getItem(CFS_KEY)||"{}")||{}}catch(e){CFS={}}
+function cfMode(k){
+  const m=CFS?CFS[k]:"";
+  return CF_MODES.indexOf(m)>=0?m:(CF_ORD[k]?"val":"count");
+}
 const COLF_MAX=400;              // 清单 DOM 渲染上限（搜索可缩小）
 let COLF={};                     // 列 key → 已勾选值数组；无键 = 该列不筛
 function cfActive(){return Object.keys(COLF).filter(k=>COLF[k]&&COLF[k].length)}
@@ -2296,16 +2387,24 @@ let _cfKey=null,_cfItems=[],_cfMp=null;
 function buildCfPop(){
   const pop=document.createElement("div");pop.id="cfpop";
   pop.innerHTML='<div class="cfph"><input type="text" placeholder="搜索取值…"></div>'
-    +'<div class="cfa"><button type="button" data-a="all" title="清掉本列全部勾选 = 该列不筛">全选（不筛）</button>'
+    +'<div class="cfa"><select class="cfs" title="清单排序方式"></select>'
+    +'<button type="button" data-a="all" title="清掉本列全部勾选 = 该列不筛（不勾任何项就是全保留）">本列不筛</button>'
     +'<button type="button" data-a="invert" title="勾选状态取反">反选</button>'
     +'<span class="cfn"></span></div><div class="cfl"></div>';
   document.body.appendChild(pop);
   pop.querySelector("input").oninput=()=>cfRenderList();
-  pop.querySelector('[data-a="all"]').onclick=()=>{cfSet(_cfKey,null);apply();cfRenderList()};
+  pop.querySelector(".cfs").onchange=e=>{
+    CFS[_cfKey]=e.target.value;
+    try{localStorage.setItem(CFS_KEY,JSON.stringify(CFS))}catch(_){}
+    _cfItems=cfSortBy(_cfKey,Object.keys(_cfMp),_cfMp,cfMode(_cfKey));
+    cfRenderList();
+    const l=$("#cfpop .cfl");if(l)l.scrollTop=0;
+  };
+  pop.querySelector('[data-a="all"]').onclick=()=>{cfSet(_cfKey,null);cfApplySoon();cfRenderList()};
   pop.querySelector('[data-a="invert"]').onclick=()=>{
     const sel=new Set(COLF[_cfKey]||[]);
     cfSet(_cfKey,_cfItems.filter(v=>!sel.has(v)));
-    apply();cfRenderList();
+    cfApplySoon();cfRenderList();
   };
   /* 面板内的点击不许冒泡到 document（外面点的关闭逻辑），否则点一下清单就没了 */
   pop.addEventListener("click",e=>e.stopPropagation());
@@ -2330,6 +2429,16 @@ function buildCfPop(){
   });
   return pop;
 }
+/* 「已勾 0 / 392 项」这个文案会骗人：不勾任何项的实际结果是**全部保留**，
+   看着却像「一个都没选、结果为空」。空勾选单独说清楚。
+   ★ 勾选**不重渲清单**（保持滚动位置），所以计数要单独维护 —— 勾一下就得变，
+     否则「已勾 1 项」挂着一整排勾，比不显示还糟。 */
+function cfCount(){
+  const el=$("#cfpop .cfa .cfn");if(!el||!_cfKey)return;
+  const n=(COLF[_cfKey]||[]).length;
+  el.textContent=n?"已勾 "+n+" / "+_cfItems.length+" 项"
+                  :"未筛 · 全部 "+_cfItems.length+" 项";
+}
 function cfRenderList(){
   const pop=$("#cfpop");if(!_cfKey||!pop)return;
   const q=pop.querySelector("input").value.trim().toLowerCase();
@@ -2342,17 +2451,28 @@ function cfRenderList(){
       return '<label class="cfi"><input type="checkbox"'
         +(sel.has(v)?" checked":"")+' data-v="'+esc(v)+'">'
         +'<span class="cft" title="'+esc(lb)+'">'+esc(lb)+'</span>'
-        +'<span class="cfn">'+_cfMp[v]+'</span></label>';
+        /* 条数可点 = 只选这一项（要「只看 0 元」不必先勾它再反选） */
+        +'<span class="cfn" data-v="'+esc(v)+'" title="只看这一项（其余都不勾）">'+_cfMp[v]+'</span></label>';
     }).join("")
     +(hit.length>COLF_MAX?'<div class="cfmore">共 '+hit.length+" 项，只列前 "+COLF_MAX
       +" 项 —— 输入关键词缩小范围（勾选状态不受影响）</div>":"")
     +(hit.length?"":'<div class="cfmore">无匹配取值</div>');
-  pop.querySelector(".cfa .cfn").textContent="已勾 "+sel.size+" / "+_cfItems.length+" 项";
+  /* 「已勾 0 / 392 项」这个文案会骗人：不勾任何项的实际结果是**全部保留**，
+     看着却像「一个都没选、结果为空」。空勾选单独说清楚。 */
+  cfCount();
+  pop.querySelectorAll(".cfl .cfn").forEach(el=>{
+    el.onclick=e=>{
+      /* label 内任意位置的点击默认会去 toggle 那个 checkbox —— 不拦住的话
+         「只看这一项」会变成「勾上这一项 + 顺手把它取反」 */
+      e.preventDefault();e.stopPropagation();
+      cfSet(_cfKey,[el.dataset.v]);cfApplySoon();cfRenderList();
+    };
+  });
   pop.querySelectorAll(".cfl input").forEach(cb=>{
     cb.onchange=()=>{
       const s=new Set(COLF[_cfKey]||[]);
       if(cb.checked)s.add(cb.dataset.v);else s.delete(cb.dataset.v);
-      cfSet(_cfKey,[...s]);apply();
+      cfSet(_cfKey,[...s]);cfApplySoon();cfCount();
       /* 刻意不重渲染清单：facet 口径下本列的勾选不影响本列条数，
          重渲染反而把用户滚动到的位置抖没了。徽标与计数由 syncCfx/上面那行覆盖。 */
     };
@@ -2363,11 +2483,13 @@ function cfOpen(k,btn){
   if(_cfKey===k&&pop.classList.contains("open")){cfClose();return}   // 再点同一漏斗 = 收起
   _cfKey=k;
   _cfMp=cfValues(k);
-  /* 排序：条数降序，（空白）沉底，同条数按取值字典序 —— 确定性，两次打开同一份 */
-  _cfItems=Object.keys(_cfMp).sort((a,b)=>{
-    if((a==="")!==(b===""))return a===""?1:-1;
-    return _cfMp[b]-_cfMp[a]||(a<b?-1:1);
-  });
+  _cfItems=cfSortBy(k,Object.keys(_cfMp),_cfMp,cfMode(k));
+  /* 排序选项按列生成：有量纲的列说「金额 / 流量 / 时长 / 带宽 / 时间」，
+     其余说「取值」—— 同一个下拉，文案跟着这一列的实际含义走。 */
+  const ssel=pop.querySelector(".cfs"),o=CF_ORD[k],vl=o?o.lb:"取值";
+  ssel.innerHTML=[["count","条数 ↓"],["countr","条数 ↑"],["val",vl+" ↑"],["valr",vl+" ↓"]]
+    .map(p=>'<option value="'+p[0]+'">'+p[1]+'</option>').join("");
+  ssel.value=cfMode(k);
   pop.querySelector("input").value="";
   pop.querySelector("input").placeholder=COLF_DEF[k].lab+"：搜索取值…";
   cfRenderList();
@@ -2380,6 +2502,12 @@ function cfOpen(k,btn){
   pop.style.left=x+"px";pop.style.top=y+"px";
 }
 function cfClose(){const p=$("#cfpop");if(p)p.classList.remove("open");_cfKey=null}
+/* 勾选即生效，但一次 apply() 实测 190ms（5275 行全量重渲）。连挑 8 个值
+   = 连卡 1.5 秒。合并成 90ms 内一次：勾选态与漏斗灯立刻变（cfSet/syncCfx
+   是同步的），只有表格晚一拍跟上 —— 比每次都硬卡 190ms 好用。
+   探针与 e2e 走 cfSet()+apply() 的同步路径，不受这里影响。 */
+let _cfT=0;
+function cfApplySoon(){clearTimeout(_cfT);_cfT=setTimeout(apply,90)}
 /* ── 窄屏列筛选入口（2026-10-17）────────────────────────────────────
    ≤640px 卡片视图把 thead 整体隐藏，列头那枚▽漏斗随之消失 —— 而它是
    「Excel 式按列多选」的唯一入口。这里用一个原生下拉补回：选一列就
