@@ -249,9 +249,22 @@ else:
          % (na, nb) + "（本机预览态 vs 官方归档，预期内；CI 构建后应一致）")
 hist = json.load(io.open(HIST_PATH, encoding="utf-8"))
 items = hist.get("items", [])
-mh = re.search(r"const HIST=(\[.*?\]);\n", h, re.S)
-if mh:
-    hp = json.loads(mh.group(1))
+# 2026-10-17：HIST 改走 sidecar（懒加载），页面里只剩 const HIST_SRC="…"。
+# 归档形态仍是 let HIST=[…] 内联，两种都要认 —— 认不出就静默跳过这项对账，
+# 而「静默跳过」正是这类审计最怕的（少一项检查却看着全绿）。
+hp = None
+_msrc = re.search(r'const\s+HIST_SRC\s*=\s*"([^"]*)"', h)
+if _msrc and _msrc.group(1):
+    try:
+        _raw = io.open(os.path.join(tm.DOCS, _msrc.group(1)), encoding="utf-8").read()
+        hp = json.JSONDecoder().raw_decode(_raw.split("=", 1)[1])[0].get("items") or []
+    except Exception as e:
+        bad("HIST sidecar 读取失败", "docs", _msrc.group(1), "%s" % e)
+else:
+    _mh = re.search(r"let\s+HIST\s*=\s*(\[.*?\]);\n", h, re.S)
+    if _mh:
+        hp = json.loads(_mh.group(1))
+if hp is not None:
     note("history items=%d, 页面 HIST 注入=%d 条（注入上限见 monitor HIST_CAP）" % (len(items), len(hp)))
 feed = io.open(FEED, encoding="utf-8").read()
 n_item = feed.count("<item>")

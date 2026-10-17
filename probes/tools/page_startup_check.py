@@ -16,6 +16,11 @@ DCL / load，并实测「当前网 rowsOf 首调」的懒解码耗时（cols→r
   exit 0  软超线（1500~5000ms）—— 打印警示，不挡回归
   exit 1  硬超线（>5000ms 或解码 >2000ms）—— 数据量已到悬崖，必须优化
 
+2026-10-17 又一轮（HIST 拆 sidecar + 详情行懒生成 + toDate 记忆化）：
+  内联 679KB → 375KB · DCL 671ms → ~460ms · DOM 节点 6739 → 2613 ·
+  render 57ms → 19ms · 翻页 32ms → 7ms。每轮 apply（敲键/改筛选）约
+  110ms → 47ms。下次再优化时请以这组数为新基线。
+
 用法：python probes/tools/page_startup_check.py
 （调试 Chrome 由 cdp_launch.py 幂等拉起；run_checks 第 [5b] 步调用本脚本。）
 """
@@ -60,10 +65,25 @@ PROBE_JS = r"""
 
 
 def _sidecar_bytes():
-    """docs/data/ 下全部 sidecar 的总字节数（目录不存在＝还没拆分，计 0）。"""
+    """docs/data/ 下四网 sidecar 的总字节数（目录不存在＝还没拆分，计 0）。
+
+    2026-10-17 起 ``hist.*.js``（变更历史，懒加载）也在同目录 —— 它**不属于
+    首屏预算**（点开时间线才拉），混进来会把「首屏成本」这本账算错，故单独统计。
+    """
     try:
         return sum(os.path.getsize(os.path.join(DATA_DIR, f))
-                   for f in os.listdir(DATA_DIR) if f.endswith(".js"))
+                   for f in os.listdir(DATA_DIR)
+                   if f.endswith(".js") and not f.startswith("hist."))
+    except OSError:
+        return 0
+
+
+def _hist_bytes():
+    """变更历史 sidecar 字节数（不进首屏，仅作参考打印）。"""
+    try:
+        return sum(os.path.getsize(os.path.join(DATA_DIR, f))
+                   for f in os.listdir(DATA_DIR)
+                   if f.startswith("hist.") and f.endswith(".js"))
     except OSError:
         return 0
 
@@ -129,9 +149,9 @@ def main():
     warn = DCL_WARN < d["dcl"] <= DCL_FAIL
     hard = d["dcl"] > DCL_FAIL or d["decMs"] > DEC_FAIL
     print("首屏仪表：DCL=%dms · load=%dms · 当前网(%s)懒解码=%dms · "
-          "内联=%.0fKB · sidecar=%.0fKB · rows=%d · view=%d"
+          "内联=%.0fKB · sidecar=%.0fKB · 历史(懒)=%.0fKB · rows=%d · view=%d"
           % (d["dcl"], d["load"], d["net"], d["decMs"], inline_kb, sc_kb,
-             d["rows"], d["view"]))
+             _hist_bytes() / 1024, d["rows"], d["view"]))
     print(json.dumps(d, ensure_ascii=False))
     if hard:
         print("!! 超过硬阈值（DCL>%d 或解码>%d）—— 首屏已到悬崖，必须优化"

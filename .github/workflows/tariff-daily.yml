@@ -412,8 +412,13 @@ jobs:
           #       PLACEHOLDERS 同步）。
           left = [p for p in ('__NETS__', '__N__', '__DATE__', '__CAT_ORDER__',
                               '__OW_ORDER__', '__CITY_ORDER__', '__CITY_EXTRA__',
-                              '__HIST__', '__SIDE_MAP__', '__NOTICE__') if p in s]
+                              '__HIST__', '__HIST_SRC__', '__SIDE_MAP__',
+                              '__NOTICE__') if p in s]
           assert not left, '占位符未替换: %s' % left
+          # 2026-10-17：变更历史改走 sidecar（懒加载），归档必须已被 inline_hist
+          # 内联回来 —— 否则解包归档时时间线会说「加载失败」。
+          assert 'const HIST_SRC=""' in s or 'const HIST=__HIST__' not in s, \
+              '归档里 HIST 未内联（inline_hist 没生效）—— 时间线会加载失败'
           m = re.search(r'const NETS=', s)
           assert m, '页面里找不到 const NETS= 数据容器'
           nets = json.JSONDecoder().raw_decode(s[m.end():])[0]

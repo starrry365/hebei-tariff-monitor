@@ -1635,6 +1635,9 @@ def archive_page():
     # 几天后归档引用的文件就被剪枝了。归档前把 cols 内联回容器（见
     # inline_nets_cols）；无拆分痕迹的页面原样通过，行为不变。
     cur = inline_nets_cols(cur)
+    # 变更历史同理（2026-10-17 起走 sidecar）：不内联的话归档里时间线会
+    # 「加载失败」，而归档正是给「解包即看」用的。
+    cur = inline_hist(cur)
     if os.path.exists(PAGE_GZ):
         try:
             with gzip.open(PAGE_GZ, "rt", encoding="utf-8") as f:
@@ -1864,6 +1867,43 @@ def write_net_sidecars(enc):
             except OSError:
                 pass
     return enc
+
+
+def write_hist_sidecar(items):
+    """变更历史 → ``docs/data/hist.<stamp>.js``（页面懒加载），返回相对路径。
+
+    **为什么拆**：HIST 原本整块内联进页面 —— 877 条 / 306 KB，占首屏体积 45%，
+    而它只服务于「变更时间线」这一个点开才看的面板。首屏下载/解析全量付账，
+    换来的是一块默认不可见的 DOM 数据。
+
+    规则与四网 cols 完全一致：
+      · 文件名带 stamp（取最新一轮 ts 的数字串）⇒ 内容不变则 URL 不变，
+        SW 缓存与归档去重都继续生效；
+      · 只留 current + previous 两份，陈旧版本剪掉（否则一年囤 100 MB）。
+    归档自包含由 ``inline_hist`` 负责把数据塞回页面正文。
+    """
+    items = list(items or [])
+    ts = max((str(x.get("ts") or "") for x in items if isinstance(x, dict)),
+             default="")
+    stamp = re.sub(r"\D", "", ts) or "0"
+    os.makedirs(DATA_DIR, exist_ok=True)
+    rel = "data/hist.%s.js" % stamp
+    body = "window.__HIST_DATA__=%s;" % js_json({"items": items})
+    tmp = os.path.join(DATA_DIR, os.path.basename(rel) + ".new")
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+        f.write(body)
+    os.replace(tmp, os.path.join(DOCS, rel))
+    try:
+        names = sorted(n for n in os.listdir(DATA_DIR)
+                       if n.startswith("hist.") and n.endswith(".js"))
+        for n in names[:-2]:
+            try:
+                os.remove(os.path.join(DATA_DIR, n))
+            except OSError:
+                pass
+    except OSError:
+        pass
+    return rel
 
 
 def side_map_of(enc):
@@ -2257,7 +2297,7 @@ def rows_of(o, diff=None, code=""):
 #   时就只改了 build_html，render_only 那侧静默漏掉。合并到一处，从结构上消除这种漏。
 PLACEHOLDERS = ("__NETS__", "__N__", "__DATE__", "__CAT_ORDER__",
                 "__OW_ORDER__", "__CITY_ORDER__", "__CITY_EXTRA__",
-                "__HIST__", "__SIDE_MAP__", "__NOTICE__")
+                "__HIST__", "__HIST_SRC__", "__SIDE_MAP__", "__NOTICE__")
 
 
 def js_json(obj):
@@ -2486,6 +2526,34 @@ def _dnum(s):
         return 0
 
 
+def inline_hist(text):
+    """页面正文 → 把变更历史 sidecar 内联回正文（归档自包含）。
+
+    在线形态是 ``const HIST_SRC="data/hist.<stamp>.js"; let HIST=null;``——
+    归档必须自带数据：解包即可看时间线，且 sidecar 只留 current+previous，
+    几天后归档引用的文件就被剪掉。
+
+    失败一律原样返回（旧页面 / 文件已剪枝 / JSON 解析失败）：归档宁可少一份
+    时间线，也不能因为「锦上添花的数据」把整页归档搞坏。
+    """
+    m = re.search(r'const\s+HIST_SRC\s*=\s*"([^"]*)"', text)
+    if not m or not m.group(1):
+        return text                       # 无懒加载痕迹 / 已内联过
+    rel = m.group(1)
+    path = os.path.join(DOCS, rel.replace("/", os.sep))
+    try:
+        raw = open(path, encoding="utf-8").read()
+        data = json.JSONDecoder().raw_decode(raw.split("=", 1)[1])[0]
+        items = data.get("items") or []
+    except Exception as e:
+        log(f"-- 归档：读取 {rel} 失败（{type(e).__name__}: {e}），时间线不内联")
+        return text
+    text = text[:m.start()] + 'const HIST_SRC=""' + text[m.end():]
+    # 只替换第一处（数据声明），页面里的 __HIST_DATA__ 回调不含这个字面量。
+    return re.sub(r"let\s+HIST\s*=\s*null\s*;", "let HIST=%s;" % js_json(items),
+                  text, count=1)
+
+
 def hist_for_page(items):
     """history items → 页面注入形态：样本条数按轮次新旧分档截断。
 
@@ -2700,10 +2768,14 @@ def build_html(sources, notice="", diffs=None, archive=True):
         # CI 也照旧按 CITY_ALL 断言 cty 的取值域。
         "__CITY_ORDER__": js_json(list(CITY_ORDER)),
         "__CITY_EXTRA__": js_json(list(CITY_EXTRA)),
-        # 变更历史（页面时间线）。走紧凑序列化 —— 它一年年涨，白空格也是体积。
+        # 变更历史（页面时间线）。**不再内联**（2026-10-17）：877 条 / 306 KB
+        # 占首屏 45%，却只服务点开才看的时间线面板 —— 走 sidecar 懒加载，
+        # 首次打开时间线才注入 <script>。归档页仍内联回来（inline_hist）。
         # smp 样本超 HIST_SMP_KEEP 截断（hist_for_page）：磁盘 history.json 全量，
         # 页面只带每轮前 30 条 + 「还有 N 条」标记 —— 全量明细在 changes/*.md。
-        "__HIST__": js_json(hist_for_page(load_history().get("items") or [])),
+        "__HIST__": "null",
+        "__HIST_SRC__": js_json(write_hist_sidecar(
+            hist_for_page(load_history().get("items") or []))),
         "__SIDE_MAP__": js_json(side_map_of(nets_enc)),
         # notice=None → 用兜底文案；notice="" → 页面把提示条整个藏掉
         # （main() 在四网全部零变化时传空串 —— 「本次无变化」没有信息量）。
@@ -2832,7 +2904,10 @@ def render_only():
             "__OW_ORDER__": js_json(list(OW_ORDER)),
             "__CITY_ORDER__": js_json(list(CITY_ORDER)),
             "__CITY_EXTRA__": js_json(list(CITY_EXTRA)),
-            "__HIST__": js_json(hist_for_page(load_history().get("items") or [])),
+            # 同 build_html：历史走 sidecar（懒加载），__HIST__ 只留 null。
+            "__HIST__": "null",
+            "__HIST_SRC__": js_json(write_hist_sidecar(
+                hist_for_page(load_history().get("items") or []))),
             "__SIDE_MAP__": js_json(side_map_of(nets_enc)),
             "__NOTICE__": notice})
     except RuntimeError as e:

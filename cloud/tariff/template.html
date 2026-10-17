@@ -1059,7 +1059,12 @@ const OW_ORDER=__OW_ORDER__;
    空数组是正常状态（首次部署时还没有任何一次带变更的巡检），不是错误。
    HIST_SMP_KEEP 必须与 tariff_monitor.py 里的同名常量一致（页面时间线的截断
    阈值只在「注入侧」生效，这里只是给「…还有 N 条」提示文案引用一个数字）。 */
-const HIST=__HIST__;
+/* 变更历史（2026-10-17 懒加载）：HIST 原本整块内联在页面里 —— 877 条 / 306 KB，
+   占首屏 45%，而它只服务于「变更时间线」这一个按需打开的面板。现在拆成
+   docs/data/hist.<stamp>.js，首次打开时间线才拉；归档页仍由构建期内联回来
+   （__HIST__ 直接给值、__HIST_SRC__ 为空），保持「解包即可看」的自包含性。 */
+const HIST_SRC=__HIST_SRC__;
+let HIST=__HIST__;
 const HIST_SMP_KEEP=30;
 /* 所有「枚举型筛选维度」的控件 id —— 全页只此一份。
    清空筛选 / 切网复位 / 深链读写本来都要遍历同一批控件，而原先是**每处各写一遍字面量**
@@ -1189,17 +1194,31 @@ const $=s=>document.querySelector(s);
 const DAY=864e5;
 
 function num(v){const f=parseFloat(v);return isNaN(f)?null:f}
+/* toDate 记忆化（2026-10-17）：一次 apply 里它被调 1 万次以上（facet 计数
+   每行 2 次 + 渲染每行 2 次），而日期字符串的**取值域极小** —— 同一个
+   「20260101」会在成千上万行里重复出现。原先每次都要正则 + Date.UTC +
+   再 new 一个 Date 回读校验，纯重复劳动。缓存后同一字符串只解析一次，
+   语义（含 2/30、4/31 这类非法日期返回 null）完全不变。 */
+const _dCache=new Map();
 function toDate(s){
-  s=String(s==null?"":s).trim();
-  if(!/^\d{8}$/.test(s))return null;
-  const y=+s.slice(0,4),m=+s.slice(4,6),d=+s.slice(6,8);
-  if(m<1||m>12||d<1||d>31)return null;
-  /* 只做 1..31 的范围检查不够：Date.UTC 会把 2 月 30 日、4 月 31 日这类
-     **不存在的日期静默归一化**到下个月，于是相对天数与时间筛选全都悄悄偏移。
-     回读三项、确认与原值一致才算合法（口径与 audit_data.py 的 date() 对齐）。 */
-  const t=Date.UTC(y,m-1,d),dt=new Date(t);
-  if(dt.getUTCFullYear()!==y||dt.getUTCMonth()!==m-1||dt.getUTCDate()!==d)return null;
-  return t;
+  const k=String(s==null?"":s).trim();
+  if(!k)return null;
+  const hit=_dCache.get(k);
+  if(hit!==undefined)return hit;
+  let v=null;
+  if(/^\d{8}$/.test(k)){
+    const y=+k.slice(0,4),m=+k.slice(4,6),d=+k.slice(6,8);
+    if(m>=1&&m<=12&&d>=1&&d<=31){
+      /* 只做 1..31 的范围检查不够：Date.UTC 会把 2 月 30 日、4 月 31 日这类
+         **不存在的日期静默归一化**到下个月，于是相对天数与时间筛选全都悄悄偏移。
+         回读三项、确认与原值一致才算合法（口径与 audit_data.py 的 date() 对齐）。 */
+      const t=Date.UTC(y,m-1,d),dt=new Date(t);
+      if(dt.getUTCFullYear()===y&&dt.getUTCMonth()===m-1&&dt.getUTCDate()===d)v=t;
+    }
+  }
+  if(_dCache.size>8192)_dCache.clear();   /* 防御性上限：异常数据也别让它无限涨 */
+  _dCache.set(k,v);
+  return v;
 }
 function fmtD(s){s=String(s==null?"":s);return /^\d{8}$/.test(s)?s.slice(0,4)+"-"+s.slice(4,6)+"-"+s.slice(6,8):""}
 /* 🔴 2026-10-04 补单引号：本页所有生成属性都用双引号包裹，所以原版是安全的；
@@ -2622,7 +2641,11 @@ function render(){
       +apCell(d,terms)
       +'<td style="white-space:nowrap">'+onCell(d)+'</td>'
       +'<td style="white-space:nowrap">'+offCell(d)+'</td></tr>'
-      +'<tr class="det"><td colspan="10"><div class="detwrap">'+detHTML(d)+'</div></td></tr>');
+      /* 详情行**留空**（2026-10-17）：此前 80 行各生成一份详情 HTML（平均
+         1.6 KB，合计 ~128 KB，占整表拼串的 73%），而 .det 默认全部收起 ——
+         生成完就静静躺在 DOM 里等一个可能永远不来的点击。展开时才填（见
+         toggleRow），render 的字符串与 innerHTML 解析量随之降到约 1/4。 */
+      +'<tr class="det"><td colspan="10"><div class="detwrap"></div></td></tr>');
   });
   tb.innerHTML=buf.join("");
   decorateFav();
@@ -3689,8 +3712,35 @@ function fmtDiffs(ds){
     +(ds.length-DIFF_SHOW)+' 条字段变更</button>';
 }
 
+/* 时间线数据按需拉取：脚本式注入（与四网 sidecar 同款，file:// 下也能用）。
+   失败只记一次，之后走空态提示 —— 不在这里做重试，避免「点一次拉一次」的抖动。 */
+let _histP=null,_histFail=false;
+function loadHist(){
+  if(HIST)return Promise.resolve(HIST);
+  if(_histFail||!HIST_SRC)return Promise.resolve(null);
+  if(_histP)return _histP;
+  _histP=new Promise(res=>{
+    const s=document.createElement("script");
+    s.src=HIST_SRC;
+    s.onload=()=>{const d=window.__HIST_DATA__;HIST=(d&&d.items)||[];res(HIST)};
+    s.onerror=()=>{_histFail=true;_histP=null;res(null)};
+    document.head.appendChild(s);
+  });
+  return _histP;
+}
 function renderHistory(){
   const box=$("#histBox"),note=$("#histNote");
+  /* 在线形态首次打开：先给「载入中」再补渲染（面板本来就是点开才看，
+     多一次异步往返对体感无影响，换来的是首屏少 306 KB）。 */
+  if(!HIST&&HIST_SRC){
+    box.innerHTML='<div class="empty">正在载入变更历史…</div>';
+    note.textContent="";
+    loadHist().then(it=>{
+      if(it)renderHistory();
+      else box.innerHTML='<div class="empty">历史数据加载失败（离线或文件缺失），刷新页面重试。</div>';
+    });
+    return;
+  }
   const items=(HIST||[]).slice().sort((a,b)=>String(b.ts||"").localeCompare(String(a.ts||"")));
   /* 抑制原因（history.json 的 note）—— 中文对照表。
      ★ 为什么必须显示：a=r=c=0 有两种完全不同的含义 ——
@@ -4019,6 +4069,13 @@ function toggleRow(tr){
   const open=dr.classList.toggle("on");
   tr.classList.toggle("open",open);          // 行首箭头转向（CSS）
   tr.setAttribute("aria-expanded",open?"true":"false");
+  /* 详情内容首次展开时才生成（render 里留的是空 detwrap）：只在 open 时填，
+     收起不重复拼。data-i 由委托器保证有效，取不到就留空壳（不抛错）。 */
+  const w=dr.querySelector(".detwrap");
+  if(open&&w&&!w.firstChild){
+    const dr0=ROWS[+tr.dataset.i];
+    if(dr0)w.innerHTML=detHTML(dr0);
+  }
   /* 「同价位更优」按需计算（首次展开才算一次）：全表 9000 行扫一遍，
      80 行都预计算就是 72 万次比较/每次渲染 —— 而绝大多数详情根本没被展开过。 */
   if(open&&!dr.dataset.ai){

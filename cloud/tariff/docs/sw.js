@@ -109,6 +109,11 @@ self.addEventListener("fetch", (e) => {
               const re = /"src_data":"(data\/[^"]+\.js)"/g;
               let m;
               while ((m = re.exec(t))) cur.add(m[1]);
+              /* 变更历史 sidecar 也在这份「现役名单」里（2026-10-17 起 HIST 懒加载）：
+                 它同样在 /data/ 下、同样按 stamp 换名。不列进来的话，每次导航
+                 剪枝都会把它当陈旧文件删掉 —— 表现是「每次打开时间线都重下 306KB」。 */
+              const reh = /HIST_SRC\s*=\s*"(data\/[^"]+\.js)"/g;
+              while ((m = reh.exec(t))) cur.add(m[1]);
               if (!cur.size) return;
               return c.keys().then((ks) => Promise.all(ks.map((r) => {
                 const p = new URL(r.url).pathname;
