@@ -228,6 +228,27 @@ body{min-height:100vh;background:var(--bg1);color:var(--tx);
 .view{display:none}
 .view.on{display:block}
 
+/* ── 免责声明（2026-10-17）─────────────────────────────────────────
+   条款用 <ol> 但收起默认序号，改自绘色块序号：默认序号在深色主题下太淡，
+   且与「一句话标题 + 正文」的两行结构对不齐。 */
+.dscbody{padding:2px 16px 16px}
+.dscbar{margin:0 0 14px;padding:11px 13px;border-radius:11px;font-size:12.5px;line-height:1.75;
+  color:var(--tx2);background:var(--glass2);border:1px solid var(--bd2);
+  border-left:3px solid var(--ac)}
+.dscbar b{color:var(--ac);margin-right:7px}
+.dscl{margin:0;padding:0;list-style:none;counter-reset:dsc}
+.dscl li{position:relative;padding:11px 0 11px 32px;border-top:1px solid var(--bd2)}
+.dscl li:first-child{border-top:0}
+.dscl li::before{counter-increment:dsc;content:counter(dsc);
+  position:absolute;left:0;top:12px;width:20px;height:20px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:750;color:var(--ac);
+  background:var(--glass2);border:1px solid var(--bd2)}
+.dscl b{display:block;font-size:13px;font-weight:700;margin-bottom:4px}
+.dscl span{display:block;font-size:12.5px;line-height:1.78;color:var(--tx2)}
+.dscfoot{margin-top:14px;padding:11px 13px;border-radius:11px;font-size:12px;line-height:1.75;
+  color:var(--tx2);background:var(--glass3);border:1px dashed var(--bd2)}
+
 /* ── 工具条 #bar：只属于「资费明细」页 ─────────────────────────── */
 .bar{display:none;padding:12px 12px 11px}
 body[data-view="list"] .bar{display:block}
@@ -691,6 +712,12 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
    表头一并隐藏：它只承担「点列头排序」和「列头漏斗筛选」，排序在结果栏有
    独立控件（.sortctl），列筛选在窄屏改由结果栏 #mcf 下拉进入。 */
 @media(max-width:640px){
+  /* 页签从 3 个变 4 个（免责声明）后，360–390px 里原来那套 18px 内边距
+     会把栏撑得刚好贴边、最后一个字被切。收内边距与字号后约 308px，#vtab
+     本身还有 overflow-x:auto 兜底（字体被放大或系统字号调大时不至于挤爆）。 */
+  #vtab{padding:0 6px;gap:0}
+  #vtab .tab{padding:12px 11px 11px;font-size:13px}
+  #vtab .tab.on::after{left:9px;right:9px}
   /* 副标题（来源 · 数据基线 · 共 N 条）在 370px 里一行放不下，硬截会把日期
      断成「数据基线 20…」。而这些信息窄屏上全有替代：来源在页脚与「说明」页签、
      基线 = 下面那行「更新于」、总条数 = 结果栏「共 N 条」。收掉它，
@@ -847,6 +874,9 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   <button class="tab" data-v="ov">数据总览</button>
   <button class="tab on" data-v="list">资费明细</button>
   <button class="tab" data-v="hist">变化历史</button>
+  <!-- 免责声明（2026-10-17）：放在最后 —— 它不属于「看数据」的动线，
+       但必须能被找到（页签栏是页面上唯一稳定可见的导航）。 -->
+  <button class="tab" data-v="ab">免责声明</button>
 </nav>
 <div class="deck" id="deck">
   <div class="bar" id="bar">
@@ -1093,6 +1123,35 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       <span class="ps" id="histNote"></span>
     </div>
     <div class="tl" id="histBox"></div>
+  </div>
+</section>
+
+<!-- ═══ 免责声明 ═══
+     内容全部是静态文案，只有右上角那行「当前网 · 基线 · 条数」由 renderDisclaimer()
+     按 NET 填 —— 那些数字是本页的自证材料，写死成移动的会在切网后自相矛盾。 -->
+<section class="view" id="v-ab">
+  <div class="panel">
+    <div class="ph"><h2 class="pt">免责声明</h2><span class="ps" id="dscMeta"></span></div>
+    <div class="dscbody">
+      <div class="dscbar">
+        <b>非官方渠道</b>
+        本页是四网资费公示的自动聚合，与任何一家运营商无隶属或合作关系。
+        资费与活动以运营商官方公示为准。
+      </div>
+      <ol class="dscl">
+        <li><b>数据来源</b><span>每日由程序从中国移动、中国联通、中国电信、中国广电面向公众的资费公示页面自动采集并解析，仅作汇总展示。本页不是上述任何一家运营商的官网、官方 APP、代理或授权渠道，也不代表其立场。</span></li>
+        <li><b>仅供参考，以官方为准</b><span>套餐名称、月费、流量、通话、宽带速率、目标客户、上架与下线时间等字段均为机器抓取结果，可能存在采集延迟、条目遗漏、字段缺失，或因上游页面改版导致解析偏差。办理、变更或退订业务前，请以运营商营业厅、官方 APP、客服热线公示的内容为准。</span></li>
+        <li><b>不构成要约或建议</b><span>本页内容不构成任何要约、承诺、推荐或购买建议，也不构成对任何资费「优惠」「划算」的判断。是否办理、办理哪一档，请自行核实并决策。</span></li>
+        <li><b>责任限制</b><span>对因使用或依赖本页信息而产生的任何直接或间接损失（包括但不限于资费误判、错过优惠期、办理失败），本页及其维护者不承担责任；法律另有强制规定的除外。</span></li>
+        <li><b>知识产权</b><span>套餐名称、资费内容、商标与标识归相应运营商所有，本页仅作信息展示与索引之用。权利人如认为展示方式不当，可通过下方渠道联系，核实后及时调整或删除。</span></li>
+        <li><b>更新与降级</b><span>每个工作日自动巡检一次，页面顶部标注本网的数据基线日期与条数，「变化历史」页签逐日记录新增、下架与字段变更。上游页面结构变动或抓取失败时，该网数据可能停留在上一次成功的基线 —— 页面会以「更新于」时间与降级提示标出，不会用旧数据假装新数据。</span></li>
+        <li><b>发现错误</b><span>若资费、条目或分类有误，欢迎在项目的 GitHub 仓库提 issue 指出（附套餐名称与截图最快），核实后会尽快修正。</span></li>
+      </ol>
+      <div class="dscfoot">
+        本页为非商业性质的个人项目，不含广告、推广链接与付费排序；排序与筛选规则公开写在页面自身逻辑里。
+        数据版权归各运营商所有，本页仅提供索引与检索。
+      </div>
+    </div>
   </div>
 </section>
 
@@ -3227,7 +3286,10 @@ function readHash(){
   $("#sort").value=sortK;
   /* 页签：只认白名单里的四个值，认不出来就当没传（同「枚举参数先核对」的原则）。 */
   const vv=p.get("v");
-  if(vv&&["ov","list","hist"].indexOf(vv)>=0)setView(vv);
+  /* 白名单直接用 VIEWS —— 早先在这里另写了一份 ["ov","list","hist"]，
+     加「免责声明」页签时正是它会漏（深链 #v=ab 被当成非法值退回明细页，
+     分享出去的链接看着正常、落点却不对）。 */
+  if(vv&&VIEWS.indexOf(vv)>=0)setView(vv);
 }
 
 /* —— 网别导航 —— */
@@ -3338,6 +3400,9 @@ function renderNet(){
     ?"来源："+esc(n.src||"—")+" · 数据基线 "+esc(n.base||"—")+" · 共 "+rs.length+" 条"
       +(scTxt?"（"+scTxt+"）":"")
     :"来源：尚未接入";
+  /* 免责声明页的数字（网名/基线/条数）跟着当前网走：在那一页上直接切网时，
+     不重算就会停在上一网的数字上 —— 而这页的可信度全押在「数据从哪来」上。 */
+  renderDisclaimer();
   /* —— 类型两级：先建大类，再建细分 ——
      · 大类按 CAT_ORDER 的**固定顺序**生成（不是按条数或拼音）：顺序稳定，
        逐日看的时候才知道「今天冒出来的是哪一类」。
@@ -3776,7 +3841,17 @@ function saveOffline(){
      切回明细页时筛选原样还在，用户不会因为看了一眼总览就丢掉筛选。
    ══════════════════════════════════════════════════════════════════════ */
 let VIEW="list";
-const VIEWS=["ov","list","hist"];
+const VIEWS=["ov","list","hist","ab"];
+/* 免责声明右上角那行：当前网 · 基线 · 条数。
+   ★ 必须跟着 NET 走：这些数字本身就是「数据从哪来、什么时点」的自证，
+     写死成某一网的话，切网后这页就和页面其余部分自相矛盾。
+   ★ 条数取 rs.length（= 本网全量行），不是筛选后的结果数 —— 免责声明讲的
+     是「收录了多少」，不是「此刻筛出多少」。 */
+function renderDisclaimer(){
+  const el=$("#dscMeta");if(!el)return;
+  const n=net(),rs=rowsOf(NET);
+  el.textContent=(n.nm||NET)+" · 数据基线 "+(n.base||"—")+" · 收录 "+rs.length+" 条";
+}
 function setView(v){
   if(VIEWS.indexOf(v)<0)v="list";
   VIEW=v;
@@ -3799,6 +3874,7 @@ function setView(v){
   fixBarh();
   if(v==="ov")renderOverview();
   if(v==="hist")renderHistory();
+  if(v==="ab")renderDisclaimer();
 }
 
 /* ══════════════════════════════════════════════════════════════════════

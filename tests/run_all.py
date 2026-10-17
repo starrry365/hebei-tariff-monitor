@@ -66,6 +66,11 @@ TESTS = [
      "归档内联 HIST 的转义回归（re.sub 吃 \\n ⇒ 整页语法错误；离线）",
      True),
 
+    ("view-tabs",
+     [sys.executable, "tests/test_view_tabs.py"],
+     "页签 / VIEWS / 深链白名单三处一致（新增视图时漏改会静默失效；离线）",
+     True),
+
     ("pipeline-selftest",
      [sys.executable, "cloud/tariff/selftest_pipeline.py"],
      "集成缝自测（other_nets 四分支 / 返回契约 / note 覆盖）",
