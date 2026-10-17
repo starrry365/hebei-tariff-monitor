@@ -632,10 +632,13 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   #sub{font-size:10.5px;max-width:none}
   #themeBtn{position:absolute;right:10px;top:9px;width:30px;height:30px}
   #shdoor{position:absolute;right:48px;top:22px}
-  .tb-right{order:4;flex:1 1 100%;justify-content:flex-start;gap:5px 7px}
-  .tb-cnt{font-size:10.5px;padding:3px 8px}
-  .tb-cnt b{font-size:11.5px}
-  .upd{font-size:10.5px}
+  .tb-right{order:4;flex:1 1 100%;justify-content:flex-start;gap:4px 5px}
+  /* 「更新于 + 三组计数」四件加起来实测 330px（真机 5275 条时），加上间距就
+     超过 370 的可用宽度 —— 会把「本次变更 13」挤到第二行，一行只有一个胶囊
+     很别扭。收紧内边距与字号让四件并排一行；真的放不下（≤320）才折行。 */
+  .tb-cnt{font-size:10px;padding:2px 6px}
+  .tb-cnt b{font-size:11px}
+  .upd{font-size:10px;gap:4px}
   .noticebar{padding:0 10px 9px}
   .notice{font-size:11.5px;padding:6px 10px;line-height:1.5}
   .ap{max-width:150px}
