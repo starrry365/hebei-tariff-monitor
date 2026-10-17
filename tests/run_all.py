@@ -81,6 +81,11 @@ TESTS = [
      "明细列表密度（目标客户两行截断 / 截断补 title / 命中不截断 / 空列表头提示）",
      True),
 
+    ("net-count",
+     [sys.executable, "tests/test_net_count.py"],
+     "本网条数判据（元信息 n 与 rows 同源 / 徽章与默认网单一出口；分源后启动期可答）",
+     True),
+
     ("pipeline-selftest",
      [sys.executable, "cloud/tariff/selftest_pipeline.py"],
      "集成缝自测（other_nets 四分支 / 返回契约 / note 覆盖）",

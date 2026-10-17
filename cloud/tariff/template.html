@@ -1498,7 +1498,18 @@ const keyOf=(net,d)=>net+"|"+(d.ty||"")+"|"+rowName(d)+(d.kd?"#"+d.kd:"");
       （自洽的错）—— 只有对 oracle 的 conformance 抓得住，四网全红。 */
 const DIM_KEY={off:"offv"};
 const dimIdOf=ck=>{for(const k in DIM_KEY)if(DIM_KEY[k]===ck)return k;return ck};
-const online=n=>rowsOf(n).length>0;                  // 是否已接入数据
+/* 本网条数：**优先取元信息 n**（构建期由 cols 行数现算，见
+   tariff_monitor.net_payload），数据还没载入时也能答对。
+   为什么不能只数 rows：分源之后启动那一刻四网都还是「待载入」，
+   数 rows 一律得 0 ⇒ 「页签徽章」全写成 0 条、默认落地网退化成
+   NET_LS[0]（下面那句「自动落到有数据的网」就名存实亡了）。
+   老页面没有 n 才退回数 rows —— 那时数据是内联的，不会误判。 */
+function netCount(c){
+  const N=NETS[c]||{};
+  if(N.n!=null)return N.n|0;
+  return rowsOf(c).length;
+}
+const online=n=>netCount(n)>0;                       // 是否已接入数据
 /* 默认网：取第一个**已接入**的（而不是硬编码 move）—— 万一哪天移动那网抓挂了，
    页面会自动落到别的有数据的网，而不是一进来就是一片空白。 */
 const NET_DEF=(NET_LS.filter(online)[0])||NET_LS[0];
@@ -3482,7 +3493,7 @@ function renderNav(){
     b.style.setProperty("--b2",br[1]);
     b.innerHTML='<span class="ndot" aria-hidden="true"></span>'
       +"<span>"+esc(n.nm||c)+"</span>"
-      +(has?'<span class="nc">'+(n.n!=null?n.n:rowsOf(c).length)+" 条</span>"
+      +(has?'<span class="nc">'+netCount(c)+" 条</span>"
            :'<span class="nb">尚未接入</span>');
     b.onclick=()=>switchNet(c);
     inn.appendChild(b);
