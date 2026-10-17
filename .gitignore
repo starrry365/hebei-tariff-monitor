@@ -57,6 +57,8 @@ cloud/tariff/docs/*.new
 chrome-prof/
 # 本地 CDP Chrome 的临时 profile（cdp_launch.py 用；几十 MB，绝不入库）
 probes/tools/cdp_prof/
+# 探针截图产物（mobile_check.py 等；要看直接跑探针重生成）
+probes/_shots/
 # ★ shct_latest.json 已于 2026-10-15 改为**入库**（原注释「不入库」作废）：
 #   它是 build_sh.py 在 raw 缺席时的回退数据 —— 不入库的话，某轮采集彻底失败
 #   时 CI 全新检出里没有它，小页直接「拒绝生成空页」停更；入库后退到上一轮，

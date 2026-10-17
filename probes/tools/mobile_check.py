@@ -29,6 +29,7 @@ PORT = 9223
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BASE = os.path.dirname(os.path.abspath(__file__))
 PAGE = os.path.join(ROOT, "cloud", "tariff", "docs", "index.html")
+SHOTS = os.path.join(ROOT, "probes", "_shots")   # 探针产物统一落这里（已 gitignore）
 WIDTHS = (320, 360, 390, 414, 600, 641, 768, 900, 1024, 1440)
 
 MEASURE = """JSON.stringify({
@@ -121,9 +122,10 @@ def main():
               (w, d.get("over"), "卡片" if card else "表格",
                d.get("topbar"), d.get("rows"), "OK" if ok else "✗"))
         if do_shot and w in (390, 768):
-            out = os.path.join(ROOT, "_mobile_%d.png" % w)
+            os.makedirs(SHOTS, exist_ok=True)
+            out = os.path.join(SHOTS, "mobile_%d.png" % w)
             if c.shot(out):
-                print("       截图 %s" % os.path.basename(out))
+                print("       截图 %s" % os.path.relpath(out, ROOT))
 
     if bad:
         print("\n✗ %d 个宽度不合格：%s" % (len(bad), bad))
