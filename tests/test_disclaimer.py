@@ -96,8 +96,21 @@ def main():
     if ext:
         ok = fail("页面引用了外部资源（违反「无第三方脚本」）：%s" % ext[:6])
 
+    # ── 长度上限：这份文案的目标读者是「来查资费的人」，不是法务 ──────
+    # 2026-10-17 v1.1 曾写到 9 条 + 三张摘要卡（1433px 高），用户反馈「过于冗余」。
+    # 阈值放宽到 1500 字（v1.2 实测约 1050），只拦「又膨胀回去」这一种情况；
+    # 正常增补一条不会触发。
+    plain = re.sub(r"<[^>]+>", "", m.group(0))
+    plain = re.sub(r"\s+", "", plain)
+    max_chars = 1500
+    if len(plain) > max_chars:
+        ok = fail("免责声明正文 %d 字，超过 %d 字上限（这类页面越短越有人读）"
+                  % (len(plain), max_chars))
+        print("     提示：合并重复表述，而不是删掉事实。")
+
     if ok:
-        print("  ✓ 本地存储键 %s 与声明一致 · 无外部资源引用" % "/".join(sorted(used)))
+        print("  ✓ 本地存储键 %s 与声明一致 · 无外部资源引用 · 正文 %d 字"
+              % ("/".join(sorted(used)), len(plain)))
     return ok
 
 
