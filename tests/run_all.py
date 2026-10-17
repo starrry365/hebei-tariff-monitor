@@ -71,6 +71,11 @@ TESTS = [
      "页签 / VIEWS / 深链白名单三处一致（新增视图时漏改会静默失效；离线）",
      True),
 
+    ("disclaimer",
+     [sys.executable, "tests/test_disclaimer.py"],
+     "免责声明与实际行为一致（本地存储键 / 无外部资源；文案漂移会伤可信度）",
+     True),
+
     ("pipeline-selftest",
      [sys.executable, "cloud/tariff/selftest_pipeline.py"],
      "集成缝自测（other_nets 四分支 / 返回契约 / note 覆盖）",

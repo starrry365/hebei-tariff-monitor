@@ -246,6 +246,40 @@ body{min-height:100vh;background:var(--bg1);color:var(--tx);
   background:var(--glass2);border:1px solid var(--bd2)}
 .dscl b{display:block;font-size:13px;font-weight:700;margin-bottom:4px}
 .dscl span{display:block;font-size:12.5px;line-height:1.78;color:var(--tx2)}
+/* 「本站不做什么」：用 ✕ 而不是 ✓ —— 这几条是明确的不做，打勾会读成承诺清单 */
+.dscno{margin:7px 0 1px;padding:0;list-style:none}
+.dscno li{position:relative;padding:3px 0 3px 17px;font-size:12.5px;line-height:1.7;color:var(--tx2)}
+.dscno li::before{content:"✕";position:absolute;left:0;top:3px;font-size:10.5px;
+  font-weight:750;color:var(--ac);opacity:.75}
+/* 顶部三句摘要：让「不想读条款的人」也能在 10 秒内拿到结论 */
+.dscsum{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 16px}
+.dsq{padding:10px 12px;border-radius:11px;background:var(--glass2);border:1px solid var(--bd2)}
+.dsq em{display:block;font-style:normal;font-size:10.5px;letter-spacing:.08em;
+  color:var(--tx3);margin-bottom:4px;font-weight:700}
+.dsq span{font-size:12.5px;line-height:1.65;color:var(--tx2)}
+.dscl code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;
+  padding:1px 5px;border-radius:5px;background:var(--glass2);border:1px solid var(--bd2);
+  color:var(--tx);white-space:nowrap}
+.dscl a{color:var(--ac);text-decoration:underline;text-underline-offset:2px}
+/* 条款 7 里那句「不排除法定责任」在正文中间，必须 inline —— 否则会被
+   `.dscl b{display:block}` 拆成独立一行，读起来像小标题 */
+.dscl .dscwarn{display:inline;font-weight:750;color:var(--ac)}
+/* 本期数据来源：4 列 grid 行（不用 table，见模板处注释） */
+.dscsrc{margin-top:16px}
+.dscsrch{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
+  font-size:12px;font-weight:700;margin-bottom:7px}
+.dscsrch span{font-weight:400;font-size:11.5px;color:var(--tx3)}
+.dscgrid{border:1px solid var(--bd2);border-radius:10px;overflow:hidden}
+.dstr{display:grid;grid-template-columns:1.1fr 1.7fr .95fr .65fr;gap:8px;
+  padding:7px 10px;font-size:12px;line-height:1.55;border-top:1px solid var(--bd2)}
+.dstr:first-child{border-top:0}
+.dstr>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dstr>span:nth-child(4){text-align:right}
+.dstr.dsh{background:var(--glass2);font-size:11px;font-weight:700;color:var(--tx3);
+  letter-spacing:.03em}
+.dstr.on{background:var(--glass3)}
+.dstr.on>span:first-child{font-weight:750;color:var(--ac)}
+.dscver{margin-top:12px;font-size:11px;color:var(--tx3)}
 .dscfoot{margin-top:14px;padding:11px 13px;border-radius:11px;font-size:12px;line-height:1.75;
   color:var(--tx2);background:var(--glass3);border:1px dashed var(--bd2)}
 
@@ -718,6 +752,21 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   #vtab{padding:0 6px;gap:0}
   #vtab .tab{padding:12px 11px 11px;font-size:13px}
   #vtab .tab.on::after{left:9px;right:9px}
+  /* 免责声明：三句摘要改单列（并排会各挤成两字一行）。
+     来源表在 ≤640 从「4 列表格」改成「每网一块」的两段式：
+     390px 塞 4 列会把「2026-10-17」压到贴边、「来源」折成三行；改成
+     网别 + 收录一行、来源第二行、基线第三行之后，每块自带语义（表头隐藏）。 */
+  .dscbody{padding:2px 12px 14px}
+  .dscsum{grid-template-columns:1fr;gap:8px}
+  .dstr{display:grid;grid-template-columns:1fr auto;gap:1px 8px;padding:8px 10px;font-size:12px}
+  .dstr.dsh{display:none}
+  .dstr>span{white-space:normal;overflow:visible;text-overflow:clip}
+  .dstr>span:nth-child(1){grid-row:1;grid-column:1;font-weight:700}
+  .dstr>span:nth-child(4){grid-row:1;grid-column:2;text-align:right;font-size:11px;color:var(--tx2)}
+  .dstr>span:nth-child(2){grid-row:2;grid-column:1/-1;font-size:11.5px;color:var(--tx2)}
+  .dstr>span:nth-child(3){grid-row:3;grid-column:1/-1;font-size:10.5px;color:var(--tx3)}
+  .dstr>span:nth-child(3)::before{content:"数据基线 "}
+  .dstr.on>span:nth-child(1){font-weight:750;color:var(--ac)}
   /* 副标题（来源 · 数据基线 · 共 N 条）在 370px 里一行放不下，硬截会把日期
      断成「数据基线 20…」。而这些信息窄屏上全有替代：来源在页脚与「说明」页签、
      基线 = 下面那行「更新于」、总条数 = 结果栏「共 N 条」。收掉它，
@@ -1127,30 +1176,66 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 </section>
 
 <!-- ═══ 免责声明 ═══
-     内容全部是静态文案，只有右上角那行「当前网 · 基线 · 条数」由 renderDisclaimer()
-     按 NET 填 —— 那些数字是本页的自证材料，写死成移动的会在切网后自相矛盾。 -->
-<section class="view" id="v-ab">
+     2026-10-17 v1.1：在 v1.0（七条纯文案）基础上按「能不能被核对」重排 ——
+       · 顶部三句摘要（是什么 / 不是什么 / 出问题怎么办），条款仍逐条可读；
+       · 新增「本站不做什么」「抓取与使用边界」「本地存储与隐私」三段：
+         前两段回答的是数据合规最常被追问的两个问题（是否替代官方、是否
+         绕过技术措施），后一段是页面**实际行为**的清单（无 Cookie / 无第
+         三方脚本 / 5 个 localStorage 键），可以照着开发者工具逐项验证；
+       · 「本期数据来源」表由 renderDisclaimer() 按 NETS 现算，把「来源」
+         从一句承诺变成可对照的表；
+       · 责任限制补一句「不排除依法不能排除的责任」—— 民法典 506 条明定
+         故意或重大过失致财产损失的免责条款无效，把这句话写明白，整份声明
+         反而更立得住，而不是靠一句「概不负责」虚张声势。
+     静态文案 + 两处动态：右上角 #dscMeta、来源表 #dscSrc。 -->
+<section class="view" id="v-ab" aria-labelledby="abTitle">
   <div class="panel">
-    <div class="ph"><h2 class="pt">免责声明</h2><span class="ps" id="dscMeta"></span></div>
+    <div class="ph"><h2 class="pt" id="abTitle">免责声明</h2><span class="ps" id="dscMeta"></span></div>
     <div class="dscbody">
       <div class="dscbar">
         <b>非官方渠道</b>
         本页是四网资费公示的自动聚合，与任何一家运营商无隶属或合作关系。
         资费与活动以运营商官方公示为准。
       </div>
+
+      <div class="dscsum">
+        <div class="dsq"><em>这是什么</em><span>四家运营商资费公示的自动聚合与检索，每个工作日巡检一次。</span></div>
+        <div class="dsq"><em>这不是什么</em><span>不是官方渠道，不代办理、不收款、不留手机号，也没有广告与推广链接。</span></div>
+        <div class="dsq"><em>有疑问或错误</em><span>以运营商官方公示为准；纠错走 GitHub issue，看到就改。</span></div>
+      </div>
+
       <ol class="dscl">
         <li><b>数据来源</b><span>每日由程序从中国移动、中国联通、中国电信、中国广电面向公众的资费公示页面自动采集并解析，仅作汇总展示。本页不是上述任何一家运营商的官网、官方 APP、代理或授权渠道，也不代表其立场。</span></li>
-        <li><b>仅供参考，以官方为准</b><span>套餐名称、月费、流量、通话、宽带速率、目标客户、上架与下线时间等字段均为机器抓取结果，可能存在采集延迟、条目遗漏、字段缺失，或因上游页面改版导致解析偏差。办理、变更或退订业务前，请以运营商营业厅、官方 APP、客服热线公示的内容为准。</span></li>
+        <li><b>准确性：以官方为准</b><span>套餐名称、月费、流量、通话、宽带速率、目标客户、上架与下线时间等字段均为机器抓取与解析的结果，可能存在采集延迟、条目遗漏、字段缺失，或因上游页面改版导致解析偏差。展开详情会给出官方原文片段，便于自行核对；但办理、变更或退订业务前，请以运营商营业厅、官方 APP、客服热线公示的内容为准。</span></li>
         <li><b>不构成要约或建议</b><span>本页内容不构成任何要约、承诺、推荐或购买建议，也不构成对任何资费「优惠」「划算」的判断。是否办理、办理哪一档，请自行核实并决策。</span></li>
-        <li><b>责任限制</b><span>对因使用或依赖本页信息而产生的任何直接或间接损失（包括但不限于资费误判、错过优惠期、办理失败），本页及其维护者不承担责任；法律另有强制规定的除外。</span></li>
-        <li><b>知识产权</b><span>套餐名称、资费内容、商标与标识归相应运营商所有，本页仅作信息展示与索引之用。权利人如认为展示方式不当，可通过下方渠道联系，核实后及时调整或删除。</span></li>
-        <li><b>更新与降级</b><span>每个工作日自动巡检一次，页面顶部标注本网的数据基线日期与条数，「变化历史」页签逐日记录新增、下架与字段变更。上游页面结构变动或抓取失败时，该网数据可能停留在上一次成功的基线 —— 页面会以「更新于」时间与降级提示标出，不会用旧数据假装新数据。</span></li>
-        <li><b>发现错误</b><span>若资费、条目或分类有误，欢迎在项目的 GitHub 仓库提 issue 指出（附套餐名称与截图最快），核实后会尽快修正。</span></li>
+        <li><b>本站不做什么</b>
+          <span>以下几条是硬边界，不是免责措辞：</span>
+          <ul class="dscno">
+            <li>不代办任何业务、不收款、不导流到第三方办理页面</li>
+            <li>不索取手机号、身份证、验证码，不设账号体系</li>
+            <li>不投放广告、不做联盟推广、不接受付费排序 —— 排序规则写在页面里，任何一条都不能用付费改变位置</li>
+            <li>不提供批量抓取接口，不转售数据</li>
+          </ul>
+        </li>
+        <li><b>抓取与使用边界</b><span>只访问无需登录即可查看的公开资费页面，每个网别每日至多巡检一次，按正常浏览节奏请求；遇到站点 robots 限制或访问频率提示即停止该类抓取；以真实浏览器打开页面（与人工访问一致），不破解验证码、不伪造身份、不绕过登录。若数据持有方认为抓取方式或展示方式不当，可联系停止相应网别的采集 —— 这比事后争辩更省事。</span></li>
+        <li><b>本地存储与隐私</b><span>本页不设置 Cookie，不加载任何第三方脚本、统计或广告，也不引用任何外部域名资源（断网也能用；可在开发者工具的 Application 面板逐项核对）。仅在你的浏览器本地保存 5 项偏好：<code>hbtm_fav</code> / <code>hbtm_only_fav</code>（收藏的套餐标识与「只看收藏」）、<code>hbtm_psz</code>（每页条数）、<code>hb-tariff-theme</code>（深色 / 浅色）、<code>ft-fold</code>（筛选区是否收起）。这些数据不离开你的设备、不与任何账号关联，清除本站站点数据即全部删除。托管平台（GitHub Pages）可能按其自身政策记录访问日志，本站不接触、也不分析这些日志。</span></li>
+        <li><b>责任限制</b><span>对因使用或依赖本页信息而产生的直接或间接损失（包括但不限于资费误判、错过优惠期、办理失败），本页及其维护者在法律允许的范围内不承担责任。<b class="dscwarn">本声明不排除依照法律不能排除的责任</b>（例如因故意或重大过失造成他人财产损失）；本声明与法律规定冲突时，以法律规定为准。</span></li>
+        <li><b>知识产权与纠错</b><span>套餐名称、资费内容、商标与标识归相应运营商所有，本页仅作信息展示与索引之用，不主张对其的任何权利。权利人如认为展示方式不当，可通过 <a href="https://github.com/starrry365/hebei-tariff-monitor/issues" target="_blank" rel="noopener noreferrer">GitHub issue</a> 联系，核实后及时调整或删除。发现资费或条目有误同样走这里（附套餐名称与截图最快）。</span></li>
+        <li><b>条款变更</b><span>本声明随功能调整修订，最新版本与生效日期见本页底部；涉及权利义务变化的修订会在页面顶部提示。</span></li>
       </ol>
-      <div class="dscfoot">
-        本页为非商业性质的个人项目，不含广告、推广链接与付费排序；排序与筛选规则公开写在页面自身逻辑里。
-        数据版权归各运营商所有，本页仅提供索引与检索。
+
+      <div class="dscsrc">
+        <div class="dscsrch">本期数据来源<span>按本次构建的入库数据生成，随巡检更新</span></div>
+        <!-- 刻意用 grid 行而不是 <table>：≤640px 的全局样式会把 table 拆成
+             卡片视图（thead 隐藏、td 变 block），来源表会被拆散，覆盖成本更高。 -->
+        <div class="dscgrid" id="dscSrc"></div>
       </div>
+
+      <div class="dscfoot">
+        本页为非商业性质的个人项目，不含广告、推广链接与付费排序；排序、筛选与判定规则全部写在页面自身逻辑里，可自行查验。
+        数据版权归各运营商所有，本页仅提供索引与检索，不替代任何官方服务。
+      </div>
+      <div class="dscver">免责声明 v1.1 · 最后更新 2026-10-17</div>
     </div>
   </div>
 </section>
@@ -3848,9 +3933,26 @@ const VIEWS=["ov","list","hist","ab"];
    ★ 条数取 rs.length（= 本网全量行），不是筛选后的结果数 —— 免责声明讲的
      是「收录了多少」，不是「此刻筛出多少」。 */
 function renderDisclaimer(){
-  const el=$("#dscMeta");if(!el)return;
   const n=net(),rs=rowsOf(NET);
-  el.textContent=(n.nm||NET)+" · 数据基线 "+(n.base||"—")+" · 收录 "+rs.length+" 条";
+  const el=$("#dscMeta");
+  if(el)el.textContent=(n.nm||NET)+" · 数据基线 "+(n.base||"—")+" · 收录 "+rs.length+" 条";
+  /* 本期数据来源表：每一格都从 NETS 现取，不另存副本 ——
+     这张表存在的全部意义是「可以照着核对」，写死一份就等于又造一处会漂移的
+     数据。条数优先用构建期的 n（sidecar 未载入时也对），载入后 rows 才可用。 */
+  const box=$("#dscSrc");
+  if(!box)return;
+  box.innerHTML='<div class="dstr dsh"><span>网别</span><span>来源</span>'
+      +'<span>数据基线</span><span>收录</span></div>'
+    +NET_LS.map(c=>{
+      const N=NETS[c]||{};
+      const cnt=N.n!=null?N.n:((N.rows&&N.rows.length)||0);
+      const nm=N.nm||c,src=N.src||"—";
+      return '<div class="dstr'+(c===NET?' on':'')+'">'
+        +'<span title="'+esc(nm)+'">'+esc(nm)+'</span>'
+        +'<span title="'+esc(src)+'">'+esc(src)+'</span>'
+        +'<span>'+esc(N.base||"—")+'</span>'
+        +'<span>'+(cnt||0)+' 条</span></div>';
+    }).join("");
 }
 function setView(v){
   if(VIEWS.indexOf(v)<0)v="list";
