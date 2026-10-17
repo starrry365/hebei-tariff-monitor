@@ -2434,6 +2434,12 @@ def encode_nets_for_page(nets):
     for code, p in nets.items():
         rows = p.get("rows") or []
         q = {k: v for k, v in p.items() if k != "rows"}
+        # ★ n 由这里**强制重算**，不跟着页面里的旧值走（2026-10-17）：
+        #   net_payload 本来会写 n，但 render_only 是从**已有页面**读回容器再
+        #   重渲染的 —— 只要历史上有一版页面缺 n，之后每次纯模板重渲染都会
+        #   继续缺。表现很隐蔽：横栏四网按钮上的「N 条」全变成 0，而数据本身
+        #   完全正常。条数是行数的派生值，派生值就该在唯一的出口处派生。
+        q["n"] = len(rows)
         q["cols"] = encode_rows_compact(rows)
         back = decode_rows_compact(q["cols"])
         want = [_norm_row(r) for r in rows]

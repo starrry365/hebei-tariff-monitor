@@ -507,6 +507,8 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   -moz-appearance:textfield}
 #pgin::-webkit-outer-spin-button,#pgin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 #psz{padding:7px 8px;font-size:12.5px;font-weight:600}
+/* 窄屏列筛选入口：桌面端表头自带▽漏斗，这个下拉只在 ≤640px 出现 */
+#mcf{display:none}
 .empty{padding:48px;text-align:center;color:var(--tx2)}
 .empty a{color:var(--ac)}
 .netempty{max-width:760px;margin:40px auto;padding:26px 30px}
@@ -611,9 +613,31 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 @media(max-width:900px){
   .netnav{order:3;flex:1 1 100%;justify-content:flex-start}
   #h1{max-width:70vw}#sub{max-width:76vw}
+  /* 平板段（641–900px）表格的自然宽度仍可能超过屏宽（10 列 × nowrap，
+     实测 768px 屏要 870px）—— 这一段的横向滚动容器此前只在 ≤760 时才开，
+     于是 761–900 之间整页被撑宽、Chrome 还会缩放整页。挪到这里统一兜住。 */
+  .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 }
 @media(max-width:760px){
   .wrap{padding:8px 10px 32px}
+  /* ── 顶栏重排（2026-10-17）───────────────────────────────────────
+     病根：「更新时间 + 在售/已下架/本次变更」全塞在 .tb-right 里不折行，
+     实测 428px —— 视口 390 也照撑，documentElement.scrollWidth 变成 454：
+     整站横向溢出，且 Chrome 会因此把整页缩放 0.86 倍（字看着都变小了）。
+     现在品牌独占首行、主题钮绝对定位到右上（不再占行）、计数单独一行。 */
+  .tb-in{position:relative;gap:7px;padding:9px 10px}
+  .brand{flex:1 1 100%;padding-right:78px}
+  #logo{width:30px;height:30px;border-radius:10px;font-size:14px}
+  #h1{font-size:14px;max-width:none}
+  #sub{font-size:10.5px;max-width:none}
+  #themeBtn{position:absolute;right:10px;top:9px;width:30px;height:30px}
+  #shdoor{position:absolute;right:48px;top:22px}
+  .tb-right{order:4;flex:1 1 100%;justify-content:flex-start;gap:5px 7px}
+  .tb-cnt{font-size:10.5px;padding:3px 8px}
+  .tb-cnt b{font-size:11.5px}
+  .upd{font-size:10.5px}
+  .noticebar{padding:0 10px 9px}
+  .notice{font-size:11.5px;padding:6px 10px;line-height:1.5}
   .ap{max-width:150px}
   #kw{min-width:110px}
   .ffilt{grid-template-columns:1fr;gap:7px}
@@ -645,6 +669,119 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   .drow{grid-template-columns:1fr 1fr}
   .dlab{grid-column:1/3;padding:6px 11px 0}
   .dold,.dnew{padding-top:4px}
+}
+
+/* ══ 移动端卡片视图（≤640px）：10 列表格 → 卡片流 ══════════════════════
+   为什么必须换形态：10 列表格在 390px 屏上实测 792px 宽，即便给了横向滚动，
+   右侧「目标客户 / 上架 / 下线」默认全在视口外，名称列被挤到 103px、一条
+   名字折成 4 行 —— 读一条要横向拖一次，比不做还累。
+   现在：月费做卡头、名称独占一行、其余字段两列键值格；空值格（render 打的
+   .m0）直接隐藏 —— 移动端 92% 的行没有流量、100% 没有通话，留着只是一排
+   破折号，收掉后卡片高度平均少三成。
+   表头一并隐藏：它只承担「点列头排序」和「列头漏斗筛选」，排序在结果栏有
+   独立控件（.sortctl），列筛选在窄屏改由结果栏 #mcf 下拉进入。 */
+@media(max-width:640px){
+  /* 副标题（来源 · 数据基线 · 共 N 条）在 370px 里一行放不下，硬截会把日期
+     断成「数据基线 20…」。而这些信息窄屏上全有替代：来源在页脚与「说明」页签、
+     基线 = 下面那行「更新于」、总条数 = 结果栏「共 N 条」。收掉它，
+     顶栏高度直接少一整行（实测省 29px），留给内容。 */
+  #sub{display:none}
+  thead{display:none}
+  table{display:block;min-width:0;background:none;border:0;box-shadow:none;
+    border-radius:0;font-size:13px;overflow:visible}
+  tbody{display:block}
+  .tblwrap{overflow:visible;border-radius:var(--r)}
+  tbody>tr{display:block}
+  tbody>tr>td{display:block;border:0;padding:0;min-width:0}
+
+  /* 卡片壳（position:relative 给收藏星与键值标签做定位基准） */
+  tbody tr.row{position:relative;display:flex;flex-wrap:wrap;
+    margin:0 0 9px;background:var(--glass3);border:1px solid var(--bd2);
+    border-radius:14px;box-shadow:var(--sh);overflow:hidden}
+  /* 斑马纹/悬停是桌面表格的读行辅助，卡片自带边框，再叠底色反而脏 */
+  tbody tr.row.zeb td,tbody tr.row:hover td{background:none}
+  tr.row.isnew{box-shadow:inset 3px 0 0 var(--ok),var(--sh)}
+  tr.row.isnew td:first-child{box-shadow:none}
+
+  /* ① 卡头：月费（含展开箭头） */
+  tr.row>td.fee{order:1;flex:1 1 100%;padding:10px 13px 1px;
+    font-size:20px;line-height:1.25;letter-spacing:-.4px}
+  tr.row>td.fee::before{width:auto;margin-right:6px;font-size:11px;opacity:.45}
+
+  /* ② 名称（地域/地市/变更/有效期徽标同行），右上留给收藏星 */
+  tr.row>td.nm{order:2;flex:1 1 100%;padding:0 42px 10px 13px;
+    font-size:13.5px;line-height:1.55;border-bottom:1px solid var(--bd2)}
+  tr.row>td.nm .favbtn{position:absolute;top:7px;right:5px;font-size:17px;padding:5px}
+
+  /* ③ 键值格：两列自动换行（空值格 display:none 后自然回流，不留空洞）。
+     标签绝对定位在格左侧，值右对齐 —— 这样单元格里是纯文本还是一串
+     <div>（上架/下线是「日期 + 相对天数」两行）都不用包一层 wrapper。 */
+  tr.row>td.c-gb,tr.row>td.c-call,tr.row>td.c-ty,tr.row>td.c-ow,
+  tr.row>td.c-bw,tr.row>td.c-on,tr.row>td.c-off{
+    order:4;flex:1 1 45%;position:relative;padding:4px 13px 4px 44px;
+    font-size:12.5px;line-height:1.5;text-align:right}
+  tr.row>td.c-gb::before,tr.row>td.c-call::before,tr.row>td.c-ty::before,
+  tr.row>td.c-ow::before,tr.row>td.c-bw::before,
+  tr.row>td.c-on::before,tr.row>td.c-off::before{
+    position:absolute;left:13px;top:4px;color:var(--tx3);font-size:11px;
+    font-weight:650;letter-spacing:.2px}
+  tr.row>td.c-gb::before{content:"流量"}
+  tr.row>td.c-call::before{content:"通话"}
+  tr.row>td.c-ty::before{content:"类型"}
+  tr.row>td.c-ow::before{content:"归属"}
+  tr.row>td.c-bw::before{content:"宽带"}
+  tr.row>td.c-on::before{content:"上架"}
+  tr.row>td.c-off::before{content:"下线"}
+  /* 上架/下线两行内容不许换行拆散（日期 + 「N 天后到期」） */
+  tr.row>td.c-on>div,tr.row>td.c-off>div{white-space:nowrap}
+
+  /* ④ 目标客户：值可能几十字（联通有整串国家/地区清单，实测一条 8 行、
+     把卡片撑到 330px），窄屏收成两行带省略号；全文在展开详情里一字不少。 */
+  tr.row>td.ap{order:5;flex:1 1 100%;max-width:none;padding:3px 13px 9px;
+    font-size:12.5px;line-height:1.6;text-align:left}
+  tr.row>td.ap .apv{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+    overflow:hidden}
+  tr.row>td.ap .apv::before{content:"目标客户 ";color:var(--tx3);
+    font-size:11px;font-weight:650;letter-spacing:.2px}
+
+  /* ⑤ 空值格：窄屏不摆一排破折号 */
+  tr.row>td.m0{display:none}
+
+  /* ⑥ 展开详情：与卡片拼成一体（卡片去下圆角、详情去上圆角） */
+  tr.det.on{display:block;margin:0 0 10px;border:1px solid var(--bd2);
+    border-top:0;border-radius:0 0 14px 14px;background:var(--glass2);
+    overflow:hidden}
+  tr.det.on>td{display:block;padding:0;background:none}
+  tr.det.on .detwrap{padding:12px 13px;border-bottom:0}
+  tr.row.open{border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0}
+  .detgrid{grid-template-columns:1fr;gap:5px}
+  .detgrid .ditem>span{width:56px}
+
+  /* ⑦ 空结果 / 结果栏 / 分页 */
+  tbody>tr>td.empty{display:block;padding:40px 16px}
+  /* 状态页签的三颗胶囊带条数（在售 5266 / 已下架 0 / 全部 5266），320px 屏上
+     本来要 316px，比容器还宽 —— 会撑破整页（Chrome 随即把整页缩放）。
+     收内边距 + 允许自身横向滚动，宁可页签内部可滚，也不让页面变宽。 */
+  #tabs{flex:0 1 auto;min-width:0;max-width:100%;overflow-x:auto;scrollbar-width:none}
+  #tabs::-webkit-scrollbar{display:none}
+  #tabs button{padding:6px 9px;font-size:12px}
+  #stat{flex:1 1 100%;font-size:11.5px;line-height:1.75}
+  .rbar{padding:8px 2px;gap:7px}
+  #mcf{display:block;flex:0 0 auto;padding:7px 9px;border:1px solid var(--bd2);
+    border-radius:10px;font:inherit;font-size:12.5px;font-weight:600;
+    background:var(--glass3);color:var(--tx);color-scheme:light dark}
+  .pager{padding:12px 0 4px;gap:6px}
+  .pager button{padding:7px 12px;font-size:12.5px}
+  #pg{font-size:12px}
+
+  /* ⑧ 四网切换：4 颗「中国XX + N 条」胶囊在 370px 里放不下 —— 实测第 4 家
+     整个被挤出屏外，而横向滚动条是隐形的（scrollbar-width:none），
+     用户根本不知道还有一网。窄屏收掉条数胶囊、压缩内边距，四家全露出；
+     条数在下方「在售 / 已下架 / 本次变更」仍看得到。 */
+  .netnav-in{gap:2px;padding:3px}
+  .netbtn{padding:6px 9px;gap:5px;font-size:12.5px}
+  .netbtn .nc{display:none}
+  .netbtn .ndot{width:8px;height:8px;border-radius:2.5px}
 }
 </style>
 <!-- ══ PWA：图标 / manifest / 主题色 ══
@@ -903,6 +1040,9 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
     <select id="sort" title="选择排序字段；点表头列也能排"></select>
     <button type="button" id="dir" title="切换升序 / 降序">↓</button>
   </div>
+  <!-- 窄屏专用：表头在卡片视图里整体隐藏，列筛选入口改由这个下拉承担
+       （选项由脚本按 COLF_DEF 生成，桌面端 display:none 不出现）。 -->
+  <select id="mcf" aria-label="列筛选" title="按列筛选：勾选要保留的取值"></select>
 </div>
 <div class="tblwrap">
 <table>
@@ -2013,6 +2153,23 @@ function cfOpen(k,btn){
   pop.style.left=x+"px";pop.style.top=y+"px";
 }
 function cfClose(){const p=$("#cfpop");if(p)p.classList.remove("open");_cfKey=null}
+/* ── 窄屏列筛选入口（2026-10-17）────────────────────────────────────
+   ≤640px 卡片视图把 thead 整体隐藏，列头那枚▽漏斗随之消失 —— 而它是
+   「Excel 式按列多选」的唯一入口。这里用一个原生下拉补回：选一列就
+   复用同一个 #cfpop 面板（cfOpen 只依赖锚点元素的 rect，逻辑与样式
+   完全共用，不另起一套）。选项顺序与表头一致，桌面端的读法照旧。 */
+(function(){
+  const sel=$("#mcf");if(!sel)return;
+  const order=["fee","gb","call","name","ty","ow","bw","ap","on","off"];
+  sel.innerHTML='<option value="">列筛选…</option>'+order
+    .filter(k=>COLF_DEF[k])
+    .map(k=>'<option value="'+k+'">'+esc(COLF_DEF[k].lab)+'</option>').join("");
+  sel.onchange=()=>{
+    const k=sel.value;if(!k)return;
+    sel.value="";                     // 立刻复位：下次还能再选同一列
+    cfOpen(k,sel);
+  };
+})();
 /* 列筛 chip 文案：首个值 + 「等 N 项」；（空白）值要有名有姓 */
 function cfChipLab(k){
   const v=COLF[k]||[];
@@ -2580,9 +2737,13 @@ function zebrafy(){
    行出现在结果里却不高亮，命中原因要展开才找得到。hl 内部自带转义。 */
 function apCell(d,terms){
   const s=d.ap||"";
-  if(!s)return'<td class="ap">—</td>';
+  /* ★ 值包一层 .apv（2026-10-17）：窄屏要按行数截断（-webkit-line-clamp），
+     而直接把 td 设成 -webkit-box 会被 flex 项的块化规则改成 flow-root，
+     clamp 静默失效 —— 表现是「截断了高度、文字照样画到卡片外面」。
+     包一层普通 div 就没有这个问题；桌面端 div 是普通块级盒，渲染完全不变。 */
+  if(!s)return'<td class="ap m0">—</td>';
   return '<td class="ap"'+(s.length>90?' title="'+esc(s)+'"':"")+'>'
-    +hl(s,terms)+(s.length>90?"…":"")+'</td>';
+    +'<div class="apv">'+hl(s,terms)+(s.length>90?"…":"")+'</div></td>';
 }
 
 function render(){
@@ -2626,21 +2787,30 @@ function render(){
        ★ 键 v2（2026-10-04）＝「网|细分|名称」：v1「网|名称」会让同网同名的
          不同细分条目共享收藏状态。上游改名仍会失联 —— 那是键里没有稳定 id
          可用的设计限制（见 recheck-20261004 #7）。 */
+    /* ★ 每个数据格带一个 c-* 语义类名 + 空值标记 m0（2026-10-17）：
+       移动端把表格折成卡片后，靠这些类名决定「这格排第几行、标签写什么」，
+       而 m0 让「一整列全是 —」的格子在窄屏直接消失（移动端 92% 的行没有
+       流量、100% 没有通话，留着只是一排破折号）。桌面端这些类名不参与任何
+       样式，零影响。判断空值用的是与单元格渲染完全同源的判据，不会出现
+       「有值却标空」。 */
+    const gT=fmtGb(d.g), gE=gT==="—";
+    const cE=!(d.c&&d.c!=="0");
+    const bE=!bwInfo(d);
     buf.push('<tr class="row'+(isNew?" isnew":"")+(d.st?" stopped":"")+'" data-i="'+i+'" data-k="'+esc(keyOf(NET,d))+'" tabindex="0" title="点击展开详情 / 复制" aria-expanded="false">'
       +'<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元":"—")+'</td>'
-      +'<td>'+fmtGb(d.g)+'</td>'
-      +'<td>'+(d.c&&d.c!=="0"?'<span style="white-space:nowrap">'+esc(d.c)+" 分钟</span>":"—")+'</td>'
+      +'<td class="c-gb'+(gE?" m0":"")+'">'+gT+'</td>'
+      +'<td class="c-call'+(cE?" m0":"")+'">'+(cE?"—":'<span style="white-space:nowrap">'+esc(d.c)+" 分钟</span>")+'</td>'
       +'<td class="nm">'+scTag(d)+cityTag(d)+hl(rowName(d),terms)+chgTag(d)
         /* L1（2026-10-04）：「已下架」页签下整页每行都挂同一枚徽标 ——
            页签标题已声明状态，这里是纯冗余（联通 3177 行 × 1 枚）；
            「全部」页签下它才有区分度，保留。 */
         +(STA==="1"?"":stopTag(d))+vpTag(d)+'</td>'
-      +'<td><span class="tg" title="'+esc("大类："+(d.cat||"—")+(d.ty&&d.ty!==d.cat?" · 官方细分："+d.ty:"")+"；官方原始分类见展开详情")+'">'+esc(d.cat||"—")+'</span></td>'
-      +'<td>'+owTag(d)+'</td>'
-      +'<td>'+bwCell(d)+'</td>'
+      +'<td class="c-ty"><span class="tg" title="'+esc("大类："+(d.cat||"—")+(d.ty&&d.ty!==d.cat?" · 官方细分："+d.ty:"")+"；官方原始分类见展开详情")+'">'+esc(d.cat||"—")+'</span></td>'
+      +'<td class="c-ow'+(d.ow?"":" m0")+'">'+owTag(d)+'</td>'
+      +'<td class="c-bw'+(bE?" m0":"")+'">'+bwCell(d)+'</td>'
       +apCell(d,terms)
-      +'<td style="white-space:nowrap">'+onCell(d)+'</td>'
-      +'<td style="white-space:nowrap">'+offCell(d)+'</td></tr>'
+      +'<td class="c-on'+(d.o?"":" m0")+'" style="white-space:nowrap">'+onCell(d)+'</td>'
+      +'<td class="c-off'+(d.e?"":" m0")+'" style="white-space:nowrap">'+offCell(d)+'</td></tr>'
       /* 详情行**留空**（2026-10-17）：此前 80 行各生成一份详情 HTML（平均
          1.6 KB，合计 ~128 KB，占整表拼串的 73%），而 .det 默认全部收起 ——
          生成完就静静躺在 DOM 里等一个可能永远不来的点击。展开时才填（见
