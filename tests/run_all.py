@@ -91,6 +91,11 @@ TESTS = [
      "列筛选清单排序（四态 / 六列自然序 / 空白恒沉底 / 偏好落盘 / 合并勾选；需 node）",
      True),
 
+    ("font-asset",
+     [sys.executable, "tests/test_font_asset.py"],
+     "页面字体（Maple Mono 自托管 / 相对路径 / woff2 / 体积上限 / OFL 随附）",
+     True),
+
     ("pipeline-selftest",
      [sys.executable, "cloud/tariff/selftest_pipeline.py"],
      "集成缝自测（other_nets 四分支 / 返回契约 / note 覆盖）",

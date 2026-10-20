@@ -29,6 +29,20 @@
 <meta name="description" content="河北移动、联通、电信、广电四网资费套餐全量查询与每日变更监控，支持筛选、对比与变化历史追溯。">
 <meta name="keywords" content="河北资费,移动资费,联通资费,电信资费,广电资费,套餐查询,宽带资费">
 <style>
+/* ── 字体：Maple Mono（自托管，SIL OFL-1.1，2026-10-20）─────────────────
+   只装**拉丁子集**（400/600/700，共 229KB）。中文由系统字体回退 ——
+   Maple 的 CN 版整包 134MB、单 weight 也要几 MB，接进这个「断网可用 +
+   移动端」的页面不现实；而这张表真正需要等宽的是数字（19.9 元 / 30GB /
+   5275 / 日期），CJK 用系统字反而更协调。
+   ★ 自托管而不是 CDN：免责声明里「不引用任何外部域名资源」是硬承诺，
+     也是 tests/test_disclaimer.py 的判据；字体走同源相对路径。
+   ★ font-display:swap —— 字体没到时先用系统字体画，不许为 229KB 卡住首屏。 */
+@font-face{font-family:"Maple Mono";src:url("fonts/MapleMono-Regular.woff2") format("woff2");
+  font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Maple Mono";src:url("fonts/MapleMono-SemiBold.woff2") format("woff2");
+  font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:"Maple Mono";src:url("fonts/MapleMono-Bold.woff2") format("woff2");
+  font-weight:700;font-style:normal;font-display:swap}
 /* ══════════════════════════════════════════════════════════════════════
    河北四网资费查询页 —— 样式表（2026-10-01 极光版重设计）
    ★★ 一条硬规则（2026-09-24 事故后立的）：
@@ -82,7 +96,7 @@
 html,body{margin:0;padding:0}
 html{color-scheme:light dark}
 body{min-height:100vh;background:var(--bg1);color:var(--tx);
-  font:400 14px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+  font:400 14px/1.6 "Maple Mono",-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI","Microsoft YaHei",system-ui,sans-serif;
   overflow-x:hidden;transition:background .4s,color .4s}
 
 /* ── 极光背景 ─────────────────────────────────────────────────────
@@ -262,7 +276,7 @@ body{min-height:100vh;background:var(--bg1);color:var(--tx);
    压成一行小字后，顶部条 + 这一行就够「不想读条款的人」用 */
 .dscsum{margin:0 0 14px;font-size:12px;line-height:1.75;color:var(--tx3)}
 .dscsum a{color:var(--ac);text-decoration:none;border-bottom:1px solid currentColor}
-.dscl code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;
+.dscl code{font-family:"Maple Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;
   padding:1px 5px;border-radius:5px;background:var(--glass2);border:1px solid var(--bd2);
   color:var(--tx);white-space:nowrap}
 .dscl a{color:var(--ac);text-decoration:underline;text-underline-offset:2px}
@@ -1244,7 +1258,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
           </ul>
         </li>
         <li><b>抓取与使用边界</b><span>每网每日至多一次，按正常浏览节奏请求；遇 robots 限制或频率提示即停止该网采集；以真实浏览器访问，不破解验证码、不伪造身份、不绕过登录。数据持有方如认为抓取或展示方式不当，可要求停止相应网别的采集。</span></li>
-        <li><b>本地存储与隐私</b><span>不设 Cookie，不加载第三方脚本、统计或广告，不引用任何外部域名资源（断网可用，可在开发者工具中核对）。仅本地保存 6 项偏好：<code>hbtm_fav</code> / <code>hbtm_only_fav</code>（收藏与「只看收藏」）、<code>hbtm_psz</code>（每页条数）、<code>hb-tariff-theme</code>（深色 / 浅色）、<code>ft-fold</code>（筛选区收起）、<code>hbtm_cfsort</code>（列筛选清单的排序方式）；不离开设备、不与账号关联，清除站点数据即删除。托管方（GitHub Pages）可能按其政策记录访问日志，本站不接触、不分析。</span></li>
+        <li><b>本地存储与隐私</b><span>不设 Cookie，不加载第三方脚本、统计或广告，不引用任何外部域名资源（断网可用，可在开发者工具中核对）；页面字体 Maple Mono 随站点一同托管（SIL Open Font License 1.1，许可证随页面放在 fonts/LICENSE.txt，不请求任何字体 CDN）。仅本地保存 6 项偏好：<code>hbtm_fav</code> / <code>hbtm_only_fav</code>（收藏与「只看收藏」）、<code>hbtm_psz</code>（每页条数）、<code>hb-tariff-theme</code>（深色 / 浅色）、<code>ft-fold</code>（筛选区收起）、<code>hbtm_cfsort</code>（列筛选清单的排序方式）；不离开设备、不与账号关联，清除站点数据即删除。托管方（GitHub Pages）可能按其政策记录访问日志，本站不接触、不分析。</span></li>
         <li><b>责任与侵权处理</b><span>对因使用本页信息产生的损失，在法律允许的范围内不承担责任。<b class="dscwarn">本声明不排除依法不能排除的责任</b>（如故意或重大过失致财产损失），与法律冲突时以法律为准。套餐名称、资费内容与商标归各运营商所有，本页仅作展示与索引。权利人认为展示不当，请通过 <a href="https://github.com/starrry365/hebei-tariff-monitor/issues" target="_blank" rel="noopener noreferrer">GitHub issue</a> 提交：①真实身份 ②权属或初步证据 ③具体条目；核实后删除或调整。错误通知造成他人损失的，由通知人承担。</span></li>
       </ol>
 
