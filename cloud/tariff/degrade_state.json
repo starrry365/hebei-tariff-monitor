@@ -1,23 +1,23 @@
 {
  "move": {
   "rounds": 0,
-  "cleared": "2026-10-19 07:03:11"
+  "cleared": "2026-10-20 08:17:36"
  },
  "unicom": {
   "rounds": 0,
-  "last_ok": "2026-10-19 07:04:52",
-  "last_n": 8107,
-  "baseline_n": 8107
+  "last_ok": "2026-10-20 08:18:32",
+  "last_n": 8110,
+  "baseline_n": 8110
  },
  "cbn": {
   "rounds": 0,
-  "last_ok": "2026-10-19 07:06:04",
+  "last_ok": "2026-10-20 08:19:45",
   "last_n": 339,
   "baseline_n": 339
  },
  "telecom": {
   "rounds": 0,
-  "last_ok": "2026-10-19 07:06:04",
+  "last_ok": "2026-10-20 08:19:45",
   "last_n": 1307,
   "baseline_n": 1307
  }
