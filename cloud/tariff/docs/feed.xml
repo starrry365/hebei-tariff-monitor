@@ -9,7 +9,7 @@
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-22.md</link>
 <category>变更</category>
 <guid isPermaLink="false">2026-10-22-telecom</guid>
-<pubDate>Thu, 22 Oct 2026 15:30:05 +0800</pubDate>
+<pubDate>Thu, 22 Oct 2026 21:40:19 +0800</pubDate>
 <description>2026-10-22 河北电信：变更 17
 ± 视频汇聚（月包）
 ± 视频汇聚（月包）
@@ -18,12 +18,25 @@
 ± 25元1日中国澳门流量包</description>
 </item>
 <item>
-<title>2026-10-22 河北移动：新增 8 · 变更 10</title>
+<title>2026-10-22 河北联通：新增 1 · 变更 24</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-10-22.md</link>
+<category>新增</category><category>变更</category>
+<guid isPermaLink="false">2026-10-22-unicom</guid>
+<pubDate>Thu, 22 Oct 2026 21:43:08 +0800</pubDate>
+<description>2026-10-22 河北联通：新增 1 · 变更 24
+＋ 石家庄宽带赠费20元(立即)(12个月)[河北]
+± 2023校园专属1元10G流量包-立即生效（48个月）（河北定向）
+± 2023校园专属1元200G流量包-次月生效（48个月）（河北定向）
+± 2023校园专属1元200G流量包-立即生效（48个月）（河北定向）
+± 健康生活VIP（1周）</description>
+</item>
+<item>
+<title>2026-10-22 河北移动：新增 11 · 变更 16</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-10-22.md</link>
 <category>新增</category><category>变更</category>
 <guid isPermaLink="false">2026-10-22-move</guid>
-<pubDate>Thu, 22 Oct 2026 15:30:26 +0800</pubDate>
-<description>2026-10-22 河北移动：新增 8 · 变更 10
+<pubDate>Thu, 22 Oct 2026 21:40:48 +0800</pubDate>
+<description>2026-10-22 河北移动：新增 11 · 变更 16
 ＋ 高端机专属话费合约-1200元版
 ＋ 高端机专属话费合约-2400元版
 ＋ 咪咕影之刃零专属福利150元档
@@ -714,18 +727,5 @@
 ＋ 30元300分钟国内语音月包6个月（河北）-立即生效
 ＋ Ai外卖卡12元1200分钟国内语音包-1个月（河北）-立即生效
 ＋ Ai外卖卡35元350G流量-1个月（河北）-立即生效</description>
-</item>
-<item>
-<title>2026-09-25 河北移动：新增 5 · 下线 1 · 变更 95</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-09-25.md</link>
-<category>新增</category><category>下线</category><category>变更</category>
-<guid isPermaLink="false">2026-09-25-move</guid>
-<pubDate>Fri, 25 Sep 2026 22:24:31 +0800</pubDate>
-<description>2026-09-25 河北移动：新增 5 · 下线 1 · 变更 95
-＋ 90元返费优惠2026版（36个月）
-＋ 保定全家保
-＋ 保定医疗保险融合产品（普通版）
-＋ 保定医疗保险融合产品（老年版）
-＋ 保定家财保</description>
 </item>
 </channel></rss>
