@@ -1136,7 +1136,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       </div>
       <div class="fsec"><span class="glab">分类</span>
         <label class="f"><span class="fl">类型</span>
-          <select id="cat" title="资费大类：套餐 / 加装包 / 营销活动 / 标准资费 / 宽带 / 港澳台-国际">
+          <select id="cat" title="资费大类：(四网统一归类，选项按 CAT_ORDER 与数据自动生成)">
             <option value="">全部大类</option>
           </select></label>
         <label class="f" id="wty"><span class="fl">细分</span>
@@ -1475,9 +1475,22 @@ function prefetchRest(){
   })();
 }
 let _netLoading=null;
+/* ★ 首屏那次 hash 重放（2026-10-22 修）：readHash 在初始化里跑得很早，
+   而它设的是**下拉控件的值**；renderNet() 会按本网数据重建这些下拉，
+   重建即清空 —— 于是「带着筛选条件打开的链接」在首屏这一步被抹成了全部，
+   而地址栏里的参数还在（同步 hash 又把它写回去了），链接看起来完全正常。
+   判据只认**首屏第一次**：之后用户自己点的筛选不能被这里覆盖。 */
+let _bootHash=true;
+function replayBootHash(){
+  if(!_bootHash)return;
+  _bootHash=false;
+  const h=_hashPending||location.hash;
+  _hashPending=null;
+  if(h)readHash(h);
+}
 function applyWhenReady(){
   const c=NET,n=NETS[c]||{};
-  if(netReady(c)||!n.src_data){renderNet();apply();return}
+  if(netReady(c)||!n.src_data){renderNet();replayBootHash();apply();return}
   if(_netLoading!==c){
     _netLoading=c;
     $("#stat").style.display="";
@@ -1496,7 +1509,13 @@ function applyWhenReady(){
       +esc(n.nm||c)+'</b> 资费数据…</td></tr>';
     loadNet(c).then(()=>{
       if(_netLoading!==c)return;          // 载入途中已切走：本次结果作废
-      _netLoading=null;renderNet();apply();
+      _netLoading=null;renderNet();
+      /* 首屏带筛选条件打开时，readHash 因为下拉还没建出来而把 hash 挂起了
+         （见 _hashPending 声明处）：现在下拉已按本网建好，按原样重放一遍。
+         顺序必须是 renderNet → readHash → apply：反过来的话 renderNet 重建下拉
+         会把刚设进去的选中值清空。 */
+      replayBootHash();
+      apply();
       if("requestIdleCallback" in window)requestIdleCallback(prefetchRest,{timeout:3000});
       else setTimeout(prefetchRest,1800);
     }).catch(e=>{
@@ -3289,11 +3308,16 @@ function detHTML(d){
      ★ 天数只认「整段就是个期限」的写法（vp = "1天" / "有效期：30天"）：
        混在长句里的「90天内未激活可退」不是有效期，认错了比不认更糟。 */
   const _vpTxt=String(d.vp==null?"":d.vp).trim();
+  /* 速览条是否已经用「期限」格表达了有效期 —— 档案区据此去重（见下）。
+     ★ 只认「整段就是个期限」的原文：d.vp="1天" 会进条、档案就不再写一遍；
+       d.vp="产品自生效日期起有效期3年" 虽然也进条，但原文还有额外约束，
+       档案仍要留全文（那种长句正是要查证的东西）。 */
+  let _vpKpi=false;
   const _yr=/有效期[^。；]{0,8}?(\d{1,2})\s*年/.exec(_vpTxt);
-  if(_yr)ks.push([_yr[1]+'<small>年</small>',"有效期"]);
+  if(_yr){ks.push([_yr[1]+'<small>年</small>',"有效期"]);_vpKpi=true}
   else{
     const _dt=/^(?:有效期[：:]?\s*)?(\d{1,3})\s*(天|日|个月)/.exec(_vpTxt);
-    if(_dt)ks.push([_dt[1]+'<small>'+esc(_dt[2])+'</small>',"有效期"]);
+    if(_dt){ks.push([_dt[1]+'<small>'+esc(_dt[2])+'</small>',"有效期"]);_vpKpi=true}
   }
   const kpi=ks.length?'<div class="dkpi">'+ks.map(k=>
     '<div class="dk"><span class="dkv">'+k[0]+'</span><span class="dkl">'+k[1]+'</span></div>').join("")+'</div>':"";
@@ -3330,17 +3354,27 @@ function detHTML(d){
 
   /* 档案：查证用的低权重信息，不抢视觉。
      ★ 归属与大类已经戴在头部徽标上了 —— 截图那条「个人」「标准资费」在徽标和
-       档案里各说一遍，档案区白占两格还显得重复。只在官方分类与大类**不一致**时
-       才补这一行（「港澳台/国际」 vs「国际资费」这种差异仍是有效信息）。
+       档案里各说一遍，档案区白占两格还显得重复。只在大类与细分**不一致**时
+       才补这一行（「港澳台/国际」 vs「国际漫游」这种差异仍是有效信息）。
+     ★ 标签写「细分」而不是「官方分类」（2026-10-22 改）：d.ty 不全是上游原文 ——
+       移动/电信那批「国际漫游 / 港澳台 / 流量包 / 语音包」是构建期按产品名还原的
+       （上游没有二级栏目，见 tariff_monitor.classify_entry），标成「官方分类」
+       等于给一个自造值挂上官方背书。叫「细分」既准确，又与筛选面板同名同义。
      ★ 第三项 = 长值跨整行：阈值定在 60 字（实测 20–40 字的值放进半栏
        也就折两行，跨行反而把上一行挤空一格）；联通那种 220 字的
        「目标客户」才会真正撑爆半栏，那时才该独占一行。 */
   const meta=[];
-  if(d.ty&&d.ty!==d.cat)meta.push(["官方分类",esc(d.ty)]);
+  if(d.ty&&d.ty!==d.cat)meta.push(["细分",esc(d.ty)]);
   meta.push(["目标客户",esc(d.ap||"—"),String(d.ap||"").length>60]);
   meta.push(["地域",esc((SC_LB[d.sc]||"—")+(cityTags(d).length?" · "+cityTags(d).join("/"):""))]);
   meta.push(["上下线",esc((fmtD(d.o)||"—")+" ~ "+(fmtD(d.e)||"—"))]);
-  meta.push(["有效期",vpInfo(d)?(vpTag(d).trim()+' <span class="vpraw">'+esc(d.vp)+'</span>'):esc(d.vp||"—"),
+  /* 有效期去重：速览条已经给出「1天 / 3年」这种期限时，档案里不再把同一个值
+     写第二遍（截图那条就是「1天」在条上一格、档案里又一格）。判据是原文去掉
+     「有效期：」前缀后**本身就是那个期限** —— 原文带额外约束（「自订购日起
+     90天内有效，未使用自动失效」）时照旧全文保留，那也是要查证的信息。 */
+  const _vpPlain=_vpTxt.replace(/^有效期[：:]?\s*/,"");
+  const _vpDup=_vpKpi&&/^\d{1,3}\s*(天|日|个月|年)$/.test(_vpPlain);
+  if(!_vpDup)meta.push(["有效期",vpInfo(d)?(vpTag(d).trim()+' <span class="vpraw">'+esc(d.vp)+'</span>'):esc(d.vp||"—"),
     String(d.vp||"").length>60]);
   /* 报备编号不再进档案：它已经挂在标题下面那行（「报备号 24HE200634」），
      档案里再写一遍就是同一个号出现两次，还白占一格。 */
@@ -3883,9 +3917,17 @@ function syncHash(){
     try{history.replaceState(null,"",h?base+"#"+h:base)}catch(e){}
   }
 }
-function readHash(){
-  if(!location.hash)return;
-  const p=new URLSearchParams(location.hash.slice(1));
+/* ★ 数据还在异步载入时挂起的 hash（见 readHash 里的判断）。
+   四网 sidecar 是异步的：首屏那一刻下拉里连一个 option 都还没建出来，
+   「枚举参数先与实际 option 核对」这条保护会把**全部**筛选参数当成非法值丢掉，
+   于是分享出去的 #net=move&cat=套餐 打开就是「全部大类」—— 链接看着完全正常，
+   只是条件没生效（2026-10-22 实测：534 条的大类打开是 5551 条）。
+   这里先存住，等 applyWhenReady 载完数据后原样重放一次。 */
+let _hashPending=null;
+function readHash(replay){
+  const hs=replay||location.hash;
+  if(!hs)return;
+  const p=new URLSearchParams(hs.slice(1));
   /* net 必须**最先**处理：类型下拉是按网重建的，先设 ty 会设到一个此刻
      还不存在的 option 上（select.value 静默失败）⇒ 之后按空值过滤，
      表面看是「筛选没生效」，实际是网还没切。 */
@@ -3895,6 +3937,13 @@ function readHash(){
     $("#kw").value="";clearDims();
     clearChips();
     renderNav();renderNet();
+  }
+  /* ★ 本网数据还没到位（sidecar 仍在下载）⇒ 下面每条枚举参数都核不到 option，
+     整条 hash 会被当成非法值清掉。挂起等重放，别在这里硬设。
+     放在 net 处理**之后**：网已切定，重放时核对的才是这个网的下拉。 */
+  if(!replay&&!netReady(NET)&&(NETS[NET]||{}).src_data){
+    _hashPending=hs;
+    return;
   }
   $("#kw").value=p.get("kw")||"";
   /* 枚举型参数先与**实际存在的 option** 核对再写入。
