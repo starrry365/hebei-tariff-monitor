@@ -487,6 +487,11 @@ th.act .ar{opacity:1}
 /* overscroll-behavior:contain —— 触屏把清单划到底后，滚动链不要传到文档：
    一旦传到文档就变成「页面在滚」，外层判据会按外部滚动把面板收起。 */
 #cfpop .cfl{overflow:auto;overscroll-behavior:contain;padding:3px 0;min-height:36px}
+/* 虚拟滚动两层：.cfvp 用「总行数 × 行高」撑出真实滚动条，.cfvb 用 transform
+   把「当前可见的那几十行」搬到对应位置。DOM 里永远只有可见行，
+   4500 项的列和 8 项的列，滚动开销一样。 */
+#cfpop .cfvp{position:relative}
+#cfpop .cfvb{position:absolute;left:0;right:0;top:0}
 #cfpop label.cfi{display:flex;gap:7px;align-items:center;padding:4px 10px;cursor:pointer;font-size:12px}
 #cfpop label.cfi:hover{background:var(--card2)}
 #cfpop .cft{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -2478,7 +2483,13 @@ function cfMode(k){
   const m=CFS?CFS[k]:"";
   return CF_MODES.indexOf(m)>=0?m:(CF_ORD[k]?"val":"count");
 }
-const COLF_MAX=400;              // 清单 DOM 渲染上限（搜索可缩小）
+/* 清单**不截断**（2026-10-22 用户报「列表不全」）。
+   旧实现只渲前 400 项：联通「名称」列 7810 项里，7410 项在面板里压根不存在 ——
+   搜不到、勾不上，页面看着「少了东西」却没有任何报错。上限本身就是 bug。
+   代价是首开要建 7810 个 label（约 3 万节点），所以配套三件事，缺一不可：
+     ① 勾选 / 条数点击走**事件委托**（不再逐项绑 1.5 万个 handler）
+     ② 搜索框输入**防抖 120ms**（旧上限下每次按键重建 400 项，现在是 7810 项）
+     ③ 清单容器沿用 CSS 的 max-height，滚动行为不变                */
 let COLF={};                     // 列 key → 已勾选值数组；无键 = 该列不筛
 function cfActive(){return Object.keys(COLF).filter(k=>COLF[k]&&COLF[k].length)}
 /* 供面板 / 探针共用的设值入口：vals 空数组或 null = 该列不筛 */
@@ -2516,7 +2527,30 @@ function buildCfPop(){
     +'<button type="button" data-a="invert" title="勾选状态取反">反选</button>'
     +'<span class="cfn"></span></div><div class="cfl"></div>';
   document.body.appendChild(pop);
-  pop.querySelector("input").oninput=()=>cfRenderList();
+  /* 搜索防抖：清单不再截断，一次重建是 7810 项（旧上限下只有 400 项）。
+     每敲一个字符重建一遍会明显迟滞，合并成 120ms 一次 —— 输入框本身是
+     原生 input，文字跟手，只有清单晚一拍跟上。 */
+  let _qT=0;
+  pop.querySelector("input").oninput=()=>{clearTimeout(_qT);_qT=setTimeout(cfRenderList,120)};
+  /* 清单事件委托（只挂一次，重建多少次都只有这一个 handler）：
+     · 点条数 = 只看这一项；必须 preventDefault，否则 label 的默认 toggle 会
+       把刚勾上的这一项顺手取反
+     · 勾选变更 = 增量改 COLF，刻意不重渲清单（facet 口径下本列勾选不影响
+       本列条数，重渲只会把滚动位置抖没） */
+  const cfl=pop.querySelector(".cfl");
+  cfl.addEventListener("click",e=>{
+    const n=e.target.closest?e.target.closest(".cfn[data-v]"):null;
+    if(!n)return;
+    e.preventDefault();e.stopPropagation();
+    cfSet(_cfKey,[n.dataset.v]);cfApplySoon();cfSyncChecked();
+  });
+  cfl.addEventListener("change",e=>{
+    const cb=e.target;
+    if(!cb||cb.type!=="checkbox"||!cb.hasAttribute("data-v"))return;
+    const s=new Set(COLF[_cfKey]||[]);
+    if(cb.checked)s.add(cb.dataset.v);else s.delete(cb.dataset.v);
+    cfSet(_cfKey,[...s]);cfApplySoon();cfCount();
+  });
   pop.querySelector(".cfs").onchange=e=>{
     CFS[_cfKey]=e.target.value;
     try{localStorage.setItem(CFS_KEY,JSON.stringify(CFS))}catch(_){}
@@ -2563,45 +2597,71 @@ function cfCount(){
   el.textContent=n?"已勾 "+n+" / "+_cfItems.length+" 项"
                   :"未筛 · 全部 "+_cfItems.length+" 项";
 }
+/* ── 清单虚拟滚动（2026-10-22）────────────────────────────────────
+   去掉 400 项上限后，联通「名称」列 4550 项**全量**建 DOM 实测 622ms
+   （手机上更久），滚动也发涩。这里只把视口内的行放进 DOM（上下各留 8 行
+   缓冲），开面板回到 10ms 级，列表多长都一样。
+   行高取**实测值**而不是写死常量 —— 字体、页面缩放、系统 DPI 都会改它，
+   写死会在滚到第几千行时累积成几百像素的错位（滚动条位置对、内容却错位）。 */
+let _cfHit=[],_cfRH=27,_cfRHSet=false;
+function _cfRow(v){
+  const sel=(COLF[_cfKey]||[]),lb=v===""?"（空白）":v;
+  return '<label class="cfi"><input type="checkbox"'
+    +(sel.indexOf(v)>=0?" checked":"")+' data-v="'+esc(v)+'">'
+    +'<span class="cft" title="'+esc(lb)+'">'+esc(lb)+'</span>'
+    /* 条数可点 = 只选这一项（要「只看 0 元」不必先勾它再反选） */
+    +'<span class="cfn" data-v="'+esc(v)+'" title="只看这一项（其余都不勾）">'+_cfMp[v]+'</span></label>';
+}
+function cfPaint(){
+  const l=$("#cfpop .cfl");if(!l||!_cfKey)return;
+  if(!_cfHit.length){l.innerHTML='<div class="cfmore">无匹配取值</div>';return}
+  let vp=l.querySelector(".cfvp");
+  if(!vp){
+    l.innerHTML='<div class="cfvp"><div class="cfvb"></div></div>';
+    vp=l.querySelector(".cfvp");
+    /* 滚动**同步**重画，不排队到 rAF：只有几十行 innerHTML（<1ms），
+       而 rAF 在窗口失焦 / 标签页切走后会被浏览器暂停 —— 那时滚一下
+       位置变了、内容不跟着变，看起来就是「一片空」。 */
+    l.onscroll=()=>cfPaint();
+  }
+  const vb=vp.firstChild,n=_cfHit.length;
+  vp.style.height=(n*_cfRH)+"px";
+  /* 面板首次在 display:none 下渲染时 clientHeight 是 0，用 395 兜底；
+     open 之后 cfOpen 会再画一次，那时才是真实视口高度。 */
+  const vh=l.clientHeight||395,top=l.scrollTop;
+  const st=Math.max(0,Math.floor(top/_cfRH)-8);
+  const en=Math.min(n,Math.ceil((top+vh)/_cfRH)+8);
+  vb.style.transform="translateY("+(st*_cfRH)+"px)";
+  vb.innerHTML=_cfHit.slice(st,en).map(_cfRow).join("");
+  /* 首绘后量一次真实行高。三个坑都踩过：
+     ① 面板第一次是在 display:none 里画的，那时量到的 height 是 0 ——
+        所以「量到 0」不能算量过，得等 open 之后那次 cfPaint 再量
+     ② 实测行高 27.2px 而不是整数 27（font-size 12 + padding 8 自然撑出），
+        差 0.2px 看着无所谓，4550 行就是 900px 错位：滚到底时末行会被切掉一截。
+        所以只要量到就跟实测值走，不做「差不多就不改」的判断
+     ③ 必须**同步**量、不能排到 rAF：窗口失焦或标签页切走时 rAF 会被暂停，
+        那样行高永远测不到，一直用 27 的估值。 */
+  if(!_cfRHSet&&vb.firstChild){
+    const h=vb.firstChild.getBoundingClientRect().height;
+    if(h>8){
+      _cfRHSet=true;
+      if(_cfRH!==h){_cfRH=h;cfPaint()}
+    }
+  }
+}
 function cfRenderList(){
   const pop=$("#cfpop");if(!_cfKey||!pop)return;
   const q=pop.querySelector("input").value.trim().toLowerCase();
-  const sel=new Set(COLF[_cfKey]||[]);
-  const hit=_cfItems.filter(v=>!q||(v===""?"（空白）":v).toLowerCase().indexOf(q)>=0);
-  const show=hit.slice(0,COLF_MAX);
-  pop.querySelector(".cfl").innerHTML=
-    show.map(v=>{
-      const lb=v===""?"（空白）":v;
-      return '<label class="cfi"><input type="checkbox"'
-        +(sel.has(v)?" checked":"")+' data-v="'+esc(v)+'">'
-        +'<span class="cft" title="'+esc(lb)+'">'+esc(lb)+'</span>'
-        /* 条数可点 = 只选这一项（要「只看 0 元」不必先勾它再反选） */
-        +'<span class="cfn" data-v="'+esc(v)+'" title="只看这一项（其余都不勾）">'+_cfMp[v]+'</span></label>';
-    }).join("")
-    +(hit.length>COLF_MAX?'<div class="cfmore">共 '+hit.length+" 项，只列前 "+COLF_MAX
-      +" 项 —— 输入关键词缩小范围（勾选状态不受影响）</div>":"")
-    +(hit.length?"":'<div class="cfmore">无匹配取值</div>');
-  /* 「已勾 0 / 392 项」这个文案会骗人：不勾任何项的实际结果是**全部保留**，
-     看着却像「一个都没选、结果为空」。空勾选单独说清楚。 */
+  _cfHit=_cfItems.filter(v=>!q||(v===""?"（空白）":v).toLowerCase().indexOf(q)>=0);
+  /* 清掉旧窗口再画：搜索 / 换列都该回到顶部（换列时 cfOpen 会置 scrollTop） */
+  const l=pop.querySelector(".cfl");
+  l.innerHTML="";l.scrollTop=0;
+  cfPaint();
   cfCount();
-  pop.querySelectorAll(".cfl .cfn").forEach(el=>{
-    el.onclick=e=>{
-      /* label 内任意位置的点击默认会去 toggle 那个 checkbox —— 不拦住的话
-         「只看这一项」会变成「勾上这一项 + 顺手把它取反」 */
-      e.preventDefault();e.stopPropagation();
-      cfSet(_cfKey,[el.dataset.v]);cfApplySoon();cfRenderList();
-    };
-  });
-  pop.querySelectorAll(".cfl input").forEach(cb=>{
-    cb.onchange=()=>{
-      const s=new Set(COLF[_cfKey]||[]);
-      if(cb.checked)s.add(cb.dataset.v);else s.delete(cb.dataset.v);
-      cfSet(_cfKey,[...s]);cfApplySoon();cfCount();
-      /* 刻意不重渲染清单：facet 口径下本列的勾选不影响本列条数，
-         重渲染反而把用户滚动到的位置抖没了。徽标与计数由 syncCfx/上面那行覆盖。 */
-    };
-  });
 }
+/* 勾选态变化：只重画可见窗口，那几十行的 checked 由 COLF 重新算，
+   不重建整张清单（原因见上：重建 4550 项要 600ms，还会丢滚动位置）。 */
+function cfSyncChecked(){cfPaint();cfCount()}
 function cfOpen(k,btn){
   const pop=$("#cfpop")||buildCfPop();
   if(_cfKey===k&&pop.classList.contains("open")){cfClose();return}   // 再点同一漏斗 = 收起
@@ -2624,6 +2684,9 @@ function cfOpen(k,btn){
   x=Math.max(8,Math.min(x,window.innerWidth-pop.offsetWidth-8));
   if(y+pop.offsetHeight>window.innerHeight-8)y=Math.max(8,r.top-pop.offsetHeight-4);
   pop.style.left=x+"px";pop.style.top=y+"px";
+  /* open 前 clientHeight 还是 0，上面那一帧是按兜底高度算的窗口，
+     这里用真实视口高度重画一次（多画十几行而已，代价可忽略）。 */
+  cfPaint();
 }
 function cfClose(){const p=$("#cfpop");if(p)p.classList.remove("open");_cfKey=null}
 /* 勾选即生效，但一次 apply() 实测 190ms（5275 行全量重渲）。连挑 8 个值
