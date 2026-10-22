@@ -1136,7 +1136,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       </div>
       <div class="fsec"><span class="glab">分类</span>
         <label class="f"><span class="fl">类型</span>
-          <select id="cat" title="资费大类：(四网统一归类，选项按 CAT_ORDER 与数据自动生成)">
+          <select id="cat" title="资费大类（四网统一归类，选项随数据自动生成）">
             <option value="">全部大类</option>
           </select></label>
         <label class="f" id="wty"><span class="fl">细分</span>
@@ -3354,17 +3354,13 @@ function detHTML(d){
 
   /* 档案：查证用的低权重信息，不抢视觉。
      ★ 归属与大类已经戴在头部徽标上了 —— 截图那条「个人」「标准资费」在徽标和
-       档案里各说一遍，档案区白占两格还显得重复。只在大类与细分**不一致**时
-       才补这一行（「港澳台/国际」 vs「国际漫游」这种差异仍是有效信息）。
-     ★ 标签写「细分」而不是「官方分类」（2026-10-22 改）：d.ty 不全是上游原文 ——
-       移动/电信那批「国际漫游 / 港澳台 / 流量包 / 语音包」是构建期按产品名还原的
-       （上游没有二级栏目，见 tariff_monitor.classify_entry），标成「官方分类」
-       等于给一个自造值挂上官方背书。叫「细分」既准确，又与筛选面板同名同义。
+       档案里各说一遍，档案区白占两格还显得重复。只在官方分类与大类**不一致**时
+       才补这一行（「港澳台/国际」 vs「港澳台/国际资费」这种差异仍是有效信息）。
      ★ 第三项 = 长值跨整行：阈值定在 60 字（实测 20–40 字的值放进半栏
        也就折两行，跨行反而把上一行挤空一格）；联通那种 220 字的
        「目标客户」才会真正撑爆半栏，那时才该独占一行。 */
   const meta=[];
-  if(d.ty&&d.ty!==d.cat)meta.push(["细分",esc(d.ty)]);
+  if(d.ty&&d.ty!==d.cat)meta.push(["官方分类",esc(d.ty)]);
   meta.push(["目标客户",esc(d.ap||"—"),String(d.ap||"").length>60]);
   meta.push(["地域",esc((SC_LB[d.sc]||"—")+(cityTags(d).length?" · "+cityTags(d).join("/"):""))]);
   meta.push(["上下线",esc((fmtD(d.o)||"—")+" ~ "+(fmtD(d.e)||"—"))]);
