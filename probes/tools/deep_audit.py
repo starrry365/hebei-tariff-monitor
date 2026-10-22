@@ -142,11 +142,20 @@ for net in NET_LS:
             bad("R14l1冗余", net, k)
         if "l2" in r and r.get("l2") == r.get("ty"):
             bad("R14l2冗余", net, k)
-        # R15 截断上限（页面显示按此设计）
-        for f, lim in (("n", 120), ("t", 80), ("x", 500), ("ap", 220),
-                       ("vp", 200), ("ex", 200), ("ch", 120)):
-            if len(str(r.get(f) or "")) > lim:
-                bad("R15超长", net, k, "%s len=%d" % (f, len(r.get(f))))
+        # R15 文本上限：数字一律取 tm.LIM（与采集/页面同源，本项目不许出现第二份）。
+        # 2026-10-22 之前这里写死 x≤500、采集写 1200 —— 两个数从来没对齐过，
+        # 后果是双向的：9 条「上游原文本来就 500~760 字」的天天报红（报警沦成
+        # 噪音），而 5 条真被砍断（句子停在「④合约业务订购成功后次月」）的一条不报。
+        for f in ("n", "t", "x", "ap", "vp", "ex", "ch"):
+            v = str(r.get(f) or "")
+            if len(v) > tm.LIM[f]:
+                bad("R15超长", net, k, "%s len=%d > %d" % (f, len(v), tm.LIM[f]))
+        # R15b 截断必须自声明。上限本身**结构上发现不了截断**：被砍的行
+        # len 恒等于 cap，永远不越界。所以判据换成「顶到上限就得带 CUT_MARK」——
+        # 读者不该被一句断在半截的官方条款骗过去。
+        xv = str(r.get("x") or "")
+        if len(xv) >= tm.LIM["x"] and not xv.endswith(tm.CUT_MARK):
+            bad("R15b静默截断", net, k, "x len=%d 无截断标记" % len(xv))
         # R16 板块取值域（观察值收集，末尾统一报告）
         if "sect" in r:
             stat.setdefault("sect", set()).add(r["sect"])

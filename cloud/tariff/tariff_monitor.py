@@ -91,6 +91,20 @@ DEGRADE_ACCEPT_ROUNDS = getattr(G, "DEGRADE_ACCEPT_ROUNDS", 3) if G else 3
 # 它入库，CI 每轮提交 —— 与 history.json 同理。
 DEGRADE_STATE = os.path.join(BASE, "degrade_state.json")
 
+# ── 文本字段长度上限：**唯一真相在这里** ────────────────────────────────────
+# 2026-10-22 之前有两份数字：采集写 x≤1200、审计(deep_audit R15)写 x≤500。
+# 两个数从来没对齐过，后果是双向的：
+#   ① 9 条「上游原文本来就 500~760 字」的记录天天报红 —— 报警含义变成噪音；
+#   ② 真正的截断（5 条超过 1200 被砍、句子断在「④合约业务订购成功后次月」）
+#      反而一个字都不报 —— 上限等于上限，len 永远恰好等于 cap，这种判据
+#      结构上**不可能**发现截断。
+# 现在：采集/审计/页面共用这一份 LIM；超限不是静默砍掉，而是**自己声明**
+# （CUT_MARK），于是「数据里出现静默截断」变成一条可检的不变量（见 R15b）。
+# x 上限取 4000：实测四网最长原文 1951 字（联通活动规则），留一倍余量；
+# 全量放开的代价也只有 3.8KB（截 1200 → 不截），没必要为这点体积牺牲完整性。
+LIM = {"n": 120, "t": 80, "x": 4000, "ap": 220, "vp": 200, "ex": 200, "ch": 120}
+CUT_MARK = "……（原文过长，已截断）"
+
 ROOT = "https://h.app.coc.10086.cn/website/nrapigate/"
 REF = ("https://h.app.coc.10086.cn/cmcc-app/uni-pages/tariffZonePers.html"
        "?pageId=1834149966764851200&channelId=P00000132579&yx=1390478183")
@@ -2152,7 +2166,7 @@ def rows_of(o, diff=None, code=""):
                     if extra:
                         cty = _uniq(list(cty) + extra)
 
-            def s(k, n=400, nl=False):
+            def s(k, n=400, nl=False, mark=False):
                 """取上游文本字段，默认把换行压成空格。
 
                 ``nl=True`` 时**保留原文换行**（2026-10-22）：权益说明的换行不是
@@ -2161,30 +2175,42 @@ def rows_of(o, diff=None, code=""):
                 的条目只有换行没有编号（移动 1504 条、电信 660 条），压掉就再也
                 分不出来了。页面上按行渲染（见 template.html 的 xSplit）。
                 连续空行压成一个，行首尾空白去掉 —— 只为瘦身，不改语义。
+
+                ``mark=True`` 时超限**不留静默截断**：尾巴上补 CUT_MARK，读者
+                一眼知道「官方原文比这更长」，审计也能据此判定（R15b）。
+                截断长度把标记本身算在内，所以返回长度恒 ≤ n。
                 """
                 v = e.get(k)
                 if v in (None, "None"):
                     return ""
                 t = str(v)
-                if not nl:
-                    return t.replace("\n", " ")[:n]
-                t = t.replace("\r\n", "\n").replace("\r", "\n")
-                t = "\n".join(ln.strip() for ln in t.split("\n"))
-                t = re.sub(r"\n{2,}", "\n", t).strip()
-                return t[:n]
-            chn = s("channel", 120)
+                if nl:
+                    t = t.replace("\r\n", "\n").replace("\r", "\n")
+                    t = "\n".join(ln.strip() for ln in t.split("\n"))
+                    t = re.sub(r"\n{2,}", "\n", t).strip()
+                else:
+                    t = t.replace("\n", " ")
+                if len(t) <= n:
+                    return t
+                if not mark:
+                    return t[:n]
+                return t[:max(0, n - len(CUT_MARK))] + CUT_MARK
+            chn = s("channel", LIM["ch"])
             # ★ 流量「数值 + 单位」先归一（见 du_norm）：上游写法四网各不相同，
             #   不归一就会出现「100M 认不出单位 ⇒ 流量筛选把它漏掉」这类静默错。
             #   `g` 由**归一后**的 (d, du) 算，三者口径必然一致。
             d_n, du_n = du_norm(e.get("data"), e.get("dataUnit"))
-            rec = {"n": s("name", 120), "t": s("tariffName", 80),
+            rec = {"n": s("name", LIM["n"]), "t": s("tariffName", LIM["t"]),
                    "f": fee_norm(s("fees", 20)), "d": d_n, "du": du_n,
                    "c": s("call", 20), "g": gb(d_n, du_n),
-                   "ap": s("applicablePeople", 220), "ch": chn,
+                   "ap": s("applicablePeople", LIM["ap"]), "ch": chn,
                    "o": s("onlineDay", 12), "e": s("offineDay", 12),
                    "ty": sub, "a1": attr, "r": s("reportNo", 30),
-                   "x": s("otherContent", 1200, nl=True), "ex": s("extraFees", 200),
-                   "vp": s("validPeriod", 200), "bw": s("brandwidth", 40),
+                   # x 是唯一允许「很长」的字段（权益说明=官方活动规则原文），
+                   # 也是唯一带截断标记的：被砍时必须自己说出来（CUT_MARK）。
+                   "x": s("otherContent", LIM["x"], nl=True, mark=True),
+                   "ex": s("extraFees", LIM["ex"]),
+                   "vp": s("validPeriod", LIM["vp"]), "bw": s("brandwidth", 40),
                    "sc": sc,
                    # ★ 归一化结果在**构建期**算好写进行数据（而不是让页面查表）：
                    #   ① 页面只读不算，筛选/CSV/统计三处不会各算一遍导致口径漂移；
