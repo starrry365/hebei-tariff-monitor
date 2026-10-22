@@ -5,6 +5,32 @@
 <description>河北移动/联通/电信/广电资费目录每日巡检捕获的业务变更（新增 / 下线 / 字段变更）</description>
 <language>zh-CN</language>
 <item>
+<title>2026-10-22 河北电信：变更 15</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-22.md</link>
+<category>变更</category>
+<guid isPermaLink="false">2026-10-22-telecom</guid>
+<pubDate>Thu, 22 Oct 2026 07:59:13 +0800</pubDate>
+<description>2026-10-22 河北电信：变更 15
+± 0元100MB1日国漫业务促销流量包
+± 14.9元1GB1日国漫业务流量包
+± 25元1日中国澳门流量包
+± 25元1日中国香港流量包
+± 25元1日泰国流量包</description>
+</item>
+<item>
+<title>2026-10-22 河北移动：新增 7 · 变更 4</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-10-22.md</link>
+<category>新增</category><category>变更</category>
+<guid isPermaLink="false">2026-10-22-move</guid>
+<pubDate>Thu, 22 Oct 2026 08:00:06 +0800</pubDate>
+<description>2026-10-22 河北移动：新增 7 · 变更 4
+＋ 高端机专属话费合约-1200元版
+＋ 高端机专属话费合约-2400元版
+＋ 咪咕影之刃零专属福利150元档
+＋ 咪咕影之刃零专属福利50元档
+＋ 咪咕影之刃零标准版</description>
+</item>
+<item>
 <title>2026-10-21 河北电信：变更 2</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-21.md</link>
 <category>变更</category>
@@ -701,30 +727,5 @@
 ＋ 保定医疗保险融合产品（普通版）
 ＋ 保定医疗保险融合产品（老年版）
 ＋ 保定家财保</description>
-</item>
-<item>
-<title>2026-09-25 河北电信：下线 71</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-09-25.md</link>
-<category>下线</category>
-<guid isPermaLink="false">2026-09-25-telecom</guid>
-<pubDate>Fri, 25 Sep 2026 22:23:36 +0800</pubDate>
-<description>2026-09-25 河北电信：下线 71
-－ 【租机】橙分期-天翼畅享199元套餐201910
-－ 【租机】橙分期-天翼畅享79元套餐201910
-－ 【租机】橙分期-天翼畅享99元套餐201910
-－ 【租机】橙分期-天翼畅享299元套餐201910</description>
-</item>
-<item>
-<title>2026-09-24 河北联通：新增 130 · 下线 1 · 变更 9</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-09-24.md</link>
-<category>新增</category><category>下线</category><category>变更</category>
-<guid isPermaLink="false">2026-09-24-unicom</guid>
-<pubDate>Thu, 24 Sep 2026 17:11:57 +0800</pubDate>
-<description>2026-09-24 河北联通：新增 130 · 下线 1 · 变更 9
-＋ 1000M包月0元（华油专享）（河北）
-＋ 200M包1年240元特惠（河北）
-＋ 200M包1年360元特惠（河北）
-＋ 600M包月0元（华油专享）（河北）
-＋ 联通智家5G云智华油专属套餐109元档（河北）</description>
 </item>
 </channel></rss>
