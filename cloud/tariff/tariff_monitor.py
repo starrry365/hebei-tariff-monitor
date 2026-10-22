@@ -2152,9 +2152,26 @@ def rows_of(o, diff=None, code=""):
                     if extra:
                         cty = _uniq(list(cty) + extra)
 
-            def s(k, n=400):
+            def s(k, n=400, nl=False):
+                """取上游文本字段，默认把换行压成空格。
+
+                ``nl=True`` 时**保留原文换行**（2026-10-22）：权益说明的换行不是
+                排版噪音，而是上游自带的条目分隔 —— 压成空格后，页面拿到的就是
+                一整坨文字，想分条只能靠「1、2、」这类编号猜，实测四网有 28%–50%
+                的条目只有换行没有编号（移动 1504 条、电信 660 条），压掉就再也
+                分不出来了。页面上按行渲染（见 template.html 的 xSplit）。
+                连续空行压成一个，行首尾空白去掉 —— 只为瘦身，不改语义。
+                """
                 v = e.get(k)
-                return "" if v in (None, "None") else str(v).replace("\n", " ")[:n]
+                if v in (None, "None"):
+                    return ""
+                t = str(v)
+                if not nl:
+                    return t.replace("\n", " ")[:n]
+                t = t.replace("\r\n", "\n").replace("\r", "\n")
+                t = "\n".join(ln.strip() for ln in t.split("\n"))
+                t = re.sub(r"\n{2,}", "\n", t).strip()
+                return t[:n]
             chn = s("channel", 120)
             # ★ 流量「数值 + 单位」先归一（见 du_norm）：上游写法四网各不相同，
             #   不归一就会出现「100M 认不出单位 ⇒ 流量筛选把它漏掉」这类静默错。
@@ -2166,7 +2183,7 @@ def rows_of(o, diff=None, code=""):
                    "ap": s("applicablePeople", 220), "ch": chn,
                    "o": s("onlineDay", 12), "e": s("offineDay", 12),
                    "ty": sub, "a1": attr, "r": s("reportNo", 30),
-                   "x": s("otherContent", 500), "ex": s("extraFees", 200),
+                   "x": s("otherContent", 1200, nl=True), "ex": s("extraFees", 200),
                    "vp": s("validPeriod", 200), "bw": s("brandwidth", 40),
                    "sc": sc,
                    # ★ 归一化结果在**构建期**算好写进行数据（而不是让页面查表）：
@@ -2209,6 +2226,18 @@ def rows_of(o, diff=None, code=""):
                     oth_parts.append("合约期时长：" + du_v)
             if oth_parts:
                 rec["oth"] = "；".join(oth_parts)[:400]
+
+            # ★ 退订说明（2026-10-22）：移动上游的 unsubscribe 字段此前**从未进过
+            #   页面**（只被 condHits 当扫描源蘸过一遍），实测 5270/5275 条都有实质
+            #   内容 —— 「90 天内未激活可退订，已激活不可退」「中途取消预存话费不退
+            #   不转」这类条款直接影响要不要办，却在页面上一条都看不到。
+            #   电信 / 联通 / 广电上游没有这个字段（实测非空 0 条），所以这是移动
+            #   独有的一栏，缺了就是缺了，不当成「采漏」报。
+            #   🔴 不并进 rsp：rsp 是「违约责任」，退订是「退出路径」，用户的问法
+            #   不同（「办错了怎么办」vs「要不要赔」），并成一栏就得分不清谁是谁。
+            ub_v = s("unsubscribe", 500)
+            if ub_v and ub_v not in ("-", "无", "—"):
+                rec["ub"] = ub_v
 
             # ★ 板块：本网该字段真有两档才写。电信原是写死的 "2"（单档不落盘），
             #   2026-10-03 集团公示块接入后 _attrs={2,3}，电信也有了这一维。

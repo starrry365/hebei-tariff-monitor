@@ -582,9 +582,6 @@ th.thnone:hover{opacity:1}
    独占单元格后归零、字号提一档（11→11.5）让档位颜色更醒目 */
 .vpc{white-space:nowrap}
 .vpc .vptg{margin-left:0;font-size:11.5px;line-height:19px}
-.ditem.vp-hi{background:var(--warnbg);border-radius:8px;padding:4px 8px;margin:2px -4px}
-.ditem.vp-hi em{font-style:normal}
-.ditem.vp-hi .vpraw{color:var(--tx)}
 /* 归属徽标：类名用 bg-ow / bg-ow-g，不拼中文标识符（压缩/正则处理时是常见坑） */
 .bg-ow{background:var(--ac2);color:var(--ac)}
 .bg-ow-g{background:var(--warnbg);color:var(--warn)}
@@ -593,12 +590,95 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 .det{display:none}
 .det.on{display:table-row}
 .det>td{padding:0;background:var(--glass2)}
-.det .detwrap{padding:13px 16px;border-bottom:1px solid var(--bd2)}
-/* 详情：定义列表网格（标签在左、内容在右，两列自适应） */
-.detgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:7px 26px;font-size:12.5px;line-height:1.75}
-.detgrid .ditem{display:flex;gap:9px;min-width:0}
-.detgrid .ditem>span{flex:none;width:64px;color:var(--tx3);font-weight:600;font-size:11.5px;padding-top:1px}
-.detgrid .ditem>em{font-style:normal;color:var(--tx);word-break:break-all;min-width:0}
+.det .detwrap{padding:14px 16px 15px;border-bottom:1px solid var(--bd2)}
+/* ── 详情面板（2026-10-22 重做）─────────────────────────────────────
+   旧版把 18 个字段一视同仁塞进 auto-fill minmax(330px) 的单一网格：
+   没有层级，权益说明那种 200 字长文被压进 1/3 列宽成一坨，而「月费多少 /
+   有没有宽带」这些决定要不要办的项沉在中间几行。
+   新版按读者的问题顺序分组：这是什么 → 多少钱多少量 → 权益 → 费用细账 →
+   宽带 → 怎么办怎么退 → 档案。层级靠**分区标题 + 细分隔线**建立，不用卡片：
+   卡片会把本来就窄的行内空间再切碎，边框一多还会和表格的斑马纹打架。
+   ★ 颜色全部走现有变量，深色主题不另写一份。 */
+.dhead{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start;justify-content:space-between}
+.dhd{min-width:0;flex:1 1 320px}
+.dname{margin:0;font-size:15.5px;font-weight:700;line-height:1.4;letter-spacing:.2px;
+  color:var(--tx);word-break:break-word}
+.dsub{margin-top:4px;display:flex;flex-wrap:wrap;gap:2px 14px;font-size:12px;color:var(--tx3);line-height:1.6}
+.dtags{display:flex;flex-wrap:wrap;gap:6px;flex:none;padding-top:1px}
+.dtg{padding:1px 8px;border-radius:6px;font-size:11.5px;font-weight:600;line-height:19px;
+  background:var(--card3);color:var(--tx2);white-space:nowrap}
+.dtg-on{background:var(--okbg);color:var(--ok)}
+.dtg-off{background:var(--badbg);color:var(--bad)}
+.dtg-new{background:var(--ac2);color:var(--ac)}
+.dtg-ck{background:var(--warnbg);color:var(--warn)}
+/* 速览条：四格关键量。用等分栅格 + 极细竖线 —— 详情行能有两千多像素宽，
+   四格挤在左侧会显得头重脚轻；窄屏退回两列（第二行首格不带左线）。 */
+.dkpi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;
+  margin:13px 0 0;padding:11px 0;border-top:1px solid var(--bd2);border-bottom:1px solid var(--bd2)}
+.dk{min-width:0;padding:0 20px;border-left:1px solid var(--bd2)}
+.dk:first-child{padding-left:0;border-left:0}
+.dkv{display:block;font-size:19px;font-weight:700;line-height:1.25;color:var(--tx);
+  font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+.dkv small{font-size:11.5px;font-weight:600;color:var(--tx3);margin-left:2px;letter-spacing:0}
+.dkv .dno{color:var(--tx2);font-weight:600;font-size:15px}
+.dkl{display:block;font-size:11px;color:var(--tx3);margin-top:3px;letter-spacing:.4px}
+/* 分区标题：左侧色条 + 计数，靠 margin 拉开节奏（不画分割线，避免和斑马纹同频） */
+.dsec{margin-top:16px}
+.dsect{display:flex;align-items:center;gap:7px;margin:0 0 7px;
+  font-size:11.5px;font-weight:700;color:var(--tx2);letter-spacing:.6px}
+.dsect::before{content:'';width:3px;height:11px;border-radius:2px;background:var(--ac);flex:none}
+.dsect .dcnt{margin-left:5px;font-weight:500;color:var(--tx3);letter-spacing:0;font-size:11px}
+/* 权益说明：逐条渲染。序号块定宽，长条目自动折行对齐到正文列。
+   ★ 宽屏分两栏（2026-10-22）：详情行宽能到 1400px 以上，单栏一行要排 100 个汉字，
+     眼睛横跨整个屏幕才能读完一句。两栏 + 条目不断行，行宽落回 ~55 字。 */
+.xlist{margin:0;padding:0;list-style:none}
+.xlist>li{display:flex;gap:10px;padding:6px 0;font-size:12.5px;line-height:1.78}
+.xlist>li+li{border-top:1px dashed var(--bd2)}
+@media (min-width:1100px){
+  .xlist{columns:2;column-gap:44px;column-rule:1px solid var(--bd2)}
+  .xlist>li{break-inside:avoid;padding:5px 0}
+  .xlist>li+li{border-top:0}
+}
+.xn{flex:none;min-width:17px;height:17px;padding:0 4px;margin-top:2px;border-radius:5px;background:var(--ac2);
+  color:var(--ac);font-size:10.5px;font-weight:700;line-height:17px;text-align:center;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.xn-sp{background:var(--card3);color:var(--tx3);padding:0;width:17px}   /* 无编号 / 段头：占位对齐 */
+/* 二级条目（「（一）（二）」这种中文明细）：缩进半格 + 浅一档，不和大条抢层级 */
+.xn-2{background:var(--card3);color:var(--tx2);font-weight:600}
+.xlist>li.xsub{padding-left:16px}
+.xlist>li.xsub .xc{font-size:12px}
+.xc{min-width:0;flex:1}
+.xl{font-weight:700;color:var(--tx2);margin-right:1px}
+.xl::after{content:'：';color:var(--tx3);font-weight:600}
+.xk{font-style:normal;background:var(--ac2);color:var(--ac);border-radius:4px;padding:0 3px;
+  font-weight:600;font-variant-numeric:tabular-nums}
+.xhead .xc{font-weight:700;color:var(--tx2)}
+/* 无编号的整段权益：原文就是一整块（移动「邢台爱家光网」那条 300 字不分段），
+   不限宽会排到 100 字/行。收到 ~66 个汉字，右侧留白不影响左对齐的阅读动线。 */
+.xpara{margin:0;font-size:12.5px;line-height:1.85;color:var(--tx);max-width:830px}
+/* 费用细账 / 办理条款：标签列 + 正文列，左对齐两段式 */
+.drows{display:grid;gap:7px}
+.drow{display:flex;gap:10px;font-size:12.5px;line-height:1.78}
+.drow>.dl{flex:none;width:66px;color:var(--tx3);font-weight:600;font-size:11.5px;padding-top:1px}
+.drow>.db{min-width:0;flex:1;max-width:860px;color:var(--tx);word-break:break-word}
+.drow-em>.db{background:var(--warnbg);border-radius:7px;padding:4px 9px;margin:-4px -9px}
+/* 条款逐条成行：徽章在前、片段在后；超长片段换行时不再顶回徽章左侧 */
+.ctln{line-height:1.78}
+.ctln+.ctln{margin-top:5px}
+.dmut{color:var(--tx3)}
+/* 宽带：结论在前、官方原文在后 */
+.dbw{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:12.5px;line-height:1.75}
+.dbwv{font-size:14.5px;font-weight:700;color:var(--tx)}
+.dbwv-no{color:var(--tx2)}
+.dbwv .bwtg{font-size:11.5px;vertical-align:1px}
+.dbwraw{color:var(--tx3);font-size:12px}
+/* 档案：低权重、密排（这些字段是查证用的，不该抢视觉） */
+.dmeta{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:5px 26px;
+  font-size:12.5px;line-height:1.7}
+.dmeta .mi{display:flex;gap:9px;min-width:0}
+.dmeta .mi>span{flex:none;width:60px;color:var(--tx3);font-weight:600;font-size:11.5px;padding-top:1px}
+.dmeta .mi>em{font-style:normal;color:var(--tx);min-width:0;word-break:break-all}
+
 .ailine{margin-top:11px;display:flex;flex-wrap:wrap;gap:5px;align-items:center;line-height:1.85}
 .ailine b{color:var(--tx2);font-weight:600}
 .aichip{padding:2px 10px;border-radius:999px;background:var(--okbg);color:var(--ok);
@@ -775,7 +855,6 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
      窄屏上「能看全」优先于「表头钉住」。 */
   .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--r)}
   table{min-width:640px}
-  .detgrid{grid-template-columns:1fr}
   .rbar{gap:8px}
   .pager{flex-wrap:wrap;gap:6px}
   .pjump{display:none}
@@ -890,8 +969,12 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   tr.det.on>td{display:block;padding:0;background:none}
   tr.det.on .detwrap{padding:12px 13px;border-bottom:0}
   tr.row.open{border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0}
-  .detgrid{grid-template-columns:1fr;gap:5px}
-  .detgrid .ditem>span{width:56px}
+  /* 详情面板在窄屏：速览条两列（19px 的数字一列放不下四格）、档案单列 */
+  .dkpi{grid-template-columns:1fr 1fr;gap:10px 0}
+  .dk:nth-child(3){padding-left:0;border-left:0}
+  .dkv{font-size:17px}
+  .dmeta{grid-template-columns:1fr;gap:4px}
+  .drow>.dl{width:56px}
 
   /* ⑦ 空结果 / 结果栏 / 分页 */
   tbody>tr>td.empty{display:block;padding:40px 16px}
@@ -2982,44 +3065,235 @@ function openFavAll(){
   const c=document.getElementById("favAllClose");if(c)c.onclick=()=>ov.remove();
 }
 
-/* —— 详情展开区：定义列表网格（标签在左、内容在右，自适应多列） —— */
+/* ══ 详情面板（2026-10-22 重做）══════════════════════════════════════
+   旧版是「一张大网格铺 18 个字段」：所有字段同权重，权益说明那种 200 字长文
+   被压进 1/3 列宽成一坨，月费 / 宽带这类决定要不要办的项反而沉在中间。
+   新版按读者的问题顺序分区（这是什么 → 多少钱多少量 → 给什么 → 额外费用 →
+   宽带 → 怎么办怎么退 → 档案），层级靠分区标题建立，不用卡片。
+   ★ 分区标题不画横分割线：详情区在表格行里，横线会和斑马纹同频，看着像表格错行。
+   ══════════════════════════════════════════════════════════════════ */
+
+/* —— 月费为空时的「原文计费口径」——
+   上游把「费用：195 元/次」「费用：28 元/90 天」这类**非月租**口径写在权益
+   说明里，而月费字段按设计只收「元/月」（把一次性费用塞进月费，「30 元以下」
+   这个筛选立刻就在说谎）。所以这里**绝不补数**，只把原文口径标出来 ——
+   让「月费 —」从「像是没采到」变成「它本来就不按月收」。 */
+const FEE_HEAD=/费用\s*[：:]\s*(\d+(?:\.\d+)?)\s*([^；;\n]{1,12})/;
+function feeNote(d){
+  if(d.f!==""&&d.f!=null)return null;
+  const m=FEE_HEAD.exec(String(d.x||""));
+  if(!m)return null;
+  return {txt:m[1]+" "+m[2].trim()};
+}
+
+/* —— 权益说明分条 ——
+   上游把权益写成「1、xxx 2、xxx」，多数条目自带换行（构建期已保留，见
+   tariff_monitor.s(nl=True)；实测移动 28.5%、电信 50.5% 的条目只有换行没有编号，
+   换行一压成空格就再也分不出来）。切分只做两件事，不猜语义：
+     ① 换行 → 一条（上游换行是条目分隔，不是排版折行）；
+     ② 行内编号 → 再切一刀。认三种写法，电信的「一、二、」和「（一）（二）」
+        各占 308 / 58 条，只认阿拉伯数字的话那三百多条永远是一整坨：
+          · 阿拉伯 + 顿号/点：1、  1.  1）
+          · 汉字 + 顿号：一、  二、  （汉字后必须是顿号，否则「一部」「一小时」全是号）
+          · 括号包裹：  （一）  (1)  → 记为二级（括号是中文明细的常见层级）
+   🔴 编号后紧跟数字的不认（`(?!\d)`）：否则「1.5 元/GB」会被切成「1.」+「5 元/GB」。
+   编号前的散段（如「【活动说明】：」）单独成行，按段头样式渲染。 */
+/* 括号型（（一）（1））**不要求前导空格或标点** —— 中文明细常写成
+   「三、其他规则（一）规则中…」，编号紧跟在汉字后面；要求前导标点会把
+   「（一）」整段吞进上一条。顿号型仍要求前导，否则「统一、规范」会被当编号。 */
+const X_MARK=/(?:[（(]\s*(\d{1,2}|[一二三四五六七八九十]{1,2})\s*[）)]|(^|[\s。；;：:])(?:(\d{1,2})\s*[、．.）)]|([一二三四五六七八九十])\s*[、．])(?!\d))\s*/;
+/* 标签：冒号前 2–14 字、不含句读。太长的整句不拆标签 —— 全句加粗比不加更难读。 */
+const X_LB=/^([^：:，。；、\n]{2,14})[：:]\s*(\S[\s\S]*)$/;
+/* 条目里的关键值（金额 / 流量 / 期限 / 次数）：淡底标出来，不换色不改字号 ——
+   「4元/GB」「10次」「90天」是这条权益真正的约束，扫读时要能一眼捞到。 */
+const X_KV=/(\d+(?:\.\d+)?)\s*(元(?:\s*\/\s*(?:GB|MB|TB|天|月|次))?|GB|MB|TB|个月|天|次|分钟|条|M(?![A-Za-z]))/;
+function xLine(line,out){
+  const re=new RegExp(X_MARK.source,"g");
+  const marks=[];let m;
+  while((m=re.exec(line)))marks.push({
+    st:m.index+(m[2]?m[2].length:0),
+    en:m.index+m[0].length,
+    /* 捕获组 1 = 括号型（二级）；3 = 阿拉伯顿号（一级）；4 = 汉字顿号（一级） */
+    no:m[1]||m[3]||m[4],
+    lv:m[1]?2:1
+  });
+  if(!marks.length){out.push({no:null,s:line});return}
+  if(marks[0].st>0)out.push({no:null,s:line.slice(0,marks[0].st)});
+  marks.forEach((k,i)=>out.push({no:k.no,lv:k.lv,s:line.slice(k.en,i+1<marks.length?marks[i+1].st:line.length)}));
+}
+function xItems(raw){
+  const t=String(raw==null?"":raw).replace(/\r/g,"").replace(/\u3000/g," ").trim();
+  if(!t)return[];
+  const parts=[];
+  t.split(/\n+/).forEach(ln=>{if(ln.trim())xLine(ln,parts)});
+  const out=[];
+  parts.forEach(p=>{
+    const s=String(p.s).replace(/\s+/g," ").replace(/^[；;。,，、\s]+|[；;。,，、\s]+$/g,"");
+    if(!s)return;
+    const h=X_LB.exec(s);
+    out.push({no:p.no,lv:p.lv,lb:h?h[1]:"",bd:h?h[2]:s,hd:!p.no&&/^【[^】]{2,14}】$/.test(s)});
+  });
+  return out;
+}
+function xBody(s){
+  const t=String(s==null?"":s);
+  if(!t)return"";
+  const re=new RegExp(X_KV.source,"g");
+  let out="",last=0,m;
+  while((m=re.exec(t))){
+    if(m.index>last)out+=esc(t.slice(last,m.index));
+    out+='<i class="xk">'+esc(m[0])+'</i>';
+    last=m.index+m[0].length;
+  }
+  if(last<t.length)out+=esc(t.slice(last));
+  return out;
+}
+function xSec(d){
+  const items=xItems(d.x);
+  const T='<div class="dsec"><h4 class="dsect">权益说明';
+  if(!items.length)return T+'</h4><p class="xpara dmut">官方未提供权益说明</p></div>';
+  const solo=items.length===1&&items[0].no==null&&!items[0].hd;
+  if(solo)return T+'</h4><p class="xpara">'+xBody(items[0].bd)+'</p></div>';
+  const n=items.filter(o=>!o.hd).length;
+  const li=items.map(o=>{
+    if(o.hd)return '<li class="xhead"><span class="xn xn-sp"></span><div class="xc">'+esc(o.bd)+'</div></li>';
+    /* 编号原样显示（「三」「（一）」都留着）—— 重排成 1/2/3 会让「转述原文」
+       变成「我重新编号」，而读者常要按官方编号去核对条款。宽度交给 CSS 自适应。 */
+    const no=o.no!=null?'<span class="xn'+(o.lv===2?" xn-2":"")+'">'+esc(o.no)+'</span>'
+      :'<span class="xn xn-sp">·</span>';
+    const txt=o.lb?'<b class="xl">'+esc(o.lb)+'</b>'+xBody(o.bd):xBody(o.bd);
+    return '<li'+(o.lv===2?' class="xsub"':'')+'>'+no+'<div class="xc">'+txt+'</div></li>';
+  }).join("");
+  return T+'<span class="dcnt">'+n+' 条</span></h4><ol class="xlist">'+li+'</ol></div>';
+}
+
+/* —— 速览条的四格 —— */
+function gbKpi(g){
+  const s=String(fmtGb(g));
+  if(s==="—")return '<span class="dno">—</span>';
+  const m=/^([\d.]+)(TB|GB|MB)$/.exec(s);
+  return m?esc(m[1])+'<small>'+m[2]+'</small>':esc(s);
+}
+function bwKpi(d){
+  if(!bwInfo(d))return '<span class="dno">不含</span>';
+  const mb=bwMbps(d);
+  return mb?mb+'<small>M</small>':'<span class="dno">含宽带</span>';
+}
+
+/* —— 宽带：结论 + 速率徽标 + 官方原文 ——
+   🔴 原文来自上游 brandwidth 字段，**必须 esc**：这是全页唯一把上游原文
+   拼进 innerHTML 的位置，漏转义就是构建期烤进静态页的存储型 XSS。
+   判定与列表的 bwInfo() 同一口径 —— 两处结论不一致比不显示更糟。 */
+function bwSec(d){
+  const i=bwInfo(d),raw=String(d.bw==null?"":d.bw).trim();
+  const mb=bwMbps(d);
+  /* 速率 / 提速 / 未标注这三个徽标只在**含宽带**时才有意义：
+     实测「邢台爱家光网服务-冀享专属-升档」的宽带字段是空的、判为不含宽带，
+     名称里带「光网」又让 bwSpeed 命中 —— 在「不含宽带」旁边挂一枚「提速/组网」，
+     读者只会以为页面自相矛盾。 */
+  const tags=[];
+  if(i){
+    if(mb)tags.push('<span class="bwtg">'+mb+'M</span>');
+    if(bwSpeed(d))tags.push('<span class="bwtg" title="名称/权益里带「提速、光网、组网、FTTR」字样">提速/组网</span>');
+    if(!mb)tags.push('<span class="dmut">速率未标注</span>');
+  }
+  return '<div class="dsec"><h4 class="dsect">宽带</h4><div class="dbw">'
+    +'<span class="dbwv'+(i?"":" dbwv-no")+'">'+(i?"含宽带":"不含宽带")+'</span>'
+    +tags.join("")
+    +'<span class="dbwraw">官方原文：'+(esc(raw)||"空")+'</span></div></div>';
+}
+
 function detHTML(d){
-  const g=[];
-  if(d.ca||d.ck)g.push(["本次巡检",(d.ca?"新增":"")+(d.ca&&d.ck?" · ":"")+(d.ck?"关键字段有变更（月费 / 流量 / 上下线 / 权益等）":"")]);
-  if(d.ow)g.push(["归属",d.ow+"（官方标注）"]);
-  g.push(["类型",(d.cat||"—")+(d.ty&&d.ty!==d.cat?"（官方分类："+d.ty+"）":"")]);
-  g.push(["套餐名",d.t||"—"]);
-  g.push(["目标客户",d.ap||"—"]);
-  g.push(["办理渠道",d.ch||"—"]);
-  g.push(["报备编号",d.r||"—"]);
-  g.push(["地域",(SC_LB[d.sc]||"—")+(cityTags(d).length?" · "+cityTags(d).join("/"):"")]);
-  g.push(["状态",d.st?"已下架":"在售"]);
-  g.push(["上下线",(fmtD(d.o)||"—")+" ~ "+(fmtD(d.e)||"—")]);
-  g.push(["超套资费",d.ex||"—"]);
-  /* 有效期带期限时高亮整行：徽标给档位，官方原文全量跟在后面（不截断） */
-  if(vpInfo(d))g.push(["有效期",vpTag(d)+' <span class="vpraw">'+esc(d.vp)+'</span>',1]);
-  else g.push(["有效期",d.vp||"—"]);
-  /* 违约责任（2026-10-07 第二轮普查）：移动上游 responsibility 字段此前从未
-     进过页面（557 条实质条款全靠它），高亮整行 —— 含金额的条款值得一眼看到；
-     否定句（「无需承担违约责任」）也展示，免得用户误读。
-     🔴 p[2]=1 是「受控 HTML 直接注入」标记，rsp 是上游原文（实测带富文本），
-     必须先 esc 再包 vpraw，绝不能裸传 —— 与权益说明行的转义口径一致。 */
-  if(d.rsp)g.push(["违约责任",'<span class="vpraw">'+esc(d.rsp)+'</span>',1]);
-  /* 办理必读（2026-10-07）：条款命中与列表徽章同一判据（condHits），
-     这里给每条的原文片段 —— 悬停列表徽章看片段，展开后不用悬停直接看 */
+  const nm=d.t||d.n||"—";
+  const sub=[];
+  if(d.n&&d.n!==nm)sub.push("官方名称 "+d.n);
+  if(d.r)sub.push("报备号 "+d.r);
+  const tags=[];
+  if(d.ow)tags.push('<span class="dtg">'+esc(d.ow)+'</span>');
+  if(d.cat)tags.push('<span class="dtg">'+esc(d.cat)+'</span>');
+  tags.push(d.st?'<span class="dtg dtg-off">已下架</span>':'<span class="dtg dtg-on">在售</span>');
+  if(d.ca)tags.push('<span class="dtg dtg-new">本次新增</span>');
+  else if(d.ck)tags.push('<span class="dtg dtg-ck">关键字段有变更</span>');
+  const head='<div class="dhead"><div class="dhd"><h3 class="dname">'+esc(nm)+'</h3>'
+    +(sub.length?'<div class="dsub">'+sub.map(s=>'<span>'+esc(s)+'</span>').join("")+'</div>':"")
+    +'</div><div class="dtags">'+tags.join("")+'</div></div>';
+
+  /* 速览四格：月费 / 套内流量 / 套内通话 / 宽带 —— 先回答「多少钱、给多少」 */
+  const kpi='<div class="dkpi">'
+    +'<div class="dk"><span class="dkv">'+((d.f!==""&&d.f!=null)
+      ?esc(d.f)+'<small>元/月</small>':'<span class="dno">—</span>')
+      +'</span><span class="dkl">月费</span></div>'
+    +'<div class="dk"><span class="dkv">'+gbKpi(d.g)+'</span><span class="dkl">套内流量</span></div>'
+    +'<div class="dk"><span class="dkv">'+((d.c&&d.c!=="0")
+      ?esc(d.c)+'<small>分钟</small>':'<span class="dno">—</span>')
+      +'</span><span class="dkl">套内通话</span></div>'
+    +'<div class="dk"><span class="dkv">'+bwKpi(d)+'</span><span class="dkl">宽带</span></div>'
+    +'</div>';
+
+  /* 费用与计费：超套 / 计费口径 / 违约责任。
+     超套字段为空时**指回权益说明第 N 条** —— 实测大量条目的超套规则只写在
+     权益说明里（「超套后按 4 元/GB 自动续订 10 次」），字段是空的；直接显示
+     「—」会让人以为没有超套规则，那比不显示更误导。 */
+  const fee=[];
+  let exTxt;
+  if(d.ex)exTxt=esc(d.ex);
+  else{
+    exTxt='<span class="dmut">官方此栏为空</span>';
+    const xs=xItems(d.x);
+    const k=xs.findIndex(o=>/超套|套外|超出套餐|超出资费/.test((o.lb||"")+" "+o.bd));
+    /* 只有真能数出条数时才说「第 N 条」：整段无编号的权益说明也常常命中
+       「超套」，写成「第 1 条」是无中生有 —— 那边只给「写在权益说明里」。 */
+    if(k>=0){
+      const numbered=xs.filter(o=>!o.hd&&o.no!=null).length>1;
+      exTxt+='<span class="dmut">（规则写在权益说明'
+        +(numbered&&xs[k].no!=null?'第 '+xs[k].no+' 条':'里')+'）</span>';
+    }
+  }
+  fee.push('<div class="drow"><span class="dl">超套资费</span><div class="db">'+exTxt+'</div></div>');
+  const _fn=feeNote(d);
+  if(_fn)fee.push('<div class="drow"><span class="dl">计费口径</span><div class="db">原文「'
+    +esc(_fn.txt)+'」—— 不是月租，未计入月费字段，也不参与月费筛选</div></div>');
+  /* 违约责任：只有**短条款**才给整块淡黄底。实测有整段三四百字的条款，
+     整块刷黄把详情切成两半，反而看不出重点；长条款按普通正文排。 */
+  if(d.rsp)fee.push('<div class="drow'
+    +(/\d+\s*元/.test(d.rsp)&&d.rsp.length<=60?" drow-em":"")
+    +'"><span class="dl">违约责任</span><div class="db">'+esc(d.rsp)+'</div></div>');
+
+  /* 办理与退出：退订路径 / 渠道 / 条款命中 —— 回答「办错了怎么办」 */
+  const proc=[];
+  if(d.ub)proc.push('<div class="drow"><span class="dl">退订</span><div class="db">'+esc(d.ub)+'</div></div>');
+  if(d.ch)proc.push('<div class="drow"><span class="dl">办理渠道</span><div class="db">'+esc(d.ch)+'</div></div>');
   const _ch=condHits(d);
-  if(_ch.length)g.push(["办理必读",_ch.map(x=>'<span class="ctg '+x.def.cls+'">'
-    +esc(x.def.lab)+'</span> '+esc(x.snip)).join('<span class="vpraw">；</span>'),1]);
-  g.push(["权益说明",d.x||"—"]);
-  /* 宽带用 bwDetail() 的原始 HTML（内含速率徽标），其余字段一律转义；
-     p[2] 标记该行是**已转义/受控的 HTML**（vp 高亮行 / 宽带行），直接注入 */
-  return '<div class="detgrid">'
-    +g.map(p=>'<div class="ditem'+(p[2]?" vp-hi":"")+'"><span>'+esc(p[0])+'</span><em>'+(p[2]?p[1]:esc(p[1]))+'</em></div>').join("")
-    +'<div class="ditem"><span>宽带</span><em>'+bwDetail(d)+'</em></div>'
-    +'</div>'
+  if(_ch.length)proc.push('<div class="drow"><span class="dl">办理必读</span><div class="db">'
+    +_ch.map(x=>'<div class="ctln"><span class="ctg '+x.def.cls+'">'+esc(x.def.lab)+'</span>'
+      +esc(x.snip)+'</div>').join("")
+    +'</div></div>');
+
+  /* 档案：查证用的低权重信息，密排，不抢视觉 */
+  const meta=[];
+  if(d.ow)meta.push(["归属",esc(d.ow)]);
+  /* 大类已经戴在头部徽标上了，这里只放**官方分类原文**：两边都写一遍，
+     长分类名（「港澳台/国际（官方分类：港澳台/国际资费）」）会折行占两行。 */
+  meta.push(["官方分类",esc(d.ty||d.cat||"—")]);
+  meta.push(["目标客户",esc(d.ap||"—")]);
+  meta.push(["地域",esc((SC_LB[d.sc]||"—")+(cityTags(d).length?" · "+cityTags(d).join("/"):""))]);
+  meta.push(["上下线",esc((fmtD(d.o)||"—")+" ~ "+(fmtD(d.e)||"—"))]);
+  meta.push(["有效期",vpInfo(d)?(vpTag(d).trim()+' <span class="vpraw">'+esc(d.vp)+'</span>'):esc(d.vp||"—")]);
+  meta.push(["报备编号",esc(d.r||"—")]);
+  if(d.ca||d.ck)meta.push(["本次巡检",esc((d.ca?"新增":"")+(d.ca&&d.ck?" · ":"")+(d.ck?"关键字段有变更":""))]);
+
+  return head+kpi
+    +xSec(d)
+    +'<div class="dsec"><h4 class="dsect">费用与计费</h4><div class="drows">'+fee.join("")+'</div></div>'
+    +bwSec(d)
+    +(proc.length?'<div class="dsec"><h4 class="dsect">办理与退出</h4><div class="drows">'+proc.join("")+'</div></div>':"")
+    +'<div class="dsec"><h4 class="dsect">档案</h4><div class="dmeta">'
+    +meta.map(p=>'<div class="mi"><span>'+esc(p[0])+'</span><em>'+p[1]+'</em></div>').join("")
+    +'</div></div>'
     +'<div class="ailine" style="display:none"><b>同价位更优</b><span class="aicmp"></span></div>'
     +'<div class="detact"><button type="button" class="cpbtn">复制这条资费</button></div>';
 }
+
 
 /* —— 搜索词表 + 命中高亮 ——
    词表与 condOf() 的 kw 同一口径（trim → 小写 → 空白分词），两处各读一次输入、
@@ -4712,7 +4986,14 @@ function toggleRow(tr){
   const w=dr.querySelector(".detwrap");
   if(open&&w&&!w.firstChild){
     const dr0=ROWS[+tr.dataset.i];
-    if(dr0)w.innerHTML=detHTML(dr0);
+    /* 单条渲染失败不能塌成一片空白 —— 之前那次「详情点开是个空盒子」查起来
+       毫无线索：异常被事件回调吃掉，页面上只留下一块 padding。兜底把原因印在
+       原地，坏数据只坏这一行，其余照常。 */
+    if(dr0){
+      try{w.innerHTML=detHTML(dr0)}
+      catch(err){w.innerHTML='<div style="color:var(--bad);font-size:12.5px;line-height:1.7">'
+        +'详情渲染失败：'+esc((err&&err.message)||String(err))+'</div>'}
+    }
   }
   /* 「同价位更优」按需计算（首次展开才算一次）：全表 9000 行扫一遍，
      80 行都预计算就是 72 万次比较/每次渲染 —— 而绝大多数详情根本没被展开过。 */
