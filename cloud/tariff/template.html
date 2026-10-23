@@ -595,109 +595,137 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 .det{display:none}
 .det.on{display:table-row}
 .det>td{padding:0;background:var(--glass2)}
-.det .detwrap{padding:14px 16px 15px;border-bottom:1px solid var(--bd2)}
-/* ── 详情面板（2026-10-22 重做）─────────────────────────────────────
-   旧版把 18 个字段一视同仁塞进 auto-fill minmax(330px) 的单一网格：
-   没有层级，权益说明那种 200 字长文被压进 1/3 列宽成一坨，而「月费多少 /
-   有没有宽带」这些决定要不要办的项沉在中间几行。
-   新版按读者的问题顺序分组：这是什么 → 多少钱多少量 → 权益 → 费用细账 →
-   宽带 → 怎么办怎么退 → 档案。层级靠**分区标题 + 细分隔线**建立，不用卡片：
-   卡片会把本来就窄的行内空间再切碎，边框一多还会和表格的斑马纹打架。
-   ★ 颜色全部走现有变量，深色主题不另写一份。 */
-.dhead{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start;justify-content:space-between}
-.dhd{min-width:0;flex:1 1 320px}
-.dname{margin:0;font-size:15.5px;font-weight:700;line-height:1.4;letter-spacing:.2px;
+.det .detwrap{padding:11px 15px 12px;border-bottom:1px solid var(--bd2)}
+/* ── 详情面板（2026-10-23 第三次改：紧凑化）────────────────────────────
+   前两版解决的是「有层级」和「有值才出格」，纵向尺寸没动过：实测一条详情
+   602px（1346px 宽视口），展开后半个屏幕都是它，翻列表时一条也看不全。
+   这一版只做减法，方向是「同样的内容，少占四成高度」：
+     · 字号与行高整体降一档（12.5/1.78 → 12/1.62），留白按 4px 栅格重排；
+     · 费用与办理改两列网格 —— 每组「标签 + 一句话」本来就只有半行宽，
+       单列排下来右侧空掉大半屏；
+     · 宽带从「整段标题 + 一行值」压成行内标题，一行说完；
+     · 档案从「标题 + 两列网格」压成页脚一行，靠字段名断句、不用网格；
+     · 复制按钮并到页脚右侧，不再单独占一行。
+   合计 602px → 约 345px，一个字没删。
+   ★ 不做的事：不加卡片、不画横分割线（详情在表格行里，横线会和斑马纹同频，
+     看着像表格错行）；也不靠缩字号糊弄 —— 正文最小 11.5px，权益说明仍是 12px。 */
+.dhead{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;justify-content:space-between}
+.dhd{min-width:0;flex:1 1 300px}
+.dname{margin:0;font-size:14.5px;font-weight:700;line-height:1.35;letter-spacing:.15px;
   color:var(--tx);word-break:break-word}
-.dsub{margin-top:4px;display:flex;flex-wrap:wrap;gap:2px 14px;font-size:12px;color:var(--tx3);line-height:1.6}
-.dtags{display:flex;flex-wrap:wrap;gap:6px;flex:none;padding-top:1px}
-.dtg{padding:1px 8px;border-radius:6px;font-size:11.5px;font-weight:600;line-height:19px;
+.dsub{margin-top:2px;display:flex;flex-wrap:wrap;gap:1px 12px;font-size:11.5px;color:var(--tx3);line-height:1.55}
+.dtags{display:flex;flex-wrap:wrap;gap:5px;flex:none;padding-top:1px}
+.dtag{padding:0 7px;border-radius:5px;font-size:10.5px;font-weight:600;line-height:17px;
   background:var(--card3);color:var(--tx2);white-space:nowrap}
-.dtg-on{background:var(--okbg);color:var(--ok)}
-.dtg-off{background:var(--badbg);color:var(--bad)}
-.dtg-new{background:var(--ac2);color:var(--ac)}
-.dtg-ck{background:var(--warnbg);color:var(--warn)}
+.dtag-on{background:var(--okbg);color:var(--ok)}
+.dtag-off{background:var(--badbg);color:var(--bad)}
+.dtag-new{background:var(--ac2);color:var(--ac)}
+.dtag-ck{background:var(--warnbg);color:var(--warn)}
 /* 速览条：**有值才出格**（2026-10-22 第二次改）。
    上一版写死 repeat(4,1fr)，结果「融合宽带优惠」这类条目的套内流量 / 通话
    都是 0，屏幕上摆两个「—」各占 1/4 宽度 —— 一半的面积不承载信息。
    现在用 flex 等分，JS 只把有值的项塞进来；格数少时给 max-width 兜住，
-   不让 2 格拉到整屏宽（数字散开反而看不出是一组）。 */
-.dkpi{display:flex;flex-wrap:wrap;gap:8px 0;
-  margin:13px 0 0;padding:11px 0;border-top:1px solid var(--bd2);border-bottom:1px solid var(--bd2)}
-.dk{min-width:0;flex:1 1 0;max-width:340px;padding:0 22px;border-left:1px solid var(--bd2)}
+   不让 2 格拉到整屏宽（数字散开反而看不出是一组）。
+   ★ 2026-10-23：数字 19→16px、上下留白 11→8px；max-width 340→380 —— 四格时
+     正好铺满，两格时只占六成，右边既不成拖尾，两格也不至于隔着一整屏。 */
+.dkpi{display:flex;flex-wrap:wrap;gap:6px 0;
+  margin:9px 0 0;padding:8px 0;border-top:1px solid var(--bd2);border-bottom:1px solid var(--bd2)}
+.dk{min-width:0;flex:1 1 0;max-width:380px;padding:0 18px;border-left:1px solid var(--bd2)}
 .dk:first-child{padding-left:0;border-left:0}
-.dkv{display:block;font-size:19px;font-weight:700;line-height:1.25;color:var(--tx);
-  font-variant-numeric:tabular-nums;letter-spacing:-.2px}
-.dkv small{font-size:11.5px;font-weight:600;color:var(--tx3);margin-left:2px;letter-spacing:0}
-.dkv .dno{color:var(--tx2);font-weight:600;font-size:15px}
-.dkl{display:block;font-size:11px;color:var(--tx3);margin-top:3px;letter-spacing:.4px}
-/* 分区标题：左侧色条 + 计数，靠 margin 拉开节奏（不画分割线，避免和斑马纹同频） */
-.dsec{margin-top:16px}
-.dsect{display:flex;align-items:center;gap:7px;margin:0 0 7px;
-  font-size:11.5px;font-weight:700;color:var(--tx2);letter-spacing:.6px}
-.dsect::before{content:'';width:3px;height:11px;border-radius:2px;background:var(--ac);flex:none}
-.dsect .dcnt{margin-left:5px;font-weight:500;color:var(--tx3);letter-spacing:0;font-size:11px}
+.dkv{display:block;font-size:16px;font-weight:700;line-height:1.2;color:var(--tx);
+  font-variant-numeric:tabular-nums;letter-spacing:-.1px}
+.dkv small{font-size:10.5px;font-weight:600;color:var(--tx3);margin-left:1px;letter-spacing:0}
+.dkv .dno{color:var(--tx2);font-weight:600;font-size:12.5px}
+.dkl{display:block;font-size:10px;color:var(--tx3);margin-top:2px;letter-spacing:.35px}
+/* 分区标题：左侧色条 + 计数，靠 margin 拉开节奏（不画分割线，避免和斑马纹同频）。
+   ★ 这一行是「路标」不是「标题」：10.5px 反而让下面的正文更突出。 */
+.dsec{margin-top:11px}
+.dsect{display:flex;align-items:center;gap:6px;margin:0 0 4px;
+  font-size:10.5px;font-weight:700;color:var(--tx2);letter-spacing:.7px}
+.dsect::before{content:'';width:2.5px;height:9px;border-radius:1.5px;background:var(--ac);flex:none}
+.dsect .dcnt{margin-left:3px;font-weight:500;color:var(--tx3);letter-spacing:0;font-size:10px}
 /* 权益说明：逐条渲染。序号块定宽，长条目自动折行对齐到正文列。
    ★ 宽屏分两栏（2026-10-22）：详情行宽能到 1400px 以上，单栏一行要排 100 个汉字，
-     眼睛横跨整个屏幕才能读完一句。两栏 + 条目不断行，行宽落回 ~55 字。 */
+     眼睛横跨整个屏幕才能读完一句。两栏 + 条目不断行，行宽落回 ~55 字。
+   ★ 2026-10-23：行高 1.78→1.62、条目间距 6→3.5px。12px 中文配 1.62 仍有呼吸，
+     而 1.78 在四五个条目上要多出一整个条目的高度。 */
 .xlist{margin:0;padding:0;list-style:none}
-.xlist>li{display:flex;gap:10px;padding:6px 0;font-size:12.5px;line-height:1.78}
+.xlist>li{display:flex;gap:8px;padding:3.5px 0;font-size:12px;line-height:1.62;
+  text-wrap:pretty}
 .xlist>li+li{border-top:1px dashed var(--bd2)}
 @media (min-width:1100px){
-  .xlist{columns:2;column-gap:44px;column-rule:1px solid var(--bd2)}
-  .xlist>li{break-inside:avoid;padding:5px 0}
+  .xlist{columns:2;column-gap:34px;column-rule:1px solid var(--bd2)}
+  .xlist>li{break-inside:avoid}
   .xlist>li+li{border-top:0}
 }
-.xn{flex:none;min-width:17px;height:17px;padding:0 4px;margin-top:2px;border-radius:5px;background:var(--ac2);
-  color:var(--ac);font-size:10.5px;font-weight:700;line-height:17px;text-align:center;
+.xn{flex:none;min-width:15px;height:15px;padding:0 3px;margin-top:1.5px;border-radius:4px;background:var(--ac2);
+  color:var(--ac);font-size:9.5px;font-weight:700;line-height:15px;text-align:center;
   font-variant-numeric:tabular-nums;white-space:nowrap}
-.xn-sp{background:var(--card3);color:var(--tx3);padding:0;width:17px}   /* 无编号 / 段头：占位对齐 */
+/* 无编号条目：一个 3px 的点。上一版是 15px 灰方块占位 —— 那个方块不承载任何
+   信息，每条都摆一个，左缘就变成一列噪点。 */
+.xd{flex:none;width:15px;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.xd::before{content:'';width:3px;height:3px;border-radius:1.5px;background:var(--tx3);opacity:.5}
 /* 二级条目（「（一）（二）」这种中文明细）：缩进半格 + 浅一档，不和大条抢层级 */
 .xn-2{background:var(--card3);color:var(--tx2);font-weight:600}
-.xlist>li.xsub{padding-left:16px}
-.xlist>li.xsub .xc{font-size:12px}
+.xlist>li.xsub{padding-left:14px}
+.xlist>li.xsub .xc{font-size:11.5px}
 .xc{min-width:0;flex:1}
 .xl{font-weight:700;color:var(--tx2);margin-right:1px}
 .xl::after{content:'：';color:var(--tx3);font-weight:600}
-.xk{font-style:normal;background:var(--ac2);color:var(--ac);border-radius:4px;padding:0 3px;
+.xk{font-style:normal;background:var(--ac2);color:var(--ac);border-radius:3px;padding:0 2px;
   font-weight:600;font-variant-numeric:tabular-nums}
 .xhead .xc{font-weight:700;color:var(--tx2)}
 /* 无编号的整段权益：原文就是一整块（移动「邢台爱家光网」那条 300 字不分段），
    不限宽会排到 100 字/行。收到 ~66 个汉字，右侧留白不影响左对齐的阅读动线。 */
-.xpara{margin:0;font-size:12.5px;line-height:1.85;color:var(--tx);max-width:830px}
-/* 费用细账 / 办理条款：标签列 + 正文列，左对齐两段式 */
-.drows{display:grid;gap:7px}
-.drow{display:flex;gap:10px;font-size:12.5px;line-height:1.78}
-.drow>.dl{flex:none;width:66px;color:var(--tx3);font-weight:600;font-size:11.5px;padding-top:1px}
-.drow>.db{min-width:0;flex:1;max-width:860px;color:var(--tx);word-break:break-word}
-.drow-em>.db{background:var(--warnbg);border-radius:7px;padding:4px 9px;margin:-4px -9px}
+.xpara{margin:0;font-size:12px;line-height:1.72;color:var(--tx);max-width:760px;text-wrap:pretty}
+/* 费用与办理：两列网格（2026-10-23）。
+   每组「标签 + 一句话」多数只有半行宽，单列排下来右侧空掉大半屏 —— 看着更空、
+   也更高。长条目（办理必读、长违约条款）标 .w 跨整行。 */
+.drows{display:grid;gap:5px 20px}
+@media (min-width:900px){
+  .drows{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .drows>.dr.w{grid-column:1/-1}
+}
+/* ★ 类名不能叫 .drow/.dl/.db：变更对照卡（见 .dc）用的是同一套名字，
+   而它那三条规则在本节之后，会把这里的行悄悄改成 3 列网格 —— 实测正文被压到
+   272px（半栏的 43%），一句话折成两行，且没有任何报错。 */
+.dr{display:flex;gap:8px;font-size:12px;line-height:1.6;align-items:flex-start}
+.dr>.drk{flex:none;width:58px;color:var(--tx3);font-weight:600;font-size:10.5px;padding-top:1.5px}
+.dr>.drb{min-width:0;flex:1;color:var(--tx);word-break:break-word;text-wrap:pretty}
+.dr-em>.drb{background:var(--warnbg);border-radius:6px;padding:3px 8px;margin:-3px -8px}
 /* 条款逐条成行：徽章在前、片段在后；超长片段换行时不再顶回徽章左侧 */
-.ctln{line-height:1.78}
-.ctln+.ctln{margin-top:5px}
+.ctln{line-height:1.6}
+.ctln+.ctln{margin-top:4px}
 .dmut{color:var(--tx3)}
-/* 宽带：结论在前、官方原文在后 */
-.dbw{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:12.5px;line-height:1.75}
-.dbwv{font-size:14.5px;font-weight:700;color:var(--tx)}
-.dbwv-no{color:var(--tx2)}
-.dbwv .bwtg{font-size:11.5px;vertical-align:1px}
-.dbwraw{color:var(--tx3);font-size:12px}
-/* 档案：低权重、密排（这些字段是查证用的，不该抢视觉）。
-   两列固定（2026-10-22 第二次改）：auto-fill 在 1000px 宽下会排成三列，
-   目标客户那种 20–40 字的值被挤在一格里折三四行，行高把整个档案撑开。
-   两列 + 长值跨整行（.mi.wide），折行发生在整行宽度上。 */
-.dmeta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 30px;
-  font-size:12.5px;line-height:1.7}
-.dmeta .mi{display:flex;gap:9px;min-width:0}
-.dmeta .mi.wide{grid-column:1/-1}
-.dmeta .mi>span{flex:none;width:60px;color:var(--tx3);font-weight:600;font-size:11.5px;padding-top:1px}
-.dmeta .mi>em{font-style:normal;color:var(--tx);min-width:0;word-break:break-word}
+/* 宽带：行内标题（2026-10-23）——「不含宽带」三个字不该占掉「标题 + 一行值」
+   两层高度；有速率徽标时也仍然只占一行。原文只在带额外约束时跟在后面。 */
+.dbwline{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.dbwline .dsect{margin:0}
+.dbw{display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 8px;font-size:12px;line-height:1.6}
+.dbwv{font-size:13px;font-weight:700;color:var(--tx)}
+.dbwv-no{color:var(--tx2);font-weight:600}
+.dbwv .bwtg{font-size:10.5px;vertical-align:1px}
+.dbwraw{color:var(--tx3);font-size:11.5px}
+/* 档案：页脚一行（2026-10-23）。上一版是「标题 + 两列网格」，六个字段占 73px，
+   而它们的用途只是查证 —— 降成页脚后不抢视线，也不需要网格对齐。
+   ★ 字段间不加分隔符：标签本身（目标客户 / 地域 / 上下线）已经足够断句，
+     再加「·」就成了一串点。长值（联通那种国家清单）自己折行，不挤压邻居。 */
+.dfoot{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;
+  margin-top:11px;padding-top:9px;border-top:1px solid var(--bd2)}
+.dfm{display:flex;flex-wrap:wrap;gap:1px 16px;min-width:0;font-size:11.5px;line-height:1.6}
+.dfm .fi{display:inline-flex;gap:5px;min-width:0}
+.dfm .fi>span{flex:none;color:var(--tx3);font-weight:600}
+.dfm .fi>em{font-style:normal;color:var(--tx2);min-width:0;word-break:break-word;text-wrap:pretty}
+.dfm .vpraw{color:var(--tx3)}
 
-.ailine{margin-top:11px;display:flex;flex-wrap:wrap;gap:5px;align-items:center;line-height:1.85}
+.ailine{margin-top:9px;display:flex;flex-wrap:wrap;gap:5px;align-items:center;line-height:1.7;font-size:12px}
 .ailine b{color:var(--tx2);font-weight:600}
-.aichip{padding:2px 10px;border-radius:999px;background:var(--okbg);color:var(--ok);
-  font-size:12px;font-weight:600}
-.detact{margin-top:11px}
-.cpbtn{padding:5px 12px;border:1px solid var(--bd2);background:var(--glass3);border-radius:9px;
-  font-size:12px;cursor:pointer;color:var(--tx2);font-family:inherit}
+.aichip{padding:1px 9px;border-radius:999px;background:var(--okbg);color:var(--ok);
+  font-size:11.5px;font-weight:600}
+/* 复制按钮并到页脚右侧（2026-10-23）：它本来是详情最末尾的独立一行，
+   29px 高只为放一颗按钮。 */
+.cpbtn{padding:4px 10px;border:1px solid var(--bd2);background:var(--glass3);border-radius:7px;
+  font-size:11.5px;cursor:pointer;color:var(--tx2);font-family:inherit;flex:none}
 .cpbtn:hover{border-color:var(--ac);color:var(--ac)}
 .pager{display:flex;gap:8px;align-items:center;justify-content:center;padding:20px 0}
 .pager button{padding:7px 15px;border:1px solid var(--bd2);background:var(--glass2);border-radius:10px;
@@ -981,13 +1009,15 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   tr.det.on>td{display:block;padding:0;background:none}
   tr.det.on .detwrap{padding:12px 13px;border-bottom:0}
   tr.row.open{border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0}
-  /* 详情面板在窄屏：速览条两格一行（19px 的数字一行放不下四格）、档案单列 */
-  .dkpi{gap:8px 0}
+  /* 详情面板在窄屏：速览条两格一行（一行放不下四格）、档案页脚自然折行、
+     复制按钮掉到下一行 —— 窄屏没有横向余量，硬挤会把按钮压成两个字。 */
+  .dkpi{gap:6px 0}
   .dk{flex:1 1 45%;max-width:none}
   .dk:nth-child(odd){padding-left:0;border-left:0}
-  .dkv{font-size:17px}
-  .dmeta{grid-template-columns:1fr;gap:4px}
-  .drow>.dl{width:56px}
+  .dkv{font-size:15px}
+  .dr>.drk{width:56px}
+  .dfoot{flex-wrap:wrap;gap:8px}
+  .dfm{width:100%}
 
   /* ⑦ 空结果 / 结果栏 / 分页 */
   tbody>tr>td.empty{display:block;padding:40px 16px}
@@ -3235,7 +3265,11 @@ function xSplitSent(text){
   return out;
 }
 function xItems(raw){
-  const t=String(raw==null?"":raw).replace(/\r/g,"").replace(/\u3000/g," ").trim();
+  /* 上游有 8 条（电信）把换行写成了**字面的两个字符**「\n」而不是真换行：
+     不还原的话页面会直接印出 \n，两条权益还被粘成一条。 */
+  const t=String(raw==null?"":raw)
+    .replace(/\\r\\n|\\n|\\r/g,"\n")
+    .replace(/\r/g,"").replace(/\u3000/g," ").trim();
   if(!t)return[];
   const parts=[];
   t.split(/\n+/).forEach(ln=>{if(ln.trim())xLine(ln,parts)});
@@ -3279,11 +3313,13 @@ function xSec(d){
   if(solo)return T+'</h4><p class="xpara">'+xBody(items[0].bd)+'</p></div>';
   const n=items.filter(o=>!o.hd).length;
   const li=items.map(o=>{
-    if(o.hd)return '<li class="xhead"><span class="xn xn-sp"></span><div class="xc">'+esc(o.bd)+'</div></li>';
+    if(o.hd)return '<li class="xhead"><div class="xc">'+esc(o.bd)+'</div></li>';
     /* 编号原样显示（「三」「（一）」都留着）—— 重排成 1/2/3 会让「转述原文」
-       变成「我重新编号」，而读者常要按官方编号去核对条款。宽度交给 CSS 自适应。 */
+       变成「我重新编号」，而读者常要按官方编号去核对条款。宽度交给 CSS 自适应。
+       无编号条目只给一个 3px 的点（.xd），不摆灰色方块占位：那个方块不承载
+       任何信息，每条一个，左缘就成了一列噪点。 */
     const no=o.no!=null?'<span class="xn'+(o.lv===2?" xn-2":"")+'">'+esc(o.no)+'</span>'
-      :'<span class="xn xn-sp">·</span>';
+      :'<span class="xd"></span>';
     const txt=o.lb?'<b class="xl">'+esc(o.lb)+'</b>'+xBody(o.bd):xBody(o.bd);
     return '<li'+(o.lv===2?' class="xsub"':'')+'>'+no+'<div class="xc">'+txt+'</div></li>';
   }).join("");
@@ -3311,7 +3347,11 @@ function bwKpi(d){
    拼进 innerHTML 的位置，漏转义就是构建期烤进静态页的存储型 XSS。
    判定与列表的 bwInfo() 同一口径 —— 两处结论不一致比不显示更糟。 */
 function bwSec(d){
-  const i=bwInfo(d),raw=String(d.bw==null?"":d.bw).trim();
+  const i=bwInfo(d);
+  /* 「无」「暂无」「0」这类原文不承载信息 —— 印出来就是「官方原文：无」，
+     读者还得自己判断这算不算有宽带。当空处理。 */
+  const rawRaw=String(d.bw==null?"":d.bw).trim();
+  const raw=/^(?:无|暂无|没有|0|null|none|[-—–])$/i.test(rawRaw)?"":rawRaw;
   const mb=bwMbps(d);
   /* 速率 / 提速 / 未标注这三个徽标只在**含宽带**时才有意义：
      实测「邢台爱家光网服务-冀享专属-升档」的宽带字段是空的、判为不含宽带，
@@ -3325,7 +3365,7 @@ function bwSec(d){
   }
   /* 「官方原文」只在真有原文时出现：不含宽带的条目该字段本来就是空的，
      印一句「官方原文：空」等于告诉读者「这里什么都没有」，纯噪音。 */
-  return '<div class="dsec"><h4 class="dsect">宽带</h4><div class="dbw">'
+  return '<div class="dsec dbwline"><h4 class="dsect">宽带</h4><div class="dbw">'
     +'<span class="dbwv'+(i?"":" dbwv-no")+'">'+(i?"含宽带":"不含宽带")+'</span>'
     +tags.join("")
     +(raw?'<span class="dbwraw">官方原文：'+esc(raw)+'</span>':"")
@@ -3338,11 +3378,11 @@ function detHTML(d){
   if(d.n&&d.n!==nm)sub.push("官方名称 "+d.n);
   if(d.r)sub.push("报备号 "+d.r);
   const tags=[];
-  if(d.ow)tags.push('<span class="dtg">'+esc(d.ow)+'</span>');
-  if(d.cat)tags.push('<span class="dtg">'+esc(d.cat)+'</span>');
-  tags.push(d.st?'<span class="dtg dtg-off">已下架</span>':'<span class="dtg dtg-on">在售</span>');
-  if(d.ca)tags.push('<span class="dtg dtg-new">本次新增</span>');
-  else if(d.ck)tags.push('<span class="dtg dtg-ck">关键字段有变更</span>');
+  if(d.ow)tags.push('<span class="dtag">'+esc(d.ow)+'</span>');
+  if(d.cat)tags.push('<span class="dtag">'+esc(d.cat)+'</span>');
+  tags.push(d.st?'<span class="dtag dtag-off">已下架</span>':'<span class="dtag dtag-on">在售</span>');
+  if(d.ca)tags.push('<span class="dtag dtag-new">本次新增</span>');
+  else if(d.ck)tags.push('<span class="dtag dtag-ck">关键字段有变更</span>');
   const head='<div class="dhead"><div class="dhd"><h3 class="dname">'+esc(nm)+'</h3>'
     +(sub.length?'<div class="dsub">'+sub.map(s=>'<span>'+esc(s)+'</span>').join("")+'</div>':"")
     +'</div><div class="dtags">'+tags.join("")+'</div></div>';
@@ -3415,16 +3455,15 @@ function detHTML(d){
   if(_ch.length)ops.push(["办理必读",_ch.map(x=>'<div class="ctln"><span class="ctg '+x.def.cls+'">'
     +esc(x.def.lab)+'</span>'+esc(x.snip)+"</div>").join("")]);
 
-  /* 档案：查证用的低权重信息，不抢视觉。
+  /* 档案：查证用的低权重信息，不抢视觉 —— 2026-10-23 起压成**页脚一行**。
+     上一版是「标题 + 两列网格」，六个字段吃掉 73px，而它们只在核对时才会被读到；
+     降成页脚后既省高度，也不再需要网格对齐（长值自己折行，不挤邻居）。
      ★ 归属与大类已经戴在头部徽标上了 —— 截图那条「个人」「标准资费」在徽标和
        档案里各说一遍，档案区白占两格还显得重复。只在官方分类与大类**不一致**时
-       才补这一行（「港澳台/国际」 vs「港澳台/国际资费」这种差异仍是有效信息）。
-     ★ 第三项 = 长值跨整行：阈值定在 60 字（实测 20–40 字的值放进半栏
-       也就折两行，跨行反而把上一行挤空一格）；联通那种 220 字的
-       「目标客户」才会真正撑爆半栏，那时才该独占一行。 */
+       才补这一行（「港澳台/国际」 vs「港澳台/国际资费」这种差异仍是有效信息）。 */
   const meta=[];
   if(d.ty&&d.ty!==d.cat)meta.push(["官方分类",esc(d.ty)]);
-  meta.push(["目标客户",esc(d.ap||"—"),String(d.ap||"").length>60]);
+  meta.push(["目标客户",esc(d.ap||"—")]);
   meta.push(["地域",esc((SC_LB[d.sc]||"—")+(cityTags(d).length?" · "+cityTags(d).join("/"):""))]);
   meta.push(["上下线",esc((fmtD(d.o)||"—")+" ~ "+(fmtD(d.e)||"—"))]);
   /* 有效期去重：速览条已经给出「1天 / 3年」这种期限时，档案里不再把同一个值
@@ -3433,8 +3472,7 @@ function detHTML(d){
      90天内有效，未使用自动失效」）时照旧全文保留，那也是要查证的信息。 */
   const _vpPlain=_vpTxt.replace(/^有效期[：:]?\s*/,"");
   const _vpDup=_vpKpi&&/^\d{1,3}\s*(天|日|个月|年)$/.test(_vpPlain);
-  if(!_vpDup)meta.push(["有效期",vpInfo(d)?(vpTag(d).trim()+' <span class="vpraw">'+esc(d.vp)+'</span>'):esc(d.vp||"—"),
-    String(d.vp||"").length>60]);
+  if(!_vpDup)meta.push(["有效期",vpInfo(d)?(vpTag(d).trim()+' <span class="vpraw">'+esc(d.vp)+'</span>'):esc(d.vp||"—")]);
   /* 报备编号不再进档案：它已经挂在标题下面那行（「报备号 24HE200634」），
      档案里再写一遍就是同一个号出现两次，还白占一格。 */
   if(d.ca||d.ck)meta.push(["本次巡检",esc((d.ca?"新增":"")+(d.ca&&d.ck?" · ":"")+(d.ck?"关键字段有变更":""))]);
@@ -3444,19 +3482,27 @@ function detHTML(d){
      原文里带额外约束（「需自备光猫」「FTTR 组网」「下行/上行分开写」）时才展开。 */
   const bwRaw=String(d.bw==null?"":d.bw).trim();
   const bwPure=bwInfo(d)&&(!bwRaw||/^\d{1,5}\s*[Mm]?$/.test(bwRaw));
+  /* 费用与办理：两列网格（2026-10-23）。「一句话」型的行放进半栏，长条款跨整行 ——
+     半栏里折三四行会把同一行的邻居一起拽高，反而比单列还高。 */
+  const plainLen=h=>String(h).replace(/<[^>]*>/g,"").length;
   const opsHTML=ops.length?'<div class="dsec"><h4 class="dsect">费用与办理</h4><div class="drows">'
-    +ops.map(o=>'<div class="drow'+(o[2]?" drow-em":"")+'"><span class="dl">'+esc(o[0])
-      +'</span><div class="db">'+o[1]+'</div></div>').join("")+'</div></div>':"";
+    +ops.map(o=>{
+      const w=/class="ctln"/.test(o[1])||plainLen(o[1])>34;
+      return '<div class="dr'+(o[2]?" dr-em":"")+(w?" w":"")+'"><span class="drk">'+esc(o[0])
+        +'</span><div class="drb">'+o[1]+'</div></div>';
+    }).join("")+'</div></div>':"";
+
+  /* 页脚：档案字段 + 复制按钮同一行。按钮原本独占 29px 一整行，只为放一颗按钮。 */
+  const foot='<div class="dfoot"><div class="dfm">'
+    +meta.map(p=>'<span class="fi"><span>'+esc(p[0])+'</span><em>'+p[1]+'</em></span>').join("")
+    +'</div><button type="button" class="cpbtn">复制这条资费</button></div>';
 
   return head+kpi
     +xSec(d)
     +opsHTML
     +(bwPure?"":bwSec(d))
-    +'<div class="dsec"><h4 class="dsect">档案</h4><div class="dmeta">'
-    +meta.map(p=>'<div class="mi'+(p[2]?" wide":"")+'"><span>'+esc(p[0])+'</span><em>'+p[1]+'</em></div>').join("")
-    +'</div></div>'
     +'<div class="ailine" style="display:none"><b>同价位更优</b><span class="aicmp"></span></div>'
-    +'<div class="detact"><button type="button" class="cpbtn">复制这条资费</button></div>';
+    +foot;
 }
 
 

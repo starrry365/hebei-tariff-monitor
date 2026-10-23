@@ -2184,6 +2184,9 @@ def rows_of(o, diff=None, code=""):
                 if v in (None, "None"):
                     return ""
                 t = str(v)
+                # 上游有 8 条（电信）把换行写成了**字面字符**「\n」而不是真换行：
+                # 不还原的话页面上会直接印出 \n，两条权益还会被粘成一条。
+                t = t.replace("\\r\\n", "\n").replace("\\n", "\n")
                 if nl:
                     t = t.replace("\r\n", "\n").replace("\r", "\n")
                     t = "\n".join(ln.strip() for ln in t.split("\n"))
