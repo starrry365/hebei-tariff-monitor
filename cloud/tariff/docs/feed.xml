@@ -5,27 +5,43 @@
 <description>河北移动/联通/电信/广电资费目录每日巡检捕获的业务变更（新增 / 下线 / 字段变更）</description>
 <language>zh-CN</language>
 <item>
-<title>2026-10-23 河北联通：下线 3</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-10-23.md</link>
-<category>下线</category>
-<guid isPermaLink="false">2026-10-23-unicom</guid>
-<pubDate>Fri, 23 Oct 2026 08:01:32 +0800</pubDate>
-<description>2026-10-23 河北联通：下线 3
-－ 2023校园专属1元10G流量包-立即生效（48个月）（河北定向）
-－ 2023校园专属1元200G流量包-次月生效（48个月）（河北定向）
-－ 2023校园专属1元200G流量包-立即生效（48个月）（河北定向）</description>
+<title>2026-10-23 河北电信：变更 24</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-23.md</link>
+<category>变更</category>
+<guid isPermaLink="false">2026-10-23-telecom</guid>
+<pubDate>Fri, 23 Oct 2026 21:14:05 +0800</pubDate>
+<description>2026-10-23 河北电信：变更 24
+± 天翼云盒20元套餐【单品】
+± 0元/月全国主叫200分钟-36期
+± 0元/月全国流量10G-36期
+± 0元/月全国流量20G-36期
+± AI通信尊享流量包</description>
 </item>
 <item>
-<title>2026-10-23 河北移动：下线 6</title>
+<title>2026-10-23 河北联通：下线 3 · 变更 9</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-10-23.md</link>
+<category>下线</category><category>变更</category>
+<guid isPermaLink="false">2026-10-23-unicom</guid>
+<pubDate>Fri, 23 Oct 2026 21:16:35 +0800</pubDate>
+<description>2026-10-23 河北联通：下线 3 · 变更 9
+－ 2023校园专属1元10G流量包-立即生效（48个月）（河北定向）
+－ 2023校园专属1元200G流量包-次月生效（48个月）（河北定向）
+－ 2023校园专属1元200G流量包-立即生效（48个月）（河北定向）
+± 快手定向流量月包12元12GB（省分）-次月生效
+± 快手定向流量权益月包25元20GB省分</description>
+</item>
+<item>
+<title>2026-10-23 河北移动：新增 22 · 下线 6 · 变更 14</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-10-23.md</link>
-<category>下线</category>
+<category>新增</category><category>下线</category><category>变更</category>
 <guid isPermaLink="false">2026-10-23-move</guid>
-<pubDate>Fri, 23 Oct 2026 07:58:55 +0800</pubDate>
-<description>2026-10-23 河北移动：下线 6
-－ 内容广告宣传服务包-点播贴片30秒视频（现金）-10
-－ 内容广告宣传服务包-点播贴片30秒视频（现金）-100
-－ 内容广告宣传服务包-点播贴片30秒视频（现金）-50
-－ 内容广告宣传服务包-点播贴片30秒视频（话费）-10</description>
+<pubDate>Fri, 23 Oct 2026 21:14:57 +0800</pubDate>
+<description>2026-10-23 河北移动：新增 22 · 下线 6 · 变更 14
+＋ 咪咕AI漫剧原创AI会员
+＋ 咪咕AI漫剧原创AI会员
+＋ 咪咕悦看AI-100元
+＋ 咪咕悦看AI-100元
+＋ 咪咕悦看AI-10元</description>
 </item>
 <item>
 <title>2026-10-22 河北电信：变更 17</title>
@@ -716,17 +732,5 @@
 ＋ 20元云机福袋
 ± 安心防扰包
 ± 客户回馈-200分钟语音包（36个月）</description>
-</item>
-<item>
-<title>2026-09-28 河北联通：下线 15</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-09-28.md</link>
-<category>下线</category>
-<guid isPermaLink="false">2026-09-28-unicom</guid>
-<pubDate>Mon, 28 Sep 2026 08:22:19 +0800</pubDate>
-<description>2026-09-28 河北联通：下线 15
-－ 联通智家云智融合套餐联通云盘看家社会渠道79元-299元档产品（河北）-立即生效
-－ 联通智家云智融合套餐联通云盘看家社会渠道第三台79元-299元档产品（河北）-立即生效
-－ 联通智家云智融合套餐联通云盘看家社会渠道第二台79元-299元档产品（河北）-立即生效
-－ 联通智家云智融合套餐联通云盘看家社会渠道第五台79元-299元档产品（河北）-立即生效</description>
 </item>
 </channel></rss>
