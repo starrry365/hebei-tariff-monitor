@@ -5,6 +5,27 @@
 <description>河北移动/联通/电信/广电资费目录每日巡检捕获的业务变更（新增 / 下线 / 字段变更）</description>
 <language>zh-CN</language>
 <item>
+<title>2026-10-25 河北电信：下线 1</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-25.md</link>
+<category>下线</category>
+<guid isPermaLink="false">2026-10-25-telecom</guid>
+<pubDate>Sun, 25 Oct 2026 07:07:39 +0800</pubDate>
+<description>2026-10-25 河北电信：下线 1
+－ 双域快网5折折扣包</description>
+</item>
+<item>
+<title>2026-10-25 河北联通：下线 27</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-10-25.md</link>
+<category>下线</category>
+<guid isPermaLink="false">2026-10-25-unicom</guid>
+<pubDate>Sun, 25 Oct 2026 07:09:57 +0800</pubDate>
+<description>2026-10-25 河北联通：下线 27
+－ 快手定向流量月包12元12GB（省分）-次月生效
+－ 快手定向流量权益月包25元20GB省分
+－ 芒果TV定向流量权益25元组合包（省分）-立即生效
+－ 长视频定向流量月包15元15GB（省分）-次月生效</description>
+</item>
+<item>
 <title>2026-10-24 河北电信：下线 1</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-24.md</link>
 <category>下线</category>
@@ -701,31 +722,5 @@
 ＋ eSIM出境100GB11日包
 ＋ eSIM出境100GB12日包
 ＋ eSIM出境100GB13日包</description>
-</item>
-<item>
-<title>2026-09-30 河北移动：新增 9 · 下线 2 · 变更 92</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-09-30.md</link>
-<category>新增</category><category>下线</category><category>变更</category>
-<guid isPermaLink="false">2026-09-30-move</guid>
-<pubDate>Wed, 30 Sep 2026 17:09:18 +0800</pubDate>
-<description>2026-09-30 河北移动：新增 9 · 下线 2 · 变更 92
-＋ 爱家光网服务-129档及以上-存量促销版
-＋ 爱家光网服务-129档及以上-新增促销版
-＋ 爱家光网服务-促销版
-＋ 爱家光网服务-冀享专属-存量促销版
-＋ 爱家光网服务-冀享专属-新增促销版</description>
-</item>
-<item>
-<title>2026-09-30 河北电信：变更 53</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-09-30.md</link>
-<category>变更</category>
-<guid isPermaLink="false">2026-09-30-telecom</guid>
-<pubDate>Wed, 30 Sep 2026 17:07:35 +0800</pubDate>
-<description>2026-09-30 河北电信：变更 53
-± 0元500M宽带提速包（202103）
-± 199元FTTR调测包
-± 299元FTTR调测包
-± 399元FTTR调测包
-± 促销-共享流量包170G</description>
 </item>
 </channel></rss>
