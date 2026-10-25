@@ -1,5 +1,5 @@
 {
- "ts": "2026-10-25 07:08:37",
+ "ts": "2026-10-26 07:11:49",
  "n": 5580,
  "prev_n": 5580,
  "added": 0,
@@ -9,6 +9,6 @@
  "fake_removed": 0,
  "relocated": 0,
  "note": "",
- "report": "changes/2026-10-25.md",
- "prev": "hebei_tariff_20261024.json.gz"
+ "report": "changes/2026-10-26.md",
+ "prev": "hebei_tariff_20261025.json.gz"
 }
