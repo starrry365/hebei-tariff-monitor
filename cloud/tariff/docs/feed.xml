@@ -5,6 +5,52 @@
 <description>河北移动/联通/电信/广电资费目录每日巡检捕获的业务变更（新增 / 下线 / 字段变更）</description>
 <language>zh-CN</language>
 <item>
+<title>2026-10-27 河北电信：变更 2</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-27.md</link>
+<category>变更</category>
+<guid isPermaLink="false">2026-10-27-telecom</guid>
+<pubDate>Tue, 27 Oct 2026 08:23:01 +0800</pubDate>
+<description>2026-10-27 河北电信：变更 2
+± 视频汇聚（月包）
+± 视频汇聚（月包）</description>
+</item>
+<item>
+<title>2026-10-27 中国广电：变更 2</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/cbn-2026-10-27.md</link>
+<category>变更</category>
+<guid isPermaLink="false">2026-10-27-cbn</guid>
+<pubDate>Tue, 27 Oct 2026 08:22:52 +0800</pubDate>
+<description>2026-10-27 中国广电：变更 2
+± 星耀卡49元档（促销）
+± 星耀卡59元档（促销）</description>
+</item>
+<item>
+<title>2026-10-27 河北联通：新增 7 · 下线 3 · 变更 33</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-10-27.md</link>
+<category>新增</category><category>下线</category><category>变更</category>
+<guid isPermaLink="false">2026-10-27-unicom</guid>
+<pubDate>Tue, 27 Oct 2026 08:28:08 +0800</pubDate>
+<description>2026-10-27 河北联通：新增 7 · 下线 3 · 变更 33
+＋ 副卡月功能费-0元(次月生效)
+＋ 副卡月功能费-0元(立即生效)
+＋ 副卡月功能费-10元(次月生效)
+＋ 副卡月功能费-10元(立即生效)
+＋ 联通智家副卡月功能费（当月生效）</description>
+</item>
+<item>
+<title>2026-10-27 河北移动：新增 4 · 变更 5</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-10-27.md</link>
+<category>新增</category><category>变更</category>
+<guid isPermaLink="false">2026-10-27-move</guid>
+<pubDate>Tue, 27 Oct 2026 08:23:12 +0800</pubDate>
+<description>2026-10-27 河北移动：新增 4 · 变更 5
+＋ 2026移动看家室内安防升级无预存版—冀享专属
+＋ 2026移动看家室外安防升级无预存版—冀享专属
+＋ 高端慧眼云盒-169档及以上-划拨版（存量）
+＋ 高端慧眼云盒-169档及以上（存量）
+± 中屏服务投屏版720元（24个月）</description>
+</item>
+<item>
 <title>2026-10-26 河北电信：变更 2</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-26.md</link>
 <category>变更</category>
@@ -664,56 +710,5 @@
 － 提速-全国流量包20元
 － 提速-全国流量包40元
 － 机顶盒终端月付10元（2年）</description>
-</item>
-<item>
-<title>2026-10-01 中国广电：变更 4</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/cbn-2026-10-01.md</link>
-<category>变更</category>
-<guid isPermaLink="false">2026-10-01-cbn</guid>
-<pubDate>Thu, 01 Oct 2026 09:09:30 +0800</pubDate>
-<description>2026-10-01 中国广电：变更 4
-± 惠民年卡2.0
-± 惠民年卡2.0MAX
-± 惠民月卡2.0
-± 惠民月卡2.0MAX</description>
-</item>
-<item>
-<title>2026-10-01 河北联通：新增 7 · 下线 58 · 变更 9</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-10-01.md</link>
-<category>新增</category><category>下线</category><category>变更</category>
-<guid isPermaLink="false">2026-10-01-unicom</guid>
-<pubDate>Thu, 01 Oct 2026 09:09:18 +0800</pubDate>
-<description>2026-10-01 河北联通：新增 7 · 下线 58 · 变更 9
-＋ 联通智家畅越FTTR乐购299元分月送券360元活动36个月（河北）次月生效
-＋ 联通智家畅越云智光宽带乐购499元分月送券560元活动36个月（河北）次月生效
-＋ 联通智家畅越云智双看家乐购360元分月送券400元活动36个月（河北）次月生效
-＋ 联通智家畅越云智双看家乐购360元分月送券450元活动36个月（河北）次月生效
-＋ 联通智家畅越云智看家乐购200元分月送券240元活动24个月（河北）次月生效</description>
-</item>
-<item>
-<title>2026-10-01 河北移动：新增 6 · 下线 49 · 变更 17</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-10-01.md</link>
-<category>新增</category><category>下线</category><category>变更</category>
-<guid isPermaLink="false">2026-10-01-move</guid>
-<pubDate>Thu, 01 Oct 2026 09:06:26 +0800</pubDate>
-<description>2026-10-01 河北移动：新增 6 · 下线 49 · 变更 17
-＋ 廊坊100元宽带流量融合包
-＋ 廊坊200元宽带流量融合包
-＋ 廊坊400元宽带流量融合包-129以下
-＋ 河北移动单宽宽带1000M1200元2年到期转包月产品（2026）
-＋ 河北移动单宽宽带300M480元2年到期转包月产品(2026)</description>
-</item>
-<item>
-<title>2026-10-01 河北电信：下线 40 · 变更 1</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-01.md</link>
-<category>下线</category><category>变更</category>
-<guid isPermaLink="false">2026-10-01-telecom</guid>
-<pubDate>Thu, 01 Oct 2026 09:05:07 +0800</pubDate>
-<description>2026-10-01 河北电信：下线 40 · 变更 1
-－ 云U盘(天翼云盘PC挂载)
-－ 随享合约100元-24个月
-－ 随享合约40元-24个月
-－ 随享合约FTTR服务30元
-± 直连卫星功能</description>
 </item>
 </channel></rss>
