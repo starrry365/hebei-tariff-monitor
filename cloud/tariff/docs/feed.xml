@@ -5,6 +5,58 @@
 <description>河北移动/联通/电信/广电资费目录每日巡检捕获的业务变更（新增 / 下线 / 字段变更）</description>
 <language>zh-CN</language>
 <item>
+<title>2026-11-03 河北电信：变更 13</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-11-03.md</link>
+<category>变更</category>
+<guid isPermaLink="false">2026-11-03-telecom</guid>
+<pubDate>Tue, 03 Nov 2026 10:53:24 +0800</pubDate>
+<description>2026-11-03 河北电信：变更 13
+± 视频汇聚（月包）
+± 视频汇聚（月包）
+± 电子渠道-享20元话费（12个月）
+± 电子渠道-存100元另享120元（月享10元）
+± 电子渠道-存50元另享50元（月享10元）</description>
+</item>
+<item>
+<title>2026-11-03 中国广电：变更 6</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/cbn-2026-11-03.md</link>
+<category>变更</category>
+<guid isPermaLink="false">2026-11-03-cbn</guid>
+<pubDate>Tue, 03 Nov 2026 10:56:33 +0800</pubDate>
+<description>2026-11-03 中国广电：变更 6
+± 双百套餐2.0
+± 双百套餐2.0MAX
+± 双百套餐2.0PLUS
+± 国内流量年包192元
+± 奔马卡回馈活动</description>
+</item>
+<item>
+<title>2026-11-03 河北联通：新增 1 · 下线 7 · 变更 2</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-11-03.md</link>
+<category>新增</category><category>下线</category><category>变更</category>
+<guid isPermaLink="false">2026-11-03-unicom</guid>
+<pubDate>Tue, 03 Nov 2026 10:55:51 +0800</pubDate>
+<description>2026-11-03 河北联通：新增 1 · 下线 7 · 变更 2
+＋ 畅越优选15元/月视频彩铃权益包(河北)-立即生效
+－ 唐山学院200M宽带（河北）
+－ 唐山师范学院200M宽带（河北）
+－ 联通云智手机畅享版15元/月（河北）-次月生效
+－ 联通云智手机畅享版15元/月（河北）-立即生效</description>
+</item>
+<item>
+<title>2026-11-03 河北移动：新增 6 · 变更 16</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-11-03.md</link>
+<category>新增</category><category>变更</category>
+<guid isPermaLink="false">2026-11-03-move</guid>
+<pubDate>Tue, 03 Nov 2026 10:54:08 +0800</pubDate>
+<description>2026-11-03 河北移动：新增 6 · 变更 16
+＋ 咪咕礼包1
+＋ 咪咕礼包2
+＋ 咪咕礼包3
+＋ 云盘礼包1
+＋ 云盘礼包2</description>
+</item>
+<item>
 <title>2026-11-02 河北电信：变更 2</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-11-02.md</link>
 <category>变更</category>
@@ -663,56 +715,5 @@
 ± 十年长期会员
 ± 新通话-点亮屏幕酷彩包
 ± 移动云盘阅读会员</description>
-</item>
-<item>
-<title>2026-10-14 河北联通：新增 1 · 下线 13 · 变更 2</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-10-14.md</link>
-<category>新增</category><category>下线</category><category>变更</category>
-<guid isPermaLink="false">2026-10-14-unicom</guid>
-<pubDate>Wed, 14 Oct 2026 14:45:16 +0800</pubDate>
-<description>2026-10-14 河北联通：新增 1 · 下线 13 · 变更 2
-＋ 5G宽视界·好剧暖秋冬，权益享不停
-－ 预存1080元享指定终端电子券活动36期（次月生效）
-－ 预存1200元享指定终端电子券活动24期（次月生效）
-－ 预存1440元享指定终端电子券活动24期（次月生效）
-－ 预存1440元享指定终端电子券活动36期（次月生效）</description>
-</item>
-<item>
-<title>2026-10-14 河北移动：下线 76 · 变更 1</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-10-14.md</link>
-<category>下线</category><category>变更</category>
-<guid isPermaLink="false">2026-10-14-move</guid>
-<pubDate>Wed, 14 Oct 2026 14:42:00 +0800</pubDate>
-<description>2026-10-14 河北移动：下线 76 · 变更 1
-－ 咪咕湛庐知识会员月卡
-－ 新通话-明星来电三档明星E包
-－ 移动云盘(200G)
-－ 移动云盘-臻选会员10元
-± 移动权益随心享（定向流量版）</description>
-</item>
-<item>
-<title>2026-10-13 河北电信：变更 4</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-13.md</link>
-<category>变更</category>
-<guid isPermaLink="false">2026-10-13-telecom</guid>
-<pubDate>Tue, 13 Oct 2026 16:22:00 +0800</pubDate>
-<description>2026-10-13 河北电信：变更 4
-± 视频汇聚（月包）
-± 视频汇聚（月包）
-± 促销-共享流量包120G
-± 副卡功能费优惠可选包（优惠至10元）</description>
-</item>
-<item>
-<title>2026-10-13 河北联通：新增 6 · 下线 2 · 变更 15</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-10-13.md</link>
-<category>新增</category><category>下线</category><category>变更</category>
-<guid isPermaLink="false">2026-10-13-unicom</guid>
-<pubDate>Tue, 13 Oct 2026 16:26:01 +0800</pubDate>
-<description>2026-10-13 河北联通：新增 6 · 下线 2 · 变更 15
-＋ 权益超市×中国考古博物馆文博畅享季
-＋ 联通权益超市×大麦 会员观影福利
-＋ 畅越升级生活权益包36个月（河北）
-＋ 畅越升级白金权益包36个月（河北）
-＋ 畅越升级钻石权益包36个月（河北）</description>
 </item>
 </channel></rss>
