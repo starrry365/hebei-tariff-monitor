@@ -5,6 +5,52 @@
 <description>河北移动/联通/电信/广电资费目录每日巡检捕获的业务变更（新增 / 下线 / 字段变更）</description>
 <language>zh-CN</language>
 <item>
+<title>2026-11-05 河北电信：下线 4</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-11-05.md</link>
+<category>下线</category>
+<guid isPermaLink="false">2026-11-05-telecom</guid>
+<pubDate>Thu, 05 Nov 2026 09:26:40 +0800</pubDate>
+<description>2026-11-05 河北电信：下线 4
+－ 电子渠道-享20元话费（12个月）
+－ 电子渠道-享5GB国内通用流量（12个月）
+－ 电子渠道-存100元另享120元（月享10元）
+－ 电子渠道-存50元另享50元（月享10元）</description>
+</item>
+<item>
+<title>2026-11-05 中国广电：新增 1</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/cbn-2026-11-05.md</link>
+<category>新增</category>
+<guid isPermaLink="false">2026-11-05-cbn</guid>
+<pubDate>Thu, 05 Nov 2026 09:26:40 +0800</pubDate>
+<description>2026-11-05 中国广电：新增 1
+＋ 满意度调查回馈20G通用流量月包</description>
+</item>
+<item>
+<title>2026-11-05 河北联通：新增 4</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-11-05.md</link>
+<category>新增</category>
+<guid isPermaLink="false">2026-11-05-unicom</guid>
+<pubDate>Thu, 05 Nov 2026 09:31:43 +0800</pubDate>
+<description>2026-11-05 河北联通：新增 4
+＋ 畅越冰激凌升级版套餐存1062元送1062元终端券合约36个月（河北）-次月生效
+＋ 畅越冰激凌升级版套餐存240元送240元终端券合约24个月（河北）-次月生效
+＋ 畅越冰激凌升级版套餐存360元送360元终端券合约36个月（河北）-次月生效
+＋ 畅越冰激凌升级版套餐存720元送720元终端券合约36个月（河北）-次月生效</description>
+</item>
+<item>
+<title>2026-11-05 河北移动：新增 5 · 变更 26</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-11-05.md</link>
+<category>新增</category><category>变更</category>
+<guid isPermaLink="false">2026-11-05-move</guid>
+<pubDate>Thu, 05 Nov 2026 09:27:03 +0800</pubDate>
+<description>2026-11-05 河北移动：新增 5 · 变更 26
+＋ 2026移动看家服务双摄（室内）存量版-冀享专属
+＋ 2026移动看家服务双摄（室外）存量版-冀享专属
+＋ 爱家生活-智能厨电30元包存量版 -冀享专属
+＋ IPTV奇好看VIP（亲情付）
+＋ 宽带提速千兆-家庭安防专属</description>
+</item>
+<item>
 <title>2026-11-04 河北电信：变更 2</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-11-04.md</link>
 <category>变更</category>
@@ -668,49 +714,5 @@
 ± 算力豆套餐-100元-次包
 ± 算力豆套餐-10元-月包
 ± 算力豆套餐-10元-次包</description>
-</item>
-<item>
-<title>2026-10-16 河北电信：变更 1</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-16.md</link>
-<category>变更</category>
-<guid isPermaLink="false">2026-10-16-telecom</guid>
-<pubDate>Fri, 16 Oct 2026 11:13:59 +0800</pubDate>
-<description>2026-10-16 河北电信：变更 1
-± 直连卫星月包-30元</description>
-</item>
-<item>
-<title>2026-10-16 河北联通：下线 1</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-10-16.md</link>
-<category>下线</category>
-<guid isPermaLink="false">2026-10-16-unicom</guid>
-<pubDate>Fri, 16 Oct 2026 11:16:15 +0800</pubDate>
-<description>2026-10-16 河北联通：下线 1
-－ “联通云盘燃动开学季，赢12个月芒果TV会员”活动</description>
-</item>
-<item>
-<title>2026-10-16 河北移动：下线 9 · 变更 12</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-10-16.md</link>
-<category>下线</category><category>变更</category>
-<guid isPermaLink="false">2026-10-16-move</guid>
-<pubDate>Fri, 16 Oct 2026 11:14:03 +0800</pubDate>
-<description>2026-10-16 河北移动：下线 9 · 变更 12
-－ 十年长期会员
-－ 新通话-点亮屏幕酷彩包
-－ 移动云盘陕西会员月包(2T)
-－ 移动云盘陕西会员月包(4T)
-± 算力豆套餐-100元-月包</description>
-</item>
-<item>
-<title>2026-10-15 河北电信：变更 29</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-15.md</link>
-<category>变更</category>
-<guid isPermaLink="false">2026-10-15-telecom</guid>
-<pubDate>Thu, 15 Oct 2026 18:25:22 +0800</pubDate>
-<description>2026-10-15 河北电信：变更 29
-± 尊享会员季卡
-± 直连卫星年包-1000元
-± 直连卫星年包-300元
-± 直连卫星月包-30元
-± 视频汇聚（月包）</description>
 </item>
 </channel></rss>
