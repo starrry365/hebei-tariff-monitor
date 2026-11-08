@@ -1,14 +1,14 @@
 {
- "ts": "2026-11-07 08:52:56",
+ "ts": "2026-11-08 08:28:00",
  "n": 5407,
- "prev_n": 5696,
- "added": 2,
+ "prev_n": 5407,
+ "added": 0,
  "removed": 0,
- "changed": 8,
- "restored": 9,
- "fake_removed": 300,
+ "changed": 0,
+ "restored": 0,
+ "fake_removed": 0,
  "relocated": 0,
  "note": "",
- "report": "changes/2026-11-07.md",
- "prev": "hebei_tariff_20261106.json.gz"
+ "report": "changes/2026-11-08.md",
+ "prev": "hebei_tariff_20261107.json.gz"
 }
