@@ -5,6 +5,28 @@
 <description>河北移动/联通/电信/广电资费目录每日巡检捕获的业务变更（新增 / 下线 / 字段变更）</description>
 <language>zh-CN</language>
 <item>
+<title>2026-11-12 中国广电：变更 1</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/cbn-2026-11-12.md</link>
+<category>变更</category>
+<guid isPermaLink="false">2026-11-12-cbn</guid>
+<pubDate>Thu, 12 Nov 2026 10:13:45 +0800</pubDate>
+<description>2026-11-12 中国广电：变更 1
+± 回归专属充值免欠费活动</description>
+</item>
+<item>
+<title>2026-11-12 河北移动：变更 9</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-11-12.md</link>
+<category>变更</category>
+<guid isPermaLink="false">2026-11-12-move</guid>
+<pubDate>Thu, 12 Nov 2026 10:14:03 +0800</pubDate>
+<description>2026-11-12 河北移动：变更 9
+± 2026年石家庄交话费赠礼回馈活动尊享档
+± 2026年石家庄交话费赠礼回馈活动悦享档
+± 2026年石家庄交话费赠礼回馈活动盛享档
+± 2026年石家庄交话费赠礼回馈活动臻享档
+± 2026年石家庄升档升舱客户赠礼回馈活动尊享档</description>
+</item>
+<item>
 <title>2026-11-11 河北电信：变更 2</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-11-11.md</link>
 <category>变更</category>
@@ -698,28 +720,5 @@
 ± 2023校园专属1元200G流量包-次月生效（48个月）（河北定向）
 ± 2023校园专属1元200G流量包-立即生效（48个月）（河北定向）
 ± 健康生活VIP（1周）</description>
-</item>
-<item>
-<title>2026-10-22 河北移动：新增 11 · 变更 16</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-10-22.md</link>
-<category>新增</category><category>变更</category>
-<guid isPermaLink="false">2026-10-22-move</guid>
-<pubDate>Thu, 22 Oct 2026 22:21:36 +0800</pubDate>
-<description>2026-10-22 河北移动：新增 11 · 变更 16
-＋ 高端机专属话费合约-1200元版
-＋ 高端机专属话费合约-2400元版
-＋ 咪咕影之刃零专属福利150元档
-＋ 咪咕影之刃零专属福利50元档
-＋ 咪咕影之刃零标准版</description>
-</item>
-<item>
-<title>2026-10-21 河北电信：变更 2</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-21.md</link>
-<category>变更</category>
-<guid isPermaLink="false">2026-10-21-telecom</guid>
-<pubDate>Wed, 21 Oct 2026 14:18:10 +0800</pubDate>
-<description>2026-10-21 河北电信：变更 2
-± 视频汇聚（月包）
-± 视频汇聚（月包）</description>
 </item>
 </channel></rss>
