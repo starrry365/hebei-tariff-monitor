@@ -5,6 +5,15 @@
 <description>河北移动/联通/电信/广电资费目录每日巡检捕获的业务变更（新增 / 下线 / 字段变更）</description>
 <language>zh-CN</language>
 <item>
+<title>2026-11-15 河北联通：下线 1</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-11-15.md</link>
+<category>下线</category>
+<guid isPermaLink="false">2026-11-15-unicom</guid>
+<pubDate>Sun, 15 Nov 2026 09:02:00 +0800</pubDate>
+<description>2026-11-15 河北联通：下线 1
+－ 王卡10周年活动A</description>
+</item>
+<item>
 <title>2026-11-14 河北电信：变更 3</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-11-14.md</link>
 <category>变更</category>
@@ -706,17 +715,5 @@
 － 月包3GB通用流量+腾讯视频会员月卡
 － 后向国际漫游港澳台1天包+腾讯视频会员月卡
 － 国际本地澳门1天1GB+腾讯视频会员月卡</description>
-</item>
-<item>
-<title>2026-10-24 河北移动：下线 19</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-10-24.md</link>
-<category>下线</category>
-<guid isPermaLink="false">2026-10-24-move</guid>
-<pubDate>Sat, 24 Oct 2026 07:52:25 +0800</pubDate>
-<description>2026-10-24 河北移动：下线 19
-－ 互动体验流量包1GB（河北）
-－ 咪咕视频100GB定向流量3个月体验包
-－ 咪咕视频100GB定向流量6个月体验包
-－ 咪咕视频30GB定向流量3个月体验包</description>
 </item>
 </channel></rss>
