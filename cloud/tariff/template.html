@@ -514,6 +514,9 @@ td.fee::before{content:"▸";display:inline-block;width:11px;font-size:10px;
 tr.row.open td.fee::before{transform:rotate(90deg);opacity:.9;color:var(--ac)}
 /* 新上架行的左缘绿条：NEW 徽标只在日期格里，扫全表时行级标记更快 */
 tr.row.isnew td:first-child{box-shadow:inset 3px 0 0 var(--ok)}
+/* 条目直达高亮动画（深链定位目标条目时柔和脉冲 2 轮） */
+@keyframes rowPulse{0%{box-shadow:0 0 0 0 rgba(0,160,233,.6)}50%{box-shadow:0 0 0 6px rgba(0,160,233,.25);background:var(--hover)}100%{box-shadow:0 0 0 0 rgba(0,160,233,0)}}
+tr.row.target-highlight{animation:rowPulse 1.8s ease-in-out 2;outline:2px solid var(--ac);outline-offset:-1px}
 .nm{font-weight:600}
 /* 搜索命中高亮：淡主色底、不抢字色（深浅主题都走 --ac2 半透明，字色继承） */
 mark{background:var(--ac2);color:inherit;padding:0 1px;border-radius:2px}
@@ -722,11 +725,11 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
 .ailine b{color:var(--tx2);font-weight:600}
 .aichip{padding:1px 9px;border-radius:999px;background:var(--okbg);color:var(--ok);
   font-size:11.5px;font-weight:600}
-/* 复制按钮并到页脚右侧（2026-10-23）：它本来是详情最末尾的独立一行，
-   29px 高只为放一颗按钮。 */
-.cpbtn{padding:4px 10px;border:1px solid var(--bd2);background:var(--glass3);border-radius:7px;
-  font-size:11.5px;cursor:pointer;color:var(--tx2);font-family:inherit;flex:none}
-.cpbtn:hover{border-color:var(--ac);color:var(--ac)}
+/* 复制/分享按钮并到页脚右侧（2026-10-23） */
+.cpbtn,.shbtn{padding:4px 10px;border:1px solid var(--bd2);background:var(--glass3);border-radius:7px;
+  font-size:11.5px;cursor:pointer;color:var(--tx2);font-family:inherit;flex:none;transition:border-color .15s,color .15s}
+.cpbtn:hover,.shbtn:hover{border-color:var(--ac);color:var(--ac)}
+.dfacts{display:flex;gap:6px;flex:none;align-items:center}
 .pager{display:flex;gap:8px;align-items:center;justify-content:center;padding:20px 0}
 .pager button{padding:7px 15px;border:1px solid var(--bd2);background:var(--glass2);border-radius:10px;
   cursor:pointer;font-size:13px;color:var(--tx)}
@@ -1689,6 +1692,8 @@ let PAGE=80;
    apply() 对「筛选变了」一律回第 1 页，但「深链 / 刷新恢复」不该丢页码，
    所以走旁路注入而不是改 apply 的默认行为。 */
 let _pgNext=null;
+/* 深链定位的目标资费（报备编号或名称，readHash 写入、apply 定位消费后清空） */
+let _targetR=null;
 /* 在售 / 已下架 页签的当前值（"0" 在售 / "1" 已下架 / "" 全部）。
    默认「在售」：这是日常要看的那份；下架资费要收全、但要单列，
    不能混进在售清单的排序与变更检测里。 */
@@ -3492,10 +3497,11 @@ function detHTML(d){
         +'</span><div class="drb">'+o[1]+'</div></div>';
     }).join("")+'</div></div>':"";
 
-  /* 页脚：档案字段 + 复制按钮同一行。按钮原本独占 29px 一整行，只为放一颗按钮。 */
+  /* 页脚：档案字段 + 复制/分享直达链接按钮同一行。 */
   const foot='<div class="dfoot"><div class="dfm">'
     +meta.map(p=>'<span class="fi"><span>'+esc(p[0])+'</span><em>'+p[1]+'</em></span>').join("")
-    +'</div><button type="button" class="cpbtn">复制这条资费</button></div>';
+    +'</div><div class="dfacts"><button type="button" class="shbtn" title="生成并复制该资费的直达链接">分享链接</button>'
+    +'<button type="button" class="cpbtn">复制这条资费</button></div></div>';
 
   return head+kpi
     +xSec(d)
@@ -3706,7 +3712,7 @@ function render(){
     const gT=fmtGb(d.g), gE=gT==="—";
     const cE=!(d.c&&d.c!=="0");
     const bE=!bwInfo(d);
-    buf.push('<tr class="row'+(isNew?" isnew":"")+(d.st?" stopped":"")+'" data-i="'+i+'" data-k="'+esc(keyOf(NET,d))+'" tabindex="0" title="点击展开详情 / 复制" aria-expanded="false">'
+    buf.push('<tr class="row'+(isNew?" isnew":"")+(d.st?" stopped":"")+'" data-i="'+i+'" data-r="'+esc(d.r||d.n||d.t||"")+'" data-k="'+esc(keyOf(NET,d))+'" tabindex="0" title="点击展开详情 / 复制" aria-expanded="false">'
       +'<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元":"—")+'</td>'
       +'<td class="c-gb'+(gE?" m0":"")+'">'+gT+'</td>'
       +'<td class="c-call'+(cE?" m0":"")+'">'+(cE?"—":'<span style="white-space:nowrap">'+esc(d.c)+" 分钟</span>")+'</td>'
@@ -3956,9 +3962,32 @@ function apply(){
     const t=$("#ty");if(t&&t.value&&!rowsOf(NET).some(d=>d.st&&d.ty))t.value=""}
   syncCtAvail($("#ct").style.display==="none",STA==="1");
   syncTyAvail(STA==="1");
-  const c=condOf();
+  let c=condOf();
   view=rowsOf(NET).filter(d=>match(d,c));
   sortView();
+  /* 深链条目直达定位（_targetR）：自动匹配当前网资费、对齐状态页签并跳至目标页 */
+  if(_targetR){
+    const rs=rowsOf(NET);
+    const targetItem=rs.find(d=>(d.r&&d.r===_targetR)||(d.n&&d.n===_targetR)||(d.t&&d.t===_targetR));
+    if(targetItem){
+      if(targetItem.st&&STA==="0"){STA="1";syncTabs()}
+      else if(!targetItem.st&&STA==="1"){STA="0";syncTabs()}
+      c=condOf();
+      view=rs.filter(d=>match(d,c));
+      sortView();
+      let targetIdx=view.indexOf(targetItem);
+      if(targetIdx<0){
+        $("#kw").value="";clearDims();clearChips();
+        c=condOf();
+        view=rs.filter(d=>match(d,c));
+        sortView();
+        targetIdx=view.indexOf(targetItem);
+      }
+      if(targetIdx>=0){
+        _pgNext=Math.floor(targetIdx/PAGE);
+      }
+    }
+  }
   /* 页码：筛选变了就回第 1 页（新结果集里旧页码毫无意义）；
      唯一例外是深链 #p=N 带进来的 _pgNext —— 那是「恢复现场」不是「新筛选」。
      clamp 到结果集的实际页数：数据更新后页数可能缩水，越界页码自愈到最后一页。 */
@@ -3967,6 +3996,20 @@ function apply(){
     _pgNext=null;
   }else pg=0;
   render();markHead();syncHash();
+  if(_targetR){
+    const curTarget=_targetR;
+    _targetR=null;
+    requestAnimationFrame(()=>{
+      const escCss=window.CSS&&CSS.escape?CSS.escape(curTarget):curTarget.replace(/["\\]/g,"\\$&");
+      const rowEl=document.querySelector('#tb tr.row[data-r="'+escCss+'"]');
+      if(rowEl){
+        if(!rowEl.classList.contains("open"))toggleRow(rowEl);
+        rowEl.scrollIntoView({behavior:"smooth",block:"center"});
+        rowEl.classList.add("target-highlight");
+        setTimeout(()=>rowEl.classList.remove("target-highlight"),3600);
+      }
+    });
+  }
 }
 
 function markHead(){
@@ -4100,6 +4143,9 @@ function readHash(replay){
      深链恢复必须绕过那条默认路（见 _pgNext 声明处的注释）。 */
   const pv=parseInt(p.get("p"),10);
   if(pv>=1)_pgNext=pv-1;
+  /* 条目级深链：支持通过 #net=...&r=... 直接直达某条资费并高亮展开 */
+  const rv=p.get("r");
+  if(rv)_targetR=rv.trim();
   $("#sort").value=sortK;
   /* 页签：只认白名单里的四个值，认不出来就当没传（同「枚举参数先核对」的原则）。 */
   const vv=p.get("v");
@@ -4573,8 +4619,8 @@ function legacyCopy(s){
   t.remove();
   return ok;
 }
-function copyText(s){
-  const done=ok=>toast(ok?"已复制":"复制失败：浏览器不允许，请手动选中复制");
+function copyText(s,msg){
+  const done=ok=>toast(ok?(msg||"已复制"):"复制失败：浏览器不允许，请手动选中复制");
   if(navigator.clipboard&&navigator.clipboard.writeText){
     navigator.clipboard.writeText(s).then(()=>done(true),()=>done(legacyCopy(s)));
   }else{
@@ -5233,6 +5279,17 @@ function toggleRow(tr){
   }
 }
 $("#tb").addEventListener("click",e=>{
+  const sh=e.target.closest(".shbtn");
+  if(sh){
+    const dr=sh.closest("tr.det"),tr=dr&&dr.previousElementSibling;
+    const d=tr&&ROWS[+tr.dataset.i];
+    if(d){
+      const rKey=d.r||d.n||d.t||"";
+      const href=location.origin+location.pathname+location.search+"#net="+encodeURIComponent(NET)+"&r="+encodeURIComponent(rKey);
+      copyText(href,"直达链接已复制到剪贴板");
+    }
+    return;
+  }
   const cp=e.target.closest(".cpbtn");
   if(cp){
     const dr=cp.closest("tr.det"),tr=dr&&dr.previousElementSibling;

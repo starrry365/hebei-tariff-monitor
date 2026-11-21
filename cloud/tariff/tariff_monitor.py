@@ -23,6 +23,7 @@
 """
 import datetime
 import gzip
+import http.client
 import io
 import json
 import os
@@ -30,8 +31,10 @@ import random
 import re
 import ssl
 import sys
+import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
@@ -765,6 +768,32 @@ _OPENER = urllib.request.build_opener(
     urllib.request.ProxyHandler({}),
 )
 
+# ── HTTP Keep-Alive 连接池（线程隔离）────────────────────────────────────────
+# 移动网关每轮巡检需发起数十次请求。通过 HTTP Keep-Alive 复用 TLS 握手，
+# 避免每次请求都进行握手，抓取耗时可显著缩短数倍。
+_URL_PARTS = urllib.parse.urlsplit(ROOT)
+_ROOT_HOST = _URL_PARTS.netloc
+_ROOT_PATH = _URL_PARTS.path
+_tls_conn = threading.local()
+
+
+def _get_tls_conn(host=_ROOT_HOST, timeout=25):
+    conn = getattr(_tls_conn, "conn", None)
+    if conn is None:
+        conn = http.client.HTTPSConnection(host, context=_ssl_ctx(), timeout=timeout)
+        _tls_conn.conn = conn
+    return conn
+
+
+def _close_tls_conn():
+    conn = getattr(_tls_conn, "conn", None)
+    if conn is not None:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        _tls_conn.conn = None
+
 for d in (SNAP, CHG, DOCS):
     os.makedirs(d, exist_ok=True)
 
@@ -818,35 +847,47 @@ def call(path, body, retry=2, cap=8.0, ua=None):
         return {"_err": f"缺少加解密依赖 pycryptodome（{_MZ_ERR}），只能跑 --render-only"}
     data = json.dumps(body, ensure_ascii=False).encode("utf-8")
     last = None
+    headers = HEADERS if ua is None else {**HEADERS, "User-Agent": ua}
+    req_headers = {**headers, "Connection": "keep-alive"}
+    req_path = _ROOT_PATH + path.lstrip("/")
+
     for i in range(retry + 1):
         try:
-            headers = HEADERS if ua is None else {**HEADERS, "User-Agent": ua}
-            req = urllib.request.Request(ROOT + path, data=data,
-                                         headers=headers, method="POST")
-            with _OPENER.open(req, timeout=25) as r:
-                # 读上限兜底：单页响应正常 < 几 MB，超过 64MB 必是异常（坏网关把
-                # 错误页/重定向流吐回来），别真往内存里塞（2026-10-02 审查项）。
+            conn = _get_tls_conn(timeout=25)
+            conn.request("POST", req_path, body=data, headers=req_headers)
+            r = conn.getresponse()
+            if r.status != 200:
+                body_txt = ""
+                try:
+                    body_txt = r.read(4096).decode("utf-8", "replace").strip()
+                except Exception:
+                    pass
+                hint = "（瑞数类 JS 挑战：网关侧风控，纯 HTTP 短期内打不通）" if r.status == 412 else ""
+                last = f"http:{r.status}: {r.reason} {hint} {body_txt[:120]}".strip()
+                log(f"  !! call({path}) 第{i + 1}次 HTTP {r.status}{hint}")
+                _close_tls_conn()
+            else:
                 raw = r.read(64 * 1024 * 1024 + 1)
-            if len(raw) > 64 * 1024 * 1024:
-                raise ValueError("单页响应超过 64MB 上限")
-            txt = raw.decode("utf-8", "replace").strip()
-            j = _unwrap_payload(json.loads(txt))
-            return j
-        except urllib.error.HTTPError as e:
-            body_txt = ""
-            try:
-                body_txt = e.read(4096).decode("utf-8", "replace").strip()
-            except Exception:
-                pass
-            hint = "（瑞数类 JS 挑战：网关侧风控，纯 HTTP 短期内打不通）" if e.code == 412 else ""
-            last = f"http:{e.code}: {e.reason} {hint} {body_txt[:120]}".strip()
-            log(f"  !! call({path}) 第{i + 1}次 HTTP {e.code}{hint}")
+                if len(raw) > 64 * 1024 * 1024:
+                    _close_tls_conn()
+                    raise ValueError("单页响应超过 64MB 上限")
+                txt = raw.decode("utf-8", "replace").strip()
+                j = _unwrap_payload(json.loads(txt))
+                return j
+        except (http.client.RemoteDisconnected, http.client.CannotSendRequest,
+                http.client.CannotSendHeader, http.client.ResponseNotReady,
+                ConnectionResetError, BrokenPipeError) as e:
+            _close_tls_conn()
+            last = f"net: {type(e).__name__}: {e}"
+            log(f"  !! call({path}) 第{i + 1}次网络断开(已重置连接): {last[:130]}")
         except (urllib.error.URLError, OSError, ssl.SSLError, TimeoutError) as e:
+            _close_tls_conn()
             last = f"net: {type(e).__name__}: {e}"
             log(f"  !! call({path}) 第{i + 1}次网络异常: {last[:130]}")
         except Exception as e:
             # JSON 解析失败 / 解密失败 —— 200 但内容不对，多半是上游改版或密钥漂移。
             # 这类**不值得原样重试**（同样的请求拿同样的坏响应），但仍重试一次防抖动截断。
+            _close_tls_conn()
             last = f"body: {type(e).__name__}: {e}"
             log(f"  !! call({path}) 第{i + 1}次响应异常: {last[:130]}")
         if i < retry:

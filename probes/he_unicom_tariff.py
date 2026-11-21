@@ -29,7 +29,7 @@
 ★★ operateData 的 URL 路径是**多个三级 id 用 `_` 拼接**，body 里的 size 只是「这次拼几个」：
      js: level3.slice((page-1)*size, page*size).join("_")
    所以 **size 由客户端决定、可以调大** —— 默认 5 时几百个三级目录要发上百次请求，
-   调成 BATCH（默认 20）后请求数降到个位数。这是本探针相对页面行为的主要改动。
+   调成 BATCH（默认 35）后请求数降到个位数。这是本探针相对页面行为的主要改动。
 
 ★ detailsList[] 明细字段（已实测全量）：
    reportNo name codeType feesStandard otherFees extraFees minute commonData dataUnit
@@ -66,7 +66,7 @@ BASE = "https://mxx.client.10010.com/servicequerybusiness"
 REF = "https://imgxx.client.10010.com/"
 PROV = "018"          # 河北
 CITY = "185"          # 邢台（抓包时用户所在城市）
-BATCH = 20            # operateData 一次拼几个三级 id（越大请求越少，注意 URL 长度）
+BATCH = 35            # operateData 一次拼几个三级 id（越大请求越少，注意 URL 长度）
 ATTRS = ("1", "2")    # 1=全国/跨省，2=本省
 
 # ★★ 河北 12 个地市（cityList 实测全量，2026-09-24）
