@@ -532,6 +532,23 @@ mark{background:var(--ac2);color:inherit;padding:0 1px;border-radius:2px}
 [data-theme="dark"] .bwtg.bwtg-up{background:rgba(56,189,248,.15);color:#38bdf8}
 .det-badge-qos{background:rgba(124,58,237,.12);color:#7c3aed;font-weight:600}
 [data-theme="dark"] .det-badge-qos{background:rgba(167,139,250,.18);color:#c4b5fd}
+.tg-contract{display:inline-block;padding:1px 6px;margin-right:3px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(245,158,11,.15);color:#d97706;border:1px solid rgba(245,158,11,.3);vertical-align:1px}
+[data-theme="dark"] .tg-contract{background:rgba(245,158,11,.2);color:#fbbf24;border-color:rgba(245,158,11,.4)}
+.gb-dir{display:inline-block;margin-left:3px;font-size:10px;padding:0 3px;border-radius:3px;background:rgba(14,165,233,.12);color:#0284c7;font-weight:600;vertical-align:1px}
+[data-theme="dark"] .gb-dir{background:rgba(56,189,248,.18);color:#38bdf8}
+.tg-seg{display:inline-block;padding:1px 6px;margin-right:3px;border-radius:4px;font-size:11px;font-weight:600;vertical-align:1px}
+.tg-campus{background:rgba(99,102,241,.12);color:#6366f1}
+[data-theme="dark"] .tg-campus{background:rgba(129,140,248,.18);color:#a5b4fc}
+.tg-senior{background:rgba(234,88,12,.12);color:#ea580c}
+[data-theme="dark"] .tg-senior{background:rgba(251,146,60,.18);color:#fdba74}
+.tg-rider{background:rgba(16,185,129,.12);color:#059669}
+[data-theme="dark"] .tg-rider{background:rgba(52,211,153,.18);color:#6ee7b7}
+.fchip.fchip-clear{background:var(--card);border:1px dashed var(--ac);color:var(--ac);font-weight:600}
+.fchip.fchip-clear:hover{background:var(--ac);color:#fff}
+.aichip{cursor:pointer;transition:transform .12s,box-shadow .15s}
+.aichip:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.15);filter:brightness(.95)}
+.brow-act{cursor:pointer;transition:background .15s}
+.brow-act:hover{background:var(--hover)}
 .ap{color:var(--tx2);font-size:12px;max-width:320px}
 /* ── 目标客户：桌面也收成两行（2026-10-18）────────────────────────────
    此前只有 ≤640px 的卡片视图做截断，桌面上是「有多少显示多少」。
@@ -1297,6 +1314,10 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
     <div class="ph"><h2 class="pt">个人 / 政企构成</h2><span class="ps">仅移动官方提供归属标注</span></div>
     <div class="bars" id="ovOw"></div>
   </div>
+  <div class="panel" id="ovBwPanel">
+    <div class="ph"><h2 class="pt">宽带速率梯次构成</h2><span class="ps" id="ovBwNote">千兆/提速及各速率档位</span></div>
+    <div class="bars" id="ovBw"></div>
+  </div>
   <div class="panel">
     <div class="ph"><h2 class="pt">月费档位分布</h2><span class="ps">按标准月费（元）分档</span></div>
     <div class="bars" id="ovFee"></div>
@@ -1978,6 +1999,38 @@ function promoFeeInfo(d){
   };
 }
 
+/* —— 合约承诺/在网期限识别 ——
+   移动/联通/电信/广电 215 款预存购机、算力PAD及政企家庭资费中含有承诺在网期限。
+   提炼在网月份数与标签，用于列表徽标、详情卡片及数据导出。 */
+function contractInfo(d){
+  const s=String(d.x||"")+" "+String(d.oth||"")+" "+String(d.vp||"");
+  const m=/(?:承诺在网|合约期|协议期|在网期限为)\s*(\d+)\s*(个?月|年)/.exec(s);
+  if(!m)return null;
+  const val=+m[1];
+  const isYear=m[2].indexOf("年")>=0;
+  const months=isYear?val*12:val;
+  if(!isFinite(months)||months<=0||months>120)return null;
+  return {months:months, text:months+"个月合约"};
+}
+
+/* —— 定向/专属流量特征识别 ——
+   546 款资费含有免流/定向/专属流量包，避免用户将总流量误认为通用流量。 */
+function dirTrafficInfo(d){
+  if(!d.g&&d.cat!=="流量包"&&!/流量/.test(String(d.t||"")))return false;
+  const s=String(d.x||"")+" "+String(d.t||"")+" "+String(d.n||"");
+  return /(?:定向流量|专属流量|免流|定向包)/.test(s);
+}
+
+/* —— 细分客群特征识别 ——
+   校园/敬老/骑手等垂直人群专属资费。 */
+function segmentTag(d){
+  const s=String(d.n||"")+" "+String(d.t||"")+" "+String(d.ap||"")+" "+String(d.x||"");
+  if(/校园|学生|青春/.test(s))return '<span class="tg tg-seg tg-campus" title="针对学生/校园群体专享">校园</span> ';
+  if(/老年|银发|长者|敬老|孝心|重阳/.test(s))return '<span class="tg tg-seg tg-senior" title="适老/长者专属关怀">敬老</span> ';
+  if(/骑手|骑士/.test(s))return '<span class="tg tg-seg tg-rider" title="骑手/外卖小哥大通话专属">骑手</span> ';
+  return "";
+}
+
 /* —— 宽带判定 ——
    d.bw 字段四网写法极碎（「含宽带」「300M」「无」「提速包」…），而「办不办宽带」
    恰是用户筛资费的高频维度。**只信字段，不做名称兜底**：
@@ -2494,9 +2547,10 @@ function chipsHtml(){
   DIMS.forEach(k=>{if($("#"+k).value)a.push([k,(DIM_PRE[k]||"")+optText(k)])});
   cfActive().forEach(k=>a.push(["col:"+k,cfChipLab(k)]));
   if(!a.length)return '<span class="mut">无筛选</span>';
+  const clrBtn=a.length>=2?'<button type="button" class="fchip fchip-clear" data-act="clear-all" title="一键清空全部筛选条件">清空全部 <i>↺</i></button>':"";
   return '<span class="fchips">'+a.map(p=>
     '<button type="button" class="fchip" data-d="'+esc(p[0])+'" title="点掉这一个条件">'
-    +esc(p[1])+'<i>×</i></button>').join("")+'</span>';
+    +esc(p[1])+'<i>×</i></button>').join("")+clrBtn+'</span>';
 }
 /* 纯文本版条件说明（condText）已删除：它曾与 chipsHtml 各维护一份口径且
    无人调用 —— 死代码留着的下场就是改一处忘一处。 */
@@ -2526,12 +2580,18 @@ const COLF_DEF={
   bw:{lab:"宽带",get:d=>{
     if(!bwInfo(d))return"";
     const mb=bwMbps(d);
-    return mb?mb+"M":(bwSpeed(d)?"提速/组网":"含宽带");}},
+    const up=bwUpMbps(d);
+    if(mb)return up?mb+"M (↑"+up+"M)":mb+"M";
+    return bwSpeed(d)?"提速/组网":"含宽带";}},
   ap:{lab:"目标客户",get:d=>d.ap||""},
   /* 2026-10-06 晚：全列补齐（用户要求「这一行都加上筛选」）。
      月费/流量/通话按**展示口径**取值（「29 元」「30GB」与单元格所见一致，
      面板清单即所见即所筛）；（空白）= 该行此字段为空 / 无 —— 与（空白）徽标同义。 */
-  fee:{lab:"月费",get:d=>(d.f!==""&&d.f!=null)?d.f+" 元":""},
+  fee:{lab:"月费",get:d=>{
+    if(d.f!==""&&d.f!=null)return d.f+" 元";
+    const p=promoFeeInfo(d);
+    if(p)return "优惠 "+p.fee+" 元";
+    return "";}},
   gb:{lab:"流量",get:d=>(d.g!=null&&d.g!==0)?fmtGb(d.g):""},
   call:{lab:"通话",get:d=>(d.c&&d.c!=="0")?d.c+" 分钟":""},
   name:{lab:"名称",get:d=>rowName(d)},
@@ -3028,28 +3088,62 @@ function condHits(d){
      不再当「更优」推给人；想找免费包走「0 元」chip + 流量降序。
    ★ 确定性：只读行数据，同一份数据展开两次结果逐字节一致。 */
 function aiCompareHTML(d){
-  const f=num(d.f);
-  if(f==null||f<=0||!d.g)return"";          // 无月费 / 0 元 / 无流量的没有「同价位」可言
-  const rs=rowsOf(NET),lo=f-10,hi=f+10,my=perVal(d),hits=[];
+  const _p=promoFeeInfo(d), _e=effFeeInfo(d);
+  const f=num(d.f)||(_p?_p.fee:(_e?_e.effMonthly:null));
+  if(f==null||f<=0)return"";
+  const rs=rowsOf(NET),lo=f-10,hi=f+10,hits=[];
+  const isBw=bwInfo(d), myMb=bwMbps(d)||0, myUp=bwUpMbps(d)||0;
+
+  if(isBw){
+    /* 宽带同价更优：月费相近(±10元)但下行或上行带宽更高的在售套餐 */
+    for(let i=0;i<rs.length;i++){
+      const x=rs[i];
+      if(x.st||x===d||!bwInfo(x))continue;
+      const xp=promoFeeInfo(x), xe=effFeeInfo(x);
+      const xf=num(x.f)||(xp?xp.fee:(xe?xe.effMonthly:null));
+      if(xf==null||xf<lo||xf>hi)continue;
+      const xMb=bwMbps(x)||0, xUp=bwUpMbps(x)||0;
+      if(xMb>myMb || (xMb===myMb && xUp>myUp && xUp>0)){
+        hits.push([xMb*1000+xUp, x, xMb, xUp, xf]);
+      }
+    }
+    if(!hits.length)return"";
+    hits.sort((a,b)=>b[0]-a[0]);
+    return '<span class="mut">±10 元内、速率更高更优选：</span>'
+      +hits.slice(0,3).map(p=>{
+        const x=p[1], xMb=p[2], xUp=p[3], xf=p[4];
+        const nm=(x.n||x.t||"—").trim();
+        const shortNm=nm.length>20?nm.slice(0,20)+"…":nm;
+        const badge=xMb?(xMb+'M'+(xUp?' ↑'+xUp+'M':'')):'';
+        return '<span class="aichip" data-k="'+esc(nm)+'" title="点击定位：月费 '+esc(String(xf))+' 元 · 宽带 '+badge+'">'
+          +esc(shortNm)+(badge?' ('+badge+')':'')+'</span>';
+      }).join("");
+  }
+
+  /* 流量资费同价更优 */
+  if(!d.g)return"";
+  const my=perVal(d);
   for(let i=0;i<rs.length;i++){
     const x=rs[i];
-    if(x.st)continue;                        // 只推在售
-    if(x===d||!x.g)continue;
-    const xf=num(x.f);
+    if(x.st||x===d||!x.g)continue;
+    const xp=promoFeeInfo(x), xe=effFeeInfo(x);
+    const xf=num(x.f)||(xp?xp.fee:(xe?xe.effMonthly:null));
     if(xf==null||xf<lo||xf>hi)continue;
-    if(x.g<=d.g)continue;                    // 流量必须更多
-    const xp=perVal(x);
-    if(xp==null||xp<=(my==null?-1:my))continue;   // 每元流量必须更高
-    hits.push([xp,x]);
+    if(x.g<=d.g)continue;
+    const xpVal=perVal(x);
+    if(xpVal==null||xpVal<=(my==null?-1:my))continue;
+    hits.push([xpVal, x, xf]);
   }
   if(!hits.length)return"";
   hits.sort((a,b)=>b[0]-a[0]);
   const fmt=v=>v>=10?String(Math.round(v)):v.toFixed(1);
   return '<span class="mut">±10 元内、流量更多且更划算的：</span>'
     +hits.slice(0,3).map(p=>{
-      const x=p[1];
-      return '<span class="aichip" title="月费 '+esc(String(x.f))+' 元 · 流量 '+esc(fmtGb(x.g))
-        +' · 每元 '+esc(fmt(p[0]))+'GB">'+esc((x.n||x.t||"—").slice(0,42))+'</span>';
+      const x=p[1], xf=p[2];
+      const nm=(x.n||x.t||"—").trim();
+      const shortNm=nm.length>20?nm.slice(0,20)+"…":nm;
+      return '<span class="aichip" data-k="'+esc(nm)+'" title="点击定位：月费 '+esc(String(xf))+' 元 · 流量 '+esc(fmtGb(x.g))
+        +' · 每元 '+esc(fmt(p[0]))+'GB">'+esc(shortNm)+' ('+esc(fmtGb(x.g))+')</span>';
     }).join("");
 }
 
@@ -3513,6 +3607,8 @@ function detHTML(d){
   tags.push(d.st?'<span class="dtag dtag-off">已下架</span>':'<span class="dtag dtag-on">在售</span>');
   if(d.ca)tags.push('<span class="dtag dtag-new">本次新增</span>');
   else if(d.ck)tags.push('<span class="dtag dtag-ck">关键字段有变更</span>');
+  const _ci=contractInfo(d);
+  if(_ci)tags.push('<span class="dtag tg-contract">'+esc(_ci.text)+'</span>');
   const head='<div class="dhead"><div class="dhd"><h3 class="dname">'+esc(nm)+'</h3>'
     +(sub.length?'<div class="dsub">'+sub.map(s=>'<span>'+esc(s)+'</span>').join("")+'</div>':"")
     +'</div><div class="dtags">'+tags.join("")+'</div></div>';
@@ -3540,12 +3636,16 @@ function detHTML(d){
     if(_pm)ks.push([esc(_pm[1])+'<small>'+esc(_pm[2].replace(/\s+/g,""))+'</small>',"费用"]);
   }
   const _gs=fmtGb(d.g);
+  const _isDir=dirTrafficInfo(d);
   if(_gs&&_gs!=="—"){
-    if(_eff&&_eff.effG)ks.push([gbKpi(d.g),'套内流量（折合 '+_eff.effG+'G/月）']);
-    else ks.push([gbKpi(d.g),"套内流量"]);
+    let _gl="套内流量";
+    if(_eff&&_eff.effG)_gl='套内流量（折合 '+_eff.effG+'G/月）';
+    else if(_isDir)_gl='套内流量（含定向）';
+    ks.push([gbKpi(d.g),_gl]);
   }
   if(d.c&&d.c!=="0"&&d.c!=="")ks.push([esc(d.c)+'<small>分钟</small>',"套内通话"]);
   if(bwInfo(d))ks.push([bwKpi(d),"宽带"]);
+  if(_ci)ks.push([_ci.months+'<small>个月</small>',"协议在网期"]);
   /* 有效期里的期限也进条：合约类套餐的 3 年、日包的 1 天都是硬约束，比档案里
      那串原文更该一眼看到（原文仍一字不少地留在档案区）。
      ★ 天数只认「整段就是个期限」的写法（vp = "1天" / "有效期：30天"）：
@@ -3599,6 +3699,8 @@ function detHTML(d){
   /* 封顶与限速规则提取 */
   const mCap=/(当月(?:使用)?流量超过\s*\d+\s*(?:GB|G)\s*将关闭上网功能|达量降速至\s*\d+\s*(?:Kbps|Mbps|kbps|mbps)|套外费用\s*\d+\s*元封顶|套外流量\s*\d+\s*元封顶)/.exec(combText);
   if(mCap)ops.push(["封顶保护",esc(mCap[1])]);
+
+  if(_ci)ops.push(["合约要求","协议期需承诺在网 "+_ci.months+" 个月，提前解约或销户需按约定承担违约责任"]);
 
   /* 违约责任：优先字段原文，若无则从文案中提取罚则算式 */
   if(d.rsp){
@@ -3874,11 +3976,13 @@ function render(){
       feeHTML='<span class="fee-promo"><span class="fee-promo-badge">优惠</span>'+_promo.fee+' 元'+(_promo.isYear?'/月':'')+'</span>'
         +(_promo.orig?'<div class="eff-fee" title="原档位 '+_promo.orig+'元">原 '+_promo.orig+' 元档</div>':(_promo.isYear?'<div class="eff-fee" title="实付 '+_promo.total+'元/年">年付 '+_promo.total+'元</div>':''));
     }
+    const _ci=contractInfo(d);
+    const _dir=dirTrafficInfo(d);
     buf.push('<tr class="row'+(isNew?" isnew":"")+(d.st?" stopped":"")+'" data-i="'+i+'" data-r="'+esc(d.r||d.n||d.t||"")+'" data-k="'+esc(keyOf(NET,d))+'" tabindex="0" title="点击展开详情 / 复制" aria-expanded="false">'
       +'<td class="fee '+feeCls(d.f)+'">'+feeHTML+'</td>'
-      +'<td class="c-gb'+(gE?" m0":"")+'">'+gT+'</td>'
+      +'<td class="c-gb'+(gE?" m0":"")+'">'+(gE?"—":gT+(_dir?'<span class="gb-dir" title="含官方定向/专属流量包">含定向</span>':""))+'</td>'
       +'<td class="c-call'+(cE?" m0":"")+'">'+(cE?"—":'<span style="white-space:nowrap">'+esc(d.c)+" 分钟</span>")+'</td>'
-      +'<td class="nm">'+scTag(d)+cityTag(d)+hl(rowName(d),terms)+chgTag(d)
+      +'<td class="nm">'+scTag(d)+cityTag(d)+segmentTag(d)+(_ci?'<span class="tg tg-contract">'+esc(_ci.text)+'</span>':"")+hl(rowName(d),terms)+chgTag(d)
         /* L1（2026-10-04）：「已下架」页签下整页每行都挂同一枚徽标 ——
            页签标题已声明状态，这里是纯冗余（联通 3177 行 × 1 枚）；
            「全部」页签下它才有区分度，保留。 */
@@ -4740,23 +4844,45 @@ function resetAll(){
 /* —— 单条资费的纯文本摘要 ——
    复制出去是要粘到聊天 / 文档里的，所以纯文本、一行一字段、不带任何 HTML。 */
 function rowText(d){
-  const bi=bwInfo(d),mb=bwMbps(d);
-  return [
+  const bi=bwInfo(d),mb=bwMbps(d),up=bwUpMbps(d);
+  const _eff=effFeeInfo(d),_promo=promoFeeInfo(d);
+  let feeStr=(d.f!==""&&d.f!=null?d.f+" 元":"—");
+  if(_promo)feeStr="优惠 "+_promo.fee+" 元/月"+(_promo.orig?"（原 "+_promo.orig+"元档）":(_promo.isYear?"（年付 "+_promo.total+"元）":""));
+  else if(_eff)feeStr=d.f+" 元/"+_eff.cycleLabel+"（折合 "+_eff.effMonthly+"元/月）";
+
+  let bwStr="—";
+  if(bi){
+    bwStr=mb?mb+"M":"含宽带";
+    if(up)bwStr+="（上行 "+up+"M）";
+  }
+
+  const arr=[
     rowName(d).trim(),
     "类型："+(d.cat||"—")+(d.ty&&d.ty!==d.cat?" / "+d.ty:""),
     (d.ow?"归属："+d.ow:""),
-    "月费："+(d.f!==""&&d.f!=null?d.f+" 元":"—"),
-    "流量："+fmtGb(d.g),
+    "月费："+feeStr,
+    "流量："+fmtGb(d.g)+(dirTrafficInfo(d)?"（含定向/专属流量）":""),
     "通话："+(d.c&&d.c!=="0"?d.c+" 分钟":"—"),
     "地域："+(SC_LB[d.sc]||"—")+(cityTags(d).length?"（"+cityTags(d).join("/")+"）":""),
     "状态："+(d.st?"已下架":"在售"),
-    "宽带："+(bi?(mb?mb+"M":"含宽带"):"—"),
-    "渠道："+(d.chx||"—")+(d.ch?"（"+d.ch+"）":""),
-    "上架："+(fmtD(d.o)||"—")+"  下线："+(fmtD(d.e)||"—"),
-    "有效期："+(d.vp||"—"),
-    "报备编号："+(d.r||"—"),
-    "数据基线："+String(net().base||"—")+"（来源 "+String(net().src||"—")+"）"
-  ].join("\n");
+    "宽带："+bwStr
+  ];
+
+  const ci=contractInfo(d);
+  if(ci)arr.push("合约："+ci.text);
+
+  const mQos=/(5G极速服务|5G优享服务|5G黄金服务|5G白金服务|5G钻石服务|5G网络VIP服务)/.exec(String(d.n||"")+" "+String(d.t||"")+" "+String(d.x||"")+" "+String(d.oth||""));
+  if(mQos)arr.push("5G权益："+mQos[1]);
+
+  const mVc=/(副卡\s*\d+(?:\.\d+)?\s*元(?:\s*\/[张月]+)?|最多(?:可)?办理\s*\d+\s*张副卡|暂不支持办理副卡|不可办理副卡|可办理\s*\d+\s*张副卡)/.exec(String(d.x||"")+" "+String(d.oth||""));
+  if(mVc)arr.push("副卡："+mVc[1]);
+
+  arr.push("渠道："+(d.chx||"—")+(d.ch?"（"+d.ch+"）":""));
+  arr.push("上架："+(fmtD(d.o)||"—")+"  下线："+(fmtD(d.e)||"—"));
+  arr.push("有效期："+(d.vp||"—"));
+  arr.push("报备编号："+(d.r||"—"));
+  arr.push("数据基线："+String(net().base||"—")+"（来源 "+String(net().src||"—")+"）");
+  return arr.filter(Boolean).join("\n");
 }
 
 /* —— 复制到剪贴板 ——
@@ -4795,7 +4921,12 @@ function copyText(s,msg){
    否则 49 页就得点 49 次。 */
 const CSV_COLS=[
   ["地域",d=>SC_LB[d.sc]||""],["状态",d=>d.st?"已下架":"在售"],["归属",d=>d.ow||""],
-  ["月费(元)",d=>d.f],["流量(GB)",d=>d.g],["流量原文",d=>d.d],["流量单位",d=>d.du],
+  ["月费(元)",d=>d.f],
+  ["折合/优惠月费(元)",d=>{
+    const p=promoFeeInfo(d);if(p)return p.fee;
+    const e=effFeeInfo(d);if(e)return e.effMonthly;
+    return d.f||"";}],
+  ["流量(GB)",d=>d.g],["流量原文",d=>d.d],["流量单位",d=>d.du],
   ["每元流量(GB)",d=>{const v=perVal(d);return v==null?"":+v.toFixed(3)}],
   ["通话(分钟)",d=>d.c],["名称",d=>d.n||d.t||""],["套餐名",d=>d.t],
   /* 大类在前、细分在后：大类是四网可比的横轴，细分是上游各自的说法。
@@ -4803,19 +4934,30 @@ const CSV_COLS=[
   ["类型大类",d=>d.cat],["类型细分",d=>d.ty],
   ["宽带字段",d=>d.bw],
   ["宽带判定",d=>{const i=bwInfo(d);return i?"含宽带":"不含宽带"}],
+  ["宽带下行(Mbps)",d=>bwMbps(d)||""],
+  ["宽带上行(Mbps)",d=>bwUpMbps(d)||""],
+  ["5G网络权益",d=>{
+    const m=/(5G极速服务|5G优享服务|5G黄金服务|5G白金服务|5G钻石服务|5G网络VIP服务)/.exec(String(d.n||"")+" "+String(d.t||"")+" "+String(d.x||"")+" "+String(d.oth||""));
+    return m?m[1]:"";}],
+  ["副卡规则",d=>{
+    const m=/(副卡\s*\d+(?:\.\d+)?\s*元(?:\s*\/[张月]+)?|最多(?:可)?办理\s*\d+\s*张副卡|暂不支持办理副卡|不可办理副卡|可办理\s*\d+\s*张副卡)/.exec(String(d.x||"")+" "+String(d.oth||""));
+    return m?m[1]:"";}],
+  ["合约锁定期",d=>{const c=contractInfo(d);return c?c.text:"";}],
   ["地市",d=>cityTags(d).join("/")],["目标客户",d=>d.ap],
   ["渠道档",d=>d.chx],["办理渠道原文",d=>d.ch],
   ["报备编号",d=>d.r],["上架日",d=>fmtD(d.o)],["下线日",d=>fmtD(d.e)],
   ["本次变更",d=>(d.ca?"新增":"")+(d.ca&&d.ck?"/":"")+(d.ck?"字段变更":"")],
   ["超套资费",d=>d.ex],["有效期",d=>d.vp],
-  /* 违约责任/办理限制（2026-10-08）：rsp 是第二轮最大新增证据字段
-     （557 条真金白银条款），oth 含一次性费用/限办/合约时长补注 ——
-     「办理条款」列只有类别名，分析者要原文就得有这两列，否则白挖。 */
-  ["违约责任",d=>d.rsp||""],["办理限制",d=>d.oth||""],
+  ["违约责任",d=>{
+    if(d.rsp)return d.rsp;
+    const m=/(违约金\s*=\s*[^，。；\n]{3,40}|提前解约[^，。；\n]{0,15}(?:违约金|赔偿|支付)[^，。；\n]{0,35}|如未退还每个设备需赔偿\s*\d+\s*元|在协议期内办理提前解约需收取违约金|收取违约金\s*\d+\s*元)/.exec(String(d.x||"")+" "+String(d.oth||""));
+    return m?m[1]:"";}],
+  ["封顶保护",d=>{
+    const m=/(当月(?:使用)?流量超过\s*\d+\s*(?:GB|G)\s*将关闭上网功能|达量降速至\s*\d+\s*(?:Kbps|Mbps|kbps|mbps)|套外费用\s*\d+\s*元封顶|套外流量\s*\d+\s*元封顶)/.exec(String(d.x||"")+" "+String(d.oth||""));
+    return m?m[1]:"";}],
+  ["办理限制",d=>d.oth||""],
   ["办理条款",d=>condHits(d).map(x=>x.def.lab).join("/")],
   ["权益说明",d=>d.x],
-  /* C1（2026-10-04）：基线日期 —— 文件名里有但行内没有，多份 CSV 合并分析时
-     行级时效信息就丢了。取 net().base（与页面顶部「数据基线」同源）。 */
   ["基线日期",()=>net().base||""]];
 /* 换行、逗号、引号都要按 RFC4180 处理：正文里这几种字符都有可能出现
    （权益说明尤其），不转义就会把一行拆成好几行、整张表错位。 */
@@ -4924,10 +5066,11 @@ function setView(v){
    ★ 所有数字都从**行数据现算**，不复用构建期统计：两者必须同源，
      否则一旦出现「总览说 3887、明细说 3883」这种不一致，整页的可信度就没了。
    ══════════════════════════════════════════════════════════════════════ */
-function ovBar(label,val,max,note){
+function ovBar(label,val,max,note,act){
   const pct=max>0?Math.round(val*100/max):0;
   const w=max>0?(val>0?Math.max(pct,1):0):0;
-  return '<div class="brow"><div class="blab"'+(note?' title="'+esc(note)+'"':"")+'>'+esc(label)+'</div>'
+  return '<div class="brow'+(act?' brow-act':'')+'"'+(act?' data-bact="'+esc(act)+'" title="点击筛选「'+esc(label)+'」" style="cursor:pointer"':"")+'>'
+    +'<div class="blab"'+(note?' title="'+esc(note)+'"':"")+'>'+esc(label)+'</div>'
     +'<div class="btrack"><div class="bfill" style="width:'+w+'%"></div>'
     +(val?'<span class="bpct">'+pct+'%</span>':"")+'</div>'
     +'<div class="bval">'+val+'</div></div>';
@@ -4938,11 +5081,27 @@ function ovBar(label,val,max,note){
    早先只按「函数」写，而月费/上架时间两个调用点传的是字符串 —— 字符串是 truthy，
    于是被当函数调用，抛 TypeError 把 renderOverview() 整个中断：页面框架看着都在、
    总览页却全空，控制台之外毫无迹象（典型的静默失效）。 */
-function ovBars(el,order,obj,note){
+function ovBars(el,order,obj,note,actFn){
   const max=Math.max.apply(null,order.map(k=>obj[k]||0).concat([0]));
   const nf=typeof note==="function"?note:(note==null?()=>"":()=>note);
-  el.innerHTML=order.filter(k=>obj[k]).map(k=>ovBar(k,obj[k],max,nf(k))).join("")
+  const af=typeof actFn==="function"?actFn:()=>"";
+  el.innerHTML=order.filter(k=>obj[k]).map(k=>ovBar(k,obj[k],max,nf(k),af(k))).join("")
     || '<div class="mut">本网无此类数据</div>';
+  el.onclick=e=>{
+    const row=e.target.closest(".brow-act");
+    if(!row)return;
+    const act=row.dataset.bact;
+    if(!act)return;
+    const i=act.indexOf(":");
+    if(i<0)return;
+    const dim=act.slice(0,i),val=act.slice(i+1);
+    if(dim==="cat"){$("#cat").value=val}
+    else if(dim==="sc"){$("#sc").value=val}
+    else if(dim==="ow"){$("#ow").value=val}
+    else if(dim==="fee"){$("#pf").value=val}
+    else if(dim==="bw"){$("#bw").value=val}
+    setView("list");apply();scrollToList();
+  };
 }
 /* 上次 renderOverview 的输入签名：同网且行数组同一引用 ⇒ 结果必然不变，
    直接跳过 —— 否则每敲一个搜索键都要为它多付约 10 趟全表过滤（2026-10-02 审查项）。
@@ -4955,7 +5114,7 @@ function renderOverview(){
   if(!has){
     $("#ovStats").innerHTML='<div class="stat k"><div class="si">⏳</div>'
       +'<div class="sn">—</div><div class="sl">本网数据尚未接入</div></div>';
-    ["ovCat","ovSc","ovOw","ovFee","ovAge"].forEach(k=>{
+    ["ovCat","ovSc","ovOw","ovBw","ovFee","ovAge"].forEach(k=>{
       const e=document.getElementById(k);if(e)e.innerHTML="";
     });
     return;
@@ -4990,21 +5149,42 @@ function renderOverview(){
   /* ── 分类构成 ── */
   const cat={};rs.forEach(d=>{const c=d.cat||"其他";cat[c]=(cat[c]||0)+1});
   $("#ovCatNote").textContent="共 "+CAT_ORDER.filter(c=>cat[c]).length+" 个大类";
-  ovBars($("#ovCat"),CAT_ORDER,cat);
+  ovBars($("#ovCat"),CAT_ORDER,cat,"四网统一分类",k=>"cat:"+k);
 
   /* ── 地域构成 ── */
   const sc={};rs.forEach(d=>{const k2=SC_LB[d.sc]||"未知";sc[k2]=(sc[k2]||0)+1});
   $("#ovScNote").textContent="本网官方只有「河北 / 全国」两档地域";
-  ovBars($("#ovSc"),["河北","全国","未知"],sc);
+  ovBars($("#ovSc"),["河北","全国","未知"],sc,"",k=>(k==="河北"?"sc:hb":(k==="全国"?"sc:cn":"")));
 
   /* ── 个人 / 政企 ── */
   const op=$("#ovOwPanel"),owc={};
   rs.forEach(d=>{if(d.ow)owc[d.ow]=(owc[d.ow]||0)+1});
   if(rs.some(d=>d.ow)){
     op.style.display="";
-    ovBars($("#ovOw"),OW_ORDER,owc);
+    ovBars($("#ovOw"),OW_ORDER,owc,"",k=>"ow:"+k);
   }else{
     op.style.display="none";
+  }
+
+  /* ── 宽带速率梯次构成 ── */
+  const bwc={};
+  const BW_ORDER=["1000M及以上","500M-999M","200M-499M","100M-199M","提速/组网","其他含宽带","不含宽带"];
+  rs.forEach(d=>{
+    const i=bwInfo(d);
+    if(!i){bwc["不含宽带"]=(bwc["不含宽带"]||0)+1;return;}
+    const mb=bwMbps(d);
+    if(mb>=1000)bwc["1000M及以上"]=(bwc["1000M及以上"]||0)+1;
+    else if(mb>=500)bwc["500M-999M"]=(bwc["500M-999M"]||0)+1;
+    else if(mb>=200)bwc["200M-499M"]=(bwc["200M-499M"]||0)+1;
+    else if(mb>=100)bwc["100M-199M"]=(bwc["100M-199M"]||0)+1;
+    else if(bwSpeed(d))bwc["提速/组网"]=(bwc["提速/组网"]||0)+1;
+    else bwc["其他含宽带"]=(bwc["其他含宽带"]||0)+1;
+  });
+  const obp=$("#ovBwPanel");
+  if(obp){
+    $("#ovBwNote").textContent="共 "+(rs.length-(bwc["不含宽带"]||0))+" 条含宽带资费";
+    const bwActMap={"1000M及以上":"m1000","500M-999M":"m500","200M-499M":"m200","提速/组网":"speed","其他含宽带":"line","不含宽带":"noline"};
+    ovBars($("#ovBw"),BW_ORDER,bwc,"宽带速率分档",k=>bwActMap[k]?"bw:"+bwActMap[k]:"");
   }
 
   /* ── 月费档位 ── 档位与筛选下拉共用 FEE_TIERS（G1），判据同半开 (lo,hi] */
@@ -5017,7 +5197,7 @@ function renderOverview(){
       return f!=null&&f>+t.v.split(",")[0]&&f<=+t.v.split(",")[1];
     }).length;
   });
-  ovBars($("#ovFee"),FEE_TIERS.map(t=>t.lb),fc,"按标准月费（元）分档");
+  ovBars($("#ovFee"),FEE_TIERS.map(t=>t.lb),fc,"按标准月费（元）分档",k=>{const t=FEE_TIERS.find(x=>x.lb===k);return t?"fee:"+t.v:""});
 
   /* ── 上架时间 ── 档位与筛选下拉共用 AGE_TIERS（G1）；O2：待上架单列一档 ——
      原先 a<0 静默排除，整组横条看不出它们的存在（实测联通 65 条）。 */
@@ -5348,6 +5528,7 @@ $("#offline").onclick=saveOffline;
    挂在标签本身上会在第一次重渲染后失效）。 */
 $("#stat").addEventListener("click",e=>{
   const b=e.target.closest(".fchip");if(!b)return;
+  if(b.dataset.act==="clear-all"){resetAll();apply();return;}
   const k=b.dataset.d;
   if(k==="kw"){$("#kw").value=""}
   else if(k==="st"){STA="";syncTabs()}
@@ -5441,6 +5622,24 @@ function toggleRow(tr){
   }
 }
 $("#tb").addEventListener("click",e=>{
+  const chip=e.target.closest(".aichip");
+  if(chip){
+    const targetKey=chip.dataset.k;
+    if(targetKey){
+      $("#kw").value=targetKey;
+      apply();
+      scrollToList();
+      setTimeout(()=>{
+        const targetTr=$("#tb tr.row");
+        if(targetTr){
+          toggleRow(targetTr);
+          targetTr.classList.add("target-highlight");
+          setTimeout(()=>targetTr.classList.remove("target-highlight"),3600);
+        }
+      },80);
+    }
+    return;
+  }
   const sh=e.target.closest(".shbtn");
   if(sh){
     const dr=sh.closest("tr.det"),tr=dr&&dr.previousElementSibling;
