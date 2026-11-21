@@ -5763,7 +5763,7 @@ document.querySelectorAll(".cfx").forEach(b=>{
 
 /* 快捷 chip → 维度取值的映射。选中态与点击行为都从这份表推导，两处共用。 */
 const CHIP_MAP={new7:["on","7"],new30:["on","30"],new90:["on","90"],future:["on","future"],exp60:["off","60"],
-                free:["pf","0,0"],bw:["bw","line"],bw1000:["bw","m1000"],fttr:["bw","speed"],g100:["gf","100,99999"],chg:["chg","1"]};
+                free:["pf","0,0"],bw:["bw","all"],bw1000:["bw","m1000"],fttr:["bw","speed"],g100:["gf","100,99999"],chg:["chg","1"]};
 /* chip 的选中态从**维度值**反推（而不是点击时手工加 class）——
    深链进来、点筛选标签 × 摘掉条件、切网清空，任何路径改了维度值，
    下一次 apply 都会把高亮对齐回真实状态，不会出现「chip 亮着条件却不在」的两张皮。 */
