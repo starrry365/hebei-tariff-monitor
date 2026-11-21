@@ -525,7 +525,13 @@ mark{background:var(--ac2);color:inherit;padding:0 1px;border-radius:2px}
 .fee{font-weight:750;white-space:nowrap;font-variant-numeric:tabular-nums}
 .fee.free{color:var(--ok)}
 .fee.low{color:var(--warn)}
+.fee-promo{color:var(--ok);font-weight:750;white-space:nowrap;font-variant-numeric:tabular-nums}
+.fee-promo-badge{display:inline-block;padding:0 4px;margin-right:3px;border-radius:3px;font-size:10px;font-weight:600;background:rgba(16,185,129,.15);color:var(--ok);line-height:1.3;vertical-align:1px}
 .eff-fee{display:block;font-size:11px;font-weight:500;color:var(--tx3);white-space:nowrap;line-height:1.2;margin-top:2px;letter-spacing:0}
+.bwtg.bwtg-up{background:rgba(2,132,199,.12);color:#0284c7;font-weight:600}
+[data-theme="dark"] .bwtg.bwtg-up{background:rgba(56,189,248,.15);color:#38bdf8}
+.det-badge-qos{background:rgba(124,58,237,.12);color:#7c3aed;font-weight:600}
+[data-theme="dark"] .det-badge-qos{background:rgba(167,139,250,.18);color:#c4b5fd}
 .ap{color:var(--tx2);font-size:12px;max-width:320px}
 /* ── 目标客户：桌面也收成两行（2026-10-18）────────────────────────────
    此前只有 ≤640px 的卡片视图做截断，桌面上是「有多少显示多少」。
@@ -1942,6 +1948,36 @@ function effFeeInfo(d){
   return{months:months,fee:f,effMonthly:effMonthly,cycleLabel:cycleLabel,effG:effG};
 }
 
+/* —— 营销活动/促销优惠月费识别 ——
+   电信等运营商大量「促销-套餐优惠（199元套餐优惠至99元）」的月费字段为空（d.f=""），
+   导致列表显示破折号「—」，且无法在卡片顶部给出明确月费参考。
+   这里在展示层提取优惠折后价与原套餐档位，提升可读性。
+   ★ 仅用于展示增强（列表副标、详情卡片），不破坏底层 d.f 原始字段与排序契约。 */
+function promoFeeInfo(d){
+  if(d.f!==""&&d.f!=null)return null;
+  const nm=String(d.n||d.t||"").trim();
+  const x=String(d.x||"").trim();
+  const comb=nm+" "+x;
+
+  const m=/(?:套餐)?(?:月基本费|月费|主套餐)?(?:优惠至|降至|调整为|优惠后)\s*(\d+(?:\.\d+)?)\s*元(?:\s*\/\s*(月|年))?/.exec(comb);
+  if(!m)return null;
+
+  const val=+m[1];
+  if(!isFinite(val)||val<=0)return null;
+
+  const isYear=m[2]==="年";
+  const fee=isYear?(val%12===0?val/12:+(val/12).toFixed(1)):val;
+  const mOrig=/(\d+(?:\.\d+)?)\s*元(?:档位?|套餐)/.exec(nm);
+  const orig=mOrig?+mOrig[1]:null;
+
+  return {
+    fee: fee,
+    isYear: isYear,
+    total: isYear?val:null,
+    orig: orig
+  };
+}
+
 /* —— 宽带判定 ——
    d.bw 字段四网写法极碎（「含宽带」「300M」「无」「提速包」…），而「办不办宽带」
    恰是用户筛资费的高频维度。**只信字段，不做名称兜底**：
@@ -1992,6 +2028,11 @@ function bwMbps(d){
   if(/千兆|1\s*G/i.test((d.n||d.t||"")+" "+(d.x||"")))return 1000;
   return null;
 }
+function bwUpMbps(d){
+  const s=String(d.bw||"")+" "+String(d.x||"");
+  const m=/上行(?:速率)?\s*(?:为|达到)?\s*(\d+)\s*(?:M|Mbps)/i.exec(s);
+  return m?+m[1]:null;
+}
 function bwDetail(d){
   const i=bwInfo(d),raw=String(d.bw==null?"":d.bw).trim();
   const v=i?"含宽带":"不含宽带";
@@ -1999,10 +2040,12 @@ function bwDetail(d){
      的位置；漏转义就是构建期烤进静态页的存储型 XSS（2026-10-02 代码审查抓到）。 */
   if(!i)return v+"（官方原文："+(esc(raw)||"空")+"）";
   const mb=bwMbps(d);
+  const up=bwUpMbps(d);
   const sp=bwSpeed(d)?' · <span class="bwtg" title="名称/权益里带「提速、光网、组网、FTTR」字样">提速/组网</span>':"";
   /* 判为含宽带但速率提不出来（名称与字段都没写数字）→ 明说，别让人以为是漏显示 */
   const un=mb==null?' · <span class="mut" title="名称与宽带字段都没有可提取的速率数字">速率未标注</span>':"";
-  return v+(mb?' · <span class="bwtg">'+mb+'M</span>':"")+un+sp
+  return v+(mb?' · <span class="bwtg">'+mb+'M</span>':"")
+    +(up?' · <span class="bwtg bwtg-up" title="官方标注上行速率 '+up+'Mbps">↑'+up+'M 上行</span>':"")+un+sp
     +'（官方原文：'+(esc(raw)||"空")+"）";
 }
 /* 条目的地市归属（中文名数组）——**只读**，不做任何换算。仍是「单一来源」的锚点：
@@ -2013,11 +2056,13 @@ function bwCell(d){
   const i=bwInfo(d);
   if(!i)return '<span class="mut">—</span>';
   const mb=bwMbps(d);
+  const up=bwUpMbps(d);
   const t=String(i.t);
   /* 字段原文超长时截断 —— 有权益说明整段被填进宽带字段的（实测最长 40 字），
      全量展示会把表格行撑到三行高。兜底显示不影响筛选（判定在 bwInfo 那一层）。 */
   const short=t.length>14?t.slice(0,14)+"…":t;
   return (mb?'<span class="bwtg">'+mb+'M</span> ':"")
+    +(up?'<span class="bwtg bwtg-up" title="官方标注上行速率 '+up+'Mbps">↑'+up+'M</span> ':"")
     +'<span class="bwv" title="'+esc(t)+'">'+esc(short)+'</span>'
     +(bwSpeed(d)?' <span class="bwtg">提速</span>':"");
 }
@@ -3421,7 +3466,9 @@ function gbKpi(g){
 function bwKpi(d){
   if(!bwInfo(d))return '<span class="dno">不含</span>';
   const mb=bwMbps(d);
-  return mb?mb+'<small>M</small>':'<span class="dno">含宽带</span>';
+  const up=bwUpMbps(d);
+  if(mb)return up?mb+'<small>M (↑'+up+'M)</small>':mb+'<small>M</small>';
+  return '<span class="dno">含宽带</span>';
 }
 
 /* —— 宽带：结论 + 速率徽标 + 官方原文 ——
@@ -3436,12 +3483,14 @@ function bwSec(d){
   const rawRaw=String(d.bw==null?"":d.bw).trim();
   const raw=/^(?:无|暂无|没有|0|null|none|[-—–])$/i.test(rawRaw)?"":rawRaw;
   const mb=bwMbps(d);
+  const up=bwUpMbps(d);
   /* 速率 / 提速 / 未标注这三个徽标只在**含宽带**时才有意义：
      实测「邢台爱家光网服务-冀享专属-升档」的宽带字段是空的、判为不含宽带，
      名称里带「光网」又让 bwSpeed 命中 —— 在「不含宽带」旁边挂一枚「提速/组网」，
      读者只会以为页面自相矛盾。 */
   const tags=[];
   if(mb)tags.push('<span class="bwtg">'+mb+'M</span>');
+  if(up)tags.push('<span class="bwtg bwtg-up" title="官方标注上行速率 '+up+'Mbps">↑'+up+'M 上行</span>');
   if(bwSpeed(d))tags.push('<span class="bwtg" title="名称/权益里带「提速、光网、组网、FTTR」字样">提速/组网</span>');
   if(!mb)tags.push('<span class="dmut">速率未标注</span>');
   /* 「官方原文」只在真有原文时出现：不含宽带的条目该字段本来就是空的，
@@ -3474,9 +3523,13 @@ function detHTML(d){
        两者的区别只在判据：月费看「这个字段有没有」，流量/通话看「是不是大于 0」。 */
   const ks=[];
   const _eff=effFeeInfo(d);
+  const _promo=promoFeeInfo(d);
   if(d.f!==""&&d.f!=null){
     if(_eff)ks.push([esc(d.f)+'<small>元/'+_eff.cycleLabel+'</small>','费用（折合 '+_eff.effMonthly+'元/月）']);
     else ks.push([esc(d.f)+'<small>元/月</small>',"月费"]);
+  }else if(_promo){
+    const lbl=_promo.orig?('优惠月费（原 '+_promo.orig+'元档）'):(_promo.isYear?('折算月费（年付 '+_promo.total+'元）'):'优惠月费');
+    ks.push([_promo.fee+'<small>元/月</small>',lbl]);
   }else{
     /* 月费字段按设计只收「元/月」，按次/按天的费用留在权益说明里 —— 电信
        1307 条里 795 条（60.8%）月费字段是空的，价格全写在「费用：29 元/30天」。
@@ -3532,10 +3585,28 @@ function detHTML(d){
   /* 速览条已经把原文口径摆出来了（「29 元/30天 · 费用」），这里不再重复一遍
      原文，只解释它为什么没进月费字段 —— 那才是读者需要的后半句。 */
   if(_fn)ops.push(["计费口径","按上面的「费用」口径收费，不是月租 —— 未计入月费字段，也不参与月费筛选"]);
-  /* 违约责任：只有**短条款**才给整块淡黄底。实测有整段三四百字的条款，
-     整块刷黄把详情切成两半，反而看不出重点；长条款按普通正文排。 */
-  if(d.rsp)ops.push(["违约责任",esc(d.rsp),
-    /\d+\s*元/.test(d.rsp)&&d.rsp.length<=60]);
+
+  /* 5G网络权益提取 */
+  const combQos=String(d.n||"")+" "+String(d.t||"")+" "+String(d.x||"")+" "+String(d.oth||"");
+  const mQos=/(5G极速服务|5G优享服务|5G黄金服务|5G白金服务|5G钻石服务|5G网络VIP服务|下行峰值速率(?:最高)?\s*\d+\s*(?:Mbps|Gbps)|下行最高速率\s*\d+\s*Mbps)/.exec(combQos);
+  if(mQos)ops.push(["5G网络权益",'<span class="bwtg det-badge-qos">'+esc(mQos[1])+'</span>']);
+
+  /* 副卡规则提取 */
+  const combText=String(d.x||"")+" "+String(d.oth||"");
+  const mVc=/(副卡\s*\d+(?:\.\d+)?\s*元(?:\s*\/[张月]+)?|最多(?:可)?办理\s*\d+\s*张副卡|暂不支持办理副卡|不可办理副卡|可办理\s*\d+\s*张副卡)/.exec(combText);
+  if(mVc)ops.push(["副卡规则",esc(mVc[1])]);
+
+  /* 封顶与限速规则提取 */
+  const mCap=/(当月(?:使用)?流量超过\s*\d+\s*(?:GB|G)\s*将关闭上网功能|达量降速至\s*\d+\s*(?:Kbps|Mbps|kbps|mbps)|套外费用\s*\d+\s*元封顶|套外流量\s*\d+\s*元封顶)/.exec(combText);
+  if(mCap)ops.push(["封顶保护",esc(mCap[1])]);
+
+  /* 违约责任：优先字段原文，若无则从文案中提取罚则算式 */
+  if(d.rsp){
+    ops.push(["违约责任",esc(d.rsp),/\d+\s*元/.test(d.rsp)&&d.rsp.length<=60]);
+  }else{
+    const mPen=/(违约金\s*=\s*[^，。；\n]{3,40}|提前解约[^，。；\n]{0,15}(?:违约金|赔偿|支付)[^，。；\n]{0,35}|如未退还每个设备需赔偿\s*\d+\s*元|在协议期内办理提前解约需收取违约金|收取违约金\s*\d+\s*元)/.exec(combText);
+    if(mPen)ops.push(["违约责任",esc(mPen[1]),true]);
+  }
   if(d.ub)ops.push(["退订",esc(d.ub)]);
   if(d.ch)ops.push(["办理渠道",esc(d.ch)]);
   const _ch=condHits(d);
@@ -3795,8 +3866,16 @@ function render(){
     const cE=!(d.c&&d.c!=="0");
     const bE=!bwInfo(d);
     const _eff=effFeeInfo(d);
+    const _promo=promoFeeInfo(d);
+    let feeHTML="—";
+    if(d.f!==""&&d.f!=null){
+      feeHTML=esc(d.f)+" 元"+(_eff?'<div class="eff-fee" title="按'+_eff.cycleLabel+'包折算约合每自然月费用">折合 '+_eff.effMonthly+'元/月</div>':"");
+    }else if(_promo){
+      feeHTML='<span class="fee-promo"><span class="fee-promo-badge">优惠</span>'+_promo.fee+' 元'+(_promo.isYear?'/月':'')+'</span>'
+        +(_promo.orig?'<div class="eff-fee" title="原档位 '+_promo.orig+'元">原 '+_promo.orig+' 元档</div>':(_promo.isYear?'<div class="eff-fee" title="实付 '+_promo.total+'元/年">年付 '+_promo.total+'元</div>':''));
+    }
     buf.push('<tr class="row'+(isNew?" isnew":"")+(d.st?" stopped":"")+'" data-i="'+i+'" data-r="'+esc(d.r||d.n||d.t||"")+'" data-k="'+esc(keyOf(NET,d))+'" tabindex="0" title="点击展开详情 / 复制" aria-expanded="false">'
-      +'<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元"+(_eff?'<div class="eff-fee" title="按'+_eff.cycleLabel+'包折算约合每自然月费用">折合 '+_eff.effMonthly+'元/月</div>':""):"—")+'</td>'
+      +'<td class="fee '+feeCls(d.f)+'">'+feeHTML+'</td>'
       +'<td class="c-gb'+(gE?" m0":"")+'">'+gT+'</td>'
       +'<td class="c-call'+(cE?" m0":"")+'">'+(cE?"—":'<span style="white-space:nowrap">'+esc(d.c)+" 分钟</span>")+'</td>'
       +'<td class="nm">'+scTag(d)+cityTag(d)+hl(rowName(d),terms)+chgTag(d)
