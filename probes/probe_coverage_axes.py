@@ -299,8 +299,9 @@ def move_probe():
     #   与联通那次「栏目骨架只从单城取」是同一类错误：拿一个**间接信号**当**完备性依据**。
     log("\n[D2] 直接请求**全部** %d 个组合 —— 目录之外还有没有数据？" % len(allc))
     extra, zero, failed, rejected = [], [], [], []
-    for (a, t1, t2) in allc:
-        r = move_count(T, a, t1, t2)
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        pairs = list(ex.map(lambda c: (c, move_count(T, *c)), allc))
+    for (a, t1, t2), r in pairs:
         if r["dead"]:
             # 「没问到」与「零条」必须分开记：见 move_count 的说明。
             failed.append((a, t1, t2, r["dead"]))
@@ -340,19 +341,27 @@ def move_probe():
     log("   不带 cityId            → %s" % n0)
     same = True
     e_errs = 1 if _transport_failed(r0) else 0
-    for city in ("185", "180", "782"):
-        for pname in ("cityId", "city", "cityCode", "areaCode"):
-            b = dict(base_body)
-            b[pname] = city
-            r = T.call("nrtariff/new/Tariff/getTariffListInfo", b)
-            c, cerr = _count(r)
-            # ★ 「没问到」不是「改变了结果」—— 早先将任何异常结果都算作差异，会把
-            #   「打不通上游」印成「**必须按地市采集** ❌」这种吓人的错误结论。
-            if _transport_failed(r):
-                e_errs += 1
-            elif c != n0:
-                same = False
-            log("   %s=%-10s → %s" % (pname, city, c))
+
+    city_tasks = [(city, pname) for city in ("185", "180", "782")
+                  for pname in ("cityId", "city", "cityCode", "areaCode")]
+
+    def _one_city(task):
+        city, pname = task
+        b = dict(base_body)
+        b[pname] = city
+        r = T.call("nrtariff/new/Tariff/getTariffListInfo", b)
+        c, cerr = _count(r)
+        return (city, pname, c, _transport_failed(r))
+
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        city_res = list(ex.map(_one_city, city_tasks))
+
+    for city, pname, c, is_err in city_res:
+        if is_err:
+            e_errs += 1
+        elif c != n0:
+            same = False
+        log("   %s=%-10s → %s" % (pname, city, c))
     if e_errs:
         log("   → ⚠️ 有 %d 次请求失败 ⇒ 本项无法判定（不要读成「不受影响」）" % e_errs)
     else:
@@ -362,21 +371,21 @@ def move_probe():
 
     # ── [F] isPublic 取值域 ────────────────────────────────────────────
     log("\n[F] isPublic 取值域（信息项）")
-    #   ★ 线索来自官网主 bundle 的 getZFLXListAll：
-    #       {'province': selectProv.code, 'isPublic': this.isPreview ? '2' : '1'}
-    #     即官网**预览态**并不是走别的接口，而是把 isPublic 换成 2。
-    #     我们也固定传 1（与官网正常态一致），所以这一节只**报告差异**：
-    #     isPublic=2 里的东西属于未公示数据，公开站点**本来就不该采**，
-    #     不该因为它有数据就判红；isPublic=0 语义未知，出现差异需要人工判断。
-    #     唯一参与判据的仍然是「请有没有问到」。
     iso, iso_err, iso_rej = {}, [], []
-    for ip in ("0", "1", "2"):
+
+    def _one_ip(ip):
         b = dict(base_body)
         b["isPublic"] = ip
         r = T.call("nrtariff/new/Tariff/getTariffListInfo", b)
         txt, err = _count(r)
+        return (ip, txt, err, _transport_failed(r))
+
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        ip_res = list(ex.map(_one_ip, ("0", "1", "2")))
+
+    for ip, txt, err, is_err in ip_res:
         iso[ip] = txt
-        if _transport_failed(r):
+        if is_err:
             iso_err.append(ip)
         elif err:
             iso_rej.append(ip)
