@@ -5,11 +5,21 @@
 <description>河北移动/联通/电信/广电资费目录每日巡检捕获的业务变更（新增 / 下线 / 字段变更）</description>
 <language>zh-CN</language>
 <item>
+<title>2026-11-21 河北电信：变更 2</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-11-21.md</link>
+<category>变更</category>
+<guid isPermaLink="false">2026-11-21-telecom</guid>
+<pubDate>Sat, 21 Nov 2026 13:50:09 +0800</pubDate>
+<description>2026-11-21 河北电信：变更 2
+± 视频汇聚（月包）
+± 视频汇聚（月包）</description>
+</item>
+<item>
 <title>2026-11-21 河北联通：下线 9</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-11-21.md</link>
 <category>下线</category>
 <guid isPermaLink="false">2026-11-21-unicom</guid>
-<pubDate>Sat, 21 Nov 2026 10:12:12 +0800</pubDate>
+<pubDate>Sat, 21 Nov 2026 13:52:43 +0800</pubDate>
 <description>2026-11-21 河北联通：下线 9
 － 智慧家庭联通看家单端产品出库（河北移网产品）
 － 智慧家庭联通看家双端移网产品出库(河北)
@@ -17,12 +27,12 @@
 － 联通看家129元档产品看家（河北）-立即生效</description>
 </item>
 <item>
-<title>2026-11-21 河北移动：下线 1 · 变更 10</title>
+<title>2026-11-21 河北移动：下线 1 · 变更 11</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-11-21.md</link>
 <category>下线</category><category>变更</category>
 <guid isPermaLink="false">2026-11-21-move</guid>
-<pubDate>Sat, 21 Nov 2026 10:09:01 +0800</pubDate>
-<description>2026-11-21 河北移动：下线 1 · 变更 10
+<pubDate>Sat, 21 Nov 2026 13:50:58 +0800</pubDate>
+<description>2026-11-21 河北移动：下线 1 · 变更 11
 － 15元体育包
 ± 悦享白银会员(1年)（2026年四季度营销优惠）
 ± 悦享白银会员(2个月)（2026年四季度营销优惠）
@@ -721,17 +731,5 @@
 ＋ 王卡10周年活动C
 ＋ 王卡助手新办宽带享权益
 ＋ 预约新装宽带竣工享24个月会员权益活动（爱奇艺VIP会员）</description>
-</item>
-<item>
-<title>2026-10-30 河北移动：变更 4</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-10-30.md</link>
-<category>变更</category>
-<guid isPermaLink="false">2026-10-30-move</guid>
-<pubDate>Fri, 30 Oct 2026 08:51:11 +0800</pubDate>
-<description>2026-10-30 河北移动：变更 4
-± 统一营销流量7天包-5GB
-± 统一营销流量日包-1GB
-± 副卡功能费10元减免优惠2026版
-± 副卡功能费20元减免优惠2026版</description>
 </item>
 </channel></rss>
