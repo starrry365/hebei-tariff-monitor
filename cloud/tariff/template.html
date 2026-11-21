@@ -525,6 +525,7 @@ mark{background:var(--ac2);color:inherit;padding:0 1px;border-radius:2px}
 .fee{font-weight:750;white-space:nowrap;font-variant-numeric:tabular-nums}
 .fee.free{color:var(--ok)}
 .fee.low{color:var(--warn)}
+.eff-fee{display:block;font-size:11px;font-weight:500;color:var(--tx3);white-space:nowrap;line-height:1.2;margin-top:2px;letter-spacing:0}
 .ap{color:var(--tx2);font-size:12px;max-width:320px}
 /* ── 目标客户：桌面也收成两行（2026-10-18）────────────────────────────
    此前只有 ≤640px 的卡片视图做截断，桌面上是「有多少显示多少」。
@@ -965,6 +966,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
   tr.row>td.fee{order:1;flex:1 1 100%;padding:10px 13px 1px;
     font-size:20px;line-height:1.25;letter-spacing:-.4px}
   tr.row>td.fee::before{width:auto;margin-right:6px;font-size:11px;opacity:.45}
+  tr.row>td.fee .eff-fee{display:inline-block;margin-left:8px;font-size:12px;vertical-align:middle;font-weight:normal}
 
   /* ② 名称（地域/地市/变更/有效期徽标同行），右上留给收藏星 */
   tr.row>td.nm{order:2;flex:1 1 100%;padding:0 42px 10px 13px;
@@ -1863,6 +1865,81 @@ function vpTag(d){
   let cls=i.term<=12?"mid":"far";
   if(i.renew&&cls==="mid")cls="far";
   return ' <span class="vptg vptg-'+cls+'" title="订购起算 '+ts+'">'+ts+'</span>'+rn;
+}
+
+/* —— 长周期/年包资费折合月费 ——
+   包年、半年包、季包等一次性长周期资费，月费字段直接填整包金额（如 720 元/年）
+   会造成用户误以为月租 720 元。
+   这里智能识别整包周期并换算折合月费，同时提供周期与折合流量信息。
+   ★ 仅用于展示增强（列表副标、详情卡片），不破坏底层 d.f 原始字段与排序契约。 */
+function effFeeInfo(d){
+  if(d.f===""||d.f==null)return null;
+  const f=+d.f;
+  if(!isFinite(f)||f<=0)return null;
+  const nm=String(d.n||d.t||"").trim();
+  const x=String(d.x||"").trim();
+  const vp=String(d.vp||"").trim();
+
+  /* 排除常规按月扣费或调测费：明确写了「/月」「月付」「月费月初一次性收取」等 */
+  if(/月付|\/月|每(?:个?月|月)\s*\d+\s*元/.test(nm))return null;
+  if(new RegExp('(?:月费|功能费|资费)[：:]\\s*'+esc(String(d.f))+'\\s*元\\s*/\\s*月').test(x))return null;
+  if(/(?:月费|按月|每月|月初).*?一次性收取/.test(x)&&!new RegExp('产品一次性(?:收费|收取|支付|扣费)\\s*'+esc(String(d.f))).test(x))return null;
+  if(/调测费|安装费|首月一次性/.test(x))return null;
+
+  let months=null;
+
+  /* 1. 显式周期单价：如「500元/年」「60元/半年」「30元/季」「100元/10个月」 */
+  const mRate=/(?:(\d+(?:\.\d+)?)\s*元\s*\/\s*(年|半年|季|季度|\d+个?月))/.exec(nm+" "+x);
+  if(mRate){
+    const u=mRate[2];
+    if(u==="年")months=12;
+    else if(u==="半年")months=6;
+    else if(/季/.test(u))months=3;
+    else{const mNum=/\d+/.exec(u);if(mNum)months=+mNum[0]}
+  }
+
+  /* 2. 权益描述明确注明一次性费用与有效期：如「产品一次性收费720元，有效期12个月」 */
+  if(!months){
+    const mOneOff=/一次性(?:收费|收取|支付|缴纳|扣费|交费)\s*(\d+(?:\.\d+)?)\s*元[，,。；;、\s]*.*?有效期\s*(\d{1,2})\s*(个?月|年)/.exec(x);
+    if(mOneOff){
+      const v=+mOneOff[2];
+      months=/年/.test(mOneOff[3])?v*12:v;
+    }
+  }
+
+  /* 3. 名称/分类明示周期包：如「半年包/卡」「季包/卡」「年包/卡」「X年包」 */
+  if(!months){
+    if(/包半年|半年包|半年卡|180天包|180天/.test(nm))months=6;
+    else if(/季包|季度包|季卡|90天包|90天/.test(nm))months=3;
+    else if(/(\d+)年包/.test(nm))months=+(/(\d+)年包/.exec(nm)[1])*12;
+    else if(/包年|年包|年卡|年度包|365天包|365天/.test(nm))months=12;
+  }
+
+  /* 4. 权益说明包含一次性收费，且有效期字段明确指定月数/天数 */
+  if(!months&&/一次性(?:收费|收取|支付|缴纳|扣费|交费)/.test(x)){
+    const mVp=/^(\d{1,2})\s*个?月/.exec(vp);
+    const mYr=/^(\d{1,2})\s*年/.exec(vp);
+    if(mVp)months=+mVp[1];
+    else if(mYr)months=+mYr[1]*12;
+    else if(/^(?:360|365)\s*天/.test(vp))months=12;
+    else if(/^(?:180)\s*天/.test(vp))months=6;
+    else if(/^(?:90)\s*天/.test(vp))months=3;
+  }
+
+  if(!months||months<=1||months>60)return null;
+
+  const rawEff=f/months;
+  const effMonthly=rawEff>=10&&rawEff%1===0?String(Math.round(rawEff)):(rawEff%1===0?String(rawEff):rawEff.toFixed(1));
+  const cycleLabel=months===12?"年":(months%12===0?(months/12)+"年":months+"个月");
+
+  /* 若含套内流量，同时折合月均流量 */
+  let effG=null;
+  if(d.g&&+d.g>0){
+    const rawG=+d.g/(months>=12?12:months);
+    effG=rawG>=10&&rawG%1===0?String(Math.round(rawG)):(rawG%1===0?String(rawG):rawG.toFixed(1));
+  }
+
+  return{months:months,fee:f,effMonthly:effMonthly,cycleLabel:cycleLabel,effG:effG};
 }
 
 /* —— 宽带判定 ——
@@ -3353,6 +3430,7 @@ function bwKpi(d){
    判定与列表的 bwInfo() 同一口径 —— 两处结论不一致比不显示更糟。 */
 function bwSec(d){
   const i=bwInfo(d);
+  if(!i)return ""; /* 不含宽带的资费不独立展示区块，精简详情垂向留白 */
   /* 「无」「暂无」「0」这类原文不承载信息 —— 印出来就是「官方原文：无」，
      读者还得自己判断这算不算有宽带。当空处理。 */
   const rawRaw=String(d.bw==null?"":d.bw).trim();
@@ -3363,15 +3441,13 @@ function bwSec(d){
      名称里带「光网」又让 bwSpeed 命中 —— 在「不含宽带」旁边挂一枚「提速/组网」，
      读者只会以为页面自相矛盾。 */
   const tags=[];
-  if(i){
-    if(mb)tags.push('<span class="bwtg">'+mb+'M</span>');
-    if(bwSpeed(d))tags.push('<span class="bwtg" title="名称/权益里带「提速、光网、组网、FTTR」字样">提速/组网</span>');
-    if(!mb)tags.push('<span class="dmut">速率未标注</span>');
-  }
+  if(mb)tags.push('<span class="bwtg">'+mb+'M</span>');
+  if(bwSpeed(d))tags.push('<span class="bwtg" title="名称/权益里带「提速、光网、组网、FTTR」字样">提速/组网</span>');
+  if(!mb)tags.push('<span class="dmut">速率未标注</span>');
   /* 「官方原文」只在真有原文时出现：不含宽带的条目该字段本来就是空的，
      印一句「官方原文：空」等于告诉读者「这里什么都没有」，纯噪音。 */
   return '<div class="dsec dbwline"><h4 class="dsect">宽带</h4><div class="dbw">'
-    +'<span class="dbwv'+(i?"":" dbwv-no")+'">'+(i?"含宽带":"不含宽带")+'</span>'
+    +'<span class="dbwv">含宽带</span>'
     +tags.join("")
     +(raw?'<span class="dbwraw">官方原文：'+esc(raw)+'</span>':"")
     +'</div></div>';
@@ -3397,8 +3473,11 @@ function detHTML(d){
        通话 0 是「不含」，出格只会白占一半宽度，还让人以为页面没读到。
        两者的区别只在判据：月费看「这个字段有没有」，流量/通话看「是不是大于 0」。 */
   const ks=[];
-  if(d.f!==""&&d.f!=null)ks.push([esc(d.f)+'<small>元/月</small>',"月费"]);
-  else{
+  const _eff=effFeeInfo(d);
+  if(d.f!==""&&d.f!=null){
+    if(_eff)ks.push([esc(d.f)+'<small>元/'+_eff.cycleLabel+'</small>','费用（折合 '+_eff.effMonthly+'元/月）']);
+    else ks.push([esc(d.f)+'<small>元/月</small>',"月费"]);
+  }else{
     /* 月费字段按设计只收「元/月」，按次/按天的费用留在权益说明里 —— 电信
        1307 条里 795 条（60.8%）月费字段是空的，价格全写在「费用：29 元/30天」。
        这里不补数、只搬**原文口径**：标签写「费用」而不是「月费」，
@@ -3408,7 +3487,10 @@ function detHTML(d){
     if(_pm)ks.push([esc(_pm[1])+'<small>'+esc(_pm[2].replace(/\s+/g,""))+'</small>',"费用"]);
   }
   const _gs=fmtGb(d.g);
-  if(_gs&&_gs!=="—")ks.push([gbKpi(d.g),"套内流量"]);
+  if(_gs&&_gs!=="—"){
+    if(_eff&&_eff.effG)ks.push([gbKpi(d.g),'套内流量（折合 '+_eff.effG+'G/月）']);
+    else ks.push([gbKpi(d.g),"套内流量"]);
+  }
   if(d.c&&d.c!=="0"&&d.c!=="")ks.push([esc(d.c)+'<small>分钟</small>',"套内通话"]);
   if(bwInfo(d))ks.push([bwKpi(d),"宽带"]);
   /* 有效期里的期限也进条：合约类套餐的 3 年、日包的 1 天都是硬约束，比档案里
@@ -3712,8 +3794,9 @@ function render(){
     const gT=fmtGb(d.g), gE=gT==="—";
     const cE=!(d.c&&d.c!=="0");
     const bE=!bwInfo(d);
+    const _eff=effFeeInfo(d);
     buf.push('<tr class="row'+(isNew?" isnew":"")+(d.st?" stopped":"")+'" data-i="'+i+'" data-r="'+esc(d.r||d.n||d.t||"")+'" data-k="'+esc(keyOf(NET,d))+'" tabindex="0" title="点击展开详情 / 复制" aria-expanded="false">'
-      +'<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元":"—")+'</td>'
+      +'<td class="fee '+feeCls(d.f)+'">'+(d.f!==""&&d.f!=null?esc(d.f)+" 元"+(_eff?'<div class="eff-fee" title="按'+_eff.cycleLabel+'包折算约合每自然月费用">折合 '+_eff.effMonthly+'元/月</div>':""):"—")+'</td>'
       +'<td class="c-gb'+(gE?" m0":"")+'">'+gT+'</td>'
       +'<td class="c-call'+(cE?" m0":"")+'">'+(cE?"—":'<span style="white-space:nowrap">'+esc(d.c)+" 分钟</span>")+'</td>'
       +'<td class="nm">'+scTag(d)+cityTag(d)+hl(rowName(d),terms)+chgTag(d)
