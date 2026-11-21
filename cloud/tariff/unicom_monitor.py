@@ -57,8 +57,11 @@ def regroup(entries):
     """
     groups, seen = {}, set()
     for e in entries:
+        # 🔴 键不能只用 reportNo：上游存在垃圾备案号（字面 '空' / 重复占位符），
+        #    纯编号判重会把多条不同资费折叠为 1 条（与 he_unicom_tariff / cbn_monitor 对齐）。
         rn = str(e.get("reportNo") or "").strip()
-        k = rn or ("_" + str(id(e)))
+        nm = str(e.get("name") or e.get("tariffName") or "").strip()
+        k = (rn + "\x1f" + nm) if rn else ("_" + str(id(e)))
         if k in seen:
             continue
         seen.add(k)

@@ -1358,7 +1358,8 @@ def write_page(html_body, tag=""):
     else:
         with open(tmp, "w", encoding="utf-8", newline="\n") as f:
             f.write(html_body)
-    s = open(tmp, encoding="utf-8").read()
+    with open(tmp, encoding="utf-8") as f:
+        s = f.read()
     # 占位符不许残留：漏替换会让 `const HIST=__HIST__` **直接变成语法错误**，
     # 整页功能全废而标签都在 —— CI 里那条同类断言也是照这个写的。
     left = [p for p in PLACEHOLDERS if p in s]
@@ -1643,7 +1644,8 @@ def archive_page():
     """
     if not os.path.exists(HTML_DST):
         return None
-    cur = open(HTML_DST, encoding="utf-8").read()
+    with open(HTML_DST, encoding="utf-8") as f:
+        cur = f.read()
     # 2026-10-15 起页面是拆分形态（cols 在 docs/data/ sidecar），但归档必须
     # 自包含：审计工具直接解包本 gz，而 sidecar 只留 current+previous，
     # 几天后归档引用的文件就被剪枝了。归档前把 cols 内联回容器（见
@@ -2606,7 +2608,8 @@ def inline_hist(text):
     rel = m.group(1)
     path = os.path.join(DOCS, rel.replace("/", os.sep))
     try:
-        raw = open(path, encoding="utf-8").read()
+        with open(path, encoding="utf-8") as f:
+            raw = f.read()
         data = json.JSONDecoder().raw_decode(raw.split("=", 1)[1])[0]
         items = data.get("items") or []
     except Exception as e:
@@ -2888,7 +2891,8 @@ def render_only():
     if not os.path.exists(HTML_DST):
         log("!! 本地没有 docs/index.html —— 先跑一次完整巡检，或用 view_page.py 拉归档")
         return 3
-    cur = open(HTML_DST, encoding="utf-8").read()
+    with open(HTML_DST, encoding="utf-8") as f:
+        cur = f.read()
     m = re.search(r"const\s+NETS\s*=", cur)
     if m:
         try:
@@ -2964,7 +2968,8 @@ def render_only():
     # ⇒ 文件名不变、归档去重哲学照旧；剪枝照常把陈旧版本收掉。
     nets_enc = write_net_sidecars(encode_nets_for_page(nets))
     payload = js_json(nets_enc)
-    tpl = open(os.path.join(BASE, "template.html"), encoding="utf-8").read()
+    with open(os.path.join(BASE, "template.html"), encoding="utf-8") as f:
+        tpl = f.read()
     try:
         out = fill_template(tpl, {
             "__NETS__": payload, "__N__": str(all_n), "__DATE__": date,

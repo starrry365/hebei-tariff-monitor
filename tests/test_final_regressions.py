@@ -84,7 +84,7 @@ class TestNotifyChannels(unittest.TestCase):
         self.assertEqual(urllib.parse.unquote_plus(sign), want)
 
     def test_feishu_sign_algorithm(self):
-        """飞书：HMAC-SHA256(key=**空串**, msg=ts+"\\n"+secret)，秒。"""
+        """飞书：HMAC-SHA256(key=ts+"\\n"+secret, msg="")，秒。"""
         import base64
         import hashlib
         import hmac
@@ -562,7 +562,8 @@ class TestCondDefsSync(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         import build_sh  # 有 __main__ 守卫，import 无副作用
-        tpl_src = open(os.path.join(TARIFF, "template.html"), encoding="utf-8").read()
+        with open(os.path.join(TARIFF, "template.html"), encoding="utf-8") as f:
+            tpl_src = f.read()
         m1 = re.search(r"const COND_DEFS=\[([\s\S]*?)\n\];", tpl_src)
         m2 = re.search(r"var COND_DEFS=\[([\s\S]*?)\n\];", build_sh.TPL)
         cls.assertIsNotNone(cls, m1, "template.html 里找不到 COND_DEFS")

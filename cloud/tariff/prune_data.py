@@ -74,8 +74,8 @@ def scan(days):
 def main():
     ap = argparse.ArgumentParser(description="过期快照归档裁剪")
     ap.add_argument("--days", type=int,
-                    default=int(os.getenv("SNAP_KEEP_DAYS", "90") or 90),
-                    help="保留最近 N 天（默认 90）")
+                    default=int(os.getenv("SNAP_KEEP_DAYS", "45") or 45),
+                    help="保留最近 N 天（默认 45）")
     ap.add_argument("--delete", action="store_true",
                     help="真删；不带这个参数只做试运行（列出将删的文件）")
     args = ap.parse_args()

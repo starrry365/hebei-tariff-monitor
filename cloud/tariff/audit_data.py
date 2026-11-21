@@ -102,7 +102,8 @@ def load_rows(net=None):
     net = net or NET_LIVE
     if not os.path.exists(HTML):
         sys.exit("找不到 %s —— 先跑 python tariff_monitor.py --render-only" % HTML)
-    raw = open(HTML, encoding="utf-8").read()
+    with open(HTML, encoding="utf-8") as f:
+        raw = f.read()
     m = re.search(r"const\s+NETS\s*=", raw)
     if not m:
         sys.exit("页面里找不到 `const NETS=`")
@@ -362,7 +363,8 @@ def check_sync(raw, rows):
           （不在 ⇒ 行数据里的 cty 会冒出一个 CI 断言不认的名字）；
         · 页面的 cityTags() 是不是仍然「只读 d.cty」（判据结构的锚点）。
     """
-    tpl = open(TPL, encoding="utf-8").read()
+    with open(TPL, encoding="utf-8") as f:
+        tpl = f.read()
     errs = []
     m1 = re.search(r"const BW_BADVAL=/(.+?)/;", tpl)
     m2 = re.search(r"const BW_NOTLINE=/(.+?)/;", tpl)

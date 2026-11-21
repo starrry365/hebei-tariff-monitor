@@ -34,9 +34,9 @@
 
     🔴 加签算法两家**不一样**，抄错就永远 310000 / sign not match：
        钉钉  HMAC-SHA256(key=secret, msg=timestamp+"\n"+secret) → base64 → urlencode
-       飞书  HMAC-SHA256(key="",     msg=timestamp+"\n"+secret) → base64
-       为什么不同：钉钉把 secret 同时当 key 和消息的一部分；飞书只把 secret 拼进消息，
-       key 留空。凭直觉互相套用是最常见的坑。
+       飞书  HMAC-SHA256(key=timestamp+"\n"+secret, msg="") → base64
+       为什么不同：钉钉把 secret 当 key、把 timestamp 与 secret 拼入待签文本；
+       飞书把 timestamp 与 secret 拼接为 key、msg 留空。凭直觉互相套用是最常见的坑。
 
     开关：SELF_NOTIFY(默认 1，设 0 = 本脚本不推) / NOTIFY(默认 1，设 0 = 全关）
           NOTIFY_ALWAYS(默认 0，设 1 = 无变化也每天报个平安)
@@ -236,7 +236,8 @@ def send_dingtalk(title, md):
     secret = _env("DINGTALK_SECRET")
     if secret:                                    # 没开「加签」就不带 timestamp/sign
         ts, sign = _dingtalk_sign(secret)
-        url = "%s&timestamp=%s&sign=%s" % (url, ts, sign)
+        sep = "&" if "?" in url else "?"
+        url = "%s%stimestamp=%s&sign=%s" % (url, sep, ts, sign)
     payload = {"msgtype": "markdown",
                "markdown": {"title": title[:64],       # 钉钉标题上限 64 字符
                             "text": _trunc_bytes(md, 18000)}}
@@ -252,9 +253,10 @@ def send_dingtalk(title, md):
 
 
 def _feishu_sign(secret, ts=None):
-    """飞书加签：HMAC-SHA256(key="", msg=timestamp+"\\n"+secret) → base64。
+    """飞书加签：HMAC-SHA256(key=timestamp+"\\n"+secret, msg="") → base64。
 
-    ⚠️ key 是**空串**（钉钉那边 key 才是 secret）—— 抄错会一直 sign not match。
+    按飞书规范：string_to_sign (timestamp+"\\n"+secret) 作为 HMAC key，载荷为空。
+    （⚠️ 与钉钉不同：钉钉的 key 是 secret 单独作为密钥，并将签名串放入消息体）。
     ``ts`` 可注入，供自测做确定性断言。
     """
     ts = str(ts if ts is not None else int(time.time()))            # 飞书要秒
