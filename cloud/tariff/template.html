@@ -1303,6 +1303,8 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       <button data-p="exp60">⏳ 60 天内下线/已下架</button>
       <button data-p="free">0 元</button>
       <button data-p="bw">含宽带</button>
+      <button data-p="bw1000">🚀 千兆宽带</button>
+      <button data-p="fttr">⚡ FTTR/提速</button>
       <button data-p="g100">≥ 100GB 流量</button>
       <button data-p="chg" id="chipchg">🔄 本次变更</button>
     </div>
@@ -3668,6 +3670,8 @@ function detHTML(d){
   if(_ci)tags.push('<span class="dtag tg-contract">'+esc(_ci.text)+'</span>');
   const _sc=subCardInfo(d);
   if(_sc)tags.push('<span class="dtag tg-card">'+esc(_sc.text)+'</span>');
+  const _sg=segmentTag(d);
+  if(_sg)tags.push(_sg);
   const head='<div class="dhead"><div class="dhd"><h3 class="dname">'+esc(nm)+'</h3>'
     +(sub.length?'<div class="dsub">'+sub.map(s=>'<span>'+esc(s)+'</span>').join("")+'</div>':"")
     +'</div><div class="dtags">'+tags.join("")+'</div></div>';
@@ -5759,7 +5763,7 @@ document.querySelectorAll(".cfx").forEach(b=>{
 
 /* 快捷 chip → 维度取值的映射。选中态与点击行为都从这份表推导，两处共用。 */
 const CHIP_MAP={new7:["on","7"],new30:["on","30"],new90:["on","90"],future:["on","future"],exp60:["off","60"],
-                free:["pf","0,0"],bw:["bw","line"],g100:["gf","100,99999"],chg:["chg","1"]};
+                free:["pf","0,0"],bw:["bw","line"],bw1000:["bw","m1000"],fttr:["bw","speed"],g100:["gf","100,99999"],chg:["chg","1"]};
 /* chip 的选中态从**维度值**反推（而不是点击时手工加 class）——
    深链进来、点筛选标签 × 摘掉条件、切网清空，任何路径改了维度值，
    下一次 apply 都会把高亮对齐回真实状态，不会出现「chip 亮着条件却不在」的两张皮。 */

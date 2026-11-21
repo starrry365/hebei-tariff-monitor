@@ -268,6 +268,8 @@ class TariffEngine:
                        call_min: Optional[int] = None,
                        has_broadband: Optional[bool] = None,
                        broadband_speed_min: Optional[int] = None,
+                       free_sub_cards_min: Optional[int] = None,
+                       contract_months_max: Optional[int] = None,
                        target_segment: Optional[str] = None,
                        city: Optional[str] = None,
                        status: str = "在售",
@@ -314,6 +316,14 @@ class TariffEngine:
         if broadband_speed_min is not None:
             clauses.append("bw_down_mbps >= ?")
             params.append(broadband_speed_min)
+
+        if free_sub_cards_min is not None:
+            clauses.append("free_sub_cards >= ?")
+            params.append(free_sub_cards_min)
+
+        if contract_months_max is not None:
+            clauses.append("contract_months <= ?")
+            params.append(contract_months_max)
 
         if target_segment:
             clauses.append("segment LIKE ?")
@@ -796,4 +806,193 @@ class TariffEngine:
             "carrier_breakdown": carrier_counts,
             "fee_distribution_on_sale": fee_distribution,
             "broadband_distribution_on_sale": bw_distribution
+        }
+
+    # =========================================================================
+    # 核心工具 8: 家庭多卡共享与千兆选型方案求解 (plan_family_bundle)
+    # =========================================================================
+    def plan_family_bundle(self,
+                           members_count: int = 3,
+                           total_data_gb: float = 60.0,
+                           need_broadband: bool = True,
+                           broadband_speed_min: int = 1000,
+                           carrier_preference: str = "all",
+                           city: str = "石家庄") -> Dict[str, Any]:
+        """多成员家庭融合选型求解：主卡+免月费副卡+千兆FTTR对比各自独立单卡"""
+        sql = """
+        SELECT * FROM tariffs
+        WHERE status='在售'
+          AND (cat='套餐' OR ty='套餐' OR title LIKE '%套餐%' OR title LIKE '%融合%')
+          AND eff_fee IS NOT NULL
+          AND traffic_gb >= ?
+        """
+        params = [total_data_gb * 0.5]
+
+        if need_broadband:
+            sql += " AND (bw_line = 1 OR bw_speedup = 1)"
+        if broadband_speed_min:
+            sql += " AND bw_down_mbps >= ?"
+            params.append(broadband_speed_min)
+        if city and city not in ("全省", "全国", "不限"):
+            sql += " AND (province_wide = 1 OR cities LIKE ? OR scope = 'cn')"
+            params.append(f"%{city}%")
+        if carrier_preference and carrier_preference != "all":
+            carrier_map = {"move": "move", "unicom": "unicom", "telecom": "telecom", "cbn": "cbn",
+                           "移动": "move", "联通": "unicom", "电信": "telecom", "广电": "cbn"}
+            sql += " AND net = ?"
+            params.append(carrier_map.get(carrier_preference.lower(), carrier_preference))
+
+        sql += " ORDER BY eff_fee ASC, free_sub_cards DESC, traffic_gb DESC LIMIT 5"
+        rows = [dict(r) for r in self.con.execute(sql, params).fetchall()]
+
+        if not rows:
+            return {
+                "success": False,
+                "message": f"未在{city}找到同时满足≥{total_data_gb}GB与{broadband_speed_min}M宽带的在售家庭套餐"
+            }
+
+        best = rows[0]
+        free_cards = best["free_sub_cards"] or 0
+        needed_sub_cards = max(0, members_count - 1)
+        chargeable_sub_cards = max(0, needed_sub_cards - free_cards)
+        sub_card_monthly = chargeable_sub_cards * 10
+        total_monthly = best["eff_fee"] + sub_card_monthly
+        per_person = round(total_monthly / members_count, 1)
+
+        # 独立开办对比基准: 每个人单独办39元单卡 + 单独办50元宽带
+        standalone_total = (members_count * 39) + (50 if need_broadband else 0)
+        annual_saving = (standalone_total - total_monthly) * 12
+
+        alternatives = []
+        for r in rows[1:]:
+            f_cards = r["free_sub_cards"] or 0
+            c_cards = max(0, needed_sub_cards - f_cards)
+            tot = r["eff_fee"] + (c_cards * 10)
+            alternatives.append({
+                "carrier": r["carrier_name"],
+                "title": r["title"],
+                "report_num": r["report_num"],
+                "monthly_fee": f"{r['eff_fee']}元/月",
+                "free_sub_cards": f"送{f_cards}张",
+                "family_total_monthly": f"{tot}元/月",
+                "per_person_monthly": f"{round(tot / members_count, 1)}元/月",
+                "broadband": f"{r['bw_down_mbps']}M" if r['bw_down_mbps'] else "含宽带"
+            })
+
+        return {
+            "success": True,
+            "family_requirements": {
+                "members_count": members_count,
+                "total_data_gb": total_data_gb,
+                "broadband_speed_min": f"{broadband_speed_min}M",
+                "city": city
+            },
+            "recommended_bundle": {
+                "carrier": best["carrier_name"],
+                "title": best["title"],
+                "report_num": best["report_num"],
+                "main_monthly_fee": f"{best['eff_fee']}元/月",
+                "traffic_pool": f"{best['traffic_gb']}GB (家庭共享)",
+                "broadband": f"{best['bw_down_mbps']}M 全屋光纤" if best['bw_down_mbps'] else "包含高速家用宽带",
+                "sub_card_config": f"主卡 1 张 + 副卡 {needed_sub_cards} 张（其中 {min(needed_sub_cards, free_cards)} 张免月费，{chargeable_sub_cards} 张按10元/月计费）",
+                "family_total_monthly": f"¥{total_monthly} 元/月",
+                "per_person_monthly": f"¥{per_person} 元/月"
+            },
+            "financial_advantage": {
+                "standalone_comparison_monthly": f"¥{standalone_total} 元/月 (按每人独立开办¥39套餐 + 单独宽带¥50测算)",
+                "annual_savings": f"全家每年立省 ¥{round(annual_saving, 1)} 元" if annual_saving > 0 else "与独立开办成本持平",
+                "benefit_summary": f"花更少的钱，全家共享{best['traffic_gb']}GB大流量 + {broadband_speed_min}M千兆FTTR宽带"
+            },
+            "alternative_options": alternatives,
+            "setup_guide": "办理主套餐入网后，主卡持有人携带身份证前往营业厅一次性办理副卡并关联共享，副卡共享主卡套内全部通用流量与语音分钟数。"
+        }
+
+    # =========================================================================
+    # 核心工具 9: 跨运营商竞品对标雷达 (competitor_radar)
+    # =========================================================================
+    def competitor_radar(self, target_identifier: str, city: str = "石家庄") -> Dict[str, Any]:
+        """以指定业务为基准，横向穿透四网大盘寻找正面竞品并生成多维雷达对比"""
+        dt = self.get_tariff_detail(target_identifier)
+        if not dt.get("found"):
+            return dt
+
+        t_basic = dt["basic_info"]
+        t_price = dt["pricing_and_allowances"]
+        t_bw = dt["broadband_and_devices"]
+        t_rules = dt["restrictions_and_rules"]
+
+        carrier_map = {"move": "move", "unicom": "unicom", "telecom": "telecom", "cbn": "cbn",
+                       "中国移动": "move", "中国联通": "unicom", "中国电信": "telecom", "中国广电": "cbn"}
+        target_net = carrier_map.get(t_basic["carrier"], "move")
+        fee = t_price["effective_monthly_fee"] or 59.0
+
+        rivals = []
+        for other_net, c_name in NET_NAMES.items():
+            if other_net == target_net:
+                continue
+            sql = """
+            SELECT * FROM tariffs
+            WHERE net = ? AND status = '在售'
+              AND eff_fee IS NOT NULL
+              AND eff_fee >= ? AND eff_fee <= ?
+            """
+            params = [other_net, max(19.0, fee * 0.7), fee * 1.35]
+            if city and city not in ("全省", "全国", "不限"):
+                sql += " AND (province_wide = 1 OR cities LIKE ? OR scope = 'cn')"
+                params.append(f"%{city}%")
+
+            sql += " ORDER BY ABS(eff_fee - ?) ASC, traffic_gb DESC, bw_down_mbps DESC LIMIT 1"
+            params.append(fee)
+            row = self.con.execute(sql, params).fetchone()
+            if row:
+                r = dict(row)
+                fee_diff = round(r["eff_fee"] - fee, 1)
+                traffic_diff = round((r["traffic_gb"] or 0) - (t_price["general_traffic_gb"] or 0), 1)
+
+                eval_comments = []
+                if fee_diff < 0: eval_comments.append(f"月费便宜 ¥{abs(fee_diff)} 元")
+                elif fee_diff > 0: eval_comments.append(f"月费略高 ¥{fee_diff} 元")
+                else: eval_comments.append("月费持平")
+
+                if traffic_diff > 0: eval_comments.append(f"流量多 {traffic_diff}GB")
+                elif traffic_diff < 0: eval_comments.append(f"流量少 {abs(traffic_diff)}GB")
+
+                if (r["bw_down_mbps"] or 0) > (t_bw["downlink_mbps"] or 0):
+                    eval_comments.append("宽带速率更高")
+
+                rivals.append({
+                    "carrier": c_name,
+                    "title": r["title"],
+                    "report_num": r["report_num"],
+                    "monthly_fee": f"{r['eff_fee']}元/月",
+                    "traffic": f"{r['traffic_gb']}GB",
+                    "broadband": f"{r['bw_down_mbps']}M" if r['bw_down_mbps'] else ("含宽带" if r['bw_line'] else "无宽带"),
+                    "sub_cards": f"送{r['free_sub_cards']}副卡" if r['free_sub_cards'] else "无",
+                    "contract": f"{r['contract_months']}月" if r['contract_months'] else "无协议",
+                    "competitive_highlight": " · ".join(eval_comments)
+                })
+
+        # 计算雷达分 (满分10分)
+        price_score = min(10.0, max(2.0, round(10.0 - (fee / 30.0), 1)))
+        data_score = min(10.0, max(2.0, round(((t_price["general_traffic_gb"] or 0) / 15.0) + 3.0, 1)))
+        bw_score = 9.0 if (t_bw["downlink_mbps"] or 0) >= 1000 else (7.0 if t_bw["has_broadband_line"] else 3.0)
+        freedom_score = 9.5 if not t_rules["contract_months"] else max(3.0, 10.0 - (t_rules["contract_months"] / 4.0))
+
+        return {
+            "target_package": {
+                "carrier": t_basic["carrier"],
+                "title": t_basic["title"],
+                "report_num": t_basic["report_num"],
+                "monthly_fee": f"{fee}元/月",
+                "traffic": f"{t_price['general_traffic_gb']}GB",
+                "broadband": f"{t_bw['downlink_mbps']}M" if t_bw['downlink_mbps'] else ("含宽带" if t_bw['has_broadband_line'] else "无宽带")
+            },
+            "radar_scores_out_of_10": {
+                "price_competitiveness": price_score,
+                "data_abundance": data_score,
+                "broadband_tier": bw_score,
+                "contract_freedom": freedom_score
+            },
+            "rival_benchmarks": rivals,
+            "strategic_verdict": f"在 {fee} 元价格带，{t_basic['carrier']} 该套餐整体评分良好。如需更高流量或千兆宽带，可重点参考友商对标资费。"
         }

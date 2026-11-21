@@ -64,6 +64,8 @@ TOOLS_DEFINITIONS = [
                 "call_min": {"type": "integer", "description": "最低国内通话时长（分钟）"},
                 "has_broadband": {"type": "boolean", "description": "是否要求含宽带（含线路或提速组网）"},
                 "broadband_speed_min": {"type": "integer", "description": "最低下行速率（Mbps，如 100, 300, 500, 1000, 2000）"},
+                "free_sub_cards_min": {"type": "integer", "description": "最低赠送免月费副卡数量（张，如 1, 2）"},
+                "contract_months_max": {"type": "integer", "description": "最高合约在网期限约束（月，如 0 为无合约，12, 24）"},
                 "target_segment": {
                     "type": "string",
                     "enum": ["校园", "敬老", "骑手", "爱心", "政企"],
@@ -196,6 +198,38 @@ TOOLS_DEFINITIONS = [
         "inputSchema": {
             "type": "object",
             "properties": {}
+        }
+    },
+    {
+        "name": "plan_family_bundle",
+        "description": "家庭多卡共享与全屋千兆光网选型方案精算师。针对多家庭成员（2~5人）、用量分布及家用宽带需求，在全网在售资费中求解「1张大流量融合主卡 + 免月费副卡共享 + FTTR全屋光网」组合，与各自独立办卡办宽带对比，计算家庭年度节省金额与人均支出。",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "members_count": {"type": "integer", "default": 3, "description": "家庭常住用卡总人数 (2~5)"},
+                "total_data_gb": {"type": "number", "default": 60, "description": "家庭每月通用流量总需求 (GB)"},
+                "need_broadband": {"type": "boolean", "default": True, "description": "是否需要家用宽带"},
+                "broadband_speed_min": {"type": "integer", "default": 1000, "description": "最低宽带下行速率（Mbps，如 300, 500, 1000）"},
+                "carrier_preference": {
+                    "type": "string",
+                    "enum": ["all", "move", "unicom", "telecom", "cbn", "移动", "联通", "电信", "广电"],
+                    "default": "all",
+                    "description": "偏好的运营商，默认 all (全网比选最优)"
+                },
+                "city": {"type": "string", "default": "石家庄", "description": "所在地市"}
+            }
+        }
+    },
+    {
+        "name": "competitor_radar",
+        "description": "跨运营商竞品对标雷达（1对3矩阵雷达）。以指定资费为基准（如移动5G畅享128元），横向透视移动、联通、电信、广电三家友商处于相同价格带的正面竞品。生成资费雷达评分（费用力、流量力、宽带力、合约自由度），并指出对标优势与劣势。",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "target_identifier": {"type": "string", "description": "基准资费报备号、套餐名称或 ID"},
+                "city": {"type": "string", "default": "石家庄", "description": "所在地市"}
+            },
+            "required": ["target_identifier"]
         }
     }
 ]
@@ -422,6 +456,8 @@ class MCPServer:
                 call_min=args.get("call_min"),
                 has_broadband=args.get("has_broadband"),
                 broadband_speed_min=args.get("broadband_speed_min"),
+                free_sub_cards_min=args.get("free_sub_cards_min"),
+                contract_months_max=args.get("contract_months_max"),
                 target_segment=args.get("target_segment"),
                 city=args.get("city"),
                 status=args.get("status", "在售"),
@@ -450,6 +486,20 @@ class MCPServer:
             )
         elif name == "get_market_overview":
             return self.engine.get_market_overview()
+        elif name == "plan_family_bundle":
+            return self.engine.plan_family_bundle(
+                members_count=args.get("members_count", 3),
+                total_data_gb=args.get("total_data_gb", 60.0),
+                need_broadband=args.get("need_broadband", True),
+                broadband_speed_min=args.get("broadband_speed_min", 1000),
+                carrier_preference=args.get("carrier_preference", "all"),
+                city=args.get("city", "石家庄")
+            )
+        elif name == "competitor_radar":
+            return self.engine.competitor_radar(
+                target_identifier=args["target_identifier"],
+                city=args.get("city", "石家庄")
+            )
         else:
             raise ValueError(f"Unknown tool name: {name}")
 
@@ -536,17 +586,38 @@ class MCPServer:
         audit_ret = call_audit["result"]["structuredContent"]
         print(f"[5] Tool Call audit_fine_print: OK -> {audit_ret['audit_verdict']}")
 
-        # 6. resources/list & read
-        res_read = self.handle_request({"id": 6, "method": "resources/read", "params": {"uri": "tariff://market/overview"}})
-        overview_data = json.loads(res_read["result"]["contents"][0]["text"])
-        print(f"[6] Resource Read: OK -> 全网监控 {overview_data['total_tariffs_monitored']} 条, 在售 {overview_data['total_on_sale']} 条")
+        # 6. tools/call: plan_family_bundle
+        call_family = self.handle_request({
+            "id": 6,
+            "method": "tools/call",
+            "params": {
+                "name": "plan_family_bundle",
+                "arguments": {"members_count": 3, "total_data_gb": 60, "need_broadband": True, "broadband_speed_min": 1000, "city": "石家庄"}
+            }
+        })
+        fam_ret = call_family["result"]["structuredContent"]
+        print(f"[6] Tool Call plan_family_bundle: OK -> 推荐: {fam_ret['recommended_bundle']['title']} (全家总月费 {fam_ret['recommended_bundle']['family_total_monthly']}, {fam_ret['financial_advantage']['annual_savings']})")
 
-        # 7. prompts/list & get
-        prompt_res = self.handle_request({"id": 7, "method": "prompts/get", "params": {"name": "bill-optimizer", "arguments": {}}})
-        print(f"[7] Prompt Get: OK -> {prompt_res['result']['description']}")
+        # 7. tools/call: competitor_radar
+        call_radar = self.handle_request({
+            "id": 7,
+            "method": "tools/call",
+            "params": {"name": "competitor_radar", "arguments": {"target_identifier": "26HE201458", "city": "石家庄"}}
+        })
+        radar_ret = call_radar["result"]["structuredContent"]
+        print(f"[7] Tool Call competitor_radar: OK -> 跨网对标友商 {len(radar_ret['rival_benchmarks'])} 家 (雷达综合分: 价格{radar_ret['radar_scores_out_of_10']['price_competitiveness']}分, 流量{radar_ret['radar_scores_out_of_10']['data_abundance']}分)")
+
+        # 8. resources/list & read
+        res_read = self.handle_request({"id": 8, "method": "resources/read", "params": {"uri": "tariff://market/overview"}})
+        overview_data = json.loads(res_read["result"]["contents"][0]["text"])
+        print(f"[8] Resource Read: OK -> 全网监控 {overview_data['total_tariffs_monitored']} 条, 在售 {overview_data['total_on_sale']} 条")
+
+        # 9. prompts/list & get
+        prompt_res = self.handle_request({"id": 9, "method": "prompts/get", "params": {"name": "bill-optimizer", "arguments": {}}})
+        print(f"[9] Prompt Get: OK -> {prompt_res['result']['description']}")
 
         print("=" * 70)
-        print("✅ 自检全部通过！MCP Server 已达到工业级可用状态。")
+        print("✅ 自检全部通过！MCP 9 大核心工具与资源提示词已达到工业级可用状态。")
         print("=" * 70)
 
 
@@ -562,27 +633,103 @@ def main():
         server.run_self_test()
     elif args.http:
         from http.server import HTTPServer, BaseHTTPRequestHandler
+        from urllib.parse import urlparse, parse_qs
         port = args.http
 
         class APIHandler(BaseHTTPRequestHandler):
+            def _send_cors_headers(self):
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+                self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+
+            def do_OPTIONS(self):
+                self.send_response(204)
+                self._send_cors_headers()
+                self.end_headers()
+
             def do_GET(self):
-                if self.path == "/" or self.path == "/health":
+                parsed = urlparse(self.path)
+                path = parsed.path
+                qs = parse_qs(parsed.query)
+
+                if path == "/" or path == "/health":
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self._send_cors_headers()
                     self.end_headers()
                     self.wfile.write(json.dumps({
                         "status": "healthy",
                         "server": SERVER_NAME,
                         "version": SERVER_VERSION,
-                        "endpoints": ["/api/search", "/api/detail", "/api/compare", "/api/optimize", "/api/overview"]
+                        "endpoints": ["/api/search", "/api/detail", "/api/compare", "/api/optimize", "/api/family", "/api/radar", "/api/overview", "/mcp"]
                     }, ensure_ascii=False).encode("utf-8"))
-                elif self.path == "/api/overview":
+
+                elif path == "/api/overview":
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self._send_cors_headers()
                     self.end_headers()
                     self.wfile.write(json.dumps(server.engine.get_market_overview(), ensure_ascii=False).encode("utf-8"))
+
+                elif path == "/api/search":
+                    # 支持 GET URL 参数查询
+                    args_dict = {}
+                    if "carrier" in qs: args_dict["carrier"] = qs["carrier"][0]
+                    if "keyword" in qs: args_dict["keyword"] = qs["keyword"][0]
+                    if "fee_max" in qs: args_dict["fee_max"] = float(qs["fee_max"][0])
+                    if "fee_min" in qs: args_dict["fee_min"] = float(qs["fee_min"][0])
+                    if "traffic_gb_min" in qs: args_dict["traffic_gb_min"] = float(qs["traffic_gb_min"][0])
+                    if "has_broadband" in qs: args_dict["has_broadband"] = qs["has_broadband"][0].lower() in ("1", "true")
+                    if "broadband_speed_min" in qs: args_dict["broadband_speed_min"] = int(qs["broadband_speed_min"][0])
+                    if "free_sub_cards_min" in qs: args_dict["free_sub_cards_min"] = int(qs["free_sub_cards_min"][0])
+                    if "contract_months_max" in qs: args_dict["contract_months_max"] = int(qs["contract_months_max"][0])
+                    if "city" in qs: args_dict["city"] = qs["city"][0]
+                    if "limit" in qs: args_dict["limit"] = int(qs["limit"][0])
+                    if "sort_by" in qs: args_dict["sort_by"] = qs["sort_by"][0]
+                    resp_data = server.execute_tool("search_tariffs", args_dict)
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self._send_cors_headers()
+                    self.end_headers()
+                    self.wfile.write(json.dumps(resp_data, ensure_ascii=False).encode("utf-8"))
+
+                elif path == "/api/detail":
+                    ident = qs.get("id", qs.get("identifier", [""]))[0]
+                    resp_data = server.execute_tool("get_tariff_detail", {"identifier": ident})
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self._send_cors_headers()
+                    self.end_headers()
+                    self.wfile.write(json.dumps(resp_data, ensure_ascii=False).encode("utf-8"))
+
+                elif path == "/api/radar":
+                    ident = qs.get("id", qs.get("identifier", [""]))[0]
+                    city = qs.get("city", ["石家庄"])[0]
+                    resp_data = server.execute_tool("competitor_radar", {"target_identifier": ident, "city": city})
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self._send_cors_headers()
+                    self.end_headers()
+                    self.wfile.write(json.dumps(resp_data, ensure_ascii=False).encode("utf-8"))
+
+                elif path == "/api/family":
+                    members = int(qs.get("members", ["3"])[0])
+                    gb = float(qs.get("gb", ["60"])[0])
+                    speed = int(qs.get("speed", ["1000"])[0])
+                    city = qs.get("city", ["石家庄"])[0]
+                    carrier = qs.get("carrier", ["all"])[0]
+                    resp_data = server.execute_tool("plan_family_bundle", {
+                        "members_count": members, "total_data_gb": gb, "broadband_speed_min": speed, "city": city, "carrier_preference": carrier
+                    })
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self._send_cors_headers()
+                    self.end_headers()
+                    self.wfile.write(json.dumps(resp_data, ensure_ascii=False).encode("utf-8"))
+
                 else:
                     self.send_response(404)
+                    self._send_cors_headers()
                     self.end_headers()
 
             def do_POST(self):
@@ -602,6 +749,10 @@ def main():
                     resp_data = server.execute_tool("compare_tariffs", payload)
                 elif self.path == "/api/optimize":
                     resp_data = server.execute_tool("optimize_existing_subscriptions", payload)
+                elif self.path == "/api/family":
+                    resp_data = server.execute_tool("plan_family_bundle", payload)
+                elif self.path == "/api/radar":
+                    resp_data = server.execute_tool("competitor_radar", payload)
                 elif self.path == "/api/audit":
                     resp_data = server.execute_tool("audit_fine_print", payload)
                 elif self.path == "/api/tco":
@@ -610,12 +761,13 @@ def main():
                     resp_data = server.handle_request(payload)
                 else:
                     self.send_response(404)
+                    self._send_cors_headers()
                     self.end_headers()
                     return
 
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
-                self.send_header("Access-Control-Allow-Origin", "*")
+                self._send_cors_headers()
                 self.end_headers()
                 self.wfile.write(json.dumps(resp_data, ensure_ascii=False).encode("utf-8"))
 
