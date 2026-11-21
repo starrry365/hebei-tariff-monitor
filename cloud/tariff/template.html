@@ -543,6 +543,12 @@ mark{background:var(--ac2);color:inherit;padding:0 1px;border-radius:2px}
 [data-theme="dark"] .tg-senior{background:rgba(251,146,60,.18);color:#fdba74}
 .tg-rider{background:rgba(16,185,129,.12);color:#059669}
 [data-theme="dark"] .tg-rider{background:rgba(52,211,153,.18);color:#6ee7b7}
+.tg-card{background:rgba(16,185,129,.12);color:#059669}
+[data-theme="dark"] .tg-card{background:rgba(52,211,153,.18);color:#6ee7b7}
+.tg-care{background:rgba(219,39,119,.12);color:#db2777}
+[data-theme="dark"] .tg-care{background:rgba(244,114,182,.18);color:#f472b6}
+.tg-biz{background:rgba(99,102,241,.12);color:#4f46e5}
+[data-theme="dark"] .tg-biz{background:rgba(129,140,248,.18);color:#818cf8}
 .fchip.fchip-clear{background:var(--card);border:1px dashed var(--ac);color:var(--ac);font-weight:600}
 .fchip.fchip-clear:hover{background:var(--ac);color:#fff}
 .aichip{cursor:pointer;transition:transform .12s,box-shadow .15s}
@@ -2003,12 +2009,22 @@ function promoFeeInfo(d){
   };
 }
 
+/* —— 综合有效月费取值 ——
+   用于排序、月费区间筛选、总览分档及每元流量计算：优先采信标准月费 d.f；
+   对于未标月费但含有明确促销/优惠价的条目，回落至 promoFeeInfo。 */
+function effFeeVal(d){
+  const f=num(d.f);
+  if(f!==null)return f;
+  const p=promoFeeInfo(d);
+  return p?p.fee:null;
+}
+
 /* —— 合约承诺/在网期限识别 ——
-   移动/联通/电信/广电 215 款预存购机、算力PAD及政企家庭资费中含有承诺在网期限。
+   移动/联通/电信/广电 230+ 款预存购机、算力PAD及政企家庭资费中含有承诺在网期限。
    提炼在网月份数与标签，用于列表徽标、详情卡片及数据导出。 */
 function contractInfo(d){
   const s=String(d.x||"")+" "+String(d.oth||"")+" "+String(d.vp||"");
-  const m=/(?:承诺在网|合约期|协议期|在网期限为)\s*(\d+)\s*(个?月|年)/.exec(s);
+  const m=/(?:承诺在网|合约期|协议期|在网期限为|协议期限|承诺使用|协议期为)\s*(\d+)\s*(个?月|年)/.exec(s);
   if(!m)return null;
   const val=+m[1];
   const isYear=m[2].indexOf("年")>=0;
@@ -2017,21 +2033,37 @@ function contractInfo(d){
   return {months:months, text:months+"个月合约"};
 }
 
+/* —— 免费/免月费副卡识别 ——
+   广电慧家系列及移动/电信融合套餐中包含送 1~2 张免月费副卡。 */
+function subCardInfo(d){
+  const s=String(d.x||"")+" "+String(d.n||d.t||"");
+  const m=/(?:免月费副卡|副卡0元\/月)[^\d]*(\d+)\s*张?|送(?:免月费)?副卡\s*(\d+)\s*张?|可享(?:一|1)张副卡功能费优惠至0元/.exec(s);
+  if(!m)return null;
+  const qty=m[1]||m[2]||"1";
+  return {qty:qty,text:"送"+qty+"副卡"};
+}
+function subCardTag(d){
+  const c=subCardInfo(d);
+  if(!c)return "";
+  return '<span class="tg tg-card" title="套内含免月费副卡 '+c.qty+' 张">送'+c.qty+'副卡</span> ';
+}
+
 /* —— 定向/专属流量特征识别 ——
-   546 款资费含有免流/定向/专属流量包，避免用户将总流量误认为通用流量。 */
+   四网 900+ 款资费含有免流/定向/专属流量包，避免用户将总流量误认为通用流量。 */
 function dirTrafficInfo(d){
-  if(!d.g&&d.cat!=="流量包"&&!/流量/.test(String(d.t||"")))return false;
   const s=String(d.x||"")+" "+String(d.t||"")+" "+String(d.n||"");
-  return /(?:定向流量|专属流量|免流|定向包)/.test(s);
+  return /(?:定向流量|专属(?:网络)?流量|定向包|免流)/.test(s);
 }
 
 /* —— 细分客群特征识别 ——
-   校园/敬老/骑手等垂直人群专属资费。 */
+   校园/敬老/骑手/爱心/政企等垂直人群专属资费。 */
 function segmentTag(d){
   const s=String(d.n||"")+" "+String(d.t||"")+" "+String(d.ap||"")+" "+String(d.x||"");
-  if(/校园|学生|青春/.test(s))return '<span class="tg tg-seg tg-campus" title="针对学生/校园群体专享">校园</span> ';
-  if(/老年|银发|长者|敬老|孝心|重阳/.test(s))return '<span class="tg tg-seg tg-senior" title="适老/长者专属关怀">敬老</span> ';
-  if(/骑手|骑士/.test(s))return '<span class="tg tg-seg tg-rider" title="骑手/外卖小哥大通话专属">骑手</span> ';
+  if(/校园|学生|青春|高校/.test(s))return '<span class="tg tg-seg tg-campus" title="针对高校/学生/校园群体专享">校园</span> ';
+  if(/老年|银发|长者|敬老|孝心|重阳|助老/.test(s))return '<span class="tg tg-seg tg-senior" title="适老/长者专属关怀">敬老</span> ';
+  if(/骑手|骑士|外卖|快递小哥/.test(s))return '<span class="tg tg-seg tg-rider" title="骑手/外卖/快递小哥专属">骑手</span> ';
+  if(/爱心|助残|残疾|扶贫|特惠关怀/.test(s))return '<span class="tg tg-seg tg-care" title="爱心助残/扶贫特惠群体专享">爱心</span> ';
+  if(/商旅|政企|商务/.test(s))return '<span class="tg tg-seg tg-biz" title="商务差旅/政企客户专享">政企</span> ';
   return "";
 }
 
@@ -2173,7 +2205,7 @@ const FAR  =3650;                                          // 下线日超过这
    月费 0 元含流量 ⇒ +∞：0 元档是真实存在的促销形态（实测 227 条），
    按每元流量降序排时它们就该在顶上，给 null 会沉底、给 0 会颠倒。 */
 function perVal(d){
-  const f=num(d.f);
+  const f=effFeeVal(d);
   if(!d.g||f==null||f<0)return null;
   /* 🔴 0 元含流量曾返回 +∞（当时的理由：「0 元档最划算，给 null 会沉底」）。
      2026-10-03 数据评估推翻：按每元流量降序的 top15 **全部**是 0 元赠送包 /
@@ -2231,7 +2263,7 @@ const F={
          return a<0?a:t;
        }},
   off :{lb:"下线时间",def: 1,get:d=>toDate(d.e)},
-  fee :{lb:"月费",    def: 1,get:d=>num(d.f)},
+  fee :{lb:"月费",    def: 1,get:d=>effFeeVal(d)},
   gb  :{lb:"流量",    def:-1,get:d=>(d.g==null?null:d.g)},
   call:{lb:"通话",    def:-1,get:d=>num(d.c)},
   per :{lb:"每元流量",def:-1,get:d=>perVal(d)},
@@ -2469,7 +2501,7 @@ function syncDims(){
     if(d.sc)n2.sc[d.sc]=(n2.sc[d.sc]||0)+1;
     if(d.ow)n2.ow[d.ow]=(n2.ow[d.ow]||0)+1;
     if(d.chx)n2.chx[d.chx]=(n2.chx[d.chx]||0)+1;
-    const f=num(d.f);
+    const f=effFeeVal(d);
     if(f!=null){
       if(f===0)n2.pf["0,0"]=(n2.pf["0,0"]||0)+1;
       if(f<=10)n2.pf["0,10"]=(n2.pf["0,10"]||0)+1;
@@ -2622,7 +2654,7 @@ const COLF_DEF={
     const p=promoFeeInfo(d);
     if(p)return "优惠 "+p.fee+" 元";
     return "";}},
-  gb:{lab:"流量",get:d=>(d.g!=null&&d.g!==0)?fmtGb(d.g):""},
+  gb:{lab:"流量",get:d=>{if(d.g!=null&&d.g!==0)return fmtGb(d.g)+(dirTrafficInfo(d)?"（含定向）":"");if(dirTrafficInfo(d))return "仅定向";return "";}},
   call:{lab:"通话",get:d=>(d.c&&d.c!=="0")?d.c+" 分钟":""},
   name:{lab:"名称",get:d=>rowName(d)},
   /* 上架/下线筛**状态分档**不筛日期原文（同宽带列「展示分档」哲学）：
@@ -3588,39 +3620,34 @@ function gbKpi(g){
   return m?esc(m[1])+'<small>'+m[2]+'</small>':esc(s);
 }
 function bwKpi(d){
-  if(!bwInfo(d))return '<span class="dno">不含</span>';
+  const i=bwInfo(d),sp=bwSpeed(d);
+  if(!i&&!sp)return '<span class="dno">不含</span>';
   const mb=bwMbps(d);
   const up=bwUpMbps(d);
   if(mb)return up?mb+'<small>M (↑'+up+'M)</small>':mb+'<small>M</small>';
-  return '<span class="dno">含宽带</span>';
+  return i?'<span class="dno">含宽带</span>':'<span class="dno">提速组网</span>';
 }
 
 /* —— 宽带：结论 + 速率徽标 + 官方原文 ——
    🔴 原文来自上游 brandwidth 字段，**必须 esc**：这是全页唯一把上游原文
    拼进 innerHTML 的位置，漏转义就是构建期烤进静态页的存储型 XSS。
-   判定与列表的 bwInfo() 同一口径 —— 两处结论不一致比不显示更糟。 */
+   判定与列表的 bwInfo() / bwSpeed() 同一口径 —— 两处结论不一致比不显示更糟。 */
 function bwSec(d){
-  const i=bwInfo(d);
-  if(!i)return ""; /* 不含宽带的资费不独立展示区块，精简详情垂向留白 */
+  const i=bwInfo(d),sp=bwSpeed(d);
+  if(!i&&!sp)return ""; /* 不含宽带且非提速组网的资费不独立展示区块，精简详情垂向留白 */
   /* 「无」「暂无」「0」这类原文不承载信息 —— 印出来就是「官方原文：无」，
      读者还得自己判断这算不算有宽带。当空处理。 */
   const rawRaw=String(d.bw==null?"":d.bw).trim();
   const raw=/^(?:无|暂无|没有|0|null|none|[-—–])$/i.test(rawRaw)?"":rawRaw;
   const mb=bwMbps(d);
   const up=bwUpMbps(d);
-  /* 速率 / 提速 / 未标注这三个徽标只在**含宽带**时才有意义：
-     实测「邢台爱家光网服务-冀享专属-升档」的宽带字段是空的、判为不含宽带，
-     名称里带「光网」又让 bwSpeed 命中 —— 在「不含宽带」旁边挂一枚「提速/组网」，
-     读者只会以为页面自相矛盾。 */
   const tags=[];
   if(mb)tags.push('<span class="bwtg">'+mb+'M</span>');
   if(up)tags.push('<span class="bwtg bwtg-up" title="官方标注上行速率 '+up+'Mbps">↑'+up+'M 上行</span>');
-  if(bwSpeed(d))tags.push('<span class="bwtg" title="名称/权益里带「提速、光网、组网、FTTR」字样">提速/组网</span>');
-  if(!mb)tags.push('<span class="dmut">速率未标注</span>');
-  /* 「官方原文」只在真有原文时出现：不含宽带的条目该字段本来就是空的，
-     印一句「官方原文：空」等于告诉读者「这里什么都没有」，纯噪音。 */
+  if(sp)tags.push('<span class="bwtg" title="名称/权益里带「提速、光网、组网、FTTR」字样">提速/组网</span>');
+  if(!mb&&i)tags.push('<span class="dmut">速率未标注</span>');
   return '<div class="dsec dbwline"><h4 class="dsect">宽带</h4><div class="dbw">'
-    +'<span class="dbwv">含宽带</span>'
+    +'<span class="dbwv">'+(i?'含宽带线路':'宽带提速/组网')+'</span>'
     +tags.join("")
     +(raw?'<span class="dbwraw">官方原文：'+esc(raw)+'</span>':"")
     +'</div></div>';
@@ -3639,6 +3666,8 @@ function detHTML(d){
   else if(d.ck)tags.push('<span class="dtag dtag-ck">关键字段有变更</span>');
   const _ci=contractInfo(d);
   if(_ci)tags.push('<span class="dtag tg-contract">'+esc(_ci.text)+'</span>');
+  const _sc=subCardInfo(d);
+  if(_sc)tags.push('<span class="dtag tg-card">'+esc(_sc.text)+'</span>');
   const head='<div class="dhead"><div class="dhd"><h3 class="dname">'+esc(nm)+'</h3>'
     +(sub.length?'<div class="dsub">'+sub.map(s=>'<span>'+esc(s)+'</span>').join("")+'</div>':"")
     +'</div><div class="dtags">'+tags.join("")+'</div></div>';
@@ -3674,7 +3703,8 @@ function detHTML(d){
     ks.push([gbKpi(d.g),_gl]);
   }
   if(d.c&&d.c!=="0"&&d.c!=="")ks.push([esc(d.c)+'<small>分钟</small>',"套内通话"]);
-  if(bwInfo(d))ks.push([bwKpi(d),"宽带"]);
+  if(bwInfo(d)||bwSpeed(d))ks.push([bwKpi(d),"宽带"]);
+  if(_sc)ks.push([_sc.qty+'<small>张（免月费）</small>',"赠送副卡"]);
   if(_ci)ks.push([_ci.months+'<small>个月</small>',"协议在网期"]);
   /* 有效期里的期限也进条：合约类套餐的 3 年、日包的 1 天都是硬约束，比档案里
      那串原文更该一眼看到（原文仍一字不少地留在档案区）。
@@ -4007,12 +4037,13 @@ function render(){
         +(_promo.orig?'<div class="eff-fee" title="原档位 '+_promo.orig+'元">原 '+_promo.orig+' 元档</div>':(_promo.isYear?'<div class="eff-fee" title="实付 '+_promo.total+'元/年">年付 '+_promo.total+'元</div>':''));
     }
     const _ci=contractInfo(d);
+    const _sc=subCardInfo(d);
     const _dir=dirTrafficInfo(d);
     buf.push('<tr class="row'+(isNew?" isnew":"")+(d.st?" stopped":"")+'" data-i="'+i+'" data-r="'+esc(d.r||d.n||d.t||"")+'" data-k="'+esc(keyOf(NET,d))+'" tabindex="0" title="点击展开详情 / 复制" aria-expanded="false">'
       +'<td class="fee '+feeCls(d.f)+'">'+feeHTML+'</td>'
-      +'<td class="c-gb'+(gE?" m0":"")+'">'+(gE?"—":gT+(_dir?'<span class="gb-dir" title="含官方定向/专属流量包">含定向</span>':""))+'</td>'
+      +'<td class="c-gb'+(gE&&!_dir?" m0":"")+'">'+(gE?(_dir?'<span class="gb-dir" title="含官方定向/专属流量包">仅定向</span>':"—"):gT+(_dir?'<span class="gb-dir" title="含官方定向/专属流量包">含定向</span>':""))+'</td>'
       +'<td class="c-call'+(cE?" m0":"")+'">'+(cE?"—":'<span style="white-space:nowrap">'+esc(d.c)+" 分钟</span>")+'</td>'
-      +'<td class="nm">'+scTag(d)+cityTag(d)+segmentTag(d)+(_ci?'<span class="tg tg-contract">'+esc(_ci.text)+'</span>':"")+hl(rowName(d),terms)+chgTag(d)
+      +'<td class="nm">'+scTag(d)+cityTag(d)+segmentTag(d)+subCardTag(d)+(_ci?'<span class="tg tg-contract">'+esc(_ci.text)+'</span>':"")+hl(rowName(d),terms)+chgTag(d)
         /* L1（2026-10-04）：「已下架」页签下整页每行都挂同一枚徽标 ——
            页签标题已声明状态，这里是纯冗余（联通 3177 行 × 1 枚）；
            「全部」页签下它才有区分度，保留。 */
@@ -4106,10 +4137,11 @@ function match(d,c){
     }
     if(pf){
       /* F1/F2（2026-10-04）：档位与总览共用 FEE_TIERS，区间语义统一半开 (lo,hi] ——
-         边界值归上一档，同一条资费不再同属两档；「未标月费」是独立档（value none）。 */
-      if(pf==="none"){if(num(d.f)!=null)return false}
+         边界值归上一档，同一条资费不再同属两档；「未标月费」是独立档（value none）。
+         采用 effFeeVal 综合有效月费（含促销折后价）。 */
+      const f=effFeeVal(d);
+      if(pf==="none"){if(f!=null)return false}
       else{
-        const f=num(d.f);
         if(pf[0]===0&&pf[1]===0){if(f!==0)return false}   // 仅 0 元
         else if(f==null||f<=pf[0]||f>pf[1])return false;   // 半开 (lo,hi]
       }
@@ -4961,9 +4993,10 @@ const CSV_COLS=[
      两个都留着 —— 只给大类会丢掉「流量包还是语音包」这种关键差别。 */
   ["类型大类",d=>d.cat],["类型细分",d=>d.ty],
   ["宽带字段",d=>d.bw],
-  ["宽带判定",d=>{const i=bwInfo(d);return i?"含宽带":"不含宽带"}],
+  ["宽带判定",d=>{const i=bwInfo(d),sp=bwSpeed(d);return i?"含宽带线路":(sp?"宽带提速/组网":"不含宽带")}],
   ["宽带下行(Mbps)",d=>bwMbps(d)||""],
   ["宽带上行(Mbps)",d=>bwUpMbps(d)||""],
+  ["免月费副卡",d=>{const c=subCardInfo(d);return c?c.qty+"张":""}],
   ["5G网络权益",d=>{
     const m=/(5G极速服务|5G优享服务|5G黄金服务|5G白金服务|5G钻石服务|5G网络VIP服务)/.exec(String(d.n||"")+" "+String(d.t||"")+" "+String(d.x||"")+" "+String(d.oth||""));
     return m?m[1]:"";}],
@@ -5225,11 +5258,11 @@ function renderOverview(){
     ovBars($("#ovBw"),BW_ORDER,bwc,"宽带速率分档",k=>bwActMap[k]?"bw:"+bwActMap[k]:"");
   }
 
-  /* ── 月费档位 ── 档位与筛选下拉共用 FEE_TIERS（G1），判据同半开 (lo,hi] */
+  /* ── 月费档位 ── 档位与筛选下拉共用 FEE_TIERS（G1），判据同半开 (lo,hi]，采用 effFeeVal */
   const fc={};
   FEE_TIERS.forEach(t=>{
     fc[t.lb]=rs.filter(d=>{
-      const f=num(d.f);
+      const f=effFeeVal(d);
       if(t.v==="none")return f==null;
       if(t.v==="0,0")return f===0;
       return f!=null&&f>+t.v.split(",")[0]&&f<=+t.v.split(",")[1];
