@@ -5,6 +5,31 @@
 <description>河北移动/联通/电信/广电资费目录每日巡检捕获的业务变更（新增 / 下线 / 字段变更）</description>
 <language>zh-CN</language>
 <item>
+<title>2026-11-21 河北联通：下线 9</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-11-21.md</link>
+<category>下线</category>
+<guid isPermaLink="false">2026-11-21-unicom</guid>
+<pubDate>Sat, 21 Nov 2026 10:12:12 +0800</pubDate>
+<description>2026-11-21 河北联通：下线 9
+－ 智慧家庭联通看家单端产品出库（河北移网产品）
+－ 智慧家庭联通看家双端移网产品出库(河北)
+－ 畅越智慧家庭联通看家产品出库（河北）
+－ 联通看家129元档产品看家（河北）-立即生效</description>
+</item>
+<item>
+<title>2026-11-21 河北移动：下线 1 · 变更 10</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-11-21.md</link>
+<category>下线</category><category>变更</category>
+<guid isPermaLink="false">2026-11-21-move</guid>
+<pubDate>Sat, 21 Nov 2026 10:09:01 +0800</pubDate>
+<description>2026-11-21 河北移动：下线 1 · 变更 10
+－ 15元体育包
+± 悦享白银会员(1年)（2026年四季度营销优惠）
+± 悦享白银会员(2个月)（2026年四季度营销优惠）
+± 悦享白银会员(6个月)（2026年四季度营销优惠）
+± 悦享黄金会员(2个月)（2026年四季度营销优惠）</description>
+</item>
+<item>
 <title>2026-11-20 中国广电：变更 4</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/cbn-2026-11-20.md</link>
 <category>变更</category>
@@ -708,28 +733,5 @@
 ± 统一营销流量日包-1GB
 ± 副卡功能费10元减免优惠2026版
 ± 副卡功能费20元减免优惠2026版</description>
-</item>
-<item>
-<title>2026-10-29 河北电信：变更 2</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-29.md</link>
-<category>变更</category>
-<guid isPermaLink="false">2026-10-29-telecom</guid>
-<pubDate>Thu, 29 Oct 2026 08:49:32 +0800</pubDate>
-<description>2026-10-29 河北电信：变更 2
-± 视频汇聚（月包）
-± 视频汇聚（月包）</description>
-</item>
-<item>
-<title>2026-10-29 河北联通：新增 1 · 下线 22 · 变更 4</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-10-29.md</link>
-<category>新增</category><category>下线</category><category>变更</category>
-<guid isPermaLink="false">2026-10-29-unicom</guid>
-<pubDate>Thu, 29 Oct 2026 08:52:37 +0800</pubDate>
-<description>2026-10-29 河北联通：新增 1 · 下线 22 · 变更 4
-＋ 联通5G智享套餐360元合约赠款有效期36个月（河北）-次月生效
-－ 2023年校园专属1元赠费包-次月生效（48个月）
-－ 2023年校园专属1元赠费包-立即生效（48个月）
-－ 2023年校园专属3元赠费包-次月生效（48个月）
-－ 2023年校园专属3元赠费包-立即生效（48个月）</description>
 </item>
 </channel></rss>
