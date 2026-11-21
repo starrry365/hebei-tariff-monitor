@@ -1231,14 +1231,18 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
             <option value="500,99999">500 分以上</option>
           </select></label>
         <label class="f"><span class="fl">宽带</span>
-          <select id="bw" title="宽带：前三档问「有没有这条宽带线路」，后三档按下行速率卡（速率未标注的条目不计入速率档）">
+          <select id="bw" title="宽带：支持按线路、提速组网与各速率梯次精准筛选">
             <option value="">不限宽带</option>
-            <option value="line">含宽带（有宽带线路）</option>
+            <option value="all" title="含宽带线路与宽带提速/组网/光网全部相关资费">宽带相关全部 (含线路与提速组网)</option>
+            <option value="line">含宽带线路（基础/融合宽带）</option>
+            <option value="speed" title="名称或权益含「提速 / 光网 / 组网 / FTTR」">提速 / 光网 / 组网 / FTTR</option>
             <option value="noline">不含宽带（纯流量 / 语音）</option>
-            <option value="speed" title="名称或权益含「提速 / 光网 / 组网 / FTTR」；与「含宽带」相互独立 —— 只有提速包、没有宽带线路的也算这一档">提速 / 光网 / 组网</option>
-            <option value="m200" title="按名称与宽带字段提取的最大下行速率卡；速率未标注的条目不计入">宽带 ≥ 200M</option>
-            <option value="m500" title="按名称与宽带字段提取的最大下行速率卡；速率未标注的条目不计入">宽带 ≥ 500M</option>
-            <option value="m1000" title="按名称与宽带字段提取的最大下行速率卡；速率未标注的条目不计入">宽带 ≥ 1000M</option>
+            <option value="m100" title="下行速率 ≥ 100M（含百兆、两百兆及以上）">宽带速率 ≥ 100M</option>
+            <option value="m200" title="下行速率 ≥ 200M">宽带速率 ≥ 200M</option>
+            <option value="m300" title="下行速率 ≥ 300M（河北主流大带宽）">宽带速率 ≥ 300M</option>
+            <option value="m500" title="下行速率 ≥ 500M">宽带速率 ≥ 500M</option>
+            <option value="m1000" title="下行速率 ≥ 1000M（千兆宽带）">千兆及以上 (≥ 1000M)</option>
+            <option value="m2000" title="下行速率 ≥ 2000M（超千兆 / 2G / 5G-A）">超千兆及以上 (≥ 2000M)</option>
           </select></label>
       </div>
       <div class="fsec"><span class="glab">办理</span>
@@ -2056,49 +2060,76 @@ const BW_BADVAL=/^(0|[-—－\/\\]|无.*|没有|否|不涉及|不限|暂无|无�
 const BW_NOTLINE=/提速|电视|IPTV|检修|装机|调测|加速|绿色上网|调优|扩容|移机|权益|营销活动|预约办理|电子券|标识|游戏宽带|无宽带|神眼/;
 const BW_ASSERT=/含宽带|宽带版|宽带包|宽带套餐|宽带融合|融合宽带|宽带流量|宽带[+＋]|单宽带|FTTR|宽带.{0,8}\d{3,4}\s*M|\d{3,4}\s*M\D{0,4}宽带|千兆宽带|光宽带|宽带.{0,4}套餐/;
 const BW_SPEED=/提速|光网|组网|FTTR/;
+const BW_DESC_LINE=/套内含宽带|包含.{0,8}\d{2,4}\s*M(?:光纤)?宽带|赠送.{0,8}\d{2,4}\s*M(?:光纤)?宽带|免费提供.{0,8}\d{2,4}\s*M(?:光纤)?宽带|\b\d{2,4}\s*M(?:光纤)?宽带|\b宽带\s*\d{2,4}\s*M|\b\d{2,4}\s*M宽带与直播电视|\b\d{2,4}\s*M宽带\+电视|与宽带一条|与广电高速宽带|单宽带|FTTR全屋光宽带|移动上网速率下行\s*\d{2,4}\s*M|移动上网速率下行\s*1\s*G/;
+const BW_SPEED_DEP=/依赖(?:中国)?(?:移动|联通|电信|广电)?宽带|仅面向.*宽带|宽带提速至|提速一档|调测费|装机服务|检修服务|预约办理|得会员|送4个季度|送4个月|打车会员|航旅纵横|宽带终端标识|神眼/;
+
+function bwDescLine(x,n){
+  if(!x)return false;
+  if(BW_SPEED_DEP.test(x)||BW_SPEED_DEP.test(n)){
+    if(!/套内含宽带|与宽带一条|与广电高速宽带|5G畅享融合/.test(x+" "+n))return false;
+  }
+  return BW_DESC_LINE.test(x);
+}
+
 function bwInfo(d){
   const v=String(d.bw==null?"":d.bw).trim();
   /* 字段给了肯定值（含「宽带」「M」「光纤」之类）→ 采信；
      字段自己在说提速 / 电视这类附加动作的不算（见上 ②）；空 / 「无」→ 落名称 */
   if(v&&!BW_BADVAL.test(v)&&!BW_NOTLINE.test(v))return{t:v,src:"field"};
-  /* 名称只在**明确说有**宽带时才算线路（见上 ③），只是「提到」不算。
+  /* 名称只在明确说有宽带时才算线路（见上 ③），只是「提到」不算。
      2026-10-06 起 n 与 t 相同的行不再带 n 键（数据瘦身），读名称一律 n||t。 */
   const n=d.n||d.t||"";
   if(/宽带/.test(n)&&!BW_NOTLINE.test(n)&&BW_ASSERT.test(n))return{t:"含宽带",src:"name"};
+  /* 描述/权益线索兜底：广电慧家系列、电信5G畅享融合等在字段为空时通过权益说明确认含宽带线路 */
+  const x=d.x||"";
+  if(bwDescLine(x,n))return{t:"含宽带",src:"desc"};
   return null;
 }
 function bwSpeed(d){return BW_SPEED.test((d.n||d.t||"")+" "+(d.x||""))}
 function bwMbps(d){
-  const i=bwInfo(d);if(!i)return null;
-  /* 数字带 M（300M / 500M / 1000M）→ 取最大那个数。千兆写法杂（1000M / 1G / 千兆），
-     先按 M 抓，抓不到再认「千兆|1G」 */
-  if(i.src==="field"){
-    const ms=String(i.t).match(/\d{3,4}/g);
+  const i=bwInfo(d),sp=bwSpeed(d);
+  if(!i&&!sp)return null;
+  const t=i&&i.src==="field"?String(i.t):"";
+  const n=d.n||d.t||"";
+  const x=d.x||"";
+  const s=t+" "+n+" "+x;
+  if(/2000\s*M|2\s*G/i.test(s))return 2000;
+  if(/1500\s*M/i.test(s))return 1500;
+  if(t){
+    const ms=t.match(/\d{3,4}/g);
     if(ms)return Math.max.apply(null,ms.map(Number));
   }
-  const ms=String(d.n||d.t||"").match(/(\d{3,4})\s*M/g);
-  if(ms)return Math.max.apply(null,ms.map(m=>parseInt(m,10)));
-  if(/千兆|1\s*G/i.test((d.n||d.t||"")+" "+(d.x||"")))return 1000;
+  const nm=n.match(/(\d{3,4})\s*M/g);
+  if(nm)return Math.max.apply(null,nm.map(m=>parseInt(m,10)));
+  const xm=x.match(/(?:下行|宽带|速率|提速至|包含|赠送)\D{0,6}(\d{3,4})\s*M/g);
+  if(xm){
+    const nums=xm.map(m=>{const d=m.match(/\d{3,4}/);return d?parseInt(d[0],10):0}).filter(Boolean);
+    if(nums.length)return Math.max.apply(null,nums);
+  }
+  const xm2=x.match(/(\d{3,4})\s*M\D{0,4}宽带/g);
+  if(xm2){
+    const nums=xm2.map(m=>{const d=m.match(/\d{3,4}/);return d?parseInt(d[0],10):0}).filter(Boolean);
+    if(nums.length)return Math.max.apply(null,nums);
+  }
+  if(/千兆|1\s*G/i.test(s))return 1000;
   return null;
 }
 function bwUpMbps(d){
   const s=String(d.bw||"")+" "+String(d.x||"");
-  const m=/上行(?:速率)?\s*(?:为|达到)?\s*(\d+)\s*(?:M|Mbps)/i.exec(s);
+  const m=/(?:上行(?:速率)?|↑)\s*(?:为|达到)?\s*(\d+)\s*(?:M|Mbps)/i.exec(s);
   return m?+m[1]:null;
 }
 function bwDetail(d){
-  const i=bwInfo(d),raw=String(d.bw==null?"":d.bw).trim();
-  const v=i?"含宽带":"不含宽带";
-  /* 🔴 raw 是运营商接口原文，必须 esc —— 这是全页唯一经手上游原文且进 innerHTML
-     的位置；漏转义就是构建期烤进静态页的存储型 XSS（2026-10-02 代码审查抓到）。 */
-  if(!i)return v+"（官方原文："+(esc(raw)||"空")+"）";
+  const i=bwInfo(d),sp=bwSpeed(d);
+  const raw=String(d.bw==null?"":d.bw).trim();
+  let v=i?"含宽带线路":(sp?"宽带提速/组网":"不含宽带");
+  if(!i&&!sp)return v+"（官方原文："+(esc(raw)||"空")+"）";
   const mb=bwMbps(d);
   const up=bwUpMbps(d);
-  const sp=bwSpeed(d)?' · <span class="bwtg" title="名称/权益里带「提速、光网、组网、FTTR」字样">提速/组网</span>':"";
-  /* 判为含宽带但速率提不出来（名称与字段都没写数字）→ 明说，别让人以为是漏显示 */
-  const un=mb==null?' · <span class="mut" title="名称与宽带字段都没有可提取的速率数字">速率未标注</span>':"";
+  const spt=sp?' · <span class="bwtg" title="名称/权益里带「提速、光网、组网、FTTR」字样">提速/组网</span>':"";
+  const un=mb==null?' · <span class="mut" title="名称、权益与宽带字段都没有可提取的速率数字">速率未标注</span>':"";
   return v+(mb?' · <span class="bwtg">'+mb+'M</span>':"")
-    +(up?' · <span class="bwtg bwtg-up" title="官方标注上行速率 '+up+'Mbps">↑'+up+'M 上行</span>':"")+un+sp
+    +(up?' · <span class="bwtg bwtg-up" title="官方标注上行速率 '+up+'Mbps">↑'+up+'M 上行</span>':"")+un+spt
     +'（官方原文：'+(esc(raw)||"空")+"）";
 }
 /* 条目的地市归属（中文名数组）——**只读**，不做任何换算。仍是「单一来源」的锚点：
@@ -2106,18 +2137,18 @@ function bwDetail(d){
    用于「地市」下拉的筛选判据、详情行的「地域」、单条摘要与 CSV 的「城市」列。 */
 function cityTags(d){return d.cty||[]}
 function bwCell(d){
-  const i=bwInfo(d);
-  if(!i)return '<span class="mut">—</span>';
+  const i=bwInfo(d),sp=bwSpeed(d);
+  if(!i&&!sp)return '<span class="mut">—</span>';
   const mb=bwMbps(d);
   const up=bwUpMbps(d);
-  const t=String(i.t);
-  /* 字段原文超长时截断 —— 有权益说明整段被填进宽带字段的（实测最长 40 字），
-     全量展示会把表格行撑到三行高。兜底显示不影响筛选（判定在 bwInfo 那一层）。 */
+  const t=i?String(i.t):"";
   const short=t.length>14?t.slice(0,14)+"…":t;
-  return (mb?'<span class="bwtg">'+mb+'M</span> ':"")
-    +(up?'<span class="bwtg bwtg-up" title="官方标注上行速率 '+up+'Mbps">↑'+up+'M</span> ':"")
-    +'<span class="bwv" title="'+esc(t)+'">'+esc(short)+'</span>'
-    +(bwSpeed(d)?' <span class="bwtg">提速</span>':"");
+  let h="";
+  if(mb)h+='<span class="bwtg">'+mb+'M</span> ';
+  if(up)h+='<span class="bwtg bwtg-up" title="官方标注上行速率 '+up+'Mbps">↑'+up+'M</span> ';
+  if(i)h+='<span class="bwv" title="'+esc(t)+'">'+esc(short)+'</span>';
+  if(sp)h+=' <span class="bwtg" title="提速/光网/组网/FTTR">提速/组网</span>';
+  return h;
 }
 
 /* —— 数据基线与相对天数 ——
@@ -2458,21 +2489,19 @@ function syncDims(){
     if(inR(cm,0,100))n2.cf["0,100"]=(n2.cf["0,100"]||0)+1;
     if(inR(cm,100,500))n2.cf["100,500"]=(n2.cf["100,500"]||0)+1;
     if(cm!=null&&cm>=500)n2.cf["500,99999"]=(n2.cf["500,99999"]||0)+1;
-    /* ⚠️ 提速档**不能**嵌进 bwInfo 里：bwSpeed 只看名称/权益里的「提速/光网
-       组网」字样，独立于「有没有一条宽带线路」—— 判据 bw==="speed" 也只认
-       bwSpeed（审计抓过：面 45 / 实 257 的漂移就是这么来的）。 */
     if(bwSpeed(d))n2.bw.speed=(n2.bw.speed||0)+1;
-    /* line 与 noline 恰好互补（bwInfo 是单一判据），if/else 各记一档 ——
-       两条档的计数出自同一次判定，不可能出现 line+noline > total 的劈叉。 */
-    if(bwInfo(d)){
-      n2.bw.line=(n2.bw.line||0)+1;
-      const mb=bwMbps(d);
-      if(mb!=null){
-        if(mb>=200)n2.bw.m200=(n2.bw.m200||0)+1;
-        if(mb>=500)n2.bw.m500=(n2.bw.m500||0)+1;
-        if(mb>=1000)n2.bw.m1000=(n2.bw.m1000||0)+1;
-      }
-    }else n2.bw.noline=(n2.bw.noline||0)+1;
+    if(bwInfo(d)||bwSpeed(d))n2.bw.all=(n2.bw.all||0)+1;
+    if(bwInfo(d))n2.bw.line=(n2.bw.line||0)+1;
+    if(!bwInfo(d)&&!bwSpeed(d))n2.bw.noline=(n2.bw.noline||0)+1;
+    const mb=bwMbps(d);
+    if(mb!=null){
+      if(mb>=100)n2.bw.m100=(n2.bw.m100||0)+1;
+      if(mb>=200)n2.bw.m200=(n2.bw.m200||0)+1;
+      if(mb>=300)n2.bw.m300=(n2.bw.m300||0)+1;
+      if(mb>=500)n2.bw.m500=(n2.bw.m500||0)+1;
+      if(mb>=1000)n2.bw.m1000=(n2.bw.m1000||0)+1;
+      if(mb>=2000)n2.bw.m2000=(n2.bw.m2000||0)+1;
+    }
     const ot=toDate(d.o);
     if(ot==null)n2.on.none=(n2.on.none||0)+1;
     else if(BASE_OK){
@@ -2578,11 +2607,12 @@ const COLF_DEF={
   ty:{lab:"细分",get:d=>d.ty||""},
   ow:{lab:"归属",get:d=>d.ow||""},
   bw:{lab:"宽带",get:d=>{
-    if(!bwInfo(d))return"";
+    const i=bwInfo(d),sp=bwSpeed(d);
+    if(!i&&!sp)return"";
     const mb=bwMbps(d);
     const up=bwUpMbps(d);
     if(mb)return up?mb+"M (↑"+up+"M)":mb+"M";
-    return bwSpeed(d)?"提速/组网":"含宽带";}},
+    return sp?"提速/组网":"含宽带";}},
   ap:{lab:"目标客户",get:d=>d.ap||""},
   /* 2026-10-06 晚：全列补齐（用户要求「这一行都加上筛选」）。
      月费/流量/通话按**展示口径**取值（「29 元」「30GB」与单元格所见一致，
@@ -4150,14 +4180,12 @@ function match(d,c){
       const lf=left(dt);
       if(Math.abs(lf)>+off)return false;
     }
-    if(bw==="line"&&!bwInfo(d))return false;    /* 反向档：只想要纯流量 / 纯语音套餐的人此前没有任何入口 ——
-       「不限宽带」是「不管」，不是「不含」。与 line 恰好互补且无缝（bwInfo 是
-       单一判据，一条资费要么有线路要么没有，不存在第三态）。 */
-    if(bw==="noline"&&bwInfo(d))return false;
+    if(bw==="all"&&!bwInfo(d)&&!bwSpeed(d))return false;
+    if(bw==="line"&&!bwInfo(d))return false;
+    if(bw==="noline"&&(bwInfo(d)||bwSpeed(d)))return false;
     if(bw==="speed"&&!bwSpeed(d))return false;
-    /* 速率档 m200 / m500 / m1000 —— 后缀数字就是要求的下行 Mbps。
-       速率**未知**的一律不通过（fail-closed，与上架/下线时间筛选同一条原则）：
-       「不知道多少兆」不能被当成「满足 500M」。 */
+    /* 速率档 m100 / m200 / m300 / m500 / m1000 / m2000 —— 后缀数字就是要求的下行 Mbps。
+       速率未知的一律不通过（fail-closed，与上架/下线时间筛选同一条原则）。 */
     if(bw&&bw.charAt(0)==="m"){
       const mb=bwMbps(d);
       if(mb==null||mb<+bw.slice(1))return false;
@@ -5168,22 +5196,32 @@ function renderOverview(){
 
   /* ── 宽带速率梯次构成 ── */
   const bwc={};
-  const BW_ORDER=["1000M及以上","500M-999M","200M-499M","100M-199M","提速/组网","其他含宽带","不含宽带"];
+  const BW_ORDER=["2000M及以上","1000M-1999M","500M-999M","300M-499M","100M-299M","提速/组网","基础含宽带","不含宽带"];
   rs.forEach(d=>{
-    const i=bwInfo(d);
-    if(!i){bwc["不含宽带"]=(bwc["不含宽带"]||0)+1;return;}
+    const i=bwInfo(d),sp=bwSpeed(d);
+    if(!i&&!sp){bwc["不含宽带"]=(bwc["不含宽带"]||0)+1;return;}
     const mb=bwMbps(d);
-    if(mb>=1000)bwc["1000M及以上"]=(bwc["1000M及以上"]||0)+1;
+    if(mb>=2000)bwc["2000M及以上"]=(bwc["2000M及以上"]||0)+1;
+    else if(mb>=1000)bwc["1000M-1999M"]=(bwc["1000M-1999M"]||0)+1;
     else if(mb>=500)bwc["500M-999M"]=(bwc["500M-999M"]||0)+1;
-    else if(mb>=200)bwc["200M-499M"]=(bwc["200M-499M"]||0)+1;
-    else if(mb>=100)bwc["100M-199M"]=(bwc["100M-199M"]||0)+1;
-    else if(bwSpeed(d))bwc["提速/组网"]=(bwc["提速/组网"]||0)+1;
-    else bwc["其他含宽带"]=(bwc["其他含宽带"]||0)+1;
+    else if(mb>=300)bwc["300M-499M"]=(bwc["300M-499M"]||0)+1;
+    else if(mb>=100)bwc["100M-299M"]=(bwc["100M-299M"]||0)+1;
+    else if(sp)bwc["提速/组网"]=(bwc["提速/组网"]||0)+1;
+    else bwc["基础含宽带"]=(bwc["基础含宽带"]||0)+1;
   });
   const obp=$("#ovBwPanel");
   if(obp){
-    $("#ovBwNote").textContent="共 "+(rs.length-(bwc["不含宽带"]||0))+" 条含宽带资费";
-    const bwActMap={"1000M及以上":"m1000","500M-999M":"m500","200M-499M":"m200","提速/组网":"speed","其他含宽带":"line","不含宽带":"noline"};
+    $("#ovBwNote").textContent="共 "+(rs.length-(bwc["不含宽带"]||0))+" 条宽带相关资费";
+    const bwActMap={
+      "2000M及以上":"m2000",
+      "1000M-1999M":"m1000",
+      "500M-999M":"m500",
+      "300M-499M":"m300",
+      "100M-299M":"m100",
+      "提速/组网":"speed",
+      "基础含宽带":"line",
+      "不含宽带":"noline"
+    };
     ovBars($("#ovBw"),BW_ORDER,bwc,"宽带速率分档",k=>bwActMap[k]?"bw:"+bwActMap[k]:"");
   }
 

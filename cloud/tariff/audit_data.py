@@ -71,6 +71,19 @@ BW_NOTLINE = r"提速|电视|IPTV|检修|装机|调测|加速|绿色上网|调�
 # 2026-10-04 conformance 抓到本常量曾缺失 —— oracle 只查「宽带 in n」而页面
 # 还要求 BW_ASSERT.test(n)，多判 3 条（move bw=line 期望 128 / 实际 125）。
 BW_ASSERT = r"含宽带|宽带版|宽带包|宽带套餐|宽带融合|融合宽带|宽带流量|宽带[+＋]|单宽带|FTTR|宽带.{0,8}\d{3,4}\s*M|\d{3,4}\s*M\D{0,4}宽带|千兆宽带|光宽带|宽带.{0,4}套餐"
+BW_DESC_LINE = r"套内含宽带|包含.{0,8}\d{2,4}\s*M(?:光纤)?宽带|赠送.{0,8}\d{2,4}\s*M(?:光纤)?宽带|免费提供.{0,8}\d{2,4}\s*M(?:光纤)?宽带|\b\d{2,4}\s*M(?:光纤)?宽带|\b宽带\s*\d{2,4}\s*M|\b\d{2,4}\s*M宽带与直播电视|\b\d{2,4}\s*M宽带\+电视|与宽带一条|与广电高速宽带|单宽带|FTTR全屋光宽带|移动上网速率下行\s*\d{2,4}\s*M|移动上网速率下行\s*1\s*G"
+BW_SPEED_DEP = r"依赖(?:中国)?(?:移动|联通|电信|广电)?宽带|仅面向.*宽带|宽带提速至|提速一档|调测费|装机服务|检修服务|预约办理|得会员|送4个季度|送4个月|打车会员|航旅纵横|宽带终端标识|神眼"
+
+DESC_LINE_RE = re.compile(BW_DESC_LINE)
+SPEED_DEP_RE = re.compile(BW_SPEED_DEP)
+
+def bw_desc_line(x, n):
+    if not x:
+        return False
+    if SPEED_DEP_RE.search(x) or SPEED_DEP_RE.search(n):
+        if not re.search(r"套内含宽带|与宽带一条|与广电高速宽带|5G畅享融合", x + " " + n):
+            return False
+    return bool(DESC_LINE_RE.search(x))
 # 本网自己的数据基线（YYYY-MM-DD），由 load_rows() 填充。四网理论上可不同。
 NET_BASE = ""
 # 页面搜索实际覆盖的字段（用于比对是否漏字段）—— 必须与 template.html apply() 里那份一致。
@@ -129,19 +142,10 @@ def load_rows(net=None):
 
 
 def bw_info(x):
-    """复现 template.html 的 bwInfo()：返回 ('field', 速率) / ('name', '含宽带') / None
+    """复现 template.html 的 bwInfo()：返回 ('field', 速率) / ('name', '含宽带') / ('desc', '含宽带') / None
 
-    🔴 结构必须与页面**同序同判**：字段明示优先，名称线索只在字段空/否定时兜底。
-       2026-10-02 conformance 抓到本函数曾「名称含 NOTLINE 词 ⇒ 直接 None」，
-       把字段明明写了「含宽带」的条目也排除了（名称叫「…宽带电视…」而字段写
-       「300M」的融合套餐）——与页面「字段优先」语义反向漂移，37 个 bw 用例
-       恒失败（页面是对的，oracle 是复现，漂移改 oracle —— 同 city_tags 先例）。
-       2026-10-04 conformance 又抓到两处同向漂移（都是 oracle 多判，页面是对的）：
-       · field 分支漏了页面的 ``!BW_NOTLINE.test(v)`` —— 字段自己在说
-         「提速 / 电视」这类附加动作的不算（之前 docstring 写「页面信任字段、
-         不做 NOTLINE 过滤」是对旧版页面的误读，页面 1085 行一直有这道过滤）；
-       · name 分支漏了页面的 ``BW_ASSERT.test(n)`` —— 名称必须**明确说有**
-         宽带才算，「提到」不算（弱提及「…含宽带权益…」这类挡掉）。
+    🔴 结构必须与页面**同序同判**：字段明示优先，名称线索只在字段空/否定时兜底，
+       描述/权益说明在字段与名称皆无时兜底（广电慧家系列、电信5G畅享融合等）。
     """
     v = str(x.get("bw") or "").strip()
     # 2026-10-06 起 n 与 t 相同的行不再带 n（页面数据瘦身），页面读名称一律 n||t
@@ -150,6 +154,9 @@ def bw_info(x):
         return ("field", v)
     if "宽带" in n and not NOTLINE_RE.search(n) and ASSERT_RE.search(n):
         return ("name", "含宽带")
+    x_desc = str(x.get("x") or "")
+    if bw_desc_line(x_desc, n):
+        return ("desc", "含宽带")
     return None
 
 
@@ -216,6 +223,7 @@ def check_bw(rows):
     """宽带判定：多算 / 少算 / 误伤三件事。"""
     kept_field = [x for x in rows if bw_info(x) and bw_info(x)[0] == "field"]
     kept_name = [x for x in rows if bw_info(x) and bw_info(x)[0] == "name"]
+    kept_desc = [x for x in rows if bw_info(x) and bw_info(x)[0] == "desc"]
     # 旧「非空即含」口径下会被多算的
     holders = [x for x in rows if str(x.get("bw") or "").strip()]
     false_pos = [x for x in holders if not bw_info(x)]
@@ -234,7 +242,7 @@ def check_bw(rows):
     inconsistent = [x for x in rows
                     if bw_info(x) and bw_info(x)[0] == "name"
                     and NOTLINE_RE.search(x.get("n") or "")]
-    return kept_field, kept_name, holders, false_pos, risk, inconsistent
+    return kept_field, kept_name, kept_desc, holders, false_pos, risk, inconsistent
 
 
 def check_g(rows):
@@ -443,10 +451,11 @@ def main():
     print("      流量单位: %s" % (", ".join(units) or "（无）"))
 
     print("\n[2] 宽带判定（复现 template.html 的 bwInfo）")
-    f, n_, holders, fp, risk, incons = check_bw(rows)
-    print("      判为含宽带: %d 条（字段 %d + 名称兜底 %d）" % (len(f) + len(n_), len(f), len(n_)))
+    f, n_, d_, holders, fp, risk, incons = check_bw(rows)
+    print("      判为含宽带: %d 条（字段 %d + 名称兜底 %d + 描述兜底 %d）"
+          % (len(f) + len(n_) + len(d_), len(f), len(n_), len(d_)))
     print("      旧口径(bw 非空即含)=%d 条 → 现 %d 条（剔除 %d：占位符 + 提速/服务类）"
-          % (len(holders), len(f) + len(n_), len(fp)))
+          % (len(holders), len(f) + len(n_) + len(d_), len(fp)))
     print("      其中名称写着提速/装机/调测… 的: %d 条（未计入）" % len(risk))
     if not quiet:
         for x in fp[:5]:
