@@ -6,7 +6,7 @@
 <title>河北运营商资费查询</title>
 <script>
 /* ── 数据文件预载（2026-10-15 拆分懒加载的配套）──────────────────────────
-   四网行数据在 sidecar 文件里（{"move":"data/move.20261121202611211350.js","unicom":"data/unicom.20261121202611211350.js","telecom":"data/telecom.20261121202611211350.js","cbn":"data/cbn.20261121202611211350.js"} 由构建期注入 stamp 映射），
+   四网行数据在 sidecar 文件里（{"move":"data/move.20261122202611220912.js","unicom":"data/unicom.20261122202611220912.js","telecom":"data/telecom.20261122202611220912.js","cbn":"data/cbn.20261122202611220912.js"} 由构建期注入 stamp 映射），
    主脚本体在 body 末尾 —— 若等它 boot 完再发请求，HTML 解析和 sidecar
    下载就是**串行**的。这段小脚本在 head 里就地执行：按 hash 选出目标网
    （没有就用默认 move），立刻发 preload —— 下载与页面其余部分的解析
@@ -18,7 +18,7 @@
   try{
     var m=/(?:^|&)net=(move|unicom|telecom|cbn)\b/.exec((location.hash||"").slice(1));
     var c=m?m[1]:"move";
-    var MAP={"move":"data/move.20261121202611211350.js","unicom":"data/unicom.20261121202611211350.js","telecom":"data/telecom.20261121202611211350.js","cbn":"data/cbn.20261121202611211350.js"};
+    var MAP={"move":"data/move.20261122202611220912.js","unicom":"data/unicom.20261122202611220912.js","telecom":"data/telecom.20261122202611220912.js","cbn":"data/cbn.20261122202611220912.js"};
     var s=MAP[c];
     if(s){var l=document.createElement("link");
       l.rel="preload";l.as="script";l.href=s;
@@ -1103,7 +1103,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
       <div id="logo">移</div>
       <div class="brand-t">
         <div id="h1">河北移动 · 资费全量目录</div>
-        <div id="sub">来源：中国移动 APP「资费专区」 · 数据基线 2026-11-21 · 共 15081 条</div>
+        <div id="sub">来源：中国移动 APP「资费专区」 · 数据基线 2026-11-22 · 共 15080 条</div>
       </div>
     </div>
     <!-- 四网切换：放在横栏这一层（而不是「资费明细」页签里），
@@ -1123,7 +1123,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
     </div>
   </div>
   <div class="noticebar">
-    <div class="notice" id="notice">本次巡检：下线 1 条 · 字段变更 11 条 · <a href="https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-11-21.md" target="_blank" rel="noopener">查看变更明细 →</a> · 🛡 护栏另摘除 6 条假变化、识别 16 条补录 · 联通无变化 · 广电无变化 · 电信变更 2</div>
+    <div class="notice" id="notice">本次巡检：下线 1 条 · <a href="https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-11-22.md" target="_blank" rel="noopener">查看变更明细 →</a> · 联通无变化 · 广电无变化 · 电信无变化</div>
     <div class="notice warn" id="basewarn" style="display:none"></div>
   </div>
 </header>
@@ -1471,7 +1471,7 @@ tr.row.stopped .nm,tr.row.stopped .fee{color:var(--tx3)}
    三家另放一个数组」—— 后者每加一处逻辑都要分叉一次，迟早漏掉一边。
    ★ 每网自带 base：「相对天数 / 上架下线筛选」都以**本网**的数据基线为准，
      不能全局共用一个 —— 三家的抓取时点不可能总在同一天。 */
-const NETS={"move":{"sh":"移动","nm":"中国移动","src":"中国移动 APP「资费专区」","base":"2026-11-21","ts":"2026-11-21 13:50","n":5474,"src_data":"data/move.20261121202611211350.js"},"unicom":{"sh":"联通","nm":"中国联通","src":"中国联通 APP「资费专区」","base":"2026-11-21","ts":"2026-11-21 13:52","n":8116,"src_data":"data/unicom.20261121202611211350.js"},"telecom":{"sh":"电信","nm":"中国电信","src":"中国电信「资费专区」","base":"2026-11-21","ts":"2026-11-21 13:50","n":1146,"src_data":"data/telecom.20261121202611211350.js"},"cbn":{"sh":"广电","nm":"中国广电","src":"中国广电「资费公示」","base":"2026-11-21","ts":"2026-11-21 13:50","n":345,"src_data":"data/cbn.20261121202611211350.js"}};
+const NETS={"move":{"sh":"移动","nm":"中国移动","src":"中国移动 APP「资费专区」","base":"2026-11-22","ts":"2026-11-22 09:12","n":5473,"src_data":"data/move.20261122202611220912.js"},"unicom":{"sh":"联通","nm":"中国联通","src":"中国联通 APP「资费专区」","base":"2026-11-22","ts":"2026-11-22 09:12","n":8116,"src_data":"data/unicom.20261122202611220912.js"},"telecom":{"sh":"电信","nm":"中国电信","src":"中国电信「资费专区」","base":"2026-11-22","ts":"2026-11-22 09:10","n":1146,"src_data":"data/telecom.20261122202611220912.js"},"cbn":{"sh":"广电","nm":"中国广电","src":"中国广电「资费公示」","base":"2026-11-22","ts":"2026-11-22 09:10","n":345,"src_data":"data/cbn.20261122202611220912.js"}};
 /* ── 四网数据 sidecar 按需加载（2026-10-15 面板提速 P1）────────────────────
    构建期把每网 rows 的列式编码拆进 docs/data/{code}.{stamp}.js（见
    tariff_monitor.write_net_sidecars），页面内联只剩各网**元信息**（含 n=条数、
@@ -1620,8 +1620,8 @@ const OW_ORDER=["个人","政企"];
 /* 变更历史（2026-10-17 懒加载）：HIST 原本整块内联在页面里 —— 877 条 / 306 KB，
    占首屏 45%，而它只服务于「变更时间线」这一个按需打开的面板。现在拆成
    docs/data/hist.<stamp>.js，首次打开时间线才拉；归档页仍由构建期内联回来
-   （null 直接给值、"data/hist.20261121135243.js" 为空），保持「解包即可看」的自包含性。 */
-const HIST_SRC="data/hist.20261121135243.js";
+   （null 直接给值、"data/hist.20261122091238.js" 为空），保持「解包即可看」的自包含性。 */
+const HIST_SRC="data/hist.20261122091238.js";
 let HIST=null;
 const HIST_SMP_KEEP=30;
 /* 所有「枚举型筛选维度」的控件 id —— 全页只此一份。
