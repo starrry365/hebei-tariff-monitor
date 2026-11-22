@@ -1987,38 +1987,58 @@ function effFeeInfo(d){
    这里在展示层提取优惠折后价与原套餐档位，提升可读性。
    ★ 仅用于展示增强（列表副标、详情卡片），不破坏底层 d.f 原始字段与排序契约。 */
 function promoFeeInfo(d){
-  if(d.f!==""&&d.f!=null)return null;
+  const hasRealStdFee=d.f!==""&&d.f!=null&&d.f!=="0"&&d.f!==0;
+  if(hasRealStdFee)return null;
   const nm=String(d.n||d.t||"").trim();
   const x=String(d.x||"").trim();
   const comb=nm+" "+x;
 
+  /* 1. 显式优惠折后价：优惠至 / 降至 / 调整为 / 优惠后 */
   const m=/(?:套餐)?(?:月基本费|月费|主套餐)?(?:优惠至|降至|调整为|优惠后)\s*(\d+(?:\.\d+)?)\s*元(?:\s*\/\s*(月|年))?/.exec(comb);
-  if(!m)return null;
+  if(m){
+    const val=+m[1];
+    if(isFinite(val)&&val>0){
+      const isYear=m[2]==="年";
+      const fee=isYear?(val%12===0?val/12:+(val/12).toFixed(1)):val;
+      const mOrig=/(\d+(?:\.\d+)?)\s*元(?:档位?|套餐)/.exec(nm);
+      const orig=mOrig?+mOrig[1]:null;
+      return {
+        fee: fee,
+        isYear: isYear,
+        total: isYear?val:null,
+        orig: orig
+      };
+    }
+  }
 
-  const val=+m[1];
-  if(!isFinite(val)||val<=0)return null;
+  /* 2. 标题显式周期单价：如 10元/月、108元/年（当 d.f 为空或0时） */
+  const mRate=/(\d+(?:\.\d+)?)\s*元\s*\/\s*(月|年)/.exec(nm);
+  if(mRate){
+    const val=+mRate[1];
+    if(isFinite(val)&&val>0){
+      const isYear=mRate[2]==="年";
+      const fee=isYear?(val%12===0?val/12:+(val/12).toFixed(1)):val;
+      return {
+        fee: fee,
+        isYear: isYear,
+        total: isYear?val:null,
+        orig: null
+      };
+    }
+  }
 
-  const isYear=m[2]==="年";
-  const fee=isYear?(val%12===0?val/12:+(val/12).toFixed(1)):val;
-  const mOrig=/(\d+(?:\.\d+)?)\s*元(?:档位?|套餐)/.exec(nm);
-  const orig=mOrig?+mOrig[1]:null;
-
-  return {
-    fee: fee,
-    isYear: isYear,
-    total: isYear?val:null,
-    orig: orig
-  };
+  return null;
 }
 
 /* —— 综合有效月费取值 ——
-   用于排序、月费区间筛选、总览分档及每元流量计算：优先采信标准月费 d.f；
-   对于未标月费但含有明确促销/优惠价的条目，回落至 promoFeeInfo。 */
+   用于排序、月费区间筛选、总览分档及每元流量计算：优先采信促销/优惠折后价（纠正标0元却实收或未标月费条目）；
+   其次采信标准月费 d.f。 */
 function effFeeVal(d){
+  const p=promoFeeInfo(d);
+  if(p)return p.fee;
   const f=num(d.f);
   if(f!==null)return f;
-  const p=promoFeeInfo(d);
-  return p?p.fee:null;
+  return null;
 }
 
 /* —— 合约承诺/在网期限识别 ——
@@ -2094,8 +2114,10 @@ const BW_BADVAL=/^(0|[-—－\/\\]|无.*|没有|否|不涉及|不限|暂无|无�
 const BW_NOTLINE=/提速|电视|IPTV|检修|装机|调测|加速|绿色上网|调优|扩容|移机|权益|营销活动|预约办理|电子券|标识|游戏宽带|无宽带|神眼/;
 const BW_ASSERT=/含宽带|宽带版|宽带包|宽带套餐|宽带融合|融合宽带|宽带流量|宽带[+＋]|单宽带|FTTR|宽带.{0,8}\d{3,4}\s*M|\d{3,4}\s*M\D{0,4}宽带|千兆宽带|光宽带|宽带.{0,4}套餐/;
 const BW_SPEED=/提速|光网|组网|FTTR/;
-const BW_DESC_LINE=/套内含宽带|包含.{0,8}\d{2,4}\s*M(?:光纤)?宽带|赠送.{0,8}\d{2,4}\s*M(?:光纤)?宽带|免费提供.{0,8}\d{2,4}\s*M(?:光纤)?宽带|\b\d{2,4}\s*M(?:光纤)?宽带|\b宽带\s*\d{2,4}\s*M|\b\d{2,4}\s*M宽带与直播电视|\b\d{2,4}\s*M宽带\+电视|与宽带一条|与广电高速宽带|单宽带|FTTR全屋光宽带|移动上网速率下行\s*\d{2,4}\s*M|移动上网速率下行\s*1\s*G/;
-const BW_SPEED_DEP=/依赖(?:中国)?(?:移动|联通|电信|广电)?宽带|仅面向.*宽带|宽带提速至|提速一档|调测费|装机服务|检修服务|预约办理|得会员|送4个季度|送4个月|打车会员|航旅纵横|宽带终端标识|神眼/;
+const BW_DESC_LINE=/套内含宽带|包含.{0,8}\d{2,4}\s*M(?:光纤)?宽带|赠送.{0,8}\d{2,4}\s*M(?:光纤)?宽带|免费提供.{0,8}\d{2,4}\s*M(?:光纤)?宽带|(?:^|[^0-9元])\d{2,4}\s*M(?:光纤)?宽带|\b宽带\s*\d{2,4}\s*M|\b\d{2,4}\s*M宽带与直播电视|\b\d{2,4}\s*M宽带\+电视|与宽带一条|与广电高速宽带|单宽带|FTTR全屋光宽带|移动上网速率下行\s*\d{2,4}\s*M|移动上网速率下行\s*1\s*G/;
+const BW_SPEED_DEP=/依赖(?:中国)?(?:移动|联通|电信|广电)?宽带|仅面向.*宽带|宽带提速至|提速一档|调测费|装机服务|检修服务|预约办理|得会员|送4个季度|送4个月|打车会员|航旅纵横|宽带终端标识|神眼|提速回馈|提速包|专属AI豆/;
+const SPEED_PACK_RE=/提速包|提速卡|提速业务|提速至|千兆提速|加速包|提速回馈|提速优惠|提速体验/;
+const REAL_LINE_RE=/含宽带|融合宽带|单宽带|宽带套餐|全家福|双百兆套餐|畅享融合/;
 
 function bwDescLine(x,n){
   if(!x)return false;
@@ -2107,30 +2129,36 @@ function bwDescLine(x,n){
 
 function bwInfo(d){
   const v=String(d.bw==null?"":d.bw).trim();
+  const n=d.n||d.t||"";
+  const isSpeedPack=SPEED_PACK_RE.test(n)&&!REAL_LINE_RE.test(n);
   /* 字段给了肯定值（含「宽带」「M」「光纤」之类）→ 采信；
-     字段自己在说提速 / 电视这类附加动作的不算（见上 ②）；空 / 「无」→ 落名称 */
-  if(v&&!BW_BADVAL.test(v)&&!BW_NOTLINE.test(v))return{t:v,src:"field"};
+     但若名称明确为提速包/提速回馈等附加动作，则不属于独立线路；空 / 「无」→ 落名称 */
+  if(v&&!BW_BADVAL.test(v)&&!BW_NOTLINE.test(v)&&!isSpeedPack)return{t:v,src:"field"};
   /* 名称只在明确说有宽带时才算线路（见上 ③），只是「提到」不算。
      2026-10-06 起 n 与 t 相同的行不再带 n 键（数据瘦身），读名称一律 n||t。 */
-  const n=d.n||d.t||"";
-  if(/宽带/.test(n)&&!BW_NOTLINE.test(n)&&BW_ASSERT.test(n))return{t:"含宽带",src:"name"};
+  if(/宽带/.test(n)&&!BW_NOTLINE.test(n)&&BW_ASSERT.test(n)&&!isSpeedPack)return{t:"含宽带",src:"name"};
   /* 描述/权益线索兜底：广电慧家系列、电信5G畅享融合等在字段为空时通过权益说明确认含宽带线路 */
   const x=d.x||"";
-  if(bwDescLine(x,n))return{t:"含宽带",src:"desc"};
+  if(bwDescLine(x,n)&&!isSpeedPack)return{t:"含宽带",src:"desc"};
   return null;
 }
 function bwSpeed(d){return BW_SPEED.test((d.n||d.t||"")+" "+(d.x||""))}
 function bwMbps(d){
   const i=bwInfo(d),sp=bwSpeed(d);
   if(!i&&!sp)return null;
-  const t=i&&i.src==="field"?String(i.t):"";
+  const rawBw=String(d.bw==null?"":d.bw).trim();
   const n=d.n||d.t||"";
   const x=d.x||"";
-  const s=t+" "+n+" "+x;
-  if(/2000\s*M|2\s*G/i.test(s))return 2000;
+  const s=rawBw+" "+n+" "+x;
+  if(/2000\s*M|2\s*G|两千兆/i.test(s))return 2000;
   if(/1500\s*M/i.test(s))return 1500;
-  if(t){
-    const ms=t.match(/\d{3,4}/g);
+  if(/1000\s*M|1\s*G|千兆/i.test(s))return 1000;
+  if(/500\s*M|五百兆/i.test(s))return 500;
+  if(/300\s*M|三百兆/i.test(s))return 300;
+  if(/200\s*M|两百兆/i.test(s))return 200;
+  if(/100\s*M|百兆/i.test(s))return 100;
+  if(rawBw){
+    const ms=rawBw.match(/\d{3,4}/g);
     if(ms)return Math.max.apply(null,ms.map(Number));
   }
   const nm=n.match(/(\d{3,4})\s*M/g);
@@ -2145,7 +2173,6 @@ function bwMbps(d){
     const nums=xm2.map(m=>{const d=m.match(/\d{3,4}/);return d?parseInt(d[0],10):0}).filter(Boolean);
     if(nums.length)return Math.max.apply(null,nums);
   }
-  if(/千兆|1\s*G/i.test(s))return 1000;
   return null;
 }
 function bwUpMbps(d){
@@ -2652,9 +2679,9 @@ const COLF_DEF={
      月费/流量/通话按**展示口径**取值（「29 元」「30GB」与单元格所见一致，
      面板清单即所见即所筛）；（空白）= 该行此字段为空 / 无 —— 与（空白）徽标同义。 */
   fee:{lab:"月费",get:d=>{
-    if(d.f!==""&&d.f!=null)return d.f+" 元";
     const p=promoFeeInfo(d);
     if(p)return "优惠 "+p.fee+" 元";
+    if(d.f!==""&&d.f!=null)return d.f+" 元";
     return "";}},
   gb:{lab:"流量",get:d=>{if(d.g!=null&&d.g!==0)return fmtGb(d.g)+(dirTrafficInfo(d)?"（含定向）":"");if(dirTrafficInfo(d))return "仅定向";return "";}},
   call:{lab:"通话",get:d=>(d.c&&d.c!=="0")?d.c+" 分钟":""},
@@ -4044,7 +4071,7 @@ function render(){
     const _sc=subCardInfo(d);
     const _dir=dirTrafficInfo(d);
     buf.push('<tr class="row'+(isNew?" isnew":"")+(d.st?" stopped":"")+'" data-i="'+i+'" data-r="'+esc(d.r||d.n||d.t||"")+'" data-k="'+esc(keyOf(NET,d))+'" tabindex="0" title="点击展开详情 / 复制" aria-expanded="false">'
-      +'<td class="fee '+feeCls(d.f)+'">'+feeHTML+'</td>'
+      +'<td class="fee '+feeCls(_promo?_promo.fee:d.f)+'">'+feeHTML+'</td>'
       +'<td class="c-gb'+(gE&&!_dir?" m0":"")+'">'+(gE?(_dir?'<span class="gb-dir" title="含官方定向/专属流量包">仅定向</span>':"—"):gT+(_dir?'<span class="gb-dir" title="含官方定向/专属流量包">含定向</span>':""))+'</td>'
       +'<td class="c-call'+(cE?" m0":"")+'">'+(cE?"—":'<span style="white-space:nowrap">'+esc(d.c)+" 分钟</span>")+'</td>'
       +'<td class="nm">'+scTag(d)+cityTag(d)+segmentTag(d)+subCardTag(d)+(_ci?'<span class="tg tg-contract">'+esc(_ci.text)+'</span>':"")+hl(rowName(d),terms)+chgTag(d)

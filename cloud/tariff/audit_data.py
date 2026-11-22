@@ -71,8 +71,10 @@ BW_NOTLINE = r"提速|电视|IPTV|检修|装机|调测|加速|绿色上网|调�
 # 2026-10-04 conformance 抓到本常量曾缺失 —— oracle 只查「宽带 in n」而页面
 # 还要求 BW_ASSERT.test(n)，多判 3 条（move bw=line 期望 128 / 实际 125）。
 BW_ASSERT = r"含宽带|宽带版|宽带包|宽带套餐|宽带融合|融合宽带|宽带流量|宽带[+＋]|单宽带|FTTR|宽带.{0,8}\d{3,4}\s*M|\d{3,4}\s*M\D{0,4}宽带|千兆宽带|光宽带|宽带.{0,4}套餐"
-BW_DESC_LINE = r"套内含宽带|包含.{0,8}\d{2,4}\s*M(?:光纤)?宽带|赠送.{0,8}\d{2,4}\s*M(?:光纤)?宽带|免费提供.{0,8}\d{2,4}\s*M(?:光纤)?宽带|\b\d{2,4}\s*M(?:光纤)?宽带|\b宽带\s*\d{2,4}\s*M|\b\d{2,4}\s*M宽带与直播电视|\b\d{2,4}\s*M宽带\+电视|与宽带一条|与广电高速宽带|单宽带|FTTR全屋光宽带|移动上网速率下行\s*\d{2,4}\s*M|移动上网速率下行\s*1\s*G"
-BW_SPEED_DEP = r"依赖(?:中国)?(?:移动|联通|电信|广电)?宽带|仅面向.*宽带|宽带提速至|提速一档|调测费|装机服务|检修服务|预约办理|得会员|送4个季度|送4个月|打车会员|航旅纵横|宽带终端标识|神眼"
+BW_DESC_LINE = r"套内含宽带|包含.{0,8}\d{2,4}\s*M(?:光纤)?宽带|赠送.{0,8}\d{2,4}\s*M(?:光纤)?宽带|免费提供.{0,8}\d{2,4}\s*M(?:光纤)?宽带|(?:^|[^0-9元])\d{2,4}\s*M(?:光纤)?宽带|\b宽带\s*\d{2,4}\s*M|\b\d{2,4}\s*M宽带与直播电视|\b\d{2,4}\s*M宽带\+电视|与宽带一条|与广电高速宽带|单宽带|FTTR全屋光宽带|移动上网速率下行\s*\d{2,4}\s*M|移动上网速率下行\s*1\s*G"
+BW_SPEED_DEP = r"依赖(?:中国)?(?:移动|联通|电信|广电)?宽带|仅面向.*宽带|宽带提速至|提速一档|调测费|装机服务|检修服务|预约办理|得会员|送4个季度|送4个月|打车会员|航旅纵横|宽带终端标识|神眼|提速回馈|提速包|专属AI豆"
+SPEED_PACK_RE = re.compile(r"提速包|提速卡|提速业务|提速至|千兆提速|加速包|提速回馈|提速优惠|提速体验")
+REAL_LINE_RE = re.compile(r"含宽带|融合宽带|单宽带|宽带套餐|全家福|双百兆套餐|畅享融合")
 
 DESC_LINE_RE = re.compile(BW_DESC_LINE)
 SPEED_DEP_RE = re.compile(BW_SPEED_DEP)
@@ -150,12 +152,13 @@ def bw_info(x):
     v = str(x.get("bw") or "").strip()
     # 2026-10-06 起 n 与 t 相同的行不再带 n（页面数据瘦身），页面读名称一律 n||t
     n = x.get("n") or x.get("t") or ""
-    if v and not BADVAL_RE.match(v) and not NOTLINE_RE.search(v):
+    is_speed_pack = bool(SPEED_PACK_RE.search(n)) and not bool(REAL_LINE_RE.search(n))
+    if v and not BADVAL_RE.match(v) and not NOTLINE_RE.search(v) and not is_speed_pack:
         return ("field", v)
-    if "宽带" in n and not NOTLINE_RE.search(n) and ASSERT_RE.search(n):
+    if "宽带" in n and not NOTLINE_RE.search(n) and ASSERT_RE.search(n) and not is_speed_pack:
         return ("name", "含宽带")
     x_desc = str(x.get("x") or "")
-    if bw_desc_line(x_desc, n):
+    if bw_desc_line(x_desc, n) and not is_speed_pack:
         return ("desc", "含宽带")
     return None
 

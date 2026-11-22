@@ -31,9 +31,11 @@ NET_NAMES = {
 BAD_VAL_RE = re.compile(r"^(0|[-—－/\\]|无.*|没有|否|不涉及|不限|暂无|无需)$")
 NOTLINE_RE = re.compile(r"提速|电视|IPTV|检修|装机|调测|加速|绿色上网|调优|扩容|移机|权益|营销活动|预约办理|电子券|标识|游戏宽带|无宽带|神眼")
 ASSERT_RE = re.compile(r"含宽带|宽带版|宽带包|宽带套餐|宽带融合|融合宽带|宽带流量|宽带[+＋]|单宽带|FTTR|宽带.{0,8}\d{3,4}\s*M|\d{3,4}\s*M\D{0,4}宽带|千兆宽带|光宽带|宽带.{0,4}套餐")
-DESC_LINE_RE = re.compile(r"套内含宽带|包含.{0,8}\d{2,4}\s*M(?:光纤)?宽带|赠送.{0,8}\d{2,4}\s*M(?:光纤)?宽带|免费提供.{0,8}\d{2,4}\s*M(?:光纤)?宽带|\b\d{2,4}\s*M(?:光纤)?宽带|\b宽带\s*\d{2,4}\s*M|\b\d{2,4}\s*M宽带与直播电视|\b\d{2,4}\s*M宽带\+电视|与宽带一条|与广电高速宽带|单宽带|FTTR全屋光宽带|移动上网速率下行\s*\d{2,4}\s*M|移动上网速率下行\s*1\s*G")
-SPEED_DEP_RE = re.compile(r"依赖(?:中国)?(?:移动|联通|电信|广电)?宽带|仅面向.*宽带|宽带提速至|提速一档|调测费|装机服务|检修服务|预约办理|得会员|送4个季度|送4个月|打车会员|航旅纵横|宽带终端标识|神眼")
+DESC_LINE_RE = re.compile(r"套内含宽带|包含.{0,8}\d{2,4}\s*M(?:光纤)?宽带|赠送.{0,8}\d{2,4}\s*M(?:光纤)?宽带|免费提供.{0,8}\d{2,4}\s*M(?:光纤)?宽带|(?:^|[^0-9元])\d{2,4}\s*M(?:光纤)?宽带|\b宽带\s*\d{2,4}\s*M|\b\d{2,4}\s*M宽带与直播电视|\b\d{2,4}\s*M宽带\+电视|与宽带一条|与广电高速宽带|单宽带|FTTR全屋光宽带|移动上网速率下行\s*\d{2,4}\s*M|移动上网速率下行\s*1\s*G")
+SPEED_DEP_RE = re.compile(r"依赖(?:中国)?(?:移动|联通|电信|广电)?宽带|仅面向.*宽带|宽带提速至|提速一档|调测费|装机服务|检修服务|预约办理|得会员|送4个季度|送4个月|打车会员|航旅纵横|宽带终端标识|神眼|提速回馈|提速包|专属AI豆")
 SPEED_RE = re.compile(r"提速|光网|组网|FTTR")
+SPEED_PACK_RE = re.compile(r"提速包|提速卡|提速业务|提速至|千兆提速|加速包|提速回馈|提速优惠|提速体验")
+REAL_LINE_RE = re.compile(r"含宽带|融合宽带|单宽带|宽带套餐|全家福|双百兆套餐|畅享融合")
 DIR_TRAFFIC_RE = re.compile(r"(?:定向流量|专属(?:网络)?流量|定向包|免流)")
 SUB_CARD_RE = re.compile(r"(?:免月费副卡|副卡0元/月)[^\d]*(\d+)\s*张?|送(?:免月费)?副卡\s*(\d+)\s*张?|可享(?:一|1)张副卡功能费优惠至0元")
 CONTRACT_RE = re.compile(r"(?:承诺在网|合约期|协议期|在网期限为|协议期限|承诺使用|协议期为)\s*(\d+)\s*(个?月|年)")
@@ -41,35 +43,44 @@ CONTRACT_RE = re.compile(r"(?:承诺在网|合约期|协议期|在网期限为|�
 
 def parse_promo_fee(d: dict) -> Tuple[Optional[float], Optional[float], bool]:
     f = d.get("f")
-    if f is not None and f != "":
+    if f is not None and str(f).strip() not in ("", "0", "0.0"):
         return None, None, False
     nm = str(d.get("n") or d.get("t") or "").strip()
     x = str(d.get("x") or "").strip()
     comb = nm + " " + x
     m = re.search(r"(?:套餐)?(?:月基本费|月费|主套餐)?(?:优惠至|降至|调整为|优惠后)\s*(\d+(?:\.\d+)?)\s*元(?:\s*/\s*(月|年))?", comb)
-    if not m:
-        return None, None, False
-    val = float(m.group(1))
-    if val <= 0:
-        return None, None, False
-    is_year = m.group(2) == "年"
-    fee = round(val / 12, 1) if is_year else val
-    m_orig = re.search(r"(\d+(?:\.\d+)?)\s*元(?:档位?|套餐)", nm)
-    orig = float(m_orig.group(1)) if m_orig else None
-    return fee, orig, True
+    if m:
+        val = float(m.group(1))
+        if val > 0:
+            is_year = m.group(2) == "年"
+            fee = round(val / 12, 1) if is_year else val
+            m_orig = re.search(r"(\d+(?:\.\d+)?)\s*元(?:档位?|套餐)", nm)
+            orig = float(m_orig.group(1)) if m_orig else None
+            return fee, orig, is_year
+    m_rate = re.search(r"(\d+(?:\.\d+)?)\s*元\s*/\s*(月|年)", nm)
+    if m_rate:
+        val = float(m_rate.group(1))
+        if val > 0:
+            is_year = m_rate.group(2) == "年"
+            fee = round(val / 12, 1) if is_year else val
+            return fee, None, is_year
+    return None, None, False
 
 
 def parse_bw_features(d: dict) -> Tuple[bool, bool, Optional[int], Optional[int]]:
     v = str(d.get("bw") or "").strip()
     n = str(d.get("n") or d.get("t") or "").strip()
     x = str(d.get("x") or "").strip()
+    comb = v + " " + n + " " + x
+
+    is_speed_pack = bool(SPEED_PACK_RE.search(n)) and not bool(REAL_LINE_RE.search(n))
 
     is_line = False
-    if v and not BAD_VAL_RE.search(v) and not NOTLINE_RE.search(v):
+    if v and not BAD_VAL_RE.search(v) and not NOTLINE_RE.search(v) and not is_speed_pack:
         is_line = True
-    elif "宽带" in n and not NOTLINE_RE.search(n) and ASSERT_RE.search(n):
+    elif "宽带" in n and not NOTLINE_RE.search(n) and ASSERT_RE.search(n) and not is_speed_pack:
         is_line = True
-    elif x:
+    elif x and not is_speed_pack:
         dep = bool(SPEED_DEP_RE.search(x) or SPEED_DEP_RE.search(n))
         if dep:
             if re.search(r"套内含宽带|与宽带一条|与广电高速宽带|5G畅享融合", x + " " + n):
@@ -77,20 +88,38 @@ def parse_bw_features(d: dict) -> Tuple[bool, bool, Optional[int], Optional[int]
         elif DESC_LINE_RE.search(x):
             is_line = True
 
-    is_speedup = bool(SPEED_RE.search(n) or SPEED_RE.search(x))
+    is_speedup = bool(SPEED_RE.search(n) or SPEED_RE.search(x)) or is_speed_pack
 
     mb = None
-    comb = n + " " + x + " " + v
-    m_mb = re.search(r"(?:下行)?速率\s*(\d{2,4})\s*M|(\d{2,4})\s*M(?:光纤)?宽带|宽带\s*(\d{2,4})\s*M|宽带.{0,8}?(\d{2,4})\s*M|(\d{1,2})\s*G(?:光纤)?宽带|宽带\s*(\d{1,2})\s*G", comb)
-    if m_mb:
-        g1, g2, g3, g4, g5, g6 = m_mb.groups()
-        if g5 or g6:
-            mb = int(g5 or g6) * 1000
-        else:
-            mb = int(g1 or g2 or g3 or g4)
+    if re.search(r"2000\s*M|2\s*G|两千兆", comb, re.I):
+        mb = 2000
+    elif re.search(r"1500\s*M", comb, re.I):
+        mb = 1500
+    elif re.search(r"1000\s*M|1\s*G|千兆", comb, re.I):
+        mb = 1000
+    elif re.search(r"500\s*M|五百兆", comb, re.I):
+        mb = 500
+    elif re.search(r"300\s*M|三百兆", comb, re.I):
+        mb = 300
+    elif re.search(r"200\s*M|两百兆", comb, re.I):
+        mb = 200
+    elif re.search(r"100\s*M|百兆", comb, re.I):
+        mb = 100
+    elif v:
+        ms = re.findall(r"\d{3,4}", v)
+        if ms:
+            mb = max(int(m) for m in ms)
+    if mb is None:
+        nm = re.findall(r"(\d{3,4})\s*M", n, re.I)
+        if nm:
+            mb = max(int(m) for m in nm)
+    if mb is None:
+        xm = re.findall(r"(?:下行|宽带|速率|提速至|包含|赠送)\D{0,6}(\d{3,4})\s*M", x, re.I)
+        if xm:
+            mb = max(int(m) for m in xm)
 
     up = None
-    m_up = re.search(r"(?:上行速率|上行带宽|上行)\s*(\d{2,4})\s*(?:M|Mbps)", comb)
+    m_up = re.search(r"(?:上行(?:速率)?|↑)\s*(?:为|达到)?\s*(\d+)\s*(?:M|Mbps)", comb, re.I)
     if m_up:
         up = int(m_up.group(1))
 
