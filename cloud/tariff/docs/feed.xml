@@ -5,6 +5,54 @@
 <description>河北移动/联通/电信/广电资费目录每日巡检捕获的业务变更（新增 / 下线 / 字段变更）</description>
 <language>zh-CN</language>
 <item>
+<title>2026-11-24 河北电信：变更 13</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-11-24.md</link>
+<category>变更</category>
+<guid isPermaLink="false">2026-11-24-telecom</guid>
+<pubDate>Tue, 24 Nov 2026 13:17:27 +0800</pubDate>
+<description>2026-11-24 河北电信：变更 13
+± 299元FTTR调测包
+± 5G体验10元副卡功能费201907
+± FTTR月付30元（连续包月）
+± 一次性装机工料费-99元
+± 云U盘(天翼云盘PC挂载)</description>
+</item>
+<item>
+<title>2026-11-24 中国广电：变更 1</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/cbn-2026-11-24.md</link>
+<category>变更</category>
+<guid isPermaLink="false">2026-11-24-cbn</guid>
+<pubDate>Tue, 24 Nov 2026 13:17:26 +0800</pubDate>
+<description>2026-11-24 中国广电：变更 1
+± 25版高校校园年套餐促销</description>
+</item>
+<item>
+<title>2026-11-24 河北联通：新增 1 · 变更 13</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-11-24.md</link>
+<category>新增</category><category>变更</category>
+<guid isPermaLink="false">2026-11-24-unicom</guid>
+<pubDate>Tue, 24 Nov 2026 13:19:45 +0800</pubDate>
+<description>2026-11-24 河北联通：新增 1 · 变更 13
+＋ 固网视频彩铃政企基础版8元包月-2
+± 企业版增值视频电话语音包固网2500元/年-立即生效
+± 企业版增值视频电话语音包固网2500元/年-立即生效
+± 会议视频电话（VoLte功能）模块5700元/年
+± 会议视频电话（VoLte功能）模块5700元/年</description>
+</item>
+<item>
+<title>2026-11-24 河北移动：新增 1 · 变更 9</title>
+<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-11-24.md</link>
+<category>新增</category><category>变更</category>
+<guid isPermaLink="false">2026-11-24-move</guid>
+<pubDate>Tue, 24 Nov 2026 13:18:33 +0800</pubDate>
+<description>2026-11-24 河北移动：新增 1 · 变更 9
+＋ 邢台咪咕双剧畅享包（24期）
+± 中国移动安全管家升级版会员季卡
+± 新通话-点亮屏幕AI万变包
+± 新通话-点亮屏幕绘影AI包
+± 统一营销流量日包-1GB</description>
+</item>
+<item>
 <title>2026-11-22 河北移动：下线 1</title>
 <link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-11-22.md</link>
 <category>下线</category>
@@ -677,55 +725,5 @@
 ± 双百套餐2.0
 ± 双百套餐2.0MAX
 ± 双百套餐2.0PLUS</description>
-</item>
-<item>
-<title>2026-10-31 河北联通：新增 1 · 下线 2 · 变更 8</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/unicom-2026-10-31.md</link>
-<category>新增</category><category>下线</category><category>变更</category>
-<guid isPermaLink="false">2026-10-31-unicom</guid>
-<pubDate>Sat, 31 Oct 2026 08:47:58 +0800</pubDate>
-<description>2026-10-31 河北联通：新增 1 · 下线 2 · 变更 8
-＋ 积分狂欢爆款秒杀
-－ 2023年12月河北省校园专属存费送流量合约存100元送50G流量（3个月）[全渠道]
-－ 畅越感知提升专享赠费10元/月（河北）-次月生效
-± 129元联通智家5G终端套餐存1386元送1386元电子券智家版合约36个月（河北）-次月生效
-± 169元联通智家5G终端套餐存1818元送1818元电子券智家版合约36个月（河北）-次月生效</description>
-</item>
-<item>
-<title>2026-10-31 河北移动：新增 30 · 下线 1 · 变更 11</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/2026-10-31.md</link>
-<category>新增</category><category>下线</category><category>变更</category>
-<guid isPermaLink="false">2026-10-31-move</guid>
-<pubDate>Sat, 31 Oct 2026 08:44:41 +0800</pubDate>
-<description>2026-10-31 河北移动：新增 30 · 下线 1 · 变更 11
-＋ 台灯版摄像头服务-冀享专属
-＋ 台灯版摄像头服务（预存100）-冀享专属
-＋ 带屏台灯版摄像头服务-冀享专属
-＋ 带屏台灯版摄像头服务（预存100）-冀享专属
-＋ 100GB流量包（1个月）</description>
-</item>
-<item>
-<title>2026-10-30 河北电信：下线 182 · 变更 39</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/ct-2026-10-30.md</link>
-<category>下线</category><category>变更</category>
-<guid isPermaLink="false">2026-10-30-telecom</guid>
-<pubDate>Fri, 30 Oct 2026 08:51:00 +0800</pubDate>
-<description>2026-10-30 河北电信：下线 182 · 变更 39
-－ 0元自主漫游换卡权益包
-－ 0元50MB1日 国漫业务促销 流量包
-－ 10元100MB俄罗斯流量包
-－ 10元100MB加拿大流量包
-± 5G畅享59元套餐</description>
-</item>
-<item>
-<title>2026-10-30 中国广电：变更 3</title>
-<link>https://github.com/starrry365/hebei-tariff-monitor/blob/main/cloud/tariff/changes/cbn-2026-10-30.md</link>
-<category>变更</category>
-<guid isPermaLink="false">2026-10-30-cbn</guid>
-<pubDate>Fri, 30 Oct 2026 08:50:51 +0800</pubDate>
-<description>2026-10-30 中国广电：变更 3
-± 国内流量月包19元
-± 双百套餐2.0MAX
-± 用户回馈活动</description>
 </item>
 </channel></rss>
